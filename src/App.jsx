@@ -6,6 +6,8 @@ import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
+import ScoutingForm from './components/ScoutingForm'
+import TasksView from './components/TasksView'
 
 const COLUMNS = [
   { id: 'todo', title: 'To Do', color: 'bg-pastel-blue' },
@@ -15,23 +17,39 @@ const COLUMNS = [
   { id: 'done', title: 'Done', color: 'bg-pastel-blue' },
 ]
 
-const DEFAULT_TABS = [
-  { id: 'main', name: 'Main Board' },
+const SCOUTING_TAB = { id: 'scouting', name: 'Scouting', type: 'scouting' }
+
+const BOARDS_TAB = { id: 'boards', name: 'Boards', type: 'boards' }
+
+const DATA_TAB = { id: 'data', name: 'Data', type: 'data' }
+
+const AI_TAB = { id: 'ai-manual', name: 'AI Manual', type: 'ai-manual' }
+
+const CHAT_TAB = { id: 'quick-chat', name: 'Quick Chat', type: 'quick-chat' }
+
+const TASKS_TAB = { id: 'tasks', name: 'Tasks', type: 'tasks' }
+
+const PERMANENT_BOARDS = [
+  { id: 'business', name: 'Business', permanent: true },
+  { id: 'technical', name: 'Technical', permanent: true },
+  { id: 'programming', name: 'Programming', permanent: true },
 ]
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState(() => {
     const saved = localStorage.getItem('scrum-tabs')
-    return saved ? JSON.parse(saved) : DEFAULT_TABS
+    const userTabs = saved ? JSON.parse(saved) : []
+    const withoutSystem = userTabs.filter(t => t.id !== 'scouting' && t.id !== 'boards' && t.id !== 'data' && t.id !== 'ai-manual' && t.id !== 'quick-chat' && t.id !== 'tasks' && !PERMANENT_BOARDS.some(pb => pb.id === t.id))
+    return [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, ...PERMANENT_BOARDS, ...withoutSystem]
   })
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
-    return saved || 'main'
+    return saved || 'business'
   })
   const [tasksByTab, setTasksByTab] = useState(() => {
     const saved = localStorage.getItem('scrum-tasks')
-    return saved ? JSON.parse(saved) : { main: [] }
+    return saved ? JSON.parse(saved) : { business: [], technical: [], programming: [] }
   })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
@@ -42,7 +60,7 @@ function App() {
     const saved = localStorage.getItem('scrum-tasks')
     if (!saved) {
       loadTasksFromCSV().then(tasks => {
-        setTasksByTab({ main: tasks })
+        setTasksByTab({ business: tasks, technical: [], programming: [] })
       })
     }
   }, [])
@@ -80,6 +98,8 @@ function App() {
   }
 
   const handleDeleteTab = (tabId) => {
+    if (tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks') return
+    if (PERMANENT_BOARDS.some(pb => pb.id === tabId)) return
     if (tabs.length <= 1) return
     setTabs(prev => prev.filter(t => t.id !== tabId))
     setTasksByTab(prev => {
@@ -88,7 +108,7 @@ function App() {
       return updated
     })
     if (activeTab === tabId) {
-      setActiveTab(tabs.find(t => t.id !== tabId)?.id || 'main')
+      setActiveTab(tabs.find(t => t.id !== tabId)?.id || 'business')
     }
   }
 
@@ -183,6 +203,17 @@ function App() {
       />
 
       {/* Main Content */}
+      {activeTab === 'scouting' ? (
+        <ScoutingForm />
+      ) : activeTab === 'tasks' ? (
+        <TasksView tasksByTab={tasksByTab} tabs={tabs} />
+      ) : activeTab === 'data' || activeTab === 'ai-manual' || activeTab === 'quick-chat' ? (
+        <div className="flex-1 flex items-center justify-center min-w-0">
+          <p className="text-xl font-semibold text-gray-500 text-center px-4">
+            KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
+          </p>
+        </div>
+      ) : (
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -279,6 +310,7 @@ function App() {
           </DragDropContext>
         </main>
       </div>
+      )}
 
       {/* Add/Edit Task Modal */}
       {(isModalOpen || editingTask) && (
