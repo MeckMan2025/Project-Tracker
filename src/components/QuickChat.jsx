@@ -182,7 +182,7 @@ function QuickChat() {
                       {isOwn && (
                         <button
                           onClick={() => handleDelete(msg.id)}
-                          className="absolute -top-2 -right-2 p-1 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                          className="absolute -top-2 -right-2 p-1 rounded-full bg-white shadow-md opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-red-50"
                           title="Delete message"
                         >
                           <Trash2 size={12} className="text-gray-400 hover:text-red-400" />
