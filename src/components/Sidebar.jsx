@@ -166,11 +166,14 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      onDeleteTab(tab.id)
+                      e.preventDefault()
+                      if (confirm(`Delete "${tab.name}" board?`)) {
+                        onDeleteTab(tab.id)
+                      }
                     }}
-                    className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
+                    className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={16} />
                   </button>
                 )}
               </div>
