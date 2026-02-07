@@ -168,7 +168,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                       e.stopPropagation()
                       onDeleteTab(tab.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
+                    className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
                   >
                     <Trash2 size={12} />
                   </button>

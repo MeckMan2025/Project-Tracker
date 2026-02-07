@@ -214,9 +214,7 @@ function App() {
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
-    await supabase.from('tasks').delete().eq('board_id', tabId)
-    await supabase.from('boards').delete().eq('id', tabId)
-
+    // Update UI immediately
     setTabs(prev => prev.filter(t => t.id !== tabId))
     setTasksByTab(prev => {
       const updated = { ...prev }
@@ -225,6 +223,14 @@ function App() {
     })
     if (activeTab === tabId) {
       setActiveTab('business')
+    }
+
+    // Then persist to Supabase
+    try {
+      await supabase.from('tasks').delete().eq('board_id', tabId)
+      await supabase.from('boards').delete().eq('id', tabId)
+    } catch (err) {
+      console.error('Error deleting board:', err)
     }
   }
 
