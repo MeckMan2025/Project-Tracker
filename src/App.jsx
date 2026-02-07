@@ -37,6 +37,12 @@ const SUGGESTIONS_TAB = { id: 'suggestions', name: 'Suggestions', type: 'suggest
 const CALENDAR_TAB = { id: 'calendar', name: 'Calendar', type: 'calendar' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
 
+const DEFAULT_BOARDS = [
+  { id: 'business', name: 'Business', permanent: true },
+  { id: 'technical', name: 'Technical', permanent: true },
+  { id: 'programming', name: 'Programming', permanent: true },
+]
+
 const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, ATTENDANCE_TAB]
 
 const mapTask = (t) => ({
@@ -54,7 +60,7 @@ function App() {
   const { username, isLead } = useUser()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
-  const [tabs, setTabs] = useState([...SYSTEM_TABS])
+  const [tabs, setTabs] = useState([...SYSTEM_TABS, ...DEFAULT_BOARDS])
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
     return saved || 'business'
@@ -83,7 +89,9 @@ function App() {
           name: b.name,
           permanent: b.permanent,
         }))
-        setTabs([...SYSTEM_TABS, ...boardTabs])
+        const defaultIds = DEFAULT_BOARDS.map(b => b.id)
+        const extra = boardTabs.filter(b => !defaultIds.includes(b.id))
+        setTabs([...SYSTEM_TABS, ...DEFAULT_BOARDS, ...extra])
       }
 
       // Load tasks
