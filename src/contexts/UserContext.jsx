@@ -44,20 +44,22 @@ export function UserProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return
-      if (session?.user) {
-        setUser(session.user)
-        const profile = await fetchProfile(session.user.id)
-        if (mounted) {
-          applyProfile(profile)
+    async function init() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!mounted) return
+        if (session?.user) {
+          setUser(session.user)
+          const profile = await fetchProfile(session.user.id)
+          if (mounted) applyProfile(profile)
         }
+      } catch (err) {
+        console.error('Failed to restore session:', err)
       }
-    }).catch((err) => {
-      console.error('Failed to restore session:', err.message)
-    }).finally(() => {
       if (mounted) setLoading(false)
-    })
+    }
+
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -72,9 +74,15 @@ export function UserProvider({ children }) {
       }
     )
 
+    // Safety fallback — never stay on loading screen forever
+    const timeout = setTimeout(() => {
+      if (mounted) setLoading(false)
+    }, 5000)
+
     return () => {
       mounted = false
       subscription.unsubscribe()
+      clearTimeout(timeout)
     }
   }, [])
 
