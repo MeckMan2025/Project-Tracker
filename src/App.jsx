@@ -373,7 +373,27 @@ function App() {
         <TasksView tasksByTab={tasksByTab} tabs={tabs} />
       ) : activeTab === 'quick-chat' ? (
         <QuickChat />
-      ) : activeTab === 'data' || activeTab === 'ai-manual' ? (
+      ) : activeTab === 'ai-manual' ? (
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0 gap-6 p-4">
+          <div className="text-center">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent mb-2">
+              AI Manual
+            </h1>
+            <p className="text-gray-500">Ask questions about the FTC Competition Manual</p>
+          </div>
+          <a
+            href="https://ftc-cmchatbot.firstinspires.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-3 bg-pastel-pink hover:bg-pastel-pink-dark rounded-xl font-semibold text-gray-700 shadow-md transition-colors text-lg"
+          >
+            Open FTC AI Chatbot
+          </a>
+          <p className="text-xs text-gray-400 text-center max-w-sm">
+            Powered by FIRST. Trained on the current Competition Manual — always verify answers against the official manual.
+          </p>
+        </div>
+      ) : activeTab === 'data' ? (
         <div className="flex-1 flex items-center justify-center min-w-0">
           <p className="text-xl font-semibold text-gray-500 text-center px-4">
             KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
