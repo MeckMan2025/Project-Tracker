@@ -6,10 +6,13 @@ import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
+import LoginScreen from './components/LoginScreen'
 import ScoutingForm from './components/ScoutingForm'
 import TasksView from './components/TasksView'
 import QuickChat from './components/QuickChat'
 import OrgChart from './components/OrgChart'
+import { useUser } from './contexts/UserContext'
+import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
 
 const COLUMNS = [
@@ -32,6 +35,8 @@ const ORG_TAB = { id: 'org-chart', name: 'Org Chart', type: 'org-chart' }
 const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB]
 
 function App() {
+  const { username, isLead } = useUser()
+  const onlineUsers = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState([...SYSTEM_TABS])
   const [activeTab, setActiveTab] = useState(() => {
@@ -351,10 +356,15 @@ function App() {
     }
   }
 
+  const canDragTask = (task) => {
+    if (isLead) return true
+    return task.assignee && task.assignee.toLowerCase() === username.toLowerCase()
+  }
+
   return (
     <>
       {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-    <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex">
+    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex ${isLoading ? 'hidden' : ''}`}>
       {/* Sidebar */}
       <Sidebar
         tabs={tabs}
@@ -367,6 +377,8 @@ function App() {
         isPlaying={isPlaying}
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
+        onlineUsers={onlineUsers}
+        isLead={isLead}
       />
 
       {/* Main Content */}
@@ -418,16 +430,18 @@ function App() {
               </div>
             </div>
             <div className="flex gap-2">
-              <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">
-                <Upload size={18} />
-                <span className="hidden sm:inline">Import</span>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleImport}
-                  className="hidden"
-                />
-              </label>
+              {isLead && (
+                <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">
+                  <Upload size={18} />
+                  <span className="hidden sm:inline">Import</span>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleImport}
+                    className="hidden"
+                  />
+                </label>
+              )}
               <button
                 onClick={handleExport}
                 className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-orange hover:bg-pastel-orange-dark rounded-lg transition-colors"
@@ -435,13 +449,15 @@ function App() {
                 <Download size={18} />
                 <span className="hidden sm:inline">Export</span>
               </button>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors"
-              >
-                <Plus size={18} />
-                <span className="hidden sm:inline">Add Task</span>
-              </button>
+              {isLead && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors"
+                >
+                  <Plus size={18} />
+                  <span className="hidden sm:inline">Add Task</span>
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -474,6 +490,7 @@ function App() {
                             key={task.id}
                             draggableId={task.id}
                             index={index}
+                            isDragDisabled={!canDragTask(task)}
                           >
                             {(provided, snapshot) => (
                               <div
@@ -486,6 +503,7 @@ function App() {
                                   isDragging={snapshot.isDragging}
                                   onEdit={() => setEditingTask(task)}
                                   onDelete={() => handleDeleteTask(task.id)}
+                                  isLead={isLead}
                                 />
                               </div>
                             )}

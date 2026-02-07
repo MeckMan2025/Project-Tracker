@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Trash2, User } from 'lucide-react'
+import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
+import { useUser } from '../contexts/UserContext'
 
 const SENDER_COLORS = [
   { bg: '#FFCAD4', name: '#F4A3B5' }, // pastel pink
@@ -17,9 +18,7 @@ function getSenderColor(sender) {
 }
 
 function QuickChat() {
-  const [username, setUsername] = useState(() => localStorage.getItem('chat-username') || '')
-  const [isSettingName, setIsSettingName] = useState(() => !localStorage.getItem('chat-username'))
-  const [nameInput, setNameInput] = useState('')
+  const { username } = useUser()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const messagesEndRef = useRef(null)
@@ -87,15 +86,6 @@ function QuickChat() {
     scrollToBottom()
   }, [messages])
 
-  const handleSetName = (e) => {
-    e.preventDefault()
-    if (!nameInput.trim()) return
-    const name = nameInput.trim()
-    localStorage.setItem('chat-username', name)
-    setUsername(name)
-    setIsSettingName(false)
-  }
-
   const handleSend = async (e) => {
     e.preventDefault()
     if (!newMessage.trim()) return
@@ -141,30 +131,6 @@ function QuickChat() {
     return groups
   }, {})
 
-  if (isSettingName) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-w-0">
-        <form onSubmit={handleSetName} className="bg-white rounded-xl shadow-lg p-6 w-72 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-700 text-center">What's your name?</h2>
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Enter your name"
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="w-full py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg font-medium transition-colors"
-          >
-            Join Chat
-          </button>
-        </form>
-      </div>
-    )
-  }
-
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
@@ -179,17 +145,8 @@ function QuickChat() {
             </h1>
             <p className="text-sm text-gray-500">Logged in as {username}</p>
           </div>
-          {/* Change name button */}
-          <button
-            onClick={() => {
-              setIsSettingName(true)
-              setNameInput(username)
-            }}
-            className="p-2 hover:bg-pastel-blue/30 rounded-lg transition-colors shrink-0"
-            title="Change name"
-          >
-            <User size={18} className="text-gray-500" />
-          </button>
+          {/* Spacer to balance header */}
+          <div className="w-10 shrink-0" />
         </div>
       </header>
 

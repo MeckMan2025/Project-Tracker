@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause } from 'lucide-react'
+import { useUser } from '../contexts/UserContext'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isLead }) {
+  const { logout } = useUser()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -82,6 +84,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                       key={label}
                       onClick={() => {
                         setMenuOpen(false)
+                        if (label === 'Logout') {
+                          logout()
+                          return
+                        }
                         if (tab) {
                           onTabChange(tab)
                           onToggle()
@@ -157,7 +163,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     />
                     <span className="truncate">{tab.name}</span>
                   </div>
-                  {!tab.permanent && (
+                  {isLead && !tab.permanent && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -172,46 +178,48 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               ))}
 
               {/* Add Board button */}
-              <div className="pt-1">
-                {isAdding ? (
-                  <form onSubmit={handleAddTab} className="space-y-2 px-2">
-                    <input
-                      type="text"
-                      value={newTabName}
-                      onChange={(e) => setNewTabName(e.target.value)}
-                      placeholder="Board name"
-                      className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                      autoFocus
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsAdding(false)
-                          setNewTabName('')
-                        }}
-                        className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
-                      >
-                        Create
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <button
-                    onClick={() => setIsAdding(true)}
-                    className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
-                  >
-                    <Plus size={14} />
-                    Add Board
-                  </button>
-                )}
-              </div>
+              {isLead && (
+                <div className="pt-1">
+                  {isAdding ? (
+                    <form onSubmit={handleAddTab} className="space-y-2 px-2">
+                      <input
+                        type="text"
+                        value={newTabName}
+                        onChange={(e) => setNewTabName(e.target.value)}
+                        placeholder="Board name"
+                        className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAdding(false)
+                            setNewTabName('')
+                          }}
+                          className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => setIsAdding(true)}
+                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
+                    >
+                      <Plus size={14} />
+                      Add Board
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -321,6 +329,21 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Engineering Notebook</span>
           </div>
         </nav>
+
+        {/* Online Now */}
+        {onlineUsers && onlineUsers.length > 0 && (
+          <div className="px-4 py-3 border-t">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Online Now</h3>
+            <div className="space-y-1.5">
+              {onlineUsers.map((user) => (
+                <div key={user.username} className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                  <span className="truncate">{user.username}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Music control */}
         {musicStarted && (
