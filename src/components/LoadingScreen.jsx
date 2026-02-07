@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-function LoadingScreen({ onComplete }) {
+function LoadingScreen({ onComplete, onMusicStart }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
@@ -22,24 +22,13 @@ function LoadingScreen({ onComplete }) {
       audio.volume = 1
       audioRef.current = audio
       audio.play().catch(() => {})
+      onMusicStart(audio)
       return
     }
 
-    // Second tap: fade out screen and audio
+    // Second tap: fade out screen (audio keeps playing)
     if (isFading) return
     setIsFading(true)
-
-    const audio = audioRef.current
-    if (audio) {
-      const fadeInterval = setInterval(() => {
-        if (audio.volume > 0.05) {
-          audio.volume = Math.max(0, audio.volume - 0.05)
-        } else {
-          audio.pause()
-          clearInterval(fadeInterval)
-        }
-      }, 25)
-    }
 
     setTimeout(() => {
       setIsVisible(false)
