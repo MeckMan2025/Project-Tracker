@@ -105,13 +105,46 @@ CREATE POLICY "Allow all on profiles" ON profiles
 -- After leads sign up, run this to grant lead role:
 -- UPDATE profiles SET role = 'lead' WHERE display_name IN ('Kayden', 'Yukti', 'Nick', 'Harshita', 'Lily');
 
--- 8. ENABLE REALTIME on all tables
+-- 8. APPROVED EMAILS TABLE (whitelist for signup)
+CREATE TABLE IF NOT EXISTS approved_emails (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  email text UNIQUE NOT NULL,
+  role text DEFAULT 'member',
+  added_by uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE approved_emails ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read the whitelist (anon key needs this for pre-signup check)
+DROP POLICY IF EXISTS "Allow read access to approved_emails" ON approved_emails;
+CREATE POLICY "Allow read access to approved_emails" ON approved_emails
+  FOR SELECT USING (true);
+
+-- Only leads can add/edit/remove whitelist entries
+DROP POLICY IF EXISTS "Leads can manage approved_emails" ON approved_emails;
+CREATE POLICY "Leads can manage approved_emails" ON approved_emails
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.role = 'lead'
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.role = 'lead'
+    )
+  );
+
+-- 9. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

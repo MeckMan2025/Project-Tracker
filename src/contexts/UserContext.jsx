@@ -23,6 +23,17 @@ export function UserProvider({ children }) {
     return data
   }
 
+  const checkWhitelist = async (email) => {
+    const { data, error } = await supabase
+      .from('approved_emails')
+      .select('email, role')
+      .eq('email', email.toLowerCase().trim())
+      .single()
+
+    if (error || !data) return null
+    return data
+  }
+
   const applyProfile = (profile) => {
     if (profile) {
       setUsername(profile.display_name)
@@ -95,7 +106,7 @@ export function UserProvider({ children }) {
     return data
   }
 
-  const signup = async (email, password, displayName) => {
+  const signup = async (email, password, displayName, role = 'member') => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -107,7 +118,7 @@ export function UserProvider({ children }) {
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         display_name: displayName,
-        role: 'member',
+        role: role,
       })
       if (profileError) {
         console.error('Failed to create profile:', profileError.message)
@@ -123,7 +134,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, user, loading, login, signup, logout }}
+      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist }}
     >
       {children}
     </UserContext.Provider>
