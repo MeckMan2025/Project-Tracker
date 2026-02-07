@@ -140,88 +140,84 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Boards</span>
           </div>
 
-          {/* Sub-boards (only visible when a board is active) */}
-          {isBoardActive && (
-            <div className="ml-4 mt-1 space-y-1">
-              {boardTabs.map((tab) => (
-                <div
-                  key={tab.id}
-                  className={`group flex items-center justify-between px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                    activeTab === tab.id
-                      ? 'bg-pastel-blue/40 text-gray-800'
-                      : 'hover:bg-pastel-blue/20 text-gray-500'
-                  }`}
-                  onClick={() => {
-                    onTabChange(tab.id)
-                    onToggle()
-                  }}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <ChevronRight
-                      size={14}
-                      className={`transition-transform ${activeTab === tab.id ? 'rotate-90' : ''}`}
-                    />
-                    <span className="truncate">{tab.name}</span>
-                  </div>
-                  {isLead && !tab.permanent && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteTab(tab.id)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  )}
+          {/* Sub-boards */}
+          <div className="ml-4 mt-1 space-y-1">
+            {boardTabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={`group flex items-center justify-between px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === tab.id
+                    ? 'bg-pastel-blue/40 text-gray-800'
+                    : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => {
+                  onTabChange(tab.id)
+                  onToggle()
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <ChevronRight
+                    size={14}
+                    className={`transition-transform ${activeTab === tab.id ? 'rotate-90' : ''}`}
+                  />
+                  <span className="truncate">{tab.name}</span>
                 </div>
-              ))}
+                {!tab.permanent && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteTab(tab.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
 
-              {/* Add Board button */}
-              {isLead && (
-                <div className="pt-1">
-                  {isAdding ? (
-                    <form onSubmit={handleAddTab} className="space-y-2 px-2">
-                      <input
-                        type="text"
-                        value={newTabName}
-                        onChange={(e) => setNewTabName(e.target.value)}
-                        placeholder="Board name"
-                        className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsAdding(false)
-                            setNewTabName('')
-                          }}
-                          className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
-                        >
-                          Create
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
+            {/* Add Board button */}
+            <div className="pt-1">
+              {isAdding ? (
+                <form onSubmit={handleAddTab} className="space-y-2 px-2">
+                  <input
+                    type="text"
+                    value={newTabName}
+                    onChange={(e) => setNewTabName(e.target.value)}
+                    placeholder="Board name"
+                    className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => setIsAdding(true)}
-                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
+                      type="button"
+                      onClick={() => {
+                        setIsAdding(false)
+                        setNewTabName('')
+                      }}
+                      className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
                     >
-                      <Plus size={14} />
-                      Add Board
+                      Cancel
                     </button>
-                  )}
-                </div>
+                    <button
+                      type="submit"
+                      className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
+                    >
+                      Create
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
+                >
+                  <Plus size={14} />
+                  Add Board
+                </button>
               )}
             </div>
-          )}
+          </div>
 
           <hr className="my-2 border-gray-200" />
 
