@@ -8,6 +8,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [boardsOpen, setBoardsOpen] = useState(false)
+  const [dataOpen, setDataOpen] = useState(false)
 
   const handleAddTab = (e) => {
     e.preventDefault()
@@ -239,16 +240,19 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
             onClick={() => {
-              onTabChange('data')
-              onToggle()
+              setDataOpen(prev => !prev)
             }}
           >
             <LineChart size={16} className="text-pastel-blue-dark" />
-            <span className="truncate">Data</span>
+            <span className="truncate flex-1">Data</span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' ? 'rotate-90' : ''}`}
+            />
           </div>
 
           {/* Data sub-items */}
-          {(activeTab === 'data' || activeTab === 'attendance') && (
+          {(dataOpen || activeTab === 'data' || activeTab === 'attendance') && (
             <div className="ml-4 mt-1 space-y-1">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
