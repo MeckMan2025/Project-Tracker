@@ -89,35 +89,46 @@ function UserManagement() {
   }
 
   const handleBulkImport = async () => {
-    const lines = bulkText.split('\n').map(l => l.trim().toLowerCase()).filter(l => l && l.includes('@'))
-    if (lines.length === 0) return
-    setError('')
-
-    const entries = lines.map(email => ({
-      email,
-      role: 'member',
-      added_by: user.id,
-    }))
-
-    const { data, error: upsertError } = await supabase
-      .from('approved_emails')
-      .upsert(entries, { onConflict: 'email', ignoreDuplicates: true })
-      .select()
-
-    if (upsertError) {
-      setError(upsertError.message)
+    // Split on newlines, commas, semicolons, or spaces to handle any format
+    const lines = bulkText
+      .split(/[\n,;\s]+/)
+      .map(l => l.trim().toLowerCase())
+      .filter(l => l && l.includes('@'))
+    if (lines.length === 0) {
+      setError('No valid emails found. Paste emails separated by newlines, commas, or spaces.')
       return
     }
+    setError('')
 
-    if (data) {
-      setWhitelistedEmails(prev => {
-        const existing = new Set(prev.map(e => e.email))
-        const newEntries = data.filter(e => !existing.has(e.email))
-        return [...newEntries, ...prev]
-      })
+    // Insert one at a time to avoid upsert issues with RLS
+    let added = []
+    let failed = 0
+    for (const email of lines) {
+      const { data, error: insertError } = await supabase
+        .from('approved_emails')
+        .insert({ email, role: 'member', added_by: user.id })
+        .select()
+        .single()
+
+      if (insertError) {
+        failed++
+      } else if (data) {
+        added.push(data)
+      }
     }
-    setBulkText('')
-    setShowBulkImport(false)
+
+    if (added.length > 0) {
+      setWhitelistedEmails(prev => [...added, ...prev])
+    }
+
+    if (failed > 0 && added.length > 0) {
+      setError(`Added ${added.length} emails. ${failed} skipped (duplicates or errors).`)
+    } else if (failed > 0 && added.length === 0) {
+      setError(`All ${failed} emails were already on the whitelist or failed to add.`)
+    } else {
+      setBulkText('')
+      setShowBulkImport(false)
+    }
   }
 
   const handleChangeRole = async (memberId, role) => {
@@ -127,7 +138,7 @@ function UserManagement() {
     }
   }
 
-  const bulkCount = bulkText.split('\n').filter(l => l.trim() && l.includes('@')).length
+  const bulkCount = bulkText.split(/[\n,;\s]+/).filter(l => l.trim() && l.includes('@')).length
 
   const roleBadge = (role) => {
     const colors = {
