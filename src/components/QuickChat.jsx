@@ -50,8 +50,10 @@ function QuickChat() {
       const { data } = await supabase
         .from('messages')
         .select('*')
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(100)
       if (data) {
+        data.reverse()
         setMessages(data)
         markMessagesAsSeen(data)
       }

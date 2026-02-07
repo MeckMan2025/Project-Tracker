@@ -39,9 +39,20 @@ const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance
 
 const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, ATTENDANCE_TAB]
 
+const mapTask = (t) => ({
+  id: t.id,
+  title: t.title,
+  description: t.description,
+  assignee: t.assignee,
+  dueDate: t.due_date,
+  status: t.status,
+  skills: t.skills || [],
+  createdAt: t.created_at,
+})
+
 function App() {
   const { username, isLead } = useUser()
-  const onlineUsers = usePresence(username)
+  const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState([...SYSTEM_TABS])
   const [activeTab, setActiveTab] = useState(() => {
@@ -87,16 +98,7 @@ function App() {
         }
         tasks.forEach(t => {
           if (!grouped[t.board_id]) grouped[t.board_id] = []
-          grouped[t.board_id].push({
-            id: t.id,
-            title: t.title,
-            description: t.description,
-            assignee: t.assignee,
-            dueDate: t.due_date,
-            status: t.status,
-            skills: t.skills || [],
-            createdAt: t.created_at,
-          })
+          grouped[t.board_id].push(mapTask(t))
         })
         setTasksByTab(grouped)
       }
@@ -107,51 +109,62 @@ function App() {
     loadData()
   }, [])
 
-  // Real-time: listen for board changes
+  // Real-time: listen for board changes (use payload, no re-query)
   useEffect(() => {
     const channel = supabase
       .channel('boards-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, async () => {
-        const { data: boards } = await supabase.from('boards').select('*').order('created_at')
-        if (boards) {
-          const boardTabs = boards.map(b => ({
-            id: b.id,
-            name: b.name,
-            permanent: b.permanent,
-          }))
-          setTabs([...SYSTEM_TABS, ...boardTabs])
-        }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'boards' }, (payload) => {
+        const b = payload.new
+        setTabs(prev => {
+          if (prev.some(t => t.id === b.id)) return prev
+          return [...prev, { id: b.id, name: b.name, permanent: b.permanent }]
+        })
+        setTasksByTab(prev => ({ ...prev, [b.id]: prev[b.id] || [] }))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'boards' }, (payload) => {
+        const id = payload.old.id
+        setTabs(prev => prev.filter(t => t.id !== id))
+        setTasksByTab(prev => {
+          const updated = { ...prev }
+          delete updated[id]
+          return updated
+        })
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // Real-time: listen for task changes
+  // Real-time: listen for task changes (use payload, no re-query)
   useEffect(() => {
     const channel = supabase
       .channel('tasks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
-        const { data: tasks } = await supabase.from('tasks').select('*')
-        const { data: boards } = await supabase.from('boards').select('id')
-        if (tasks && boards) {
-          const grouped = {}
-          boards.forEach(b => { grouped[b.id] = [] })
-          tasks.forEach(t => {
-            if (!grouped[t.board_id]) grouped[t.board_id] = []
-            grouped[t.board_id].push({
-              id: t.id,
-              title: t.title,
-              description: t.description,
-              assignee: t.assignee,
-              dueDate: t.due_date,
-              status: t.status,
-              skills: t.skills || [],
-              createdAt: t.created_at,
-            })
-          })
-          setTasksByTab(grouped)
-        }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks' }, (payload) => {
+        const task = mapTask(payload.new)
+        const boardId = payload.new.board_id
+        setTasksByTab(prev => {
+          const existing = prev[boardId] || []
+          if (existing.some(t => t.id === task.id)) return prev
+          return { ...prev, [boardId]: [...existing, task] }
+        })
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, (payload) => {
+        const task = mapTask(payload.new)
+        const boardId = payload.new.board_id
+        setTasksByTab(prev => ({
+          ...prev,
+          [boardId]: (prev[boardId] || []).map(t => t.id === task.id ? task : t),
+        }))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (payload) => {
+        const id = payload.old.id
+        setTasksByTab(prev => {
+          const updated = {}
+          for (const boardId in prev) {
+            updated[boardId] = prev[boardId].filter(t => t.id !== id)
+          }
+          return updated
+        })
       })
       .subscribe()
 
@@ -313,23 +326,11 @@ function App() {
 
       if (importedTasks.length > 0) {
         await supabase.from('tasks').insert(importedTasks)
-        // Reload tasks
-        const { data } = await supabase.from('tasks').select('*').eq('board_id', activeTab)
-        if (data) {
-          setTasksByTab(prev => ({
-            ...prev,
-            [activeTab]: data.map(t => ({
-              id: t.id,
-              title: t.title,
-              description: t.description,
-              assignee: t.assignee,
-              dueDate: t.due_date,
-              status: t.status,
-              skills: t.skills || [],
-              createdAt: t.created_at,
-            })),
-          }))
-        }
+        // Update local state directly - realtime handler deduplicates
+        setTasksByTab(prev => ({
+          ...prev,
+          [activeTab]: [...(prev[activeTab] || []), ...importedTasks.map(mapTask)],
+        }))
       }
     }
     reader.readAsText(file)
@@ -368,7 +369,7 @@ function App() {
 
   return (
     <>
-      {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
+      {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} onlineUsers={presenceState} />}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex ${isLoading ? 'hidden' : ''}`}>
       {/* Sidebar */}
       <Sidebar

@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 export function usePresence(username) {
   const [onlineUsers, setOnlineUsers] = useState([])
+  const [presenceState, setPresenceState] = useState({})
+  const channelRef = useRef(null)
 
+  // Always subscribe to presence sync (even before login)
   useEffect(() => {
-    if (!username) return
-
     const channel = supabase.channel('online-presence', {
-      config: { presence: { key: username } },
+      config: { presence: { key: username || '_anonymous' } },
     })
+    channelRef.current = channel
 
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState()
+        setPresenceState(state)
         const users = Object.entries(state).map(([key, presences]) => ({
           username: key,
           online_at: presences[0]?.online_at,
@@ -21,7 +24,7 @@ export function usePresence(username) {
         setOnlineUsers(users)
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
+        if (status === 'SUBSCRIBED' && username) {
           await channel.track({ online_at: new Date().toISOString() })
         }
       })
@@ -32,5 +35,5 @@ export function usePresence(username) {
     }
   }, [username])
 
-  return onlineUsers
+  return { onlineUsers, presenceState }
 }

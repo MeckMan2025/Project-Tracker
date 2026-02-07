@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useUser } from '../contexts/UserContext'
-import { supabase } from '../supabase'
 
-function LoadingScreen({ onComplete, onMusicStart }) {
+function LoadingScreen({ onComplete, onMusicStart, onlineUsers }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -10,22 +9,6 @@ function LoadingScreen({ onComplete, onMusicStart }) {
   const { username, login } = useUser()
   const [nameInput, setNameInput] = useState(username || '')
   const tappedRef = useRef(false)
-  const [onlineUsers, setOnlineUsers] = useState({})
-
-  // Subscribe to the same presence channel the app uses, to see who's online
-  useEffect(() => {
-    const channel = supabase.channel('online-presence')
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        setOnlineUsers(channel.presenceState())
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
 
   const startMusic = () => {
     const songs = ['/Scrum/intro.mp3', '/Scrum/radical-robotics.mp3']
