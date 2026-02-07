@@ -146,7 +146,7 @@ function QuickChat() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-4 flex items-center justify-between">
-          <div className="ml-10">
+          <div style={{ marginLeft: '2.5rem' }}>
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Quick Chat
             </h1>
