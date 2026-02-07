@@ -189,20 +189,24 @@ function App() {
   const tasks = tasksByTab[activeTab] || []
 
   const handleAddTab = async (name) => {
-    const newId = String(Date.now())
-    const { error } = await supabase.from('boards').insert({
-      id: newId,
-      name,
-      permanent: false,
-    })
-    if (error) {
-      console.error('Failed to add board:', error.message)
-      alert('Failed to add board: ' + error.message)
-      return
+    try {
+      const newId = String(Date.now())
+      // Update UI immediately
+      setTabs(prev => [...prev, { id: newId, name, permanent: false }])
+      setTasksByTab(prev => ({ ...prev, [newId]: [] }))
+      setActiveTab(newId)
+      // Then persist to Supabase
+      const { error } = await supabase.from('boards').insert({
+        id: newId,
+        name,
+        permanent: false,
+      })
+      if (error) {
+        console.error('Failed to save board:', error.message)
+      }
+    } catch (err) {
+      console.error('Error adding board:', err)
     }
-    setTabs(prev => [...prev, { id: newId, name, permanent: false }])
-    setTasksByTab(prev => ({ ...prev, [newId]: [] }))
-    setActiveTab(newId)
   }
 
   const handleDeleteTab = async (tabId) => {
