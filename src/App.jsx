@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
 import ScoutingForm from './components/ScoutingForm'
 import TasksView from './components/TasksView'
+import QuickChat from './components/QuickChat'
 import { supabase } from './supabase'
 
 const COLUMNS = [
@@ -345,7 +346,9 @@ function App() {
         <ScoutingForm />
       ) : activeTab === 'tasks' ? (
         <TasksView tasksByTab={tasksByTab} tabs={tabs} />
-      ) : activeTab === 'data' || activeTab === 'ai-manual' || activeTab === 'quick-chat' ? (
+      ) : activeTab === 'quick-chat' ? (
+        <QuickChat />
+      ) : activeTab === 'data' || activeTab === 'ai-manual' ? (
         <div className="flex-1 flex items-center justify-center min-w-0">
           <p className="text-xl font-semibold text-gray-500 text-center px-4">
             KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
