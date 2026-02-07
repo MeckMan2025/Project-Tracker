@@ -1,42 +1,121 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-
-const LEADS = ['kayden', 'harshita', 'yukti', 'nick', 'lily']
+import { supabase } from '../supabase'
 
 const UserContext = createContext(null)
 
 export function UserProvider({ children }) {
-  const [username, setUsername] = useState(() => {
-    // Migrate from chat-username if scrum-username doesn't exist yet
-    const saved = localStorage.getItem('scrum-username')
-    if (saved) return saved
-    const chatName = localStorage.getItem('chat-username')
-    if (chatName) {
-      localStorage.setItem('scrum-username', chatName)
-      return chatName
+  const [username, setUsername] = useState('')
+  const [isLead, setIsLead] = useState(false)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchProfile = async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('display_name, role')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('Failed to fetch profile:', error.message)
+      return null
     }
-    return ''
-  })
-
-  const isLead = username
-    ? LEADS.includes(username.toLowerCase())
-    : false
-
-  const login = (name) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    localStorage.setItem('scrum-username', trimmed)
-    localStorage.setItem('chat-username', trimmed)
-    setUsername(trimmed)
+    return data
   }
 
-  const logout = () => {
+  const applyProfile = (profile) => {
+    if (profile) {
+      setUsername(profile.display_name)
+      setIsLead(profile.role === 'lead')
+      localStorage.setItem('scrum-username', profile.display_name)
+      localStorage.setItem('chat-username', profile.display_name)
+    }
+  }
+
+  const clearState = () => {
+    setUser(null)
+    setUsername('')
+    setIsLead(false)
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
-    setUsername('')
+  }
+
+  // Restore session on mount
+  useEffect(() => {
+    let mounted = true
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return
+      if (session?.user) {
+        setUser(session.user)
+        const profile = await fetchProfile(session.user.id)
+        if (mounted) {
+          applyProfile(profile)
+          setLoading(false)
+        }
+      } else {
+        setLoading(false)
+      }
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user)
+          const profile = await fetchProfile(session.user.id)
+          if (mounted) applyProfile(profile)
+        } else if (event === 'SIGNED_OUT') {
+          clearState()
+        }
+      }
+    )
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    if (error) throw error
+    return data
+  }
+
+  const signup = async (email, password, displayName) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+    if (error) throw error
+
+    // Create profile row
+    if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: data.user.id,
+        display_name: displayName,
+        role: 'member',
+      })
+      if (profileError) {
+        console.error('Failed to create profile:', profileError.message)
+      }
+    }
+    return data
+  }
+
+  const logout = async () => {
+    await supabase.auth.signOut()
+    clearState()
   }
 
   return (
-    <UserContext.Provider value={{ username, isLead, login, logout }}>
+    <UserContext.Provider
+      value={{ username, isLead, user, loading, login, signup, logout }}
+    >
       {children}
     </UserContext.Provider>
   )

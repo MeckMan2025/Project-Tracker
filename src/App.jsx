@@ -57,7 +57,7 @@ const mapTask = (t) => ({
 })
 
 function App() {
-  const { username, isLead } = useUser()
+  const { username, isLead, user, loading } = useUser()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState([...SYSTEM_TABS, ...DEFAULT_BOARDS])
@@ -375,9 +375,21 @@ function App() {
     return task.assignee && task.assignee.toLowerCase() === username.toLowerCase()
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex items-center justify-center">
+        <p className="text-gray-500 text-lg animate-pulse">Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <LoginScreen />
+  }
+
   return (
     <>
-      {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} onlineUsers={presenceState} />}
+      {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex ${isLoading ? 'hidden' : ''}`}>
       {/* Sidebar */}
       <Sidebar

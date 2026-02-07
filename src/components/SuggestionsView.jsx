@@ -4,12 +4,12 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
 function SuggestionsView() {
-  const { username } = useUser()
+  const { username, isLead } = useUser()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
-  const isReviewer = ['kayden', 'yukti'].includes(username.toLowerCase())
+  const isReviewer = isLead
 
   // Load suggestions from Supabase on mount
   useEffect(() => {
