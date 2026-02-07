@@ -6,7 +6,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
   const tappedRef = useRef(false)
 
   const startMusic = () => {
-    const songs = ['/Scrum/intro.mp3', '/Scrum/radical-robotics.mp3']
+    const songs = ['/Project-Tracker/intro.mp3', '/Project-Tracker/radical-robotics.mp3']
     const audio = new Audio(songs[Math.floor(Math.random() * songs.length)])
     audio.volume = 1
     audio.play().catch(() => {})
@@ -32,7 +32,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
         isFading ? 'opacity-0' : 'opacity-100'
       }`}
       style={{
-        backgroundImage: 'url("/Scrum/Background.png")',
+        backgroundImage: 'url("/Project-Tracker/Background.png")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
