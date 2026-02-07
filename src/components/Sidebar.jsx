@@ -7,6 +7,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [boardsOpen, setBoardsOpen] = useState(false)
 
   const handleAddTab = (e) => {
     e.preventDefault()
@@ -133,16 +134,19 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
             onClick={() => {
-              onTabChange('business')
-              onToggle()
+              setBoardsOpen(prev => !prev)
             }}
           >
             <FolderKanban size={16} className="text-pastel-blue-dark" />
-            <span className="truncate">Boards</span>
+            <span className="truncate flex-1">Boards</span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${boardsOpen || isBoardActive ? 'rotate-90' : ''}`}
+            />
           </div>
 
           {/* Sub-boards */}
-          <div className="ml-4 mt-1 space-y-1">
+          {(boardsOpen || isBoardActive) && <div className="ml-4 mt-1 space-y-1">
             {boardTabs.map((tab) => (
               <div
                 key={tab.id}
@@ -221,7 +225,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 </button>
               )}
             </div>
-          </div>
+          </div>}
 
           <hr className="my-2 border-gray-200" />
 
