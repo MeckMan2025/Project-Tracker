@@ -14,6 +14,7 @@ import OrgChart from './components/OrgChart'
 import SuggestionsView from './components/SuggestionsView'
 import CalendarView from './components/CalendarView'
 import UserManagement from './components/UserManagement'
+import RequestsView from './components/RequestsView'
 import { useUser } from './contexts/UserContext'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
@@ -69,6 +70,7 @@ function App() {
   })
   const [tasksByTab, setTasksByTab] = useState({})
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dbReady, setDbReady] = useState(false)
@@ -290,6 +292,31 @@ function App() {
     setIsModalOpen(false)
   }
 
+  const handleRequestTask = async (newTask) => {
+    try {
+      const request = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        type: 'task',
+        data: {
+          title: newTask.title,
+          description: newTask.description || '',
+          assignee: newTask.assignee || '',
+          dueDate: newTask.dueDate || '',
+          status: newTask.status || 'todo',
+          skills: newTask.skills || [],
+        },
+        requested_by: username,
+        status: 'pending',
+        board_id: activeTab,
+      }
+      await supabase.from('requests').insert(request)
+      alert('Request sent! A lead will review it.')
+    } catch (err) {
+      console.error('Error submitting request:', err)
+    }
+    setIsRequestModalOpen(false)
+  }
+
   const handleEditTask = async (updatedTask) => {
     await supabase.from('tasks').update({
       title: updatedTask.title,
@@ -457,6 +484,8 @@ function App() {
         <CalendarView />
       ) : activeTab === 'user-management' ? (
         <UserManagement />
+      ) : activeTab === 'requests' ? (
+        <RequestsView />
       ) : activeTab === 'data' || activeTab === 'notebook' || activeTab === 'attendance' ? (
         <div className="flex-1 flex items-center justify-center min-w-0">
           <p className="text-xl font-semibold text-gray-500 text-center px-4">
@@ -496,13 +525,21 @@ function App() {
                 <Download size={18} />
                 <span className="hidden sm:inline">Export</span>
               </button>
-              {isLead && (
+              {isLead ? (
                 <button
                   onClick={() => setIsModalOpen(true)}
                   className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors"
                 >
                   <Plus size={18} />
                   <span className="hidden sm:inline">Add Task</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsRequestModalOpen(true)}
+                  className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg transition-colors"
+                >
+                  <Plus size={18} />
+                  <span className="hidden sm:inline">Request Task</span>
                 </button>
               )}
             </div>
@@ -577,6 +614,16 @@ function App() {
             setIsModalOpen(false)
             setEditingTask(null)
           }}
+        />
+      )}
+
+      {/* Request Task Modal (non-leads) */}
+      {isRequestModalOpen && (
+        <TaskModal
+          task={null}
+          onSave={handleRequestTask}
+          onClose={() => setIsRequestModalOpen(false)}
+          requestMode
         />
       )}
     </div>

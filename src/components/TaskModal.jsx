@@ -6,7 +6,7 @@ const SKILL_OPTIONS = [
   'Presentation', 'Testing', 'Documentation', 'Outreach', 'Strategy'
 ]
 
-function TaskModal({ task, onSave, onClose }) {
+function TaskModal({ task, onSave, onClose, requestMode }) {
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
@@ -41,7 +41,7 @@ function TaskModal({ task, onSave, onClose }) {
       <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold">
-            {task ? 'Edit Task' : 'Add New Task'}
+            {task ? 'Edit Task' : requestMode ? 'Request Task' : 'Add New Task'}
           </h2>
           <button
             onClick={onClose}
@@ -156,7 +156,7 @@ function TaskModal({ task, onSave, onClose }) {
               type="submit"
               className="flex-1 px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors font-medium"
             >
-              {task ? 'Save Changes' : 'Add Task'}
+              {task ? 'Save Changes' : requestMode ? 'Send Request' : 'Add Task'}
             </button>
           </div>
         </form>

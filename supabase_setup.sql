@@ -138,13 +138,30 @@ CREATE POLICY "Leads can manage approved_emails" ON approved_emails
     )
   );
 
--- 9. ENABLE REALTIME on all tables
+-- 9. REQUESTS TABLE (non-leads request tasks/events for lead approval)
+CREATE TABLE IF NOT EXISTS requests (
+  id text PRIMARY KEY,
+  type text NOT NULL,  -- 'task' or 'calendar_event'
+  data jsonb NOT NULL,
+  requested_by text NOT NULL,
+  status text DEFAULT 'pending',  -- 'pending', 'approved', 'denied'
+  reviewed_by text,
+  board_id text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all on requests" ON requests;
+CREATE POLICY "Allow all on requests" ON requests
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 10. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

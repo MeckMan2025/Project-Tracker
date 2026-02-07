@@ -87,6 +87,31 @@ function CalendarView() {
     e.preventDefault()
     if (!eventName.trim() || !selectedDay) return
     const key = dateKey(selectedDay)
+
+    if (!isLead) {
+      // Non-lead: submit a request
+      try {
+        const request = {
+          id: String(Date.now()) + Math.random().toString(36).slice(2),
+          type: 'calendar_event',
+          data: {
+            date_key: key,
+            name: eventName.trim(),
+            description: eventDesc.trim(),
+          },
+          requested_by: username,
+          status: 'pending',
+        }
+        await supabase.from('requests').insert(request)
+        alert('Request sent! A lead will review it.')
+      } catch (err) {
+        console.error('Error submitting request:', err)
+      }
+      setEventName('')
+      setEventDesc('')
+      return
+    }
+
     const newEvent = {
       id: String(Date.now()),
       date_key: key,
@@ -207,7 +232,7 @@ function CalendarView() {
                   >
                     {day}
                   </span>
-                  {isLead && selected && (
+                  {selected && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -277,32 +302,34 @@ function CalendarView() {
               <p className="text-sm text-gray-400 mb-3">No events on this day.</p>
             )}
 
-            {/* Add event form (leads only) */}
-            {isLead && (
-              <form onSubmit={handleAddEvent} className="space-y-2 border-t pt-3">
-                <input
-                  type="text"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  placeholder="Event name (e.g. League Tournament)"
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
-                />
-                <input
-                  type="text"
-                  value={eventDesc}
-                  onChange={(e) => setEventDesc(e.target.value)}
-                  placeholder="Description (optional)"
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
-                />
-                <button
-                  type="submit"
-                  disabled={!eventName.trim()}
-                  className="w-full px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg text-sm font-medium text-gray-700 transition-colors disabled:opacity-40"
-                >
-                  Add Event
-                </button>
-              </form>
-            )}
+            {/* Add/Request event form */}
+            <form onSubmit={handleAddEvent} className="space-y-2 border-t pt-3">
+              <input
+                type="text"
+                value={eventName}
+                onChange={(e) => setEventName(e.target.value)}
+                placeholder="Event name (e.g. League Tournament)"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+              />
+              <input
+                type="text"
+                value={eventDesc}
+                onChange={(e) => setEventDesc(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={!eventName.trim()}
+                className={`w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-700 transition-colors disabled:opacity-40 ${
+                  isLead
+                    ? 'bg-pastel-pink hover:bg-pastel-pink-dark'
+                    : 'bg-pastel-blue hover:bg-pastel-blue-dark'
+                }`}
+              >
+                {isLead ? 'Add Event' : 'Request Event'}
+              </button>
+            </form>
           </div>
         )}
       </main>

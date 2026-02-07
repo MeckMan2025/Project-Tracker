@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isLead }) {
@@ -380,6 +380,23 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           {isLead && (
             <>
+              <hr className="my-2 border-gray-200" />
+
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'requests'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('requests')
+                  onToggle()
+                }}
+              >
+                <Inbox size={16} className="text-pastel-pink-dark" />
+                <span className="truncate">Requests</span>
+              </div>
+
               <hr className="my-2 border-gray-200" />
 
               <div
