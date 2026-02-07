@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, User } from 'lucide-react'
+import { Send, Trash2, User } from 'lucide-react'
 import { supabase } from '../supabase'
 
 function QuickChat() {
@@ -36,6 +36,9 @@ function QuickChat() {
           return [...prev, payload.new]
         })
       })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+        setMessages(prev => prev.filter(m => m.id !== payload.old.id))
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -69,6 +72,11 @@ function QuickChat() {
     setNewMessage('')
     setMessages(prev => [...prev, message])
     await supabase.from('messages').insert(message)
+  }
+
+  const handleDelete = async (msgId) => {
+    setMessages(prev => prev.filter(m => m.id !== msgId))
+    await supabase.from('messages').delete().eq('id', msgId)
   }
 
   const formatTime = (timestamp) => {
@@ -165,12 +173,21 @@ function QuickChat() {
                     className={`flex mb-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
+                      className={`relative group max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
                         isOwn
                           ? 'bg-pastel-blue text-gray-800 rounded-br-md'
                           : 'bg-white text-gray-800 rounded-bl-md'
                       }`}
                     >
+                      {isOwn && (
+                        <button
+                          onClick={() => handleDelete(msg.id)}
+                          className="absolute -top-2 -right-2 p-1 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                          title="Delete message"
+                        >
+                          <Trash2 size={12} className="text-gray-400 hover:text-red-400" />
+                        </button>
+                      )}
                       <p className={`text-xs font-semibold mb-0.5 ${isOwn ? 'text-pastel-blue-dark' : 'text-pastel-pink-dark'}`}>{msg.sender}</p>
                       <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                       <p className={`text-[10px] mt-1 ${isOwn ? 'text-gray-500 text-right' : 'text-gray-400 text-right'}`}>
