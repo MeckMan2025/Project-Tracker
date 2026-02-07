@@ -11,6 +11,7 @@ import ScoutingForm from './components/ScoutingForm'
 import TasksView from './components/TasksView'
 import QuickChat from './components/QuickChat'
 import OrgChart from './components/OrgChart'
+import SuggestionsView from './components/SuggestionsView'
 import { useUser } from './contexts/UserContext'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
@@ -31,8 +32,9 @@ const CHAT_TAB = { id: 'quick-chat', name: 'Quick Chat', type: 'quick-chat' }
 const TASKS_TAB = { id: 'tasks', name: 'Tasks', type: 'tasks' }
 const NOTEBOOK_TAB = { id: 'notebook', name: 'Engineering Notebook', type: 'notebook' }
 const ORG_TAB = { id: 'org-chart', name: 'Org Chart', type: 'org-chart' }
+const SUGGESTIONS_TAB = { id: 'suggestions', name: 'Suggestions', type: 'suggestions' }
 
-const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB]
+const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB]
 
 function App() {
   const { username, isLead } = useUser()
@@ -410,6 +412,8 @@ function App() {
         </div>
       ) : activeTab === 'org-chart' ? (
         <OrgChart />
+      ) : activeTab === 'suggestions' ? (
+        <SuggestionsView />
       ) : activeTab === 'data' || activeTab === 'notebook' ? (
         <div className="flex-1 flex items-center justify-center min-w-0">
           <p className="text-xl font-semibold text-gray-500 text-center px-4">
