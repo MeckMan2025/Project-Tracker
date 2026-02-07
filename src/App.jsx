@@ -15,6 +15,7 @@ import SuggestionsView from './components/SuggestionsView'
 import CalendarView from './components/CalendarView'
 import UserManagement from './components/UserManagement'
 import RequestsView from './components/RequestsView'
+import ProfileView from './components/ProfileView'
 import { useUser } from './contexts/UserContext'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
@@ -212,7 +213,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management') return
+    if (tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -486,6 +487,8 @@ function App() {
         <UserManagement />
       ) : activeTab === 'requests' ? (
         <RequestsView />
+      ) : activeTab === 'profile' ? (
+        <ProfileView />
       ) : activeTab === 'data' || activeTab === 'notebook' || activeTab === 'attendance' ? (
         <div className="flex-1 flex items-center justify-center min-w-0">
           <p className="text-xl font-semibold text-gray-500 text-center px-4">

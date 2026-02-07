@@ -102,6 +102,20 @@ DROP POLICY IF EXISTS "Allow all on profiles" ON profiles;
 CREATE POLICY "Allow all on profiles" ON profiles
   FOR ALL USING (true) WITH CHECK (true);
 
+-- Profile extended fields (run after initial profiles table exists)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS discipline text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS timezone text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS status text DEFAULT 'available';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sprint_capacity integer DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS systems_owned jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS review_responsibilities jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS skills jsonb DEFAULT '{}';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tools jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS safety_certs jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS permissions jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS comm_style text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS comm_notes text DEFAULT '';
+
 -- After leads sign up, run this to grant lead role:
 -- UPDATE profiles SET role = 'lead' WHERE display_name IN ('Kayden', 'Yukti', 'Nick', 'Harshita', 'Lily');
 
