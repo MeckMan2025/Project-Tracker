@@ -127,14 +127,23 @@ export function UserProvider({ children }) {
     return data
   }
 
+  const resetPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) throw error
+  }
+
   const logout = async () => {
     await supabase.auth.signOut()
     clearState()
+    localStorage.clear()
+    sessionStorage.clear()
   }
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist }}
+      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword }}
     >
       {children}
     </UserContext.Provider>

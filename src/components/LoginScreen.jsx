@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 
 function LoginScreen() {
-  const { login, signup, checkWhitelist } = useUser()
+  const { login, signup, checkWhitelist, resetPassword } = useUser()
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -12,6 +12,8 @@ function LoginScreen() {
   const [signupStep, setSignupStep] = useState(1)
   const [whitelistRole, setWhitelistRole] = useState(null)
   const [rejected, setRejected] = useState(false)
+  const [forgotPassword, setForgotPassword] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   const resetSignupState = () => {
     setSignupStep(1)
@@ -189,7 +191,82 @@ function LoginScreen() {
     )
   }
 
-  // Sign-in form (unchanged)
+  // Forgot password screen
+  if (forgotPassword) {
+    if (resetSent) {
+      return (
+        <div className={wrapper}>
+          <div className={`${card} text-center`}>
+            <h1 className={heading}>Check Your Email</h1>
+            <p className="text-sm text-gray-600">
+              We sent a password reset link to <span className="font-medium text-gray-700">{email}</span>.
+            </p>
+            <p className="text-sm text-gray-600">
+              Check your inbox and follow the link to reset your password.
+            </p>
+            <button
+              type="button"
+              onClick={() => { setForgotPassword(false); setResetSent(false); setError('') }}
+              className={btn}
+            >
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className={wrapper}>
+        <form onSubmit={async (e) => {
+          e.preventDefault()
+          setError('')
+          setSubmitting(true)
+          try {
+            await resetPassword(email)
+            setResetSent(true)
+          } catch (err) {
+            setError(err.message)
+          } finally {
+            setSubmitting(false)
+          }
+        }} className={card}>
+          <div className="text-center">
+            <h1 className={heading}>Reset Password</h1>
+            <p className="text-sm text-gray-500 mt-1">Enter your email to receive a reset link</p>
+          </div>
+
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError('') }}
+            placeholder="Email"
+            className={input}
+            autoFocus
+            required
+          />
+
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+
+          <button type="submit" disabled={submitting} className={btn}>
+            {submitting ? 'Sending...' : 'Send Reset Link'}
+          </button>
+
+          <p className="text-sm text-center text-gray-500">
+            <button
+              type="button"
+              onClick={() => { setForgotPassword(false); setError('') }}
+              className="text-pastel-pink-dark font-semibold hover:underline"
+            >
+              Back to Sign In
+            </button>
+          </p>
+        </form>
+      </div>
+    )
+  }
+
+  // Sign-in form
   return (
     <div className={wrapper}>
       <form onSubmit={handleSubmit} className={card}>
@@ -220,6 +297,16 @@ function LoginScreen() {
         <button type="submit" disabled={submitting} className={btn}>
           {submitting ? 'Signing in...' : 'Sign In'}
         </button>
+
+        <p className="text-sm text-center text-gray-500">
+          <button
+            type="button"
+            onClick={() => { setForgotPassword(true); setError('') }}
+            className="text-pastel-pink-dark font-semibold hover:underline"
+          >
+            Forgot password?
+          </button>
+        </p>
 
         <p className="text-sm text-center text-gray-500">
           No account?{' '}
