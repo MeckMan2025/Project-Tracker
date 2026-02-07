@@ -281,6 +281,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Tasks</span>
           </div>
 
+          <hr className="my-2 border-gray-200" />
+
           {/* Engineering Notebook Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
