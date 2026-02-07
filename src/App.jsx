@@ -193,11 +193,14 @@ function App() {
       name,
       permanent: false,
     })
-    if (!error) {
-      setTabs(prev => [...prev, { id: newId, name, permanent: false }])
-      setTasksByTab(prev => ({ ...prev, [newId]: [] }))
-      setActiveTab(newId)
+    if (error) {
+      console.error('Failed to add board:', error.message)
+      alert('Failed to add board: ' + error.message)
+      return
     }
+    setTabs(prev => [...prev, { id: newId, name, permanent: false }])
+    setTasksByTab(prev => ({ ...prev, [newId]: [] }))
+    setActiveTab(newId)
   }
 
   const handleDeleteTab = async (tabId) => {
