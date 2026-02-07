@@ -135,10 +135,15 @@ export function UserProvider({ children }) {
   }
 
   const logout = async () => {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      // sign out even if supabase call fails
+    }
     clearState()
     localStorage.clear()
     sessionStorage.clear()
+    window.location.replace(window.location.origin)
   }
 
   return (

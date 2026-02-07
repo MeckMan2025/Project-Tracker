@@ -85,11 +85,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   ].map(({ icon: Icon, label, color, tab }) => (
                     <button
                       key={label}
-                      onClick={async () => {
+                      onClick={() => {
                         if (label === 'Logout') {
-                          setMenuOpen(false)
-                          await logout()
-                          window.location.reload()
+                          logout()
                           return
                         }
                         setMenuOpen(false)
