@@ -51,11 +51,12 @@ export function UserProvider({ children }) {
         const profile = await fetchProfile(session.user.id)
         if (mounted) {
           applyProfile(profile)
-          setLoading(false)
         }
-      } else {
-        setLoading(false)
       }
+    }).catch((err) => {
+      console.error('Failed to restore session:', err.message)
+    }).finally(() => {
+      if (mounted) setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
