@@ -75,52 +75,83 @@ function App() {
   const [editingTask, setEditingTask] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dbReady, setDbReady] = useState(false)
+  const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
 
-  // Load boards and tasks from Supabase on mount
+  // Load boards and tasks from Supabase once user is authenticated
   useEffect(() => {
+    if (!user) return
+
     async function loadData() {
+      setLoadError(null)
+
       // Load boards
-      const { data: boards } = await supabase
+      const { data: boards, error: boardsError } = await supabase
         .from('boards')
         .select('*')
         .order('created_at')
 
-      if (boards) {
-        const boardTabs = boards.map(b => ({
-          id: b.id,
-          name: b.name,
-          permanent: b.permanent,
-        }))
-        const defaultIds = DEFAULT_BOARDS.map(b => b.id)
-        const extra = boardTabs.filter(b => !defaultIds.includes(b.id))
-        setTabs([...SYSTEM_TABS, ...DEFAULT_BOARDS, ...extra])
+      if (boardsError) {
+        console.error('Failed to load boards:', boardsError.message)
+        setLoadError('Failed to load boards. Please reload.')
+        setDbReady(true)
+        return
       }
 
+      // Seed default boards if missing
+      const existingIds = (boards || []).map(b => b.id)
+      const missing = DEFAULT_BOARDS.filter(b => !existingIds.includes(b.id))
+      if (missing.length > 0) {
+        const { error: seedError } = await supabase
+          .from('boards')
+          .upsert(missing.map(b => ({ id: b.id, name: b.name, permanent: true })))
+        if (seedError) {
+          console.error('Failed to seed default boards:', seedError.message)
+        }
+      }
+
+      // Re-query boards after seeding so we have a complete list
+      const allBoards = missing.length > 0
+        ? [...(boards || []), ...missing.map(b => ({ id: b.id, name: b.name, permanent: true }))]
+        : (boards || [])
+
+      const boardTabs = allBoards.map(b => ({
+        id: b.id,
+        name: b.name,
+        permanent: b.permanent,
+      }))
+      const defaultIds = DEFAULT_BOARDS.map(b => b.id)
+      const extra = boardTabs.filter(b => !defaultIds.includes(b.id))
+      setTabs([...SYSTEM_TABS, ...DEFAULT_BOARDS, ...extra])
+
       // Load tasks
-      const { data: tasks } = await supabase
+      const { data: tasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
 
+      if (tasksError) {
+        console.error('Failed to load tasks:', tasksError.message)
+        setLoadError('Failed to load tasks. Please reload.')
+        setDbReady(true)
+        return
+      }
+
+      const grouped = {}
+      allBoards.forEach(b => { grouped[b.id] = [] })
       if (tasks) {
-        const grouped = {}
-        if (boards) {
-          boards.forEach(b => { grouped[b.id] = [] })
-        }
         tasks.forEach(t => {
           if (!grouped[t.board_id]) grouped[t.board_id] = []
           grouped[t.board_id].push(mapTask(t))
         })
-        setTasksByTab(grouped)
       }
-
+      setTasksByTab(grouped)
       setDbReady(true)
     }
 
     loadData()
-  }, [])
+  }, [user])
 
   // Real-time: listen for board changes (use payload, no re-query)
   useEffect(() => {
@@ -253,7 +284,10 @@ function App() {
     }))
 
     // Update in Supabase
-    await supabase.from('tasks').update({ status: destination.droppableId }).eq('id', draggableId)
+    const { error } = await supabase.from('tasks').update({ status: destination.droppableId }).eq('id', draggableId)
+    if (error) {
+      console.error('Failed to update task status:', error.message)
+    }
   }
 
   const getTasksByStatus = (status) => {
@@ -274,7 +308,10 @@ function App() {
     }
 
     const { error } = await supabase.from('tasks').insert(task)
-    if (!error) {
+    if (error) {
+      console.error('Failed to save task:', error.message)
+      alert('Failed to save task. Please try again.')
+    } else {
       const localTask = {
         id: task.id,
         title: task.title,
@@ -433,7 +470,13 @@ function App() {
   return (
     <>
       {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex ${isLoading ? 'hidden' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col ${isLoading ? 'hidden' : ''}`}>
+      {loadError && (
+        <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center">
+          {loadError}
+        </div>
+      )}
+      <div className="flex flex-1 min-h-0">
       {/* Sidebar */}
       <Sidebar
         tabs={tabs}
@@ -629,6 +672,7 @@ function App() {
           requestMode
         />
       )}
+      </div>
     </div>
     </>
   )

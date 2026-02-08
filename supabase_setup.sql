@@ -16,6 +16,13 @@ DROP POLICY IF EXISTS "Allow all access to boards" ON boards;
 CREATE POLICY "Allow all access to boards" ON boards
   FOR ALL USING (true) WITH CHECK (true);
 
+-- Seed default boards
+INSERT INTO boards (id, name, permanent) VALUES
+  ('business', 'Business', true),
+  ('technical', 'Technical', true),
+  ('programming', 'Programming', true)
+ON CONFLICT (id) DO NOTHING;
+
 -- 2. TASKS TABLE
 CREATE TABLE IF NOT EXISTS tasks (
   id text PRIMARY KEY,
