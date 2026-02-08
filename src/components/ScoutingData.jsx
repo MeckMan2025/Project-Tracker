@@ -265,18 +265,6 @@ function ScoutingData() {
       return { ...t, matches, ...stats }
     })
 
-    // Any teams in scouting data not in ALL_TEAMS
-    Object.entries(byNumber).forEach(([num, matches]) => {
-      const dynamicStats = computeScoutingStats(matches)
-      const hardcodedStats = SCOUT_STATS[num]
-      const stats = dynamicStats.scoutCount > 0 ? dynamicStats : (hardcodedStats ? { ...hardcodedStats, scoutCount: hardcodedStats.scouted, startingPositions: {} } : dynamicStats)
-      all.push({
-        rank: null, number: num, name: `Team ${num}`,
-        rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0,
-        matches, ...stats,
-      })
-    })
-
     const considered = all.filter(t => CONSIDERED_NUMBERS.includes(t.number))
     const others = all.filter(t => !CONSIDERED_NUMBERS.includes(t.number))
       .sort((a, b) => (a.rank || 999) - (b.rank || 999))
