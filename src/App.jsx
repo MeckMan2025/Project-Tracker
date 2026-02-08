@@ -61,7 +61,7 @@ const mapTask = (t) => ({
 })
 
 function App() {
-  const { username, isLead, user, loading } = useUser()
+  const { username, isLead, user, loading, passwordRecovery } = useUser()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState([...SYSTEM_TABS, ...DEFAULT_BOARDS])
@@ -463,7 +463,7 @@ function App() {
     )
   }
 
-  if (!user) {
+  if (!user || passwordRecovery) {
     return <LoginScreen />
   }
 

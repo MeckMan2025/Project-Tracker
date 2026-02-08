@@ -8,6 +8,7 @@ export function UserProvider({ children }) {
   const [isLead, setIsLead] = useState(false)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
@@ -75,7 +76,10 @@ export function UserProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'PASSWORD_RECOVERY') {
+          setPasswordRecovery(true)
+          if (session?.user) setUser(session.user)
+        } else if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user)
           const profile = await fetchProfile(session.user.id)
           if (mounted) applyProfile(profile)
@@ -134,6 +138,12 @@ export function UserProvider({ children }) {
     if (error) throw error
   }
 
+  const updatePassword = async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+    setPasswordRecovery(false)
+  }
+
   const logout = async () => {
     try {
       await supabase.auth.signOut()
@@ -148,7 +158,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword }}
+      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery }}
     >
       {children}
     </UserContext.Provider>

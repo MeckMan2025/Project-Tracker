@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 
 function LoginScreen() {
-  const { login, signup, checkWhitelist, resetPassword } = useUser()
+  const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -73,6 +73,51 @@ function LoginScreen() {
   const input = 'w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-center text-lg'
   const btn = 'w-full py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-xl font-semibold text-gray-700 transition-colors text-lg'
   const heading = 'text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent'
+
+  // Password recovery — user clicked reset link in email
+  if (passwordRecovery) {
+    return (
+      <div className={wrapper}>
+        <form onSubmit={async (e) => {
+          e.preventDefault()
+          setError('')
+          if (password.length < 6) {
+            setError('Password must be at least 6 characters')
+            return
+          }
+          setSubmitting(true)
+          try {
+            await updatePassword(password)
+          } catch (err) {
+            setError(err.message)
+          } finally {
+            setSubmitting(false)
+          }
+        }} className={card}>
+          <div className="text-center">
+            <h1 className={heading}>Set New Password</h1>
+            <p className="text-sm text-gray-500 mt-1">Enter your new password below</p>
+          </div>
+
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError('') }}
+            placeholder="New password"
+            className={input}
+            autoFocus
+            required
+          />
+
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+
+          <button type="submit" disabled={submitting} className={btn}>
+            {submitting ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
+    )
+  }
 
   // Rejection screen
   if (mode === 'signup' && rejected) {
