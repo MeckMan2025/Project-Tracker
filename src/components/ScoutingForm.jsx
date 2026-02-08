@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Send } from 'lucide-react'
+import { supabase } from '../supabase'
+import { useUser } from '../contexts/UserContext'
 
 const STARTING_POSITIONS = ['Close to goal', 'Far from goal', 'Center']
 
@@ -102,6 +104,7 @@ function SectionHeader({ title }) {
 }
 
 function ScoutingForm() {
+  const { username } = useUser()
   const [formData, setFormData] = useState(() => {
     const draft = localStorage.getItem('scouting-draft')
     return draft ? JSON.parse(draft) : { ...INITIAL_FORM_STATE }
@@ -150,15 +153,29 @@ function ScoutingForm() {
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const id = String(Date.now()) + Math.random().toString(36).slice(2)
     const record = {
       ...formData,
-      id: String(Date.now()),
+      id,
       submittedAt: new Date().toISOString(),
     }
+    // Save to localStorage (existing behavior)
     const existing = JSON.parse(localStorage.getItem('scouting-records') || '[]')
     existing.push(record)
     localStorage.setItem('scouting-records', JSON.stringify(existing))
+
+    // Also save to Supabase for shared analytics
+    const { error } = await supabase.from('scouting_records').insert({
+      id,
+      data: formData,
+      submitted_by: username || '',
+      submitted_at: new Date().toISOString(),
+    })
+    if (error) {
+      console.error('Failed to save scouting record to Supabase:', error.message)
+    }
+
     setFormData({ ...INITIAL_FORM_STATE })
     localStorage.removeItem('scouting-draft')
     setSubmitFeedback('Scouting data saved!')

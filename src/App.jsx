@@ -16,6 +16,7 @@ import CalendarView from './components/CalendarView'
 import UserManagement from './components/UserManagement'
 import RequestsView from './components/RequestsView'
 import ProfileView from './components/ProfileView'
+import ScoutingData from './components/ScoutingData'
 import { useUser } from './contexts/UserContext'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
@@ -532,7 +533,9 @@ function App() {
         <RequestsView />
       ) : activeTab === 'profile' ? (
         <ProfileView />
-      ) : activeTab === 'data' || activeTab === 'notebook' || activeTab === 'attendance' ? (
+      ) : activeTab === 'data' ? (
+        <ScoutingData />
+      ) : activeTab === 'notebook' || activeTab === 'attendance' ? (
         <div className="flex-1 flex items-center justify-center min-w-0">
           <p className="text-xl font-semibold text-gray-500 text-center px-4">
             KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
