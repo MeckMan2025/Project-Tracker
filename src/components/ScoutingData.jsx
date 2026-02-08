@@ -3,10 +3,33 @@ import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
-const DEFAULT_TEAMS = [
-  { name: 'Guild of Gears', number: '' },
-  { name: 'Royal Robots', number: '' },
-  { name: 'Robo Raptors', number: '' },
+// All teams from competition rankings
+// Columns: rank, number, name, rp/match, tbp/match, auto avg, teleop avg, high score, record, matches played
+const ALL_TEAMS = [
+  { rank: 11, number: '6072',  name: 'Wildbot Robotics',                   rp: 4.30, tbp: 72.20, autoAvg: 15.00, teleopAvg: 21.10, highScore: 146, record: '10-0-0', played: 24 },
+  { rank: 12, number: '15050', name: 'Lightning Bots',                     rp: 4.30, tbp: 64.00, autoAvg: 14.00, teleopAvg: 15.00, highScore: 79,  record: '10-0-0', played: 30 },
+  { rank: 13, number: '8672',  name: 'UBett',                              rp: 4.30, tbp: 61.00, autoAvg: 13.50, teleopAvg: 12.30, highScore: 78,  record: '10-0-0', played: 30 },
+  { rank: 14, number: '6603',  name: 'Guild of Gears',                     rp: 4.20, tbp: 78.80, autoAvg: 13.50, teleopAvg: 17.10, highScore: 154, record: '10-0-0', played: 30 },
+  { rank: 15, number: '8696',  name: 'Trobotix',                           rp: 4.20, tbp: 60.90, autoAvg: 12.50, teleopAvg: 14.50, highScore: 82,  record: '10-0-0', played: 24 },
+  { rank: 16, number: '20097', name: 'Robo Raptors',                       rp: 4.10, tbp: 81.60, autoAvg: 14.00, teleopAvg: 15.00, highScore: 111, record: '10-0-0', played: 24 },
+  { rank: 17, number: '8588',  name: 'Finger Puppet Mafia',                rp: 4.00, tbp: 67.50, autoAvg: 15.50, teleopAvg: 12.20, highScore: 116, record: '8-2-0',  played: 18 },
+  { rank: 18, number: '5062',  name: 'Mechanaries',                        rp: 4.00, tbp: 60.70, autoAvg: 13.00, teleopAvg: 15.00, highScore: 78,  record: '10-0-0', played: 30 },
+  { rank: 19, number: '6545',  name: 'Knight Riders',                      rp: 3.90, tbp: 67.40, autoAvg: 11.00, teleopAvg: 17.50, highScore: 138, record: '10-0-0', played: 24 },
+  { rank: 20, number: '10602', name: 'Pioneer Robotics',                   rp: 3.90, tbp: 61.80, autoAvg: 10.50, teleopAvg: 13.50, highScore: 147, record: '10-0-0', played: 30 },
+  { rank: 21, number: '15055', name: 'DeDucktive Thinkers',                rp: 3.90, tbp: 60.90, autoAvg: 11.50, teleopAvg: 10.00, highScore: 118, record: '10-0-0', played: 30 },
+  { rank: 22, number: '4237',  name: 'Cyberhawks',                         rp: 3.90, tbp: 53.40, autoAvg: 10.00, teleopAvg: 12.10, highScore: 135, record: '10-0-0', played: 24 },
+  { rank: 23, number: '4177',  name: 'Finger Tightans',                    rp: 3.90, tbp: 47.90, autoAvg: 11.00, teleopAvg: 12.40, highScore: 148, record: '9-1-0',  played: 24 },
+  { rank: 24, number: '12745', name: 'Long John Launchers',                rp: 3.80, tbp: 57.30, autoAvg: 13.00, teleopAvg: 12.10, highScore: 79,  record: '10-0-0', played: 18 },
+  { rank: 25, number: '23971', name: 'Trobotix JV',                        rp: 3.50, tbp: 36.40, autoAvg: 10.00, teleopAvg: 10.10, highScore: 64,  record: '9-0-1',  played: 24 },
+  { rank: 26, number: '10139', name: 'Glitch Mob',                         rp: 3.40, tbp: 69.60, autoAvg: 13.50, teleopAvg: 15.00, highScore: 138, record: '7-3-0',  played: 18 },
+  { rank: 27, number: '8988',  name: 'Bellevue Blockheads',                rp: 3.40, tbp: 62.50, autoAvg: 11.00, teleopAvg: 12.30, highScore: 127, record: '9-1-0',  played: 24 },
+  { rank: 28, number: '32494', name: 'Screw Ups-Washington Middle School', rp: 3.40, tbp: 51.30, autoAvg: 11.00, teleopAvg: 10.70, highScore: 76,  record: '9-1-0',  played: 24 },
+  { rank: 29, number: '367',   name: 'Organized Chaos',                    rp: 3.20, tbp: 49.20, autoAvg: 13.00, teleopAvg: 12.30, highScore: 91,  record: '6-3-1',  played: 30 },
+  { rank: 30, number: '18482', name: 'Mechanical Soup',                    rp: 3.00, tbp: 57.10, autoAvg: 11.50, teleopAvg: 13.50, highScore: 142, record: '8-2-0',  played: 24 },
+  { rank: 31, number: '13532', name: 'EagleBots FTC 13532',                rp: 2.60, tbp: 40.30, autoAvg: 13.00, teleopAvg: 6.50,  highScore: 74,  record: '6-4-0',  played: 24 },
+  { rank: 32, number: '11721', name: 'Central Processing Units',           rp: 2.40, tbp: 57.10, autoAvg: 12.50, teleopAvg: 12.90, highScore: 120, record: '4-6-0',  played: 18 },
+  { rank: 33, number: '25788', name: 'Byte Brawlers',                      rp: 2.30, tbp: 33.90, autoAvg: 9.50,  teleopAvg: 8.00,  highScore: 54,  record: '5-5-0',  played: 24 },
+  { rank: 34, number: '8813',  name: 'The Winter Soldiers',                rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
 ]
 
 const ALLOWED_DELETERS = ['yukti', 'kayden', 'lily', 'nick', 'harshita']
@@ -25,10 +48,10 @@ function pctBar(value) {
   )
 }
 
-function computeStats(matches) {
+function computeScoutingStats(matches) {
   if (matches.length === 0) {
     return {
-      matchCount: 0,
+      scoutCount: 0,
       startingPositions: {},
       autoPctMissed: 0, autoPctClassified: 0, autoPctOverflowed: 0, autoPctMotif: 0,
       telePctMissed: 0, telePctClassified: 0, telePctOverflowed: 0, telePctMotif: 0,
@@ -36,14 +59,12 @@ function computeStats(matches) {
     }
   }
 
-  // Starting positions
   const startingPositions = {}
   matches.forEach(m => {
     const pos = m.startingPosition || 'Unknown'
     startingPositions[pos] = (startingPositions[pos] || 0) + 1
   })
 
-  // Auto totals across all matches
   const autoTotal = matches.reduce((s, m) =>
     s + (Number(m.autoClassified) || 0) + (Number(m.autoArtifactsMissed) || 0) +
     (Number(m.autoOverflowed) || 0) + (Number(m.autoInMotifOrder) || 0), 0)
@@ -52,7 +73,6 @@ function computeStats(matches) {
   const autoOverflowed = matches.reduce((s, m) => s + (Number(m.autoOverflowed) || 0), 0)
   const autoMotif = matches.reduce((s, m) => s + (Number(m.autoInMotifOrder) || 0), 0)
 
-  // Tele-op totals
   const teleTotal = matches.reduce((s, m) =>
     s + (Number(m.teleClassified) || 0) + (Number(m.teleArtifactsMissed) || 0) +
     (Number(m.teleOverflowed) || 0) + (Number(m.teleInMotifOrder) || 0), 0)
@@ -61,13 +81,11 @@ function computeStats(matches) {
   const teleOverflowed = matches.reduce((s, m) => s + (Number(m.teleOverflowed) || 0), 0)
   const teleMotif = matches.reduce((s, m) => s + (Number(m.teleInMotifOrder) || 0), 0)
 
-  // Leave %
   const leaveCount = matches.filter(m => m.teleDidLeave === true).length
-
   const safePct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
 
   return {
-    matchCount: matches.length,
+    scoutCount: matches.length,
     startingPositions,
     autoPctClassified: safePct(autoClassified, autoTotal),
     autoPctMissed: safePct(autoMissed, autoTotal),
@@ -127,7 +145,7 @@ function ScoutingData() {
     setRecords(prev => prev.filter(r => r.id !== id))
   }
 
-  // Build team list: default teams + any additional from scouting data
+  // Merge competition data with scouting submissions
   const teams = useMemo(() => {
     // Group scouting records by team number
     const byNumber = {}
@@ -139,30 +157,19 @@ function ScoutingData() {
       byNumber[num].push({ ...d, _id: r.id, _by: r.submitted_by, _at: r.submitted_at })
     })
 
-    const result = []
-
-    // Default teams always show
-    DEFAULT_TEAMS.forEach(dt => {
-      const numStr = String(dt.number || '').trim()
-      const matches = numStr ? (byNumber[numStr] || []) : []
-      result.push({
-        key: dt.name,
-        name: dt.name,
-        number: dt.number,
-        matches,
-        ...computeStats(matches),
-      })
-      if (numStr) delete byNumber[numStr]
+    // Build team list from ALL_TEAMS, attach scouting data
+    const result = ALL_TEAMS.map(t => {
+      const matches = byNumber[t.number] || []
+      delete byNumber[t.number]
+      return { ...t, matches, ...computeScoutingStats(matches) }
     })
 
-    // Additional teams from scouting data
+    // Any teams in scouting data not in ALL_TEAMS
     Object.entries(byNumber).forEach(([num, matches]) => {
       result.push({
-        key: num,
-        name: '',
-        number: num,
-        matches,
-        ...computeStats(matches),
+        rank: null, number: num, name: `Team ${num}`,
+        rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0,
+        matches, ...computeScoutingStats(matches),
       })
     })
 
@@ -181,117 +188,131 @@ function ScoutingData() {
             Scouting Data
           </h1>
           <p className="text-sm text-gray-500">
-            Team analytics from scouting submissions
+            {ALL_TEAMS.length} teams &middot; {records.length} scouting response{records.length !== 1 ? 's' : ''}
           </p>
         </div>
       </header>
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
-        <div className="max-w-3xl mx-auto space-y-6 pb-8">
+        <div className="max-w-3xl mx-auto space-y-5 pb-8">
           {teams.map(t => (
             <div
-              key={t.key}
+              key={t.number}
               className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 overflow-hidden"
             >
               {/* Team Header */}
               <div className="px-5 py-4 bg-gradient-to-r from-pastel-blue/30 to-pastel-pink/30 border-b border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800">
-                  {t.name || 'Team'}{t.number ? ` #${t.number}` : ''}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {t.matchCount} match{t.matchCount !== 1 ? 'es' : ''} scouted
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800">
+                      {t.name} <span className="text-gray-500 font-medium">#{t.number}</span>
+                    </h2>
+                    {t.rank && (
+                      <span className="text-sm text-gray-500">Rank {t.rank}</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-gray-700">{t.record}</span>
+                    <p className="text-xs text-gray-400">{t.played} matches</p>
+                  </div>
+                </div>
               </div>
 
               <div className="p-5 space-y-5">
-                {/* Starting Position */}
+                {/* Competition Stats */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Starting Position</h3>
-                  {Object.keys(t.startingPositions).length === 0 ? (
-                    <p className="text-xs text-gray-400">No data</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {Object.entries(t.startingPositions).map(([pos, count]) => (
-                        <div key={pos} className="flex items-center gap-2">
-                          <span className="text-xs text-gray-600 w-28 truncate">{pos}</span>
-                          <div className="flex-1 h-2 rounded-full bg-gray-200">
-                            <div
-                              className="h-2 rounded-full bg-pastel-blue transition-all"
-                              style={{ width: `${Math.round((count / t.matchCount) * 100)}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-gray-700 w-10 text-right">
-                            {Math.round((count / t.matchCount) * 100)}%
-                          </span>
-                        </div>
-                      ))}
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Competition Stats</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.rp}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">RP/Match</p>
                     </div>
-                  )}
-                </div>
-
-                {/* Autonomous */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Autonomous</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-xs text-gray-600">Classified</span>
-                      {pctBar(t.autoPctClassified)}
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.tbp}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">TBP/Match</p>
                     </div>
-                    <div>
-                      <span className="text-xs text-gray-600">Missed</span>
-                      {pctBar(t.autoPctMissed)}
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.autoAvg}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Auto Avg</p>
                     </div>
-                    <div>
-                      <span className="text-xs text-gray-600">Overflowed</span>
-                      {pctBar(t.autoPctOverflowed)}
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.teleopAvg}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Teleop Avg</p>
                     </div>
-                    <div>
-                      <span className="text-xs text-gray-600">In Motif Order</span>
-                      {pctBar(t.autoPctMotif)}
-                    </div>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <span className="text-xs text-gray-500">High Score: <span className="font-semibold text-gray-700">{t.highScore}</span></span>
                   </div>
                 </div>
 
-                {/* Tele-Op */}
+                {/* Scouting Data Section */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Tele-Op</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-xs text-gray-600">Classified</span>
-                      {pctBar(t.telePctClassified)}
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
+                    Our Scouting Data <span className="font-normal text-gray-400">({t.scoutCount} response{t.scoutCount !== 1 ? 's' : ''})</span>
+                  </h3>
+
+                  {/* Starting Position */}
+                  <div className="mb-3">
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Starting Position</h4>
+                    {Object.keys(t.startingPositions).length === 0 ? (
+                      <p className="text-xs text-gray-400">No data</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {Object.entries(t.startingPositions).map(([pos, count]) => (
+                          <div key={pos} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 w-28 truncate">{pos}</span>
+                            <div className="flex-1 h-2 rounded-full bg-gray-200">
+                              <div
+                                className="h-2 rounded-full bg-pastel-blue transition-all"
+                                style={{ width: `${Math.round((count / t.scoutCount) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium text-gray-700 w-10 text-right">
+                              {Math.round((count / t.scoutCount) * 100)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Autonomous */}
+                  <div className="mb-3">
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Autonomous</h4>
+                    <div className="space-y-1.5">
+                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.autoPctClassified)}</div>
+                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.autoPctMissed)}</div>
+                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.autoPctOverflowed)}</div>
+                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.autoPctMotif)}</div>
                     </div>
-                    <div>
-                      <span className="text-xs text-gray-600">Missed</span>
-                      {pctBar(t.telePctMissed)}
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-600">Overflowed</span>
-                      {pctBar(t.telePctOverflowed)}
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-600">In Motif Order</span>
-                      {pctBar(t.telePctMotif)}
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-600">Leave Rate</span>
-                      {pctBar(t.teleLeavePct)}
+                  </div>
+
+                  {/* Tele-Op */}
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op</h4>
+                    <div className="space-y-1.5">
+                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.telePctClassified)}</div>
+                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.telePctMissed)}</div>
+                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.telePctOverflowed)}</div>
+                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.telePctMotif)}</div>
+                      <div><span className="text-xs text-gray-500">Leave Rate</span>{pctBar(t.teleLeavePct)}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Responses Toggle */}
                 <button
-                  onClick={() => toggleExpand(t.key)}
+                  onClick={() => toggleExpand(t.number)}
                   className="flex items-center gap-1.5 text-xs font-medium text-pastel-pink-dark hover:text-gray-700 transition-colors px-3 py-1.5 bg-gray-50 rounded-lg"
                 >
-                  {expandedTeams[t.key] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  {expandedTeams[t.key] ? 'Hide' : 'View'} Scouting Responses ({t.matchCount})
+                  {expandedTeams[t.number] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {expandedTeams[t.number] ? 'Hide' : 'View'} Scouting Responses ({t.scoutCount})
                 </button>
 
-                {expandedTeams[t.key] && (
+                {expandedTeams[t.number] && (
                   <div className="space-y-2">
                     {t.matches.length === 0 ? (
-                      <p className="text-xs text-gray-400 py-2">No responses yet.</p>
+                      <p className="text-xs text-gray-400 py-2">No scouting responses yet.</p>
                     ) : (
                       t.matches.map((m, i) => (
                         <div key={m._id || i} className="bg-gray-50 rounded-lg p-3 text-xs space-y-1 border border-gray-100">
