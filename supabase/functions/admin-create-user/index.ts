@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
 
     if (profileError || profile?.role !== "lead") {
       return new Response(
-        JSON.stringify({ error: "Only leads can reset passwords" }),
+        JSON.stringify({ error: "Only leads can create accounts" }),
         {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -60,11 +60,13 @@ Deno.serve(async (req: Request) => {
     }
 
     // Parse request body
-    const { userId, newPassword } = await req.json();
+    const { email, password, displayName, role } = await req.json();
 
-    if (!userId || !newPassword) {
+    if (!email || !password || !displayName) {
       return new Response(
-        JSON.stringify({ error: "userId and newPassword are required" }),
+        JSON.stringify({
+          error: "email, password, and displayName are required",
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -72,11 +74,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (newPassword.length < 6) {
+    if (password.length < 6) {
       return new Response(
-        JSON.stringify({
-          error: "Password must be at least 6 characters",
-        }),
+        JSON.stringify({ error: "Password must be at least 6 characters" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -87,29 +87,52 @@ Deno.serve(async (req: Request) => {
     // Create admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Reset the password
-    const { error: resetError } =
-      await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password: newPassword,
+    // Create the user account (email_confirm: true skips email verification)
+    const { data: newUser, error: createError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: email.toLowerCase().trim(),
+        password,
+        email_confirm: true,
       });
 
-    if (resetError) {
-      return new Response(JSON.stringify({ error: resetError.message }), {
+    if (createError) {
+      return new Response(JSON.stringify({ error: createError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Force password change on next login
-    await supabaseAdmin
+    // Create profile row with must_change_password flag
+    const { error: profileInsertError } = await supabaseAdmin
       .from("profiles")
-      .update({ must_change_password: true })
-      .eq("id", userId);
+      .insert({
+        id: newUser.user.id,
+        display_name: displayName.trim(),
+        role: role || "member",
+        must_change_password: true,
+      });
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (profileInsertError) {
+      return new Response(
+        JSON.stringify({ error: profileInsertError.message }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        userId: newUser.user.id,
+        displayName: displayName.trim(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,

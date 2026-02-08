@@ -21,6 +21,66 @@ import { useUser } from './contexts/UserContext'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
 
+function ForcePasswordChange({ updatePassword }) {
+  const [pw, setPw] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (pw.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (pw !== confirm) { setError('Passwords do not match'); return }
+    setSubmitting(true)
+    try {
+      await updatePassword(pw)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex items-center justify-center">
+      <form onSubmit={handleSubmit} className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 w-80 space-y-5">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+            Set Your Password
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">You must set a new password before continuing</p>
+        </div>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => { setPw(e.target.value); setError('') }}
+          placeholder="New password"
+          className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-center text-lg"
+          autoFocus
+          required
+        />
+        <input
+          type="password"
+          value={confirm}
+          onChange={(e) => { setConfirm(e.target.value); setError('') }}
+          placeholder="Confirm password"
+          className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-center text-lg"
+          required
+        />
+        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-xl font-semibold text-gray-700 transition-colors text-lg"
+        >
+          {submitting ? 'Setting password...' : 'Set Password'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 const COLUMNS = [
   { id: 'todo', title: 'To Do', color: 'bg-pastel-blue' },
   { id: '25', title: '25%', color: 'bg-pastel-pink' },
@@ -62,7 +122,7 @@ const mapTask = (t) => ({
 })
 
 function App() {
-  const { username, isLead, user, loading, passwordRecovery } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword } = useUser()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState([...SYSTEM_TABS, ...DEFAULT_BOARDS])
@@ -466,6 +526,10 @@ function App() {
 
   if (!user || passwordRecovery) {
     return <LoginScreen />
+  }
+
+  if (mustChangePassword) {
+    return <ForcePasswordChange updatePassword={updatePassword} />
   }
 
   return (

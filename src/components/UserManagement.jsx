@@ -19,6 +19,12 @@ function UserManagement() {
   const [resetError, setResetError] = useState('')
   const [resetSuccess, setResetSuccess] = useState('')
   const [resetSubmitting, setResetSubmitting] = useState(false)
+  const [createTarget, setCreateTarget] = useState(null)
+  const [createDisplayName, setCreateDisplayName] = useState('')
+  const [createPassword, setCreatePassword] = useState('')
+  const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState('')
+  const [createSubmitting, setCreateSubmitting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -163,6 +169,46 @@ function UserManagement() {
       setResetError(err.message)
     } finally {
       setResetSubmitting(false)
+    }
+  }
+
+  const handleCreateAccount = async () => {
+    setCreateError('')
+    setCreateSuccess('')
+    if (!createDisplayName.trim()) {
+      setCreateError('Display name is required')
+      return
+    }
+    if (createPassword.length < 6) {
+      setCreateError('Password must be at least 6 characters')
+      return
+    }
+    setCreateSubmitting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: createTarget.email,
+          password: createPassword,
+          displayName: createDisplayName.trim(),
+          role: createTarget.role,
+        },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setCreateSuccess(`Account created for ${createDisplayName.trim()}. Tell them their temporary password.`)
+      // Add to members list
+      setRegisteredMembers(prev => [{
+        id: data.userId,
+        display_name: data.displayName,
+        role: createTarget.role,
+        created_at: new Date().toISOString(),
+      }, ...prev])
+      setCreateDisplayName('')
+      setCreatePassword('')
+    } catch (err) {
+      setCreateError(err.message)
+    } finally {
+      setCreateSubmitting(false)
     }
   }
 
@@ -320,12 +366,21 @@ function UserManagement() {
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full mr-3 ${roleBadge(entry.role)}`}>
                         {entry.role}
                       </span>
-                      <button
-                        onClick={() => handleRemoveEmail(entry.id)}
-                        className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-opacity"
-                      >
-                        <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => { setCreateTarget(entry); setCreateDisplayName(''); setCreatePassword(''); setCreateError(''); setCreateSuccess('') }}
+                          title="Create account"
+                          className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                        >
+                          <UserPlus size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveEmail(entry.id)}
+                          className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-opacity"
+                        >
+                          <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -367,6 +422,52 @@ function UserManagement() {
           )}
         </div>
       </main>
+
+      {/* Create Account Modal */}
+      {createTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-700">
+              Create Account
+            </h3>
+            <p className="text-sm text-gray-500">{createTarget.email}</p>
+            <input
+              type="text"
+              value={createDisplayName}
+              onChange={(e) => { setCreateDisplayName(e.target.value); setCreateError(''); setCreateSuccess('') }}
+              placeholder="Display name"
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              autoFocus
+            />
+            <input
+              type="password"
+              value={createPassword}
+              onChange={(e) => { setCreatePassword(e.target.value); setCreateError(''); setCreateSuccess('') }}
+              placeholder="Temporary password (min 6 characters)"
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+            />
+            {createError && <p className="text-sm text-red-500">{createError}</p>}
+            {createSuccess && <p className="text-sm text-green-600">{createSuccess}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCreateTarget(null)}
+                className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                {createSuccess ? 'Close' : 'Cancel'}
+              </button>
+              {!createSuccess && (
+                <button
+                  onClick={handleCreateAccount}
+                  disabled={createSubmitting || !createDisplayName || !createPassword}
+                  className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
+                >
+                  {createSubmitting ? 'Creating...' : 'Create Account'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Password Reset Modal */}
       {resetTarget && (

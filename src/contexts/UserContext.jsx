@@ -9,11 +9,12 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [mustChangePassword, setMustChangePassword] = useState(false)
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, role')
+      .select('display_name, role, must_change_password')
       .eq('id', userId)
       .single()
 
@@ -39,6 +40,7 @@ export function UserProvider({ children }) {
     if (profile) {
       setUsername(profile.display_name)
       setIsLead(profile.role === 'lead')
+      setMustChangePassword(!!profile.must_change_password)
       localStorage.setItem('scrum-username', profile.display_name)
       localStorage.setItem('chat-username', profile.display_name)
     }
@@ -141,6 +143,11 @@ export function UserProvider({ children }) {
   const updatePassword = async (newPassword) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) throw error
+    // Clear forced password change flag
+    if (user) {
+      await supabase.from('profiles').update({ must_change_password: false }).eq('id', user.id)
+    }
+    setMustChangePassword(false)
     setPasswordRecovery(false)
   }
 
@@ -158,7 +165,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery }}
+      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword }}
     >
       {children}
     </UserContext.Provider>
