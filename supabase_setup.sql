@@ -230,13 +230,26 @@ DROP POLICY IF EXISTS "Allow all access to fun_quotes" ON fun_quotes;
 CREATE POLICY "Allow all access to fun_quotes" ON fun_quotes
   FOR ALL USING (true) WITH CHECK (true);
 
--- 13. ENABLE REALTIME on all tables
+-- 13. SCOUTING SCHEDULE TABLE (match assignments & groups)
+CREATE TABLE IF NOT EXISTS scouting_schedule (
+  id text PRIMARY KEY,
+  data jsonb NOT NULL,
+  updated_by text DEFAULT '',
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE scouting_schedule ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to scouting_schedule" ON scouting_schedule;
+CREATE POLICY "Allow all access to scouting_schedule" ON scouting_schedule
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 14. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

@@ -9,6 +9,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [menuOpen, setMenuOpen] = useState(false)
   const [boardsOpen, setBoardsOpen] = useState(false)
   const [dataOpen, setDataOpen] = useState(false)
+  const [scoutingOpen, setScoutingOpen] = useState(false)
 
   const handleAddTab = (e) => {
     e.preventDefault()
@@ -19,8 +20,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   }
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
-  const boardTabs = tabs.filter(t => t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'quick-chat' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management')
-  const isBoardActive = activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'quick-chat' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests'
+  const boardTabs = tabs.filter(t => t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'quick-chat' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule')
+  const isBoardActive = activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'quick-chat' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule'
 
   return (
     <>
@@ -112,18 +113,51 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* Scouting Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'scouting'
+              activeTab === 'scouting' || activeTab === 'schedule'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
             onClick={() => {
-              onTabChange('scouting')
-              onToggle()
+              setScoutingOpen(prev => !prev)
             }}
           >
             <ClipboardList size={16} className="text-pastel-orange-dark" />
-            <span className="truncate">Scouting</span>
+            <span className="truncate flex-1">Scouting</span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
+            />
           </div>
+
+          {/* Scouting sub-items */}
+          {(scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
+            <div className="ml-4 mt-1 space-y-1">
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === 'scouting' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => {
+                  onTabChange('scouting')
+                  onToggle()
+                }}
+              >
+                <ChevronRight size={14} className={activeTab === 'scouting' ? 'rotate-90' : ''} />
+                <span className="truncate">Scouting Form</span>
+              </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === 'schedule' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => {
+                  onTabChange('schedule')
+                  onToggle()
+                }}
+              >
+                <ChevronRight size={14} className={activeTab === 'schedule' ? 'rotate-90' : ''} />
+                <span className="truncate">Schedule</span>
+              </div>
+            </div>
+          )}
 
           <hr className="my-2 border-gray-200" />
 

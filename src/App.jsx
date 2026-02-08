@@ -18,6 +18,7 @@ import RequestsView from './components/RequestsView'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
+import ScoutingSchedule from './components/ScoutingSchedule'
 import { useUser } from './contexts/UserContext'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
@@ -100,6 +101,7 @@ const NOTEBOOK_TAB = { id: 'notebook', name: 'Engineering Notebook', type: 'note
 const ORG_TAB = { id: 'org-chart', name: 'Org Chart', type: 'org-chart' }
 const SUGGESTIONS_TAB = { id: 'suggestions', name: 'Suggestions', type: 'suggestions' }
 const CALENDAR_TAB = { id: 'calendar', name: 'Calendar', type: 'calendar' }
+const SCHEDULE_TAB = { id: 'schedule', name: 'Schedule', type: 'schedule' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
 
@@ -109,7 +111,7 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
-const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
+const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -306,7 +308,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests') return
+    if (tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -562,6 +564,8 @@ function App() {
       {/* Main Content */}
       {activeTab === 'scouting' ? (
         <ScoutingForm />
+      ) : activeTab === 'schedule' ? (
+        <ScoutingSchedule />
       ) : activeTab === 'tasks' ? (
         <TasksView tasksByTab={tasksByTab} tabs={tabs} />
       ) : activeTab === 'quick-chat' ? (
