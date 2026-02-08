@@ -6,10 +6,45 @@ import { useUser } from '../contexts/UserContext'
 // Teams being considered for alliance
 const CONSIDERED_NUMBERS = ['6603', '20097', 'royal-robotics']
 
-// All teams from competition rankings
-// Columns: rank, number, name, rp/match, tbp/match, auto avg, teleop avg, high score, record, matches played
+// Pre-computed scouting stats per team (from imported match data)
+const SCOUT_STATS = {
+  '367':   { scouted: 4, autoPctClassified: 31, autoPctMissed: 13, autoPctOverflowed: 0, autoPctMotif: 56, autoAvgClassified: 1.3, autoAvgMissed: 0.5, autoAvgOverflowed: 0, autoAvgMotif: 2.3, telePctClassified: 42, telePctMissed: 24, telePctOverflowed: 0, telePctMotif: 33, teleAvgClassified: 3.5, teleAvgMissed: 2, teleAvgOverflowed: 0, teleAvgMotif: 2.8, teleAvgDepot: 0.5, leavePct: 100, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 55 },
+  '4177':  { scouted: 4, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 100, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0.3, telePctClassified: 11, telePctMissed: 11, telePctOverflowed: 0, telePctMotif: 78, teleAvgClassified: 0.3, teleAvgMissed: 0.3, teleAvgOverflowed: 0, teleAvgMotif: 1.8, teleAvgDepot: 0.5, leavePct: 75, fullParkPct: 50, partialParkPct: 50, noParkPct: 0, avgScore: 48 },
+  '4771':  { scouted: 1, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 100, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 2, telePctClassified: 0, telePctMissed: 0, telePctOverflowed: 0, telePctMotif: 100, teleAvgClassified: 0, teleAvgMissed: 0, teleAvgOverflowed: 0, teleAvgMotif: 2, teleAvgDepot: 0, leavePct: 0, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 25 },
+  '5062':  { scouted: 2, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 0, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0, telePctClassified: 22, telePctMissed: 78, telePctOverflowed: 0, telePctMotif: 0, teleAvgClassified: 2, teleAvgMissed: 7, teleAvgOverflowed: 0, teleAvgMotif: 0, teleAvgDepot: 0, leavePct: 0, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 40 },
+  '6062':  { scouted: 1, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 100, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 1, telePctClassified: 0, telePctMissed: 43, telePctOverflowed: 0, telePctMotif: 57, teleAvgClassified: 0, teleAvgMissed: 3, teleAvgOverflowed: 0, teleAvgMotif: 4, teleAvgDepot: 2, leavePct: 0, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 54 },
+  '6072':  { scouted: 4, autoPctClassified: 50, autoPctMissed: 14, autoPctOverflowed: 0, autoPctMotif: 36, autoAvgClassified: 1.8, autoAvgMissed: 0.5, autoAvgOverflowed: 0, autoAvgMotif: 1.3, telePctClassified: 40, telePctMissed: 29, telePctOverflowed: 6, telePctMotif: 26, teleAvgClassified: 3.5, teleAvgMissed: 2.5, teleAvgOverflowed: 0.5, teleAvgMotif: 2.3, teleAvgDepot: 0.5, leavePct: 75, fullParkPct: 25, partialParkPct: 75, noParkPct: 0, avgScore: 70.3 },
+  '6082':  { scouted: 1, autoPctClassified: 0, autoPctMissed: 75, autoPctOverflowed: 0, autoPctMotif: 25, autoAvgClassified: 0, autoAvgMissed: 3, autoAvgOverflowed: 0, autoAvgMotif: 1, telePctClassified: 21, telePctMissed: 14, telePctOverflowed: 0, telePctMotif: 64, teleAvgClassified: 3, teleAvgMissed: 2, teleAvgOverflowed: 0, teleAvgMotif: 9, teleAvgDepot: 0, leavePct: 100, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 99 },
+  '6093':  { scouted: 5, autoPctClassified: 50, autoPctMissed: 15, autoPctOverflowed: 0, autoPctMotif: 35, autoAvgClassified: 3.4, autoAvgMissed: 1, autoAvgOverflowed: 0, autoAvgMotif: 2.4, telePctClassified: 46, telePctMissed: 25, telePctOverflowed: 4, telePctMotif: 25, teleAvgClassified: 7.6, teleAvgMissed: 4.2, teleAvgOverflowed: 0.6, teleAvgMotif: 4.2, teleAvgDepot: 0, leavePct: 80, fullParkPct: 60, partialParkPct: 20, noParkPct: 20, avgScore: 79.4 },
+  '7196':  { scouted: 4, autoPctClassified: 56, autoPctMissed: 2, autoPctOverflowed: 2, autoPctMotif: 40, autoAvgClassified: 6.3, autoAvgMissed: 0.3, autoAvgOverflowed: 0.3, autoAvgMotif: 4.5, telePctClassified: 36, telePctMissed: 31, telePctOverflowed: 5, telePctMotif: 27, teleAvgClassified: 5, teleAvgMissed: 4.3, teleAvgOverflowed: 0.8, teleAvgMotif: 3.8, teleAvgDepot: 0, leavePct: 75, fullParkPct: 50, partialParkPct: 50, noParkPct: 0, avgScore: 87.8 },
+  '8696':  { scouted: 4, autoPctClassified: 60, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 40, autoAvgClassified: 0.8, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0.5, telePctClassified: 46, telePctMissed: 18, telePctOverflowed: 13, telePctMotif: 23, teleAvgClassified: 4.5, teleAvgMissed: 1.8, teleAvgOverflowed: 1.3, teleAvgMotif: 2.3, teleAvgDepot: 0.3, leavePct: 100, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 58 },
+  '8734':  { scouted: 1, autoPctClassified: 100, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 0, autoAvgClassified: 3, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0, telePctClassified: 32, telePctMissed: 42, telePctOverflowed: 5, telePctMotif: 21, teleAvgClassified: 6, teleAvgMissed: 8, teleAvgOverflowed: 1, teleAvgMotif: 4, teleAvgDepot: 0, leavePct: 100, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 67 },
+  '8743':  { scouted: 4, autoPctClassified: 62, autoPctMissed: 8, autoPctOverflowed: 0, autoPctMotif: 31, autoAvgClassified: 2, autoAvgMissed: 0.3, autoAvgOverflowed: 0, autoAvgMotif: 1, telePctClassified: 50, telePctMissed: 15, telePctOverflowed: 12, telePctMotif: 23, teleAvgClassified: 8.3, teleAvgMissed: 2.5, teleAvgOverflowed: 2, teleAvgMotif: 3.8, teleAvgDepot: 0.3, leavePct: 100, fullParkPct: 25, partialParkPct: 50, noParkPct: 25, avgScore: 88 },
+  '8988':  { scouted: 4, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 100, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0.5, telePctClassified: 32, telePctMissed: 20, telePctOverflowed: 0, telePctMotif: 48, teleAvgClassified: 2, teleAvgMissed: 1.3, teleAvgOverflowed: 0, teleAvgMotif: 3, teleAvgDepot: 0, leavePct: 75, fullParkPct: 0, partialParkPct: 75, noParkPct: 25, avgScore: 48.5 },
+  '10082': { scouted: 4, autoPctClassified: 50, autoPctMissed: 32, autoPctOverflowed: 0, autoPctMotif: 18, autoAvgClassified: 2.8, autoAvgMissed: 1.8, autoAvgOverflowed: 0, autoAvgMotif: 1, telePctClassified: 57, telePctMissed: 23, telePctOverflowed: 2, telePctMotif: 17, teleAvgClassified: 6.8, teleAvgMissed: 2.8, teleAvgOverflowed: 0.3, teleAvgMotif: 2, teleAvgDepot: 0.3, leavePct: 100, fullParkPct: 25, partialParkPct: 75, noParkPct: 0, avgScore: 72.3 },
+  '10602': { scouted: 4, autoPctClassified: 40, autoPctMissed: 20, autoPctOverflowed: 0, autoPctMotif: 40, autoAvgClassified: 1, autoAvgMissed: 0.5, autoAvgOverflowed: 0, autoAvgMotif: 1, telePctClassified: 38, telePctMissed: 23, telePctOverflowed: 2, telePctMotif: 36, teleAvgClassified: 4.5, teleAvgMissed: 2.8, teleAvgOverflowed: 0.3, teleAvgMotif: 4.3, teleAvgDepot: 0.3, leavePct: 75, fullParkPct: 0, partialParkPct: 75, noParkPct: 25, avgScore: 59.3 },
+  '12745': { scouted: 4, autoPctClassified: 60, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 40, autoAvgClassified: 1.5, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 1, telePctClassified: 47, telePctMissed: 18, telePctOverflowed: 0, telePctMotif: 35, teleAvgClassified: 2, teleAvgMissed: 0.8, teleAvgOverflowed: 0, teleAvgMotif: 1.5, teleAvgDepot: 0, leavePct: 75, fullParkPct: 75, partialParkPct: 25, noParkPct: 0, avgScore: 50.3 },
+  '15050': { scouted: 4, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 0, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0, telePctClassified: 0, telePctMissed: 0, telePctOverflowed: 0, telePctMotif: 0, teleAvgClassified: 0, teleAvgMissed: 0, teleAvgOverflowed: 0, teleAvgMotif: 0, teleAvgDepot: 0.5, leavePct: 100, fullParkPct: 75, partialParkPct: 25, noParkPct: 0, avgScore: 38.8 },
+  '15055': { scouted: 4, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 100, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0.5, telePctClassified: 17, telePctMissed: 50, telePctOverflowed: 0, telePctMotif: 33, teleAvgClassified: 0.5, teleAvgMissed: 1.5, teleAvgOverflowed: 0, teleAvgMotif: 1, teleAvgDepot: 0, leavePct: 100, fullParkPct: 75, partialParkPct: 25, noParkPct: 0, avgScore: 36.8 },
+  '22064': { scouted: 4, autoPctClassified: 33, autoPctMissed: 67, autoPctOverflowed: 0, autoPctMotif: 0, autoAvgClassified: 0.3, autoAvgMissed: 0.5, autoAvgOverflowed: 0, autoAvgMotif: 0, telePctClassified: 42, telePctMissed: 38, telePctOverflowed: 0, telePctMotif: 21, teleAvgClassified: 2.5, teleAvgMissed: 2.3, teleAvgOverflowed: 0, teleAvgMotif: 1.3, teleAvgDepot: 0, leavePct: 50, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 22 },
+  '23971': { scouted: 5, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 0, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0, telePctClassified: 37, telePctMissed: 33, telePctOverflowed: 7, telePctMotif: 22, teleAvgClassified: 2, teleAvgMissed: 1.8, teleAvgOverflowed: 0.4, teleAvgMotif: 1.2, teleAvgDepot: 0.6, leavePct: 80, fullParkPct: 40, partialParkPct: 60, noParkPct: 0, avgScore: 35.8 },
+  '25788': { scouted: 4, autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 100, autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0.3, telePctClassified: 24, telePctMissed: 55, telePctOverflowed: 0, telePctMotif: 21, teleAvgClassified: 2.3, teleAvgMissed: 5.3, teleAvgOverflowed: 0, teleAvgMotif: 2, teleAvgDepot: 0, leavePct: 0, fullParkPct: 0, partialParkPct: 100, noParkPct: 0, avgScore: 36.5 },
+  '31541': { scouted: 5, autoPctClassified: 0, autoPctMissed: 67, autoPctOverflowed: 0, autoPctMotif: 33, autoAvgClassified: 0, autoAvgMissed: 0.4, autoAvgOverflowed: 0, autoAvgMotif: 0.2, telePctClassified: 22, telePctMissed: 53, telePctOverflowed: 2, telePctMotif: 23, teleAvgClassified: 2.8, teleAvgMissed: 6.8, teleAvgOverflowed: 0.2, teleAvgMotif: 3, teleAvgDepot: 0.2, leavePct: 100, fullParkPct: 20, partialParkPct: 80, noParkPct: 0, avgScore: 59.4 },
+}
+
+// All teams from competition rankings + scouted teams not in rankings
 const ALL_TEAMS = [
   { rank: null, number: 'royal-robotics', name: 'Royal Robotics', rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0 },
+  { rank: null, number: '7196',  name: 'Team 7196',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '8743',  name: 'Team 8743',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '10082', name: 'Team 10082',                         rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '6093',  name: 'Team 6093',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '22064', name: 'Team 22064',                         rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '31541', name: 'Team 31541',                         rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '6062',  name: 'Team 6062',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '6082',  name: 'Team 6082',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '4771',  name: 'Team 4771',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
+  { rank: null, number: '8734',  name: 'Team 8734',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
   { rank: 11, number: '6072',  name: 'Wildbot Robotics',                   rp: 4.30, tbp: 72.20, autoAvg: 15.00, teleopAvg: 21.10, highScore: 146, record: '10-0-0', played: 24 },
   { rank: 12, number: '15050', name: 'Lightning Bots',                     rp: 4.30, tbp: 64.00, autoAvg: 14.00, teleopAvg: 15.00, highScore: 79,  record: '10-0-0', played: 30 },
   { rank: 13, number: '8672',  name: 'UBett',                              rp: 4.30, tbp: 61.00, autoAvg: 13.50, teleopAvg: 12.30, highScore: 78,  record: '10-0-0', played: 30 },
@@ -184,18 +219,26 @@ function ScoutingData() {
     })
 
     // Build team list from ALL_TEAMS, attach scouting data
+    // Use hardcoded SCOUT_STATS as base, override with dynamic data if available
     const all = ALL_TEAMS.map(t => {
       const matches = byNumber[t.number] || []
       delete byNumber[t.number]
-      return { ...t, matches, ...computeScoutingStats(matches) }
+      const dynamicStats = computeScoutingStats(matches)
+      const hardcodedStats = SCOUT_STATS[t.number]
+      // Use dynamic stats if we have Supabase records, otherwise fall back to hardcoded
+      const stats = dynamicStats.scoutCount > 0 ? dynamicStats : (hardcodedStats ? { ...hardcodedStats, scoutCount: hardcodedStats.scouted, startingPositions: {} } : dynamicStats)
+      return { ...t, matches, ...stats }
     })
 
     // Any teams in scouting data not in ALL_TEAMS
     Object.entries(byNumber).forEach(([num, matches]) => {
+      const dynamicStats = computeScoutingStats(matches)
+      const hardcodedStats = SCOUT_STATS[num]
+      const stats = dynamicStats.scoutCount > 0 ? dynamicStats : (hardcodedStats ? { ...hardcodedStats, scoutCount: hardcodedStats.scouted, startingPositions: {} } : dynamicStats)
       all.push({
         rank: null, number: num, name: `Team ${num}`,
         rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0,
-        matches, ...computeScoutingStats(matches),
+        matches, ...stats,
       })
     })
 
