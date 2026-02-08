@@ -3,37 +3,92 @@ import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
-function ProgressBar({ value, max, color = 'bg-pastel-pink' }) {
-  const pct = max === 0 ? 0 : Math.min(100, Math.round((value / max) * 100))
+const DEFAULT_TEAMS = [
+  { name: 'Guild of Gears', number: '' },
+  { name: 'Royal Robots', number: '' },
+  { name: 'Robo Raptors', number: '' },
+]
+
+const ALLOWED_DELETERS = ['yukti', 'kayden', 'lily', 'nick', 'harshita']
+
+function pctBar(value) {
   return (
-    <div className="h-2 rounded-full bg-gray-200 mt-1">
-      <div
-        className={`h-2 rounded-full ${color} transition-all`}
-        style={{ width: `${pct}%` }}
-      />
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2.5 rounded-full bg-gray-200">
+        <div
+          className="h-2.5 rounded-full bg-pastel-pink transition-all"
+          style={{ width: `${Math.min(100, value)}%` }}
+        />
+      </div>
+      <span className="text-xs font-semibold text-gray-700 w-10 text-right">{value}%</span>
     </div>
   )
 }
 
-function StatLine({ label, value, maxValue, color, suffix = '' }) {
-  return (
-    <div className="space-y-0.5">
-      <div className="flex justify-between text-xs">
-        <span className="text-gray-600">{label}</span>
-        <span className="font-medium text-gray-800">{value}{suffix}</span>
-      </div>
-      <ProgressBar value={typeof value === 'string' ? parseFloat(value) || 0 : value} max={maxValue} color={color} />
-    </div>
-  )
+function computeStats(matches) {
+  if (matches.length === 0) {
+    return {
+      matchCount: 0,
+      startingPositions: {},
+      autoPctMissed: 0, autoPctClassified: 0, autoPctOverflowed: 0, autoPctMotif: 0,
+      telePctMissed: 0, telePctClassified: 0, telePctOverflowed: 0, telePctMotif: 0,
+      teleLeavePct: 0,
+    }
+  }
+
+  // Starting positions
+  const startingPositions = {}
+  matches.forEach(m => {
+    const pos = m.startingPosition || 'Unknown'
+    startingPositions[pos] = (startingPositions[pos] || 0) + 1
+  })
+
+  // Auto totals across all matches
+  const autoTotal = matches.reduce((s, m) =>
+    s + (Number(m.autoClassified) || 0) + (Number(m.autoArtifactsMissed) || 0) +
+    (Number(m.autoOverflowed) || 0) + (Number(m.autoInMotifOrder) || 0), 0)
+  const autoClassified = matches.reduce((s, m) => s + (Number(m.autoClassified) || 0), 0)
+  const autoMissed = matches.reduce((s, m) => s + (Number(m.autoArtifactsMissed) || 0), 0)
+  const autoOverflowed = matches.reduce((s, m) => s + (Number(m.autoOverflowed) || 0), 0)
+  const autoMotif = matches.reduce((s, m) => s + (Number(m.autoInMotifOrder) || 0), 0)
+
+  // Tele-op totals
+  const teleTotal = matches.reduce((s, m) =>
+    s + (Number(m.teleClassified) || 0) + (Number(m.teleArtifactsMissed) || 0) +
+    (Number(m.teleOverflowed) || 0) + (Number(m.teleInMotifOrder) || 0), 0)
+  const teleClassified = matches.reduce((s, m) => s + (Number(m.teleClassified) || 0), 0)
+  const teleMissed = matches.reduce((s, m) => s + (Number(m.teleArtifactsMissed) || 0), 0)
+  const teleOverflowed = matches.reduce((s, m) => s + (Number(m.teleOverflowed) || 0), 0)
+  const teleMotif = matches.reduce((s, m) => s + (Number(m.teleInMotifOrder) || 0), 0)
+
+  // Leave %
+  const leaveCount = matches.filter(m => m.teleDidLeave === true).length
+
+  const safePct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
+
+  return {
+    matchCount: matches.length,
+    startingPositions,
+    autoPctClassified: safePct(autoClassified, autoTotal),
+    autoPctMissed: safePct(autoMissed, autoTotal),
+    autoPctOverflowed: safePct(autoOverflowed, autoTotal),
+    autoPctMotif: safePct(autoMotif, autoTotal),
+    telePctClassified: safePct(teleClassified, teleTotal),
+    telePctMissed: safePct(teleMissed, teleTotal),
+    telePctOverflowed: safePct(teleOverflowed, teleTotal),
+    telePctMotif: safePct(teleMotif, teleTotal),
+    teleLeavePct: safePct(leaveCount, matches.length),
+  }
 }
 
 function ScoutingData() {
-  const { isLead } = useUser()
+  const { username } = useUser()
   const [records, setRecords] = useState([])
-  const [sortBy, setSortBy] = useState('avgAllianceScore')
   const [expandedTeams, setExpandedTeams] = useState({})
 
-  // Load records on mount
+  const canDelete = ALLOWED_DELETERS.includes((username || '').toLowerCase())
+
+  // Load from Supabase
   useEffect(() => {
     supabase
       .from('scouting_records')
@@ -46,10 +101,10 @@ function ScoutingData() {
       .catch(err => console.error('Exception loading scouting records:', err))
   }, [])
 
-  // Realtime subscription
+  // Realtime
   useEffect(() => {
     const channel = supabase
-      .channel('scouting-records-changes')
+      .channel('scouting-data-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, (payload) => {
         setRecords(prev => {
           if (prev.some(r => r.id === payload.new.id)) return prev
@@ -60,282 +115,231 @@ function ScoutingData() {
         setRecords(prev => prev.filter(r => r.id !== payload.old.id))
       })
       .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    return () => supabase.removeChannel(channel)
   }, [])
 
   const handleDelete = async (id) => {
     const { error } = await supabase.from('scouting_records').delete().eq('id', id)
     if (error) {
-      console.error('Failed to delete scouting record:', error.message)
+      console.error('Failed to delete:', error.message)
       return
     }
     setRecords(prev => prev.filter(r => r.id !== id))
   }
 
-  // Group records by team number and compute stats
-  const teamStats = useMemo(() => {
-    const byTeam = {}
+  // Build team list: default teams + any additional from scouting data
+  const teams = useMemo(() => {
+    // Group scouting records by team number
+    const byNumber = {}
     records.forEach(r => {
       const d = r.data || {}
-      const team = d.teamNumber
-      if (!team) return
-      if (!byTeam[team]) byTeam[team] = []
-      byTeam[team].push({ ...d, _id: r.id, _submittedBy: r.submitted_by, _submittedAt: r.submitted_at })
+      const num = String(d.teamNumber || '').trim()
+      if (!num) return
+      if (!byNumber[num]) byNumber[num] = []
+      byNumber[num].push({ ...d, _id: r.id, _by: r.submitted_by, _at: r.submitted_at })
     })
 
-    const avg = (arr, key) => {
-      const nums = arr.map(r => Number(r[key]) || 0)
-      return nums.length === 0 ? 0 : nums.reduce((a, b) => a + b, 0) / nums.length
-    }
+    const result = []
 
-    const pct = (arr, fn) => {
-      if (arr.length === 0) return 0
-      return Math.round((arr.filter(fn).length / arr.length) * 100)
-    }
-
-    const stats = Object.entries(byTeam).map(([team, matches]) => {
-      // Auto
-      const autoClassified = avg(matches, 'autoClassified')
-      const autoMissed = avg(matches, 'autoArtifactsMissed')
-      const autoOverflowed = avg(matches, 'autoOverflowed')
-      const autoMotif = avg(matches, 'autoInMotifOrder')
-
-      // Tele-op
-      const teleClassified = avg(matches, 'teleClassified')
-      const teleMissed = avg(matches, 'teleArtifactsMissed')
-      const teleOverflowed = avg(matches, 'teleOverflowed')
-      const teleMotif = avg(matches, 'teleInMotifOrder')
-      const teleDepot = avg(matches, 'teleArtifactsInDepot')
-
-      // Scores
-      const avgAllianceScore = avg(matches, 'allianceScore')
-      const avgArtifactPoints = avg(matches, 'artifactPoints')
-      const avgPatternPoints = avg(matches, 'patternPoints')
-      const avgBasePoints = avg(matches, 'basePoints')
-      const avgFoulPoints = avg(matches, 'foulPoints')
-
-      // RP rates
-      const patternRPRate = pct(matches, m => m.patternRP)
-      const goalRPRate = pct(matches, m => m.goalRP)
-      const movementRPRate = pct(matches, m => m.movementRP)
-
-      // Stability
-      const noIssuesRate = pct(matches, m => m.robotStability === 'no')
-      const majorBreakdownRate = pct(matches, m => m.robotStability === 'major')
-      const shutdownRate = pct(matches, m => m.robotStability === 'shutdown')
-
-      // Roles
-      const roleCounts = {}
-      matches.forEach(m => {
-        (m.roles || []).forEach(role => {
-          roleCounts[role] = (roleCounts[role] || 0) + 1
-        })
-      })
-      const roles = Object.entries(roleCounts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([role, count]) => ({ role, count }))
-
-      return {
-        team,
-        matchCount: matches.length,
-        autoClassified, autoMissed, autoOverflowed, autoMotif,
-        teleClassified, teleMissed, teleOverflowed, teleMotif, teleDepot,
-        avgAllianceScore, avgArtifactPoints, avgPatternPoints, avgBasePoints, avgFoulPoints,
-        patternRPRate, goalRPRate, movementRPRate,
-        noIssuesRate, majorBreakdownRate, shutdownRate,
-        roles,
+    // Default teams always show
+    DEFAULT_TEAMS.forEach(dt => {
+      const numStr = String(dt.number || '').trim()
+      const matches = numStr ? (byNumber[numStr] || []) : []
+      result.push({
+        key: dt.name,
+        name: dt.name,
+        number: dt.number,
         matches,
-      }
+        ...computeStats(matches),
+      })
+      if (numStr) delete byNumber[numStr]
     })
 
-    // Sort
-    if (sortBy === 'avgAllianceScore') {
-      stats.sort((a, b) => b.avgAllianceScore - a.avgAllianceScore)
-    } else if (sortBy === 'matchCount') {
-      stats.sort((a, b) => b.matchCount - a.matchCount)
-    } else if (sortBy === 'autoClassified') {
-      stats.sort((a, b) => b.autoClassified - a.autoClassified)
-    }
+    // Additional teams from scouting data
+    Object.entries(byNumber).forEach(([num, matches]) => {
+      result.push({
+        key: num,
+        name: '',
+        number: num,
+        matches,
+        ...computeStats(matches),
+      })
+    })
 
-    return stats
-  }, [records, sortBy])
+    return result
+  }, [records])
 
-  const toggleExpand = (team) => {
-    setExpandedTeams(prev => ({ ...prev, [team]: !prev[team] }))
+  const toggleExpand = (key) => {
+    setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
   }
-
-  // Find max values for progress bar scaling
-  const maxAuto = useMemo(() => Math.max(1, ...teamStats.map(t => Math.max(t.autoClassified, t.autoMissed, t.autoOverflowed, t.autoMotif))), [teamStats])
-  const maxTele = useMemo(() => Math.max(1, ...teamStats.map(t => Math.max(t.teleClassified, t.teleMissed, t.teleOverflowed, t.teleMotif, t.teleDepot))), [teamStats])
-  const maxScore = useMemo(() => Math.max(1, ...teamStats.map(t => t.avgAllianceScore)), [teamStats])
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div className="ml-10">
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Scouting Analytics
-            </h1>
-            <p className="text-sm text-gray-500">
-              {teamStats.length} team{teamStats.length !== 1 ? 's' : ''} &middot; {records.length} record{records.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-500">Sort by:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-pastel-pink focus:border-transparent bg-white"
-            >
-              <option value="avgAllianceScore">Avg Alliance Score</option>
-              <option value="matchCount">Match Count</option>
-              <option value="autoClassified">Avg Auto Classified</option>
-            </select>
-          </div>
+        <div className="px-4 py-4 ml-10">
+          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+            Scouting Data
+          </h1>
+          <p className="text-sm text-gray-500">
+            Team analytics from scouting submissions
+          </p>
         </div>
       </header>
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
-        {teamStats.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <p className="text-gray-400 text-lg">No scouting data yet. Submit data from the Scouting tab.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-8">
-            {teamStats.map(ts => (
-              <div
-                key={ts.team}
-                className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-              >
-                {/* Card Header */}
-                <div className="px-4 py-3 bg-gradient-to-r from-pastel-blue/30 to-pastel-pink/30">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-gray-800">Team {ts.team}</h3>
-                    <span className="text-sm text-gray-500 font-medium">
-                      {ts.matchCount} match{ts.matchCount !== 1 ? 'es' : ''}
-                    </span>
+        <div className="max-w-3xl mx-auto space-y-6 pb-8">
+          {teams.map(t => (
+            <div
+              key={t.key}
+              className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            >
+              {/* Team Header */}
+              <div className="px-5 py-4 bg-gradient-to-r from-pastel-blue/30 to-pastel-pink/30 border-b border-gray-100">
+                <h2 className="text-lg font-bold text-gray-800">
+                  {t.name || 'Team'}{t.number ? ` #${t.number}` : ''}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {t.matchCount} match{t.matchCount !== 1 ? 'es' : ''} scouted
+                </p>
+              </div>
+
+              <div className="p-5 space-y-5">
+                {/* Starting Position */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Starting Position</h3>
+                  {Object.keys(t.startingPositions).length === 0 ? (
+                    <p className="text-xs text-gray-400">No data</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {Object.entries(t.startingPositions).map(([pos, count]) => (
+                        <div key={pos} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600 w-28 truncate">{pos}</span>
+                          <div className="flex-1 h-2 rounded-full bg-gray-200">
+                            <div
+                              className="h-2 rounded-full bg-pastel-blue transition-all"
+                              style={{ width: `${Math.round((count / t.matchCount) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-gray-700 w-10 text-right">
+                            {Math.round((count / t.matchCount) * 100)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Autonomous */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Autonomous</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-xs text-gray-600">Classified</span>
+                      {pctBar(t.autoPctClassified)}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Missed</span>
+                      {pctBar(t.autoPctMissed)}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Overflowed</span>
+                      {pctBar(t.autoPctOverflowed)}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">In Motif Order</span>
+                      {pctBar(t.autoPctMotif)}
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-4 space-y-4">
-                  {/* Auto Performance */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Auto Performance</h4>
-                    <div className="space-y-1.5">
-                      <StatLine label="Avg Classified" value={ts.autoClassified.toFixed(1)} maxValue={maxAuto} color="bg-blue-400" />
-                      <StatLine label="Avg Missed" value={ts.autoMissed.toFixed(1)} maxValue={maxAuto} color="bg-red-300" />
-                      <StatLine label="Avg Overflowed" value={ts.autoOverflowed.toFixed(1)} maxValue={maxAuto} color="bg-amber-300" />
-                      <StatLine label="Avg in Motif Order" value={ts.autoMotif.toFixed(1)} maxValue={maxAuto} color="bg-green-400" />
-                    </div>
-                  </div>
-
-                  {/* Tele-op Performance */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Tele-op Performance</h4>
-                    <div className="space-y-1.5">
-                      <StatLine label="Avg Classified" value={ts.teleClassified.toFixed(1)} maxValue={maxTele} color="bg-blue-400" />
-                      <StatLine label="Avg Missed" value={ts.teleMissed.toFixed(1)} maxValue={maxTele} color="bg-red-300" />
-                      <StatLine label="Avg Overflowed" value={ts.teleOverflowed.toFixed(1)} maxValue={maxTele} color="bg-amber-300" />
-                      <StatLine label="Avg in Motif Order" value={ts.teleMotif.toFixed(1)} maxValue={maxTele} color="bg-green-400" />
-                      <StatLine label="Avg in Depot" value={ts.teleDepot.toFixed(1)} maxValue={maxTele} color="bg-purple-400" />
-                    </div>
-                  </div>
-
-                  {/* Scores */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Scores</h4>
-                    <div className="space-y-1.5">
-                      <StatLine label="Avg Alliance Score" value={ts.avgAllianceScore.toFixed(1)} maxValue={maxScore} color="bg-pastel-pink" />
-                      <StatLine label="Avg Artifact Points" value={ts.avgArtifactPoints.toFixed(1)} maxValue={maxScore} color="bg-pastel-blue" />
-                      <StatLine label="Avg Pattern Points" value={ts.avgPatternPoints.toFixed(1)} maxValue={36} color="bg-pastel-orange" />
-                      <StatLine label="Avg Base Points" value={ts.avgBasePoints.toFixed(1)} maxValue={maxScore} color="bg-pastel-blue-dark" />
-                      <StatLine label="Avg Foul Points" value={ts.avgFoulPoints.toFixed(1)} maxValue={maxScore} color="bg-red-300" />
-                    </div>
-                  </div>
-
-                  {/* RP Rates */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">RP Rates</h4>
-                    <div className="space-y-1.5">
-                      <StatLine label="Pattern RP" value={ts.patternRPRate} maxValue={100} color="bg-indigo-400" suffix="%" />
-                      <StatLine label="Goal RP" value={ts.goalRPRate} maxValue={100} color="bg-emerald-400" suffix="%" />
-                      <StatLine label="Movement RP" value={ts.movementRPRate} maxValue={100} color="bg-cyan-400" suffix="%" />
-                    </div>
-                  </div>
-
-                  {/* Stability */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Stability</h4>
-                    <div className="space-y-1.5">
-                      <StatLine label="No Issues" value={ts.noIssuesRate} maxValue={100} color="bg-green-400" suffix="%" />
-                      <StatLine label="Major Breakdown" value={ts.majorBreakdownRate} maxValue={100} color="bg-amber-400" suffix="%" />
-                      <StatLine label="Shutdown" value={ts.shutdownRate} maxValue={100} color="bg-red-400" suffix="%" />
-                    </div>
-                  </div>
-
-                  {/* Roles */}
-                  {ts.roles.length > 0 && (
+                {/* Tele-Op */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Tele-Op</h3>
+                  <div className="space-y-2">
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Common Roles</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {ts.roles.map(({ role, count }) => (
-                          <span key={role} className="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600">
-                            {role} <span className="font-semibold text-gray-800">({count})</span>
-                          </span>
-                        ))}
-                      </div>
+                      <span className="text-xs text-gray-600">Classified</span>
+                      {pctBar(t.telePctClassified)}
                     </div>
-                  )}
+                    <div>
+                      <span className="text-xs text-gray-600">Missed</span>
+                      {pctBar(t.telePctMissed)}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Overflowed</span>
+                      {pctBar(t.telePctOverflowed)}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">In Motif Order</span>
+                      {pctBar(t.telePctMotif)}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Leave Rate</span>
+                      {pctBar(t.teleLeavePct)}
+                    </div>
+                  </div>
+                </div>
 
-                  {/* Expand/Collapse */}
-                  <button
-                    onClick={() => toggleExpand(ts.team)}
-                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors w-full justify-center pt-1"
-                  >
-                    {expandedTeams[ts.team] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    {expandedTeams[ts.team] ? 'Hide' : 'Show'} match records
-                  </button>
+                {/* Responses Toggle */}
+                <button
+                  onClick={() => toggleExpand(t.key)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-pastel-pink-dark hover:text-gray-700 transition-colors px-3 py-1.5 bg-gray-50 rounded-lg"
+                >
+                  {expandedTeams[t.key] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {expandedTeams[t.key] ? 'Hide' : 'View'} Scouting Responses ({t.matchCount})
+                </button>
 
-                  {expandedTeams[ts.team] && (
-                    <div className="space-y-2 pt-1">
-                      {ts.matches.map((m, i) => (
-                        <div key={m._id || i} className="bg-gray-50 rounded-lg p-2.5 text-xs space-y-1">
+                {expandedTeams[t.key] && (
+                  <div className="space-y-2">
+                    {t.matches.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-2">No responses yet.</p>
+                    ) : (
+                      t.matches.map((m, i) => (
+                        <div key={m._id || i} className="bg-gray-50 rounded-lg p-3 text-xs space-y-1 border border-gray-100">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-700">
-                              Match {m.matchNumber || '?'} &middot; {m.allianceColor || '?'}
+                            <span className="font-semibold text-gray-700">
+                              Match {m.matchNumber || '?'} &middot; {m.allianceColor || '?'} Alliance
                             </span>
-                            {isLead && m._id && (
+                            {canDelete && m._id && (
                               <button
                                 onClick={() => handleDelete(m._id)}
-                                className="text-gray-400 hover:text-red-500 transition-colors"
-                                title="Delete record"
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                title="Delete response"
                               >
                                 <Trash2 size={13} />
                               </button>
                             )}
                           </div>
                           <div className="text-gray-500">
-                            Auto: {m.autoClassified || 0} classified, {m.autoArtifactsMissed || 0} missed
-                            {' | '}
-                            Tele: {m.teleClassified || 0} classified, {m.teleArtifactsMissed || 0} missed
+                            Start: {m.startingPosition || '?'} | Stability: {
+                              m.robotStability === 'no' ? 'No issues' :
+                              m.robotStability === 'major' ? 'Major breakdown' :
+                              m.robotStability === 'shutdown' ? 'Shutdown' : '?'
+                            }
                           </div>
                           <div className="text-gray-500">
-                            Score: {m.allianceScore || 0} &middot; Artifact: {m.artifactPoints || 0} &middot; Pattern: {m.patternPoints || 0}
+                            Auto: {m.autoClassified || 0} classified, {m.autoArtifactsMissed || 0} missed, {m.autoOverflowed || 0} overflow, {m.autoInMotifOrder || 0} motif
                           </div>
-                          {m._submittedBy && (
-                            <div className="text-gray-400">by {m._submittedBy}</div>
+                          <div className="text-gray-500">
+                            Tele: {m.teleClassified || 0} classified, {m.teleArtifactsMissed || 0} missed, {m.teleOverflowed || 0} overflow, {m.teleInMotifOrder || 0} motif
+                          </div>
+                          {(m.roles || []).length > 0 && (
+                            <div className="text-gray-500">Roles: {m.roles.join(', ')}</div>
+                          )}
+                          {m.observations && (
+                            <div className="text-gray-400 italic">"{m.observations}"</div>
+                          )}
+                          {m._by && (
+                            <div className="text-gray-400 pt-0.5">Submitted by {m._by}</div>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   )
