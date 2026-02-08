@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
 // Teams being considered for alliance
-const CONSIDERED_NUMBERS = ['6603', '20097', 'royal-robotics']
+const CONSIDERED_NUMBERS = ['6603', '20097', '22479']
 
 // Pre-computed scouting stats per team (from imported match data)
 const SCOUT_STATS = {
@@ -34,7 +34,7 @@ const SCOUT_STATS = {
 
 // All teams from competition rankings + scouted teams not in rankings
 const ALL_TEAMS = [
-  { rank: null, number: 'royal-robotics', name: 'Royal Robotics', rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0 },
+  { rank: null, number: '22479', name: 'Royal Robotics', rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0 },
   { rank: null, number: '7196',  name: 'Team 7196',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
   { rank: null, number: '8743',  name: 'Team 8743',                          rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
   { rank: null, number: '10082', name: 'Team 10082',                         rp: 0,    tbp: 0,     autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
