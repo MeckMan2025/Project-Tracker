@@ -30,29 +30,20 @@ function StatLine({ label, value, maxValue, color, suffix = '' }) {
 function ScoutingData() {
   const { isLead } = useUser()
   const [records, setRecords] = useState([])
-  const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState('avgAllianceScore')
   const [expandedTeams, setExpandedTeams] = useState({})
 
   // Load records on mount
   useEffect(() => {
-    async function load() {
-      try {
-        const { data, error } = await supabase
-          .from('scouting_records')
-          .select('*')
-          .order('submitted_at', { ascending: true })
-        if (error) {
-          console.error('Failed to load scouting records:', error.message)
-        }
+    supabase
+      .from('scouting_records')
+      .select('*')
+      .order('submitted_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) console.error('Failed to load scouting records:', error.message)
         if (data) setRecords(data)
-      } catch (err) {
-        console.error('Exception loading scouting records:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+      })
+      .catch(err => console.error('Exception loading scouting records:', err))
   }, [])
 
   // Realtime subscription
@@ -178,14 +169,6 @@ function ScoutingData() {
   const maxAuto = useMemo(() => Math.max(1, ...teamStats.map(t => Math.max(t.autoClassified, t.autoMissed, t.autoOverflowed, t.autoMotif))), [teamStats])
   const maxTele = useMemo(() => Math.max(1, ...teamStats.map(t => Math.max(t.teleClassified, t.teleMissed, t.teleOverflowed, t.teleMotif, t.teleDepot))), [teamStats])
   const maxScore = useMemo(() => Math.max(1, ...teamStats.map(t => t.avgAllianceScore)), [teamStats])
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-w-0">
-        <p className="text-gray-500 animate-pulse">Loading scouting data...</p>
-      </div>
-    )
-  }
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
