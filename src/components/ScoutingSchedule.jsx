@@ -32,12 +32,16 @@ export default function ScoutingSchedule() {
   // Load
   useEffect(() => {
     async function load() {
-      const { data: row } = await supabase
-        .from('scouting_schedule')
-        .select('*')
-        .eq('id', 'main')
-        .single()
-      setData(row?.data || { ...DEFAULT_DATA })
+      try {
+        const { data: rows } = await supabase
+          .from('scouting_schedule')
+          .select('*')
+          .eq('id', 'main')
+        const row = rows && rows.length > 0 ? rows[0] : null
+        setData(row?.data || { ...DEFAULT_DATA })
+      } catch {
+        setData({ ...DEFAULT_DATA })
+      }
     }
     load()
   }, [])
