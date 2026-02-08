@@ -63,6 +63,11 @@ function ProfileView() {
   const [profile, setProfile] = useState(DEFAULT_PROFILE_DATA)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
+  const [pwSubmitting, setPwSubmitting] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [taskStats, setTaskStats] = useState({ active: 0, blocked: 0, total: 0 })
   const [assignedTasks, setAssignedTasks] = useState([])
@@ -520,7 +525,7 @@ function ProfileView() {
           </section>
 
           {/* ─── Communication Preferences ─── */}
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <MessageCircle size={16} className="text-pastel-pink-dark" />
               Communication Preferences
@@ -549,6 +554,70 @@ function ProfileView() {
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none"
               />
             </div>
+          </section>
+
+          {/* ─── Change Password ─── */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Lock size={16} className="text-pastel-blue-dark" />
+              Change Password
+            </h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              setPwError('')
+              setPwSuccess(false)
+              if (newPassword.length < 6) {
+                setPwError('Password must be at least 6 characters')
+                return
+              }
+              if (newPassword !== confirmPassword) {
+                setPwError('Passwords do not match')
+                return
+              }
+              setPwSubmitting(true)
+              try {
+                const { error } = await supabase.auth.updateUser({ password: newPassword })
+                if (error) throw error
+                setPwSuccess(true)
+                setNewPassword('')
+                setConfirmPassword('')
+                setTimeout(() => setPwSuccess(false), 3000)
+              } catch (err) {
+                setPwError(err.message)
+              } finally {
+                setPwSubmitting(false)
+              }
+            }} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPwError(''); setPwSuccess(false) }}
+                  placeholder="Minimum 6 characters"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setPwError(''); setPwSuccess(false) }}
+                  placeholder="Re-enter new password"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                />
+              </div>
+              {pwError && <p className="text-sm text-red-500">{pwError}</p>}
+              {pwSuccess && <p className="text-sm text-green-600">Password updated successfully!</p>}
+              <button
+                type="submit"
+                disabled={pwSubmitting || !newPassword}
+                className="px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
+              >
+                {pwSubmitting ? 'Updating...' : 'Change Password'}
+              </button>
+            </form>
           </section>
 
         </div>

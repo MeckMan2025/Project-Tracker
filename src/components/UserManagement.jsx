@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Trash2, Upload, Shield, Users } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, Users, KeyRound } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
@@ -14,6 +14,11 @@ function UserManagement() {
   const [newRole, setNewRole] = useState('member')
   const [bulkText, setBulkText] = useState('')
   const [error, setError] = useState('')
+  const [resetTarget, setResetTarget] = useState(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resetSuccess, setResetSuccess] = useState('')
+  const [resetSubmitting, setResetSubmitting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -135,6 +140,29 @@ function UserManagement() {
     const { error } = await supabase.from('profiles').update({ role }).eq('id', memberId)
     if (!error) {
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, role } : m))
+    }
+  }
+
+  const handleResetPassword = async () => {
+    setResetError('')
+    setResetSuccess('')
+    if (resetPassword.length < 6) {
+      setResetError('Password must be at least 6 characters')
+      return
+    }
+    setResetSubmitting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId: resetTarget.id, newPassword: resetPassword },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setResetSuccess(`Password reset successfully. Tell ${resetTarget.display_name} their temporary password.`)
+      setResetPassword('')
+    } catch (err) {
+      setResetError(err.message)
+    } finally {
+      setResetSubmitting(false)
     }
   }
 
@@ -313,16 +341,25 @@ function UserManagement() {
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium text-gray-700 block truncate">{member.display_name}</span>
                     </div>
-                    <select
-                      value={member.role}
-                      onChange={(e) => handleChangeRole(member.id, e.target.value)}
-                      className="text-xs border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                    >
-                      <option value="member">member</option>
-                      <option value="lead">lead</option>
-                      <option value="mentor">mentor</option>
-                      <option value="coach">coach</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
+                        title="Reset password"
+                        className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                      >
+                        <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                      </button>
+                      <select
+                        value={member.role}
+                        onChange={(e) => handleChangeRole(member.id, e.target.value)}
+                        className="text-xs border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                      >
+                        <option value="member">member</option>
+                        <option value="lead">lead</option>
+                        <option value="mentor">mentor</option>
+                        <option value="coach">coach</option>
+                      </select>
+                    </div>
                   </div>
                 ))
               )}
@@ -330,6 +367,44 @@ function UserManagement() {
           )}
         </div>
       </main>
+
+      {/* Password Reset Modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-700">
+              Reset Password for {resetTarget.display_name}
+            </h3>
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={(e) => { setResetPassword(e.target.value); setResetError(''); setResetSuccess('') }}
+              placeholder="New password (min 6 characters)"
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              autoFocus
+            />
+            {resetError && <p className="text-sm text-red-500">{resetError}</p>}
+            {resetSuccess && <p className="text-sm text-green-600">{resetSuccess}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setResetTarget(null)}
+                className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                {resetSuccess ? 'Close' : 'Cancel'}
+              </button>
+              {!resetSuccess && (
+                <button
+                  onClick={handleResetPassword}
+                  disabled={resetSubmitting || !resetPassword}
+                  className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
+                >
+                  {resetSubmitting ? 'Resetting...' : 'Reset'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
