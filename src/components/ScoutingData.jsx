@@ -53,13 +53,21 @@ function pctBar(value) {
 }
 
 function computeScoutingStats(matches) {
-  if (matches.length === 0) {
+  const n = matches.length
+  const safePct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
+  const avg = (total) => n === 0 ? 0 : +(total / n).toFixed(1)
+
+  if (n === 0) {
     return {
       scoutCount: 0,
       startingPositions: {},
-      autoPctMissed: 0, autoPctClassified: 0, autoPctOverflowed: 0, autoPctMotif: 0,
-      telePctMissed: 0, telePctClassified: 0, telePctOverflowed: 0, telePctMotif: 0,
+      autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 0,
+      telePctClassified: 0, telePctMissed: 0, telePctOverflowed: 0, telePctMotif: 0,
       teleLeavePct: 0,
+      autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0,
+      teleAvgClassified: 0, teleAvgMissed: 0, teleAvgOverflowed: 0, teleAvgMotif: 0, teleAvgDepot: 0,
+      fullParkPct: 0, partialParkPct: 0, noParkPct: 0,
+      avgAllianceScore: 0,
     }
   }
 
@@ -69,27 +77,28 @@ function computeScoutingStats(matches) {
     startingPositions[pos] = (startingPositions[pos] || 0) + 1
   })
 
-  const autoTotal = matches.reduce((s, m) =>
-    s + (Number(m.autoClassified) || 0) + (Number(m.autoArtifactsMissed) || 0) +
-    (Number(m.autoOverflowed) || 0) + (Number(m.autoInMotifOrder) || 0), 0)
   const autoClassified = matches.reduce((s, m) => s + (Number(m.autoClassified) || 0), 0)
   const autoMissed = matches.reduce((s, m) => s + (Number(m.autoArtifactsMissed) || 0), 0)
   const autoOverflowed = matches.reduce((s, m) => s + (Number(m.autoOverflowed) || 0), 0)
   const autoMotif = matches.reduce((s, m) => s + (Number(m.autoInMotifOrder) || 0), 0)
+  const autoTotal = autoClassified + autoMissed + autoOverflowed + autoMotif
 
-  const teleTotal = matches.reduce((s, m) =>
-    s + (Number(m.teleClassified) || 0) + (Number(m.teleArtifactsMissed) || 0) +
-    (Number(m.teleOverflowed) || 0) + (Number(m.teleInMotifOrder) || 0), 0)
   const teleClassified = matches.reduce((s, m) => s + (Number(m.teleClassified) || 0), 0)
   const teleMissed = matches.reduce((s, m) => s + (Number(m.teleArtifactsMissed) || 0), 0)
   const teleOverflowed = matches.reduce((s, m) => s + (Number(m.teleOverflowed) || 0), 0)
   const teleMotif = matches.reduce((s, m) => s + (Number(m.teleInMotifOrder) || 0), 0)
+  const teleDepot = matches.reduce((s, m) => s + (Number(m.teleArtifactsInDepot) || 0), 0)
+  const teleTotal = teleClassified + teleMissed + teleOverflowed + teleMotif
 
   const leaveCount = matches.filter(m => m.teleDidLeave === true).length
-  const safePct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
+  const fullPark = matches.filter(m => m.parkingStatus === 'full').length
+  const partialPark = matches.filter(m => m.parkingStatus === 'partial').length
+  const noPark = matches.filter(m => m.parkingStatus === 'none' || m.parkingStatus === '').length
+
+  const totalScore = matches.reduce((s, m) => s + (Number(m.allianceScore) || 0), 0)
 
   return {
-    scoutCount: matches.length,
+    scoutCount: n,
     startingPositions,
     autoPctClassified: safePct(autoClassified, autoTotal),
     autoPctMissed: safePct(autoMissed, autoTotal),
@@ -99,7 +108,20 @@ function computeScoutingStats(matches) {
     telePctMissed: safePct(teleMissed, teleTotal),
     telePctOverflowed: safePct(teleOverflowed, teleTotal),
     telePctMotif: safePct(teleMotif, teleTotal),
-    teleLeavePct: safePct(leaveCount, matches.length),
+    teleLeavePct: safePct(leaveCount, n),
+    autoAvgClassified: avg(autoClassified),
+    autoAvgMissed: avg(autoMissed),
+    autoAvgOverflowed: avg(autoOverflowed),
+    autoAvgMotif: avg(autoMotif),
+    teleAvgClassified: avg(teleClassified),
+    teleAvgMissed: avg(teleMissed),
+    teleAvgOverflowed: avg(teleOverflowed),
+    teleAvgMotif: avg(teleMotif),
+    teleAvgDepot: avg(teleDepot),
+    fullParkPct: safePct(fullPark, n),
+    partialParkPct: safePct(partialPark, n),
+    noParkPct: safePct(noPark, n),
+    avgAllianceScore: avg(totalScore),
   }
 }
 
@@ -266,6 +288,45 @@ function ScoutingData() {
                     Our Scouting Data <span className="font-normal text-gray-400">({t.scoutCount} response{t.scoutCount !== 1 ? 's' : ''})</span>
                   </h3>
 
+                  {t.scoutCount > 0 && (
+                    <>
+                      {/* Key Stats Grid */}
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="bg-gray-50 rounded-lg p-2 text-center">
+                          <p className="text-base font-bold text-gray-800">{t.avgAllianceScore}</p>
+                          <p className="text-[10px] text-gray-500 uppercase">Avg Score</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-2 text-center">
+                          <p className="text-base font-bold text-gray-800">{t.teleLeavePct}%</p>
+                          <p className="text-[10px] text-gray-500 uppercase">Leave Rate</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-2 text-center">
+                          <p className="text-base font-bold text-gray-800">{t.fullParkPct}%</p>
+                          <p className="text-[10px] text-gray-500 uppercase">Full Park</p>
+                        </div>
+                      </div>
+
+                      {/* Park Breakdown */}
+                      <div className="mb-3">
+                        <h4 className="text-xs font-medium text-gray-600 mb-1">Park Rate</h4>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 w-16">Full</span>
+                            {pctBar(t.fullParkPct)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 w-16">Partial</span>
+                            {pctBar(t.partialParkPct)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 w-16">No Park</span>
+                            {pctBar(t.noParkPct)}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
                   {/* Starting Position */}
                   <div className="mb-3">
                     <h4 className="text-xs font-medium text-gray-600 mb-1">Starting Position</h4>
@@ -293,23 +354,63 @@ function ScoutingData() {
 
                   {/* Autonomous */}
                   <div className="mb-3">
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Autonomous</h4>
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Autonomous (avg per match)</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.autoAvgClassified}</p>
+                        <p className="text-[10px] text-gray-500">Classified</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.autoAvgMissed}</p>
+                        <p className="text-[10px] text-gray-500">Missed</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.autoAvgOverflowed}</p>
+                        <p className="text-[10px] text-gray-500">Overflowed</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.autoAvgMotif}</p>
+                        <p className="text-[10px] text-gray-500">Motif Order</p>
+                      </div>
+                    </div>
                     <div className="space-y-1.5">
-                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.autoPctClassified)}</div>
-                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.autoPctMissed)}</div>
-                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.autoPctOverflowed)}</div>
-                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.autoPctMotif)}</div>
+                      <div><span className="text-xs text-gray-500">Classified %</span>{pctBar(t.autoPctClassified)}</div>
+                      <div><span className="text-xs text-gray-500">Missed %</span>{pctBar(t.autoPctMissed)}</div>
+                      <div><span className="text-xs text-gray-500">Overflowed %</span>{pctBar(t.autoPctOverflowed)}</div>
+                      <div><span className="text-xs text-gray-500">Motif Order %</span>{pctBar(t.autoPctMotif)}</div>
                     </div>
                   </div>
 
                   {/* Tele-Op */}
                   <div>
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op</h4>
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op (avg per match)</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2">
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.teleAvgClassified}</p>
+                        <p className="text-[10px] text-gray-500">Classified</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.teleAvgMissed}</p>
+                        <p className="text-[10px] text-gray-500">Missed</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.teleAvgOverflowed}</p>
+                        <p className="text-[10px] text-gray-500">Overflowed</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.teleAvgMotif}</p>
+                        <p className="text-[10px] text-gray-500">Motif Order</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-sm font-bold text-gray-800">{t.teleAvgDepot}</p>
+                        <p className="text-[10px] text-gray-500">Depot</p>
+                      </div>
+                    </div>
                     <div className="space-y-1.5">
-                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.telePctClassified)}</div>
-                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.telePctMissed)}</div>
-                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.telePctOverflowed)}</div>
-                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.telePctMotif)}</div>
+                      <div><span className="text-xs text-gray-500">Classified %</span>{pctBar(t.telePctClassified)}</div>
+                      <div><span className="text-xs text-gray-500">Missed %</span>{pctBar(t.telePctMissed)}</div>
+                      <div><span className="text-xs text-gray-500">Overflowed %</span>{pctBar(t.telePctOverflowed)}</div>
+                      <div><span className="text-xs text-gray-500">Motif Order %</span>{pctBar(t.telePctMotif)}</div>
                       <div><span className="text-xs text-gray-500">Leave Rate</span>{pctBar(t.teleLeavePct)}</div>
                     </div>
                   </div>
