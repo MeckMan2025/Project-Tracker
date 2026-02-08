@@ -3,9 +3,13 @@ import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
+// Teams being considered for alliance
+const CONSIDERED_NUMBERS = ['6603', '20097', 'royal-robotics']
+
 // All teams from competition rankings
 // Columns: rank, number, name, rp/match, tbp/match, auto avg, teleop avg, high score, record, matches played
 const ALL_TEAMS = [
+  { rank: null, number: 'royal-robotics', name: 'Royal Robotics', rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0 },
   { rank: 11, number: '6072',  name: 'Wildbot Robotics',                   rp: 4.30, tbp: 72.20, autoAvg: 15.00, teleopAvg: 21.10, highScore: 146, record: '10-0-0', played: 24 },
   { rank: 12, number: '15050', name: 'Lightning Bots',                     rp: 4.30, tbp: 64.00, autoAvg: 14.00, teleopAvg: 15.00, highScore: 79,  record: '10-0-0', played: 30 },
   { rank: 13, number: '8672',  name: 'UBett',                              rp: 4.30, tbp: 61.00, autoAvg: 13.50, teleopAvg: 12.30, highScore: 78,  record: '10-0-0', played: 30 },
@@ -145,8 +149,8 @@ function ScoutingData() {
     setRecords(prev => prev.filter(r => r.id !== id))
   }
 
-  // Merge competition data with scouting submissions
-  const teams = useMemo(() => {
+  // Merge competition data with scouting submissions, split into considered vs rest
+  const { consideredTeams, otherTeams } = useMemo(() => {
     // Group scouting records by team number
     const byNumber = {}
     records.forEach(r => {
@@ -158,7 +162,7 @@ function ScoutingData() {
     })
 
     // Build team list from ALL_TEAMS, attach scouting data
-    const result = ALL_TEAMS.map(t => {
+    const all = ALL_TEAMS.map(t => {
       const matches = byNumber[t.number] || []
       delete byNumber[t.number]
       return { ...t, matches, ...computeScoutingStats(matches) }
@@ -166,14 +170,18 @@ function ScoutingData() {
 
     // Any teams in scouting data not in ALL_TEAMS
     Object.entries(byNumber).forEach(([num, matches]) => {
-      result.push({
+      all.push({
         rank: null, number: num, name: `Team ${num}`,
         rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0,
         matches, ...computeScoutingStats(matches),
       })
     })
 
-    return result
+    const considered = all.filter(t => CONSIDERED_NUMBERS.includes(t.number))
+    const others = all.filter(t => !CONSIDERED_NUMBERS.includes(t.number))
+      .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+
+    return { consideredTeams: considered, otherTeams: others }
   }, [records])
 
   const toggleExpand = (key) => {
@@ -195,7 +203,14 @@ function ScoutingData() {
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
-          {teams.map(t => (
+
+          {/* Teams Being Considered */}
+          <div className="border-b-2 border-pastel-pink pb-2 mb-1">
+            <h2 className="text-lg font-bold text-gray-800">Teams Being Considered</h2>
+            <p className="text-xs text-gray-500">Alliance partner candidates</p>
+          </div>
+
+          {consideredTeams.map(t => (
             <div
               key={t.number}
               className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 overflow-hidden"
@@ -288,6 +303,170 @@ function ScoutingData() {
                   </div>
 
                   {/* Tele-Op */}
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op</h4>
+                    <div className="space-y-1.5">
+                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.telePctClassified)}</div>
+                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.telePctMissed)}</div>
+                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.telePctOverflowed)}</div>
+                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.telePctMotif)}</div>
+                      <div><span className="text-xs text-gray-500">Leave Rate</span>{pctBar(t.teleLeavePct)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Responses Toggle */}
+                <button
+                  onClick={() => toggleExpand(t.number)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-pastel-pink-dark hover:text-gray-700 transition-colors px-3 py-1.5 bg-gray-50 rounded-lg"
+                >
+                  {expandedTeams[t.number] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {expandedTeams[t.number] ? 'Hide' : 'View'} Scouting Responses ({t.scoutCount})
+                </button>
+
+                {expandedTeams[t.number] && (
+                  <div className="space-y-2">
+                    {t.matches.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-2">No scouting responses yet.</p>
+                    ) : (
+                      t.matches.map((m, i) => (
+                        <div key={m._id || i} className="bg-gray-50 rounded-lg p-3 text-xs space-y-1 border border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-gray-700">
+                              Match {m.matchNumber || '?'} &middot; {m.allianceColor || '?'} Alliance
+                            </span>
+                            {canDelete && m._id && (
+                              <button
+                                onClick={() => handleDelete(m._id)}
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                title="Delete response"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-gray-500">
+                            Start: {m.startingPosition || '?'} | Stability: {
+                              m.robotStability === 'no' ? 'No issues' :
+                              m.robotStability === 'major' ? 'Major breakdown' :
+                              m.robotStability === 'shutdown' ? 'Shutdown' : '?'
+                            }
+                          </div>
+                          <div className="text-gray-500">
+                            Auto: {m.autoClassified || 0} classified, {m.autoArtifactsMissed || 0} missed, {m.autoOverflowed || 0} overflow, {m.autoInMotifOrder || 0} motif
+                          </div>
+                          <div className="text-gray-500">
+                            Tele: {m.teleClassified || 0} classified, {m.teleArtifactsMissed || 0} missed, {m.teleOverflowed || 0} overflow, {m.teleInMotifOrder || 0} motif
+                          </div>
+                          {(m.roles || []).length > 0 && (
+                            <div className="text-gray-500">Roles: {m.roles.join(', ')}</div>
+                          )}
+                          {m.observations && (
+                            <div className="text-gray-400 italic">"{m.observations}"</div>
+                          )}
+                          {m._by && (
+                            <div className="text-gray-400 pt-0.5">Submitted by {m._by}</div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* All Teams by Rank */}
+          <div className="border-b-2 border-pastel-blue pb-2 mb-1 mt-8">
+            <h2 className="text-lg font-bold text-gray-800">All Teams by Rank</h2>
+            <p className="text-xs text-gray-500">Ordered by competition ranking</p>
+          </div>
+
+          {otherTeams.map(t => (
+            <div
+              key={t.number}
+              className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            >
+              {/* Team Header */}
+              <div className="px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800">
+                      {t.name} <span className="text-gray-500 font-medium">#{t.number}</span>
+                    </h2>
+                    {t.rank && (
+                      <span className="text-sm text-gray-500">Rank {t.rank}</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-gray-700">{t.record}</span>
+                    <p className="text-xs text-gray-400">{t.played} matches</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-5">
+                {/* Competition Stats */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Competition Stats</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.rp}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">RP/Match</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.tbp}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">TBP/Match</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.autoAvg}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Auto Avg</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                      <p className="text-lg font-bold text-gray-800">{t.teleopAvg}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Teleop Avg</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <span className="text-xs text-gray-500">High Score: <span className="font-semibold text-gray-700">{t.highScore}</span></span>
+                  </div>
+                </div>
+
+                {/* Scouting Data Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
+                    Our Scouting Data <span className="font-normal text-gray-400">({t.scoutCount} response{t.scoutCount !== 1 ? 's' : ''})</span>
+                  </h3>
+
+                  <div className="mb-3">
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Starting Position</h4>
+                    {Object.keys(t.startingPositions).length === 0 ? (
+                      <p className="text-xs text-gray-400">No data</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {Object.entries(t.startingPositions).map(([pos, count]) => (
+                          <div key={pos} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 w-28 truncate">{pos}</span>
+                            <div className="flex-1 h-2 rounded-full bg-gray-200">
+                              <div className="h-2 rounded-full bg-pastel-blue transition-all" style={{ width: `${Math.round((count / t.scoutCount) * 100)}%` }} />
+                            </div>
+                            <span className="text-xs font-medium text-gray-700 w-10 text-right">{Math.round((count / t.scoutCount) * 100)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-3">
+                    <h4 className="text-xs font-medium text-gray-600 mb-1">Autonomous</h4>
+                    <div className="space-y-1.5">
+                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.autoPctClassified)}</div>
+                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.autoPctMissed)}</div>
+                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.autoPctOverflowed)}</div>
+                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.autoPctMotif)}</div>
+                    </div>
+                  </div>
+
                   <div>
                     <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op</h4>
                     <div className="space-y-1.5">
