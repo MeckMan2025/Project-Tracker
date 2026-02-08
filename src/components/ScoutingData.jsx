@@ -37,15 +37,20 @@ function ScoutingData() {
   // Load records on mount
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase
-        .from('scouting_records')
-        .select('*')
-        .order('submitted_at', { ascending: true })
-      if (error) {
-        console.error('Failed to load scouting records:', error.message)
+      try {
+        const { data, error } = await supabase
+          .from('scouting_records')
+          .select('*')
+          .order('submitted_at', { ascending: true })
+        if (error) {
+          console.error('Failed to load scouting records:', error.message)
+        }
+        if (data) setRecords(data)
+      } catch (err) {
+        console.error('Exception loading scouting records:', err)
+      } finally {
+        setLoading(false)
       }
-      if (data) setRecords(data)
-      setLoading(false)
     }
     load()
   }, [])
