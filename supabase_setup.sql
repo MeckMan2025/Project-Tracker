@@ -176,13 +176,67 @@ DROP POLICY IF EXISTS "Allow all on requests" ON requests;
 CREATE POLICY "Allow all on requests" ON requests
   FOR ALL USING (true) WITH CHECK (true);
 
--- 10. ENABLE REALTIME on all tables
+-- 10. NOTEBOOK ENTRIES TABLE (Engineering Notebook student logs)
+CREATE TABLE IF NOT EXISTS notebook_entries (
+  id text PRIMARY KEY,
+  username text NOT NULL,
+  meeting_date text NOT NULL,
+  category text NOT NULL DEFAULT 'Technical',
+  custom_category text DEFAULT '',
+  what_did text NOT NULL,
+  why_option text NOT NULL,
+  why_note text DEFAULT '',
+  engagement text NOT NULL DEFAULT 'Somewhat',
+  project_id text DEFAULT '',
+  photo_url text DEFAULT '',
+  project_link text DEFAULT '',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE notebook_entries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to notebook_entries" ON notebook_entries;
+CREATE POLICY "Allow all access to notebook_entries" ON notebook_entries
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 11. NOTEBOOK PROJECTS TABLE (lead-only project grouping)
+CREATE TABLE IF NOT EXISTS notebook_projects (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  category text NOT NULL DEFAULT 'Technical',
+  goal text DEFAULT '',
+  reason text DEFAULT '',
+  status text DEFAULT 'Active',
+  created_by text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE notebook_projects ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to notebook_projects" ON notebook_projects;
+CREATE POLICY "Allow all access to notebook_projects" ON notebook_projects
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 12. FUN QUOTES TABLE (team culture)
+CREATE TABLE IF NOT EXISTS fun_quotes (
+  id text PRIMARY KEY,
+  content text NOT NULL,
+  submitted_by text NOT NULL,
+  approved boolean DEFAULT false,
+  approved_by text DEFAULT '',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE fun_quotes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to fun_quotes" ON fun_quotes;
+CREATE POLICY "Allow all access to fun_quotes" ON fun_quotes
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 13. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
