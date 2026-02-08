@@ -9,6 +9,9 @@ dist/
 .env.local
 .env.*.local
 
+# Claude settings (may contain tokens)
+.claude/
+
 # Editor directories and files
 .idea/
 .vscode/
