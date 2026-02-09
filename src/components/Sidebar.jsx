@@ -249,10 +249,113 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
-          {/* Scrum Tab (Tasks + Boards + Workshops) */}
+          {/* Boards Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'tasks' || activeTab === 'workshops' || isBoardActive
+              isBoardActive
+                ? 'bg-pastel-pink text-gray-800'
+                : 'hover:bg-pastel-blue/30 text-gray-600'
+            }`}
+            onClick={() => {
+              setBoardsOpen(prev => !prev)
+            }}
+          >
+            <FolderKanban size={16} className="text-pastel-blue-dark" />
+            <span className="truncate flex-1">Boards</span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${boardsOpen || isBoardActive ? 'rotate-90' : ''}`}
+            />
+          </div>
+
+          {/* Sub-boards */}
+          {(boardsOpen || isBoardActive) && <div className="ml-4 mt-1 space-y-1">
+            {boardTabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={`group flex items-center justify-between px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === tab.id
+                    ? 'bg-pastel-blue/40 text-gray-800'
+                    : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => {
+                  onTabChange(tab.id)
+                  onToggle()
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <ChevronRight
+                    size={14}
+                    className={`transition-transform ${activeTab === tab.id ? 'rotate-90' : ''}`}
+                  />
+                  <span className="truncate">{tab.name}</span>
+                </div>
+                {!tab.permanent && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                      if (confirm(`Delete "${tab.name}" board?`)) {
+                        onDeleteTab(tab.id)
+                      }
+                    }}
+                    className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {/* Add Board button */}
+            <div className="pt-1">
+              {isAdding ? (
+                <form onSubmit={handleAddTab} className="space-y-2 px-2">
+                  <input
+                    type="text"
+                    value={newTabName}
+                    onChange={(e) => setNewTabName(e.target.value)}
+                    placeholder="Board name"
+                    className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAdding(false)
+                        setNewTabName('')
+                      }}
+                      className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
+                    >
+                      Create
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
+                >
+                  <Plus size={14} />
+                  Add Board
+                </button>
+              )}
+            </div>
+          </div>}
+
+          <hr className="my-2 border-gray-200" />
+
+          {/* Tasks Tab */}
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+              activeTab === 'tasks' || activeTab === 'workshops'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
@@ -261,15 +364,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             }}
           >
             <ClipboardEdit size={16} className="text-pastel-blue-dark" />
-            <span className="truncate flex-1">Scrum</span>
+            <span className="truncate flex-1">Tasks</span>
             <ChevronRight
               size={14}
-              className={`transition-transform ${tasksOpen || activeTab === 'tasks' || activeTab === 'workshops' || isBoardActive ? 'rotate-90' : ''}`}
+              className={`transition-transform ${tasksOpen || activeTab === 'tasks' || activeTab === 'workshops' ? 'rotate-90' : ''}`}
             />
           </div>
 
-          {/* Scrum sub-items */}
-          {(tasksOpen || activeTab === 'tasks' || activeTab === 'workshops' || isBoardActive) && (
+          {/* Tasks sub-items */}
+          {(tasksOpen || activeTab === 'tasks' || activeTab === 'workshops') && (
             <div className="ml-4 mt-1 space-y-1">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
@@ -281,89 +384,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 }}
               >
                 <ChevronRight size={14} className={activeTab === 'tasks' ? 'rotate-90' : ''} />
-                <span className="truncate">Tasks</span>
+                <span className="truncate">Scrum</span>
               </div>
-
-              {/* Board tabs */}
-              {boardTabs.map((tab) => (
-                <div
-                  key={tab.id}
-                  className={`group flex items-center justify-between px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                    activeTab === tab.id
-                      ? 'bg-pastel-blue/40 text-gray-800'
-                      : 'hover:bg-pastel-blue/20 text-gray-500'
-                  }`}
-                  onClick={() => {
-                    onTabChange(tab.id)
-                    onToggle()
-                  }}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <ChevronRight
-                      size={14}
-                      className={`transition-transform ${activeTab === tab.id ? 'rotate-90' : ''}`}
-                    />
-                    <span className="truncate">{tab.name}</span>
-                  </div>
-                  {!tab.permanent && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        if (confirm(`Delete "${tab.name}" board?`)) {
-                          onDeleteTab(tab.id)
-                        }
-                      }}
-                      className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              {/* Add Board button */}
-              <div className="pt-1">
-                {isAdding ? (
-                  <form onSubmit={handleAddTab} className="space-y-2 px-2">
-                    <input
-                      type="text"
-                      value={newTabName}
-                      onChange={(e) => setNewTabName(e.target.value)}
-                      placeholder="Board name"
-                      className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                      autoFocus
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsAdding(false)
-                          setNewTabName('')
-                        }}
-                        className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
-                      >
-                        Create
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <button
-                    onClick={() => setIsAdding(true)}
-                    className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
-                  >
-                    <Plus size={14} />
-                    Add Board
-                  </button>
-                )}
-              </div>
-
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
                   activeTab === 'workshops' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
