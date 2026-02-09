@@ -125,7 +125,7 @@ const mapTask = (t) => ({
 })
 
 function App() {
-  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired } = useUser()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const [tabs, setTabs] = useState([...SYSTEM_TABS, ...DEFAULT_BOARDS])
@@ -528,7 +528,7 @@ function App() {
   }
 
   if (!user || passwordRecovery) {
-    return <LoginScreen />
+    return <LoginScreen sessionExpired={sessionExpired} />
   }
 
   if (mustChangePassword) {

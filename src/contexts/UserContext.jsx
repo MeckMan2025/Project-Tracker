@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 const UserContext = createContext(null)
+const SESSION_MAX_AGE = 12 * 60 * 60 * 1000 // 12 hours
 
 export function UserProvider({ children }) {
   const [username, setUsername] = useState('')
@@ -10,6 +11,7 @@ export function UserProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [mustChangePassword, setMustChangePassword] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
@@ -50,8 +52,23 @@ export function UserProvider({ children }) {
     setUser(null)
     setUsername('')
     setIsLead(false)
+    sessionStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
+  }
+
+  const isSessionExpired = () => {
+    const start = sessionStorage.getItem('session-start')
+    if (!start) return true
+    return Date.now() - parseInt(start, 10) > SESSION_MAX_AGE
+  }
+
+  const expireSession = async () => {
+    setSessionExpired(true)
+    try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
+    clearState()
+    localStorage.clear()
+    sessionStorage.clear()
   }
 
   // Restore session on mount
@@ -63,6 +80,12 @@ export function UserProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession()
         if (!mounted) return
         if (session?.user) {
+          // Check 12-hour expiry
+          if (isSessionExpired()) {
+            await expireSession()
+            if (mounted) setLoading(false)
+            return
+          }
           setUser(session.user)
           const profile = await fetchProfile(session.user.id)
           if (mounted) applyProfile(profile)
@@ -82,6 +105,8 @@ export function UserProvider({ children }) {
           setPasswordRecovery(true)
           if (session?.user) setUser(session.user)
         } else if (event === 'SIGNED_IN' && session?.user) {
+          sessionStorage.setItem('session-start', Date.now().toString())
+          setSessionExpired(false)
           setUser(session.user)
           const profile = await fetchProfile(session.user.id)
           if (mounted) applyProfile(profile)
@@ -90,6 +115,32 @@ export function UserProvider({ children }) {
         }
       }
     )
+
+    // Periodic 12-hour check (every 60 seconds)
+    const interval = setInterval(() => {
+      if (sessionStorage.getItem('session-start') && isSessionExpired()) {
+        expireSession()
+      }
+    }, 60 * 1000)
+
+    // Detect stale session on tab/laptop wake
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible') return
+      if (sessionStorage.getItem('session-start') && isSessionExpired()) {
+        expireSession()
+        return
+      }
+      // Verify session is still valid with Supabase
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session && sessionStorage.getItem('session-start')) {
+          expireSession()
+        }
+      } catch (e) {
+        // ignore network errors on wake
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
 
     // Safety fallback — never stay on loading screen forever
     const timeout = setTimeout(() => {
@@ -100,6 +151,8 @@ export function UserProvider({ children }) {
       mounted = false
       subscription.unsubscribe()
       clearTimeout(timeout)
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 
@@ -165,7 +218,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword }}
+      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
     >
       {children}
     </UserContext.Provider>

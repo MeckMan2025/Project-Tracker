@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 
-function LoginScreen() {
+function LoginScreen({ sessionExpired }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
@@ -319,6 +319,12 @@ function LoginScreen() {
           <h1 className={heading}>Sign In</h1>
           <p className="text-sm text-gray-500 mt-1">Welcome back</p>
         </div>
+
+        {sessionExpired && (
+          <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">
+            Your session has expired. Please log in again.
+          </div>
+        )}
 
         <input
           type="email"
