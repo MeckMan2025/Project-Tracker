@@ -19,6 +19,9 @@ function UserManagement() {
   const [resetError, setResetError] = useState('')
   const [resetSuccess, setResetSuccess] = useState('')
   const [resetSubmitting, setResetSubmitting] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [createTarget, setCreateTarget] = useState(null)
   const [createDisplayName, setCreateDisplayName] = useState('')
   const [createPassword, setCreatePassword] = useState('')
@@ -169,6 +172,24 @@ function UserManagement() {
       setResetError(err.message)
     } finally {
       setResetSubmitting(false)
+    }
+  }
+
+  const handleDeleteMember = async () => {
+    setDeleteError('')
+    setDeleteSubmitting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: deleteTarget.id },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setRegisteredMembers(prev => prev.filter(m => m.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err.message)
+    } finally {
+      setDeleteSubmitting(false)
     }
   }
 
@@ -404,6 +425,15 @@ function UserManagement() {
                       >
                         <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
                       </button>
+                      {member.id !== user.id && (
+                        <button
+                          onClick={() => { setDeleteTarget(member); setDeleteError('') }}
+                          title="Delete member"
+                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                        </button>
+                      )}
                       <select
                         value={member.role}
                         onChange={(e) => handleChangeRole(member.id, e.target.value)}
@@ -464,6 +494,36 @@ function UserManagement() {
                   {createSubmitting ? 'Creating...' : 'Create Account'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Member Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-700">
+              Remove {deleteTarget.display_name}?
+            </h3>
+            <p className="text-sm text-gray-500">
+              This will permanently delete their account. They will need to be re-created to access the app again.
+            </p>
+            {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteMember}
+                disabled={deleteSubmitting}
+                className="flex-1 px-3 py-2 text-sm bg-red-500 hover:bg-red-600 disabled:opacity-50 rounded-lg font-medium text-white"
+              >
+                {deleteSubmitting ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
