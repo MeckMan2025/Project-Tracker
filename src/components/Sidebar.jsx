@@ -364,7 +364,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             }}
           >
             <ClipboardEdit size={16} className="text-pastel-blue-dark" />
-            <span className="truncate flex-1">Tasks</span>
+            <span className="truncate flex-1">Scrum</span>
             <ChevronRight
               size={14}
               className={`transition-transform ${tasksOpen || activeTab === 'tasks' || activeTab === 'workshops' ? 'rotate-90' : ''}`}
