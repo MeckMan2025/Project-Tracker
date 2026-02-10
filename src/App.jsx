@@ -288,23 +288,28 @@ function App() {
   const tasks = tasksByTab[activeTab] || []
 
   const handleAddTab = async (name) => {
-    try {
-      const newId = String(Date.now())
-      // Update UI immediately
-      setTabs(prev => [...prev, { id: newId, name, permanent: false }])
-      setTasksByTab(prev => ({ ...prev, [newId]: [] }))
-      setActiveTab(newId)
-      // Then persist to Supabase
-      const { error } = await supabase.from('boards').insert({
-        id: newId,
-        name,
-        permanent: false,
+    const newId = String(Date.now()) + Math.random().toString(36).slice(2)
+    // Update UI immediately (optimistic)
+    setTabs(prev => [...prev, { id: newId, name, permanent: false }])
+    setTasksByTab(prev => ({ ...prev, [newId]: [] }))
+    setActiveTab(newId)
+    // Persist to Supabase
+    const { error } = await supabase.from('boards').insert({
+      id: newId,
+      name,
+      permanent: false,
+    })
+    if (error) {
+      console.error('Failed to save board:', error.message)
+      // Rollback on failure
+      setTabs(prev => prev.filter(t => t.id !== newId))
+      setTasksByTab(prev => {
+        const updated = { ...prev }
+        delete updated[newId]
+        return updated
       })
-      if (error) {
-        console.error('Failed to save board:', error.message)
-      }
-    } catch (err) {
-      console.error('Error adding board:', err)
+      setActiveTab('business')
+      alert('Failed to create board. Please try again.')
     }
   }
 
@@ -361,7 +366,7 @@ function App() {
 
   const handleAddTask = async (newTask) => {
     const task = {
-      id: String(Date.now()),
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
       board_id: activeTab,
       title: newTask.title,
       description: newTask.description || '',
@@ -372,27 +377,25 @@ function App() {
       created_at: new Date().toISOString().split('T')[0],
     }
 
+    // Add to local state immediately (optimistic) — realtime handler will dedup
+    const localTask = mapTask(task)
+    setTasksByTab(prev => ({
+      ...prev,
+      [activeTab]: [...(prev[activeTab] || []), localTask],
+    }))
+    setIsModalOpen(false)
+
+    // Persist to Supabase
     const { error } = await supabase.from('tasks').insert(task)
     if (error) {
       console.error('Failed to save task:', error.message)
-      alert('Failed to save task. Please try again.')
-    } else {
-      const localTask = {
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        assignee: task.assignee,
-        dueDate: task.due_date,
-        status: task.status,
-        skills: task.skills,
-        createdAt: task.created_at,
-      }
+      // Rollback on failure
       setTasksByTab(prev => ({
         ...prev,
-        [activeTab]: [...(prev[activeTab] || []), localTask],
+        [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
       }))
+      alert('Failed to save task. Please try again.')
     }
-    setIsModalOpen(false)
   }
 
   const handleRequestTask = async (newTask) => {
@@ -421,15 +424,7 @@ function App() {
   }
 
   const handleEditTask = async (updatedTask) => {
-    await supabase.from('tasks').update({
-      title: updatedTask.title,
-      description: updatedTask.description || '',
-      assignee: updatedTask.assignee || '',
-      due_date: updatedTask.dueDate || '',
-      status: updatedTask.status || 'todo',
-      skills: updatedTask.skills || [],
-    }).eq('id', updatedTask.id)
-
+    // Update UI immediately — realtime handler will overwrite with same data
     setTasksByTab(prev => ({
       ...prev,
       [activeTab]: (prev[activeTab] || []).map(task =>
@@ -437,15 +432,31 @@ function App() {
       ),
     }))
     setEditingTask(null)
+
+    const { error } = await supabase.from('tasks').update({
+      title: updatedTask.title,
+      description: updatedTask.description || '',
+      assignee: updatedTask.assignee || '',
+      due_date: updatedTask.dueDate || '',
+      status: updatedTask.status || 'todo',
+      skills: updatedTask.skills || [],
+    }).eq('id', updatedTask.id)
+    if (error) {
+      console.error('Failed to update task:', error.message)
+    }
   }
 
   const handleDeleteTask = async (taskId) => {
-    await supabase.from('tasks').delete().eq('id', taskId)
-
+    // Remove from UI immediately — realtime handler will dedup
     setTasksByTab(prev => ({
       ...prev,
       [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
     }))
+
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+    if (error) {
+      console.error('Failed to delete task:', error.message)
+    }
   }
 
   const handleExport = () => {
