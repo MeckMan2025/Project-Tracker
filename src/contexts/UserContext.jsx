@@ -110,6 +110,9 @@ export function UserProvider({ children }) {
           setUser(session.user)
           const profile = await fetchProfile(session.user.id)
           if (mounted) applyProfile(profile)
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Keep user state fresh when token auto-refreshes (e.g. after page idle/refresh)
+          setUser(session.user)
         } else if (event === 'SIGNED_OUT') {
           clearState()
         }

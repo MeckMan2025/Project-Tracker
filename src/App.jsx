@@ -146,12 +146,12 @@ function App() {
   const audioRef = useRef(null)
 
   // Load boards and tasks from Supabase once user is authenticated
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!user) return
+    setLoadError(null)
+    setDbReady(false)
 
-    async function loadData() {
-      setLoadError(null)
-
+    try {
       // Load boards
       const { data: boards, error: boardsError } = await supabase
         .from('boards')
@@ -160,7 +160,7 @@ function App() {
 
       if (boardsError) {
         console.error('Failed to load boards:', boardsError.message)
-        setLoadError('Failed to load boards. Please reload.')
+        setLoadError('Failed to load boards: ' + boardsError.message)
         setDbReady(true)
         return
       }
@@ -198,7 +198,7 @@ function App() {
 
       if (tasksError) {
         console.error('Failed to load tasks:', tasksError.message)
-        setLoadError('Failed to load tasks. Please reload.')
+        setLoadError('Failed to load tasks: ' + tasksError.message)
         setDbReady(true)
         return
       }
@@ -213,10 +213,16 @@ function App() {
       }
       setTasksByTab(grouped)
       setDbReady(true)
+    } catch (err) {
+      console.error('Unexpected error loading data:', err)
+      setLoadError('Failed to load data. Please try again.')
+      setDbReady(true)
     }
-
-    loadData()
   }, [user])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   // Real-time: listen for board changes (use payload, no re-query)
   useEffect(() => {
@@ -552,8 +558,14 @@ function App() {
       {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col ${isLoading ? 'hidden' : ''}`}>
       {loadError && (
-        <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center">
-          {loadError}
+        <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
+          <span>{loadError}</span>
+          <button
+            onClick={loadData}
+            className="px-3 py-1 bg-red-200 hover:bg-red-300 rounded-lg text-red-800 font-semibold transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
       <div className="flex flex-1 min-h-0">
@@ -696,6 +708,11 @@ function App() {
 
         {/* Board */}
         <main className="flex-1 p-4 overflow-x-auto">
+          {!dbReady ? (
+            <div className="flex items-center justify-center h-48">
+              <p className="text-gray-500 animate-pulse">Loading boards...</p>
+            </div>
+          ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 min-w-[300px]">
               {COLUMNS.map(column => (
@@ -749,6 +766,7 @@ function App() {
               ))}
             </div>
           </DragDropContext>
+          )}
         </main>
       </div>
       )}
