@@ -15,6 +15,7 @@ import SuggestionsView from './components/SuggestionsView'
 import CalendarView from './components/CalendarView'
 import UserManagement from './components/UserManagement'
 import RequestsView from './components/RequestsView'
+import RequestsBadge from './components/RequestsBadge'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
@@ -665,7 +666,8 @@ function App() {
                 <p className="text-sm text-gray-500">{currentTabName}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {isLead && <RequestsBadge type="task" boardId={activeTab} />}
               {isLead && (
                 <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">
                   <Upload size={18} />

@@ -1,6 +1,9 @@
 import { Calendar, User } from 'lucide-react'
+import { useUser } from '../contexts/UserContext'
+import RequestsBadge from './RequestsBadge'
 
 function TasksView({ tasksByTab, tabs }) {
+  const { isLead } = useUser()
   const boardTabs = tabs.filter(t => t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'quick-chat' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart')
 
   const totalTasks = boardTabs.reduce((sum, tab) => sum + (tasksByTab[tab.id] || []).length, 0)
@@ -14,11 +17,14 @@ function TasksView({ tasksByTab, tabs }) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4 pl-14 md:pl-4">
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            All Tasks
-          </h1>
-          <p className="text-sm text-gray-500">{totalTasks} task{totalTasks !== 1 ? 's' : ''} across all boards</p>
+        <div className="px-4 py-4 pl-14 md:pl-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              All Tasks
+            </h1>
+            <p className="text-sm text-gray-500">{totalTasks} task{totalTasks !== 1 ? 's' : ''} across all boards</p>
+          </div>
+          {isLead && <RequestsBadge type="task" />}
         </div>
       </header>
 

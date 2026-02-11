@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import RequestsBadge from './RequestsBadge'
 
 function CalendarView() {
   const { username, isLead } = useUser()
@@ -182,6 +183,7 @@ function CalendarView() {
             <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors">
               <ChevronRight size={20} />
             </button>
+            {isLead && <RequestsBadge type="calendar_event" />}
           </div>
         </div>
       </header>
