@@ -190,6 +190,7 @@ function App() {
       }))
       const defaultIds = DEFAULT_BOARDS.map(b => b.id)
       const extra = boardTabs.filter(b => !defaultIds.includes(b.id))
+      console.log('[loadData] boards from DB:', boards?.length, 'extra:', extra.map(b => b.name))
       setTabs([...SYSTEM_TABS, ...DEFAULT_BOARDS, ...extra])
 
       // Load tasks
