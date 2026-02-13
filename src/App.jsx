@@ -165,7 +165,9 @@ function App() {
   const loadData = useCallback(async () => {
     if (!user) return
     setLoadError(null)
-    setDbReady(false)
+    // Only show loading spinner if we have NO cached data to display
+    // If cache exists, keep showing it while we refresh in the background
+    if (!cachedData.current) setDbReady(false)
 
     try {
       // Load boards and tasks in parallel for speed
@@ -222,6 +224,7 @@ function App() {
       })
       setTasksByTab(grouped)
       setDbReady(true)
+      cachedData.current = null // Clear so future retries show loading if needed
 
       // Cache for instant load next time
       try {
@@ -231,21 +234,22 @@ function App() {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
       setDbReady(true)
+      cachedData.current = null
     }
   }, [user])
 
   useEffect(() => {
     loadData()
 
-    // Safety timeout — if Supabase hangs, stop waiting after 8 seconds
+    // Safety timeout — if Supabase hangs, stop waiting after 5 seconds
     const timeout = setTimeout(() => {
       setDbReady(prev => {
         if (!prev) {
-          setLoadError('Loading is taking too long. Please reload the page.')
+          setLoadError('Loading is taking too long. Try the Retry button.')
         }
         return true
       })
-    }, 8000)
+    }, 5000)
 
     return () => clearTimeout(timeout)
   }, [loadData])
