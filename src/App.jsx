@@ -153,21 +153,31 @@ function App() {
     setDbReady(false)
 
     try {
-      // Load boards
-      const { data: boards, error: boardsError } = await supabase
-        .from('boards')
-        .select('*')
-        .order('created_at')
+      // Load boards and tasks in parallel for speed
+      const [boardsResult, tasksResult] = await Promise.all([
+        supabase.from('boards').select('*').order('created_at'),
+        supabase.from('tasks').select('*'),
+      ])
 
-      if (boardsError) {
-        console.error('Failed to load boards:', boardsError.message)
-        setLoadError('Failed to load boards: ' + boardsError.message)
+      if (boardsResult.error) {
+        console.error('Failed to load boards:', boardsResult.error.message)
+        setLoadError('Failed to load boards: ' + boardsResult.error.message)
         setDbReady(true)
         return
       }
 
+      if (tasksResult.error) {
+        console.error('Failed to load tasks:', tasksResult.error.message)
+        setLoadError('Failed to load tasks: ' + tasksResult.error.message)
+        setDbReady(true)
+        return
+      }
+
+      const boards = boardsResult.data || []
+      const tasks = tasksResult.data || []
+
       // Seed default boards if missing
-      const existingIds = (boards || []).map(b => b.id)
+      const existingIds = boards.map(b => b.id)
       const missing = DEFAULT_BOARDS.filter(b => !existingIds.includes(b.id))
       if (missing.length > 0) {
         const { error: seedError } = await supabase
@@ -178,41 +188,22 @@ function App() {
         }
       }
 
-      // Re-query boards after seeding so we have a complete list
       const allBoards = missing.length > 0
-        ? [...(boards || []), ...missing.map(b => ({ id: b.id, name: b.name, permanent: true }))]
-        : (boards || [])
+        ? [...boards, ...missing.map(b => ({ id: b.id, name: b.name, permanent: true }))]
+        : boards
 
-      const boardTabs = allBoards.map(b => ({
-        id: b.id,
-        name: b.name,
-        permanent: b.permanent,
-      }))
       const defaultIds = DEFAULT_BOARDS.map(b => b.id)
-      const extra = boardTabs.filter(b => !defaultIds.includes(b.id))
-      console.log('[loadData] boards from DB:', boards?.length, 'extra:', extra.map(b => b.name))
+      const extra = allBoards
+        .filter(b => !defaultIds.includes(b.id))
+        .map(b => ({ id: b.id, name: b.name, permanent: b.permanent }))
       setTabs([...SYSTEM_TABS, ...DEFAULT_BOARDS, ...extra])
-
-      // Load tasks
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select('*')
-
-      if (tasksError) {
-        console.error('Failed to load tasks:', tasksError.message)
-        setLoadError('Failed to load tasks: ' + tasksError.message)
-        setDbReady(true)
-        return
-      }
 
       const grouped = {}
       allBoards.forEach(b => { grouped[b.id] = [] })
-      if (tasks) {
-        tasks.forEach(t => {
-          if (!grouped[t.board_id]) grouped[t.board_id] = []
-          grouped[t.board_id].push(mapTask(t))
-        })
-      }
+      tasks.forEach(t => {
+        if (!grouped[t.board_id]) grouped[t.board_id] = []
+        grouped[t.board_id].push(mapTask(t))
+      })
       setTasksByTab(grouped)
       setDbReady(true)
     } catch (err) {
@@ -224,6 +215,18 @@ function App() {
 
   useEffect(() => {
     loadData()
+
+    // Safety timeout — if Supabase hangs, stop waiting after 8 seconds
+    const timeout = setTimeout(() => {
+      setDbReady(prev => {
+        if (!prev) {
+          setLoadError('Loading is taking too long. Please reload the page.')
+        }
+        return true
+      })
+    }, 8000)
+
+    return () => clearTimeout(timeout)
   }, [loadData])
 
   // Real-time: listen for board changes (use payload, no re-query)
@@ -326,7 +329,24 @@ function App() {
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
-    // Update UI immediately
+    // Delete from Supabase FIRST — only update UI after confirmed
+    console.log('[DELETE BOARD] Deleting tasks for board_id:', tabId)
+    const { error: tasksError } = await supabase.from('tasks').delete().eq('board_id', tabId)
+    if (tasksError) {
+      console.error('[DELETE BOARD] Failed to delete tasks:', tasksError)
+      alert('Failed to delete board. Check console for details.')
+      return
+    }
+    console.log('[DELETE BOARD] Tasks deleted. Deleting board id:', tabId)
+    const { error: boardError } = await supabase.from('boards').delete().eq('id', tabId)
+    if (boardError) {
+      console.error('[DELETE BOARD] Failed to delete board:', boardError)
+      alert('Failed to delete board. Check console for details.')
+      return
+    }
+    console.log('[DELETE BOARD] Board deleted successfully:', tabId)
+
+    // Supabase confirmed — now update UI
     setTabs(prev => prev.filter(t => t.id !== tabId))
     setTasksByTab(prev => {
       const updated = { ...prev }
@@ -335,14 +355,6 @@ function App() {
     })
     if (activeTab === tabId) {
       setActiveTab('business')
-    }
-
-    // Then persist to Supabase
-    try {
-      await supabase.from('tasks').delete().eq('board_id', tabId)
-      await supabase.from('boards').delete().eq('id', tabId)
-    } catch (err) {
-      console.error('Error deleting board:', err)
     }
   }
 
@@ -455,16 +467,21 @@ function App() {
   }
 
   const handleDeleteTask = async (taskId) => {
-    // Remove from UI immediately — realtime handler will dedup
+    // Delete from Supabase FIRST — only update UI after confirmed
+    console.log('[DELETE TASK] Deleting task id:', taskId)
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+    if (error) {
+      console.error('[DELETE TASK] Failed:', error)
+      alert('Failed to delete task. Check console for details.')
+      return
+    }
+    console.log('[DELETE TASK] Task deleted successfully:', taskId)
+
+    // Supabase confirmed — now remove from UI
     setTasksByTab(prev => ({
       ...prev,
       [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
     }))
-
-    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
-    if (error) {
-      console.error('Failed to delete task:', error.message)
-    }
   }
 
   const handleExport = () => {
