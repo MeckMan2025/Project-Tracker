@@ -23,7 +23,31 @@ import ScoutingSchedule from './components/ScoutingSchedule'
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
+import RestrictedAccess from './components/RestrictedAccess'
+import NotificationBell from './components/NotificationBell'
+import { useToast } from './components/ToastProvider'
 import { supabase } from './supabase'
+
+// Tab access requirements: which minimum tier is needed
+const TAB_ACCESS = {
+  // All tiers
+  'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
+  'org-chart': 'guest', 'ai-manual': 'guest', 'profile': 'guest',
+  'workshops': 'guest', 'attendance': 'guest',
+  // Teammate+
+  'scouting': 'teammate', 'schedule': 'teammate', 'quick-chat': 'teammate',
+  'notebook': 'teammate', 'suggestions': 'teammate', 'data': 'teammate',
+  // Top only
+  'user-management': 'top', 'requests': 'top',
+}
+
+const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
+
+function hasAccess(tab, tier) {
+  const required = TAB_ACCESS[tab]
+  if (!required) return true // board tabs (dynamic) — accessible to all
+  return (TIER_RANK[tier] || 0) >= (TIER_RANK[required] || 0)
+}
 
 function ForcePasswordChange({ updatePassword }) {
   const [pw, setPw] = useState('')
@@ -143,7 +167,8 @@ function getCachedData() {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired } = useUser()
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest } = usePermissions()
+  const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const cachedData = useRef(getCachedData())
@@ -325,7 +350,7 @@ function App() {
         return updated
       })
       setActiveTab('business')
-      alert('Failed to create board. Please try again.')
+      addToast('Failed to create board. Please try again.', 'error')
     }
   }
 
@@ -341,7 +366,7 @@ function App() {
     console.log('[DELETE BOARD] Tasks delete response:', { deletedTasks, tasksError })
     if (tasksError) {
       console.error('[DELETE BOARD] Failed to delete tasks:', tasksError)
-      alert('Failed to delete board tasks: ' + tasksError.message)
+      addToast('Failed to delete board tasks: ' + tasksError.message, 'error')
       return
     }
 
@@ -350,12 +375,12 @@ function App() {
     console.log('[DELETE BOARD] Board delete response:', { deletedBoard, boardError })
     if (boardError) {
       console.error('[DELETE BOARD] Failed to delete board:', boardError)
-      alert('Failed to delete board: ' + boardError.message)
+      addToast('Failed to delete board: ' + boardError.message, 'error')
       return
     }
     if (!deletedBoard || deletedBoard.length === 0) {
       console.error('[DELETE BOARD] RLS blocked delete — no rows were removed for id:', tabId)
-      alert('Delete was blocked by database permissions. Ask a lead to check Supabase RLS policies.')
+      addToast('Delete was blocked by database permissions. Ask a lead to check RLS policies.', 'error')
       return
     }
     console.log('[DELETE BOARD] Board deleted successfully:', tabId)
@@ -428,7 +453,7 @@ function App() {
         ...prev,
         [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
       }))
-      alert('Failed to save task. Please try again.')
+      addToast('Failed to save task. Please try again.', 'error')
     }
   }
 
@@ -446,11 +471,12 @@ function App() {
           skills: newTask.skills || [],
         },
         requested_by: username,
+        requested_by_user_id: user.id,
         status: 'pending',
         board_id: activeTab,
       }
       await supabase.from('requests').insert(request)
-      alert('Request sent! A lead will review it.')
+      addToast('Request sent! A lead will review it.', 'success')
     } catch (err) {
       console.error('Error submitting request:', err)
     }
@@ -488,12 +514,12 @@ function App() {
     console.log('[DELETE TASK] Response:', { deletedRows, error })
     if (error) {
       console.error('[DELETE TASK] Failed:', error)
-      alert('Failed to delete task: ' + error.message)
+      addToast('Failed to delete task: ' + error.message, 'error')
       return
     }
     if (!deletedRows || deletedRows.length === 0) {
       console.error('[DELETE TASK] RLS blocked delete — no rows were removed for id:', taskId)
-      alert('Delete was blocked by database permissions. Ask a lead to check Supabase RLS policies.')
+      addToast('Delete was blocked by database permissions. Ask a lead to check RLS policies.', 'error')
       return
     }
     console.log('[DELETE TASK] Task deleted successfully:', taskId)
@@ -623,12 +649,12 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
-        canManageUsers={canManageUsers}
-        canReviewRequests={canReviewRequests}
       />
 
       {/* Main Content */}
-      {activeTab === 'scouting' ? (
+      {!hasAccess(activeTab, tier) ? (
+        <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
+      ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
         <ScoutingSchedule />
@@ -708,6 +734,7 @@ function App() {
               </div>
             </div>
             <div className="flex gap-2 items-center">
+              <NotificationBell />
               {canReviewRequests && <RequestsBadge type="task" boardId={activeTab} />}
               {canImport && (
                 <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">

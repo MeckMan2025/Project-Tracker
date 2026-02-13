@@ -198,7 +198,7 @@ function computeScoutingStats(matches) {
 
 function ScoutingData() {
   const { username } = useUser()
-  const { canDeleteScouting: canDelete } = usePermissions()
+  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest } = usePermissions()
   const [records, setRecords] = useState([])
   const [expandedTeams, setExpandedTeams] = useState({})
 

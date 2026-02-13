@@ -247,7 +247,10 @@ function LoginScreen({ sessionExpired }) {
               We sent a password reset link to <span className="font-medium text-gray-700">{email}</span>.
             </p>
             <p className="text-sm text-gray-600">
-              Check your inbox and follow the link to reset your password.
+              Check your inbox (and spam/junk folder) and follow the link to reset your password.
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              Note: Emails can take a few minutes. If it never arrives, ask a team lead to reset your password from the Supabase dashboard.
             </p>
             <button
               type="button"

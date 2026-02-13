@@ -55,7 +55,8 @@ function SectionHeader({ title }) {
 
 export default function EngineeringNotebook() {
   const { username } = useUser()
-  const { canEditContent: isLead } = usePermissions()
+  const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest } = usePermissions()
+  const isLead = canOrganizeNotebook
   const [view, setView] = useState('timeline')
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])

@@ -14,6 +14,16 @@ export function UserProvider({ children }) {
       return cached ? JSON.parse(cached) : []
     } catch (e) { return [] }
   })
+  const [authorityTier, setAuthorityTier] = useState(() => localStorage.getItem('scrum-authority-tier') || 'teammate')
+  const [isAuthorityAdmin, setIsAuthorityAdmin] = useState(() => localStorage.getItem('scrum-is-authority-admin') === 'true')
+  const [primaryRoleLabel, setPrimaryRoleLabel] = useState(() => localStorage.getItem('scrum-primary-role-label') || '')
+  const [functionTags, setFunctionTags] = useState(() => {
+    try {
+      const cached = localStorage.getItem('scrum-function-tags')
+      return cached ? JSON.parse(cached) : []
+    } catch (e) { return [] }
+  })
+  const [shortBio, setShortBio] = useState(() => localStorage.getItem('scrum-short-bio') || '')
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
@@ -54,10 +64,26 @@ export function UserProvider({ children }) {
       setRole(profileRole)
       setSecondaryRoles(profileSecondaryRoles)
       setMustChangePassword(!!profile.must_change_password)
+      // Authority fields
+      const tier = profile.authority_tier || 'teammate'
+      const admin = !!profile.is_authority_admin
+      const roleLabel = profile.primary_role_label || ''
+      const tags = profile.function_tags || []
+      const bio = profile.short_bio || ''
+      setAuthorityTier(tier)
+      setIsAuthorityAdmin(admin)
+      setPrimaryRoleLabel(roleLabel)
+      setFunctionTags(tags)
+      setShortBio(bio)
       localStorage.setItem('scrum-username', profile.display_name)
       localStorage.setItem('chat-username', profile.display_name)
       localStorage.setItem('scrum-role', profileRole)
       localStorage.setItem('scrum-secondary-roles', JSON.stringify(profileSecondaryRoles))
+      localStorage.setItem('scrum-authority-tier', tier)
+      localStorage.setItem('scrum-is-authority-admin', String(admin))
+      localStorage.setItem('scrum-primary-role-label', roleLabel)
+      localStorage.setItem('scrum-function-tags', JSON.stringify(tags))
+      localStorage.setItem('scrum-short-bio', bio)
     }
   }
 
@@ -67,11 +93,21 @@ export function UserProvider({ children }) {
     setIsLead(false)
     setRole('member')
     setSecondaryRoles([])
+    setAuthorityTier('teammate')
+    setIsAuthorityAdmin(false)
+    setPrimaryRoleLabel('')
+    setFunctionTags([])
+    setShortBio('')
     sessionStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
     localStorage.removeItem('scrum-role')
     localStorage.removeItem('scrum-secondary-roles')
+    localStorage.removeItem('scrum-authority-tier')
+    localStorage.removeItem('scrum-is-authority-admin')
+    localStorage.removeItem('scrum-primary-role-label')
+    localStorage.removeItem('scrum-function-tags')
+    localStorage.removeItem('scrum-short-bio')
   }
 
   const isSessionExpired = () => {
@@ -114,6 +150,16 @@ export function UserProvider({ children }) {
             if (cachedSecondary) {
               try { setSecondaryRoles(JSON.parse(cachedSecondary)) } catch (e) {}
             }
+            // Restore authority fields from cache
+            const cachedTier = localStorage.getItem('scrum-authority-tier')
+            if (cachedTier) setAuthorityTier(cachedTier)
+            setIsAuthorityAdmin(localStorage.getItem('scrum-is-authority-admin') === 'true')
+            const cachedLabel = localStorage.getItem('scrum-primary-role-label')
+            if (cachedLabel) setPrimaryRoleLabel(cachedLabel)
+            const cachedTags = localStorage.getItem('scrum-function-tags')
+            if (cachedTags) { try { setFunctionTags(JSON.parse(cachedTags)) } catch (e) {} }
+            const cachedBio = localStorage.getItem('scrum-short-bio')
+            if (cachedBio) setShortBio(cachedBio)
             if (mounted) setLoading(false)
           }
           const profile = await fetchProfile(session.user.id)
@@ -255,7 +301,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, role, secondaryRoles, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
+      value={{ username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
     >
       {children}
     </UserContext.Provider>

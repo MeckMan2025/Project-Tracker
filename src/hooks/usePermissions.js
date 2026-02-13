@@ -1,36 +1,66 @@
 import { useUser } from '../contexts/UserContext'
 
-const ELEVATED_ROLES = ['lead', 'coach', 'mentor', 'cofounder']
-const ADMIN_ROLES = ['lead', 'mentor', 'cofounder']
+const ELEVATED_LEGACY_ROLES = ['lead', 'coach', 'mentor', 'cofounder']
+
+function deriveTierFromRole(role, secondaryRoles) {
+  if (role === 'guest') return 'guest'
+  const allRoles = [role, ...(secondaryRoles || [])]
+  if (allRoles.some(r => ELEVATED_LEGACY_ROLES.includes(r))) return 'top'
+  return 'teammate'
+}
 
 export function usePermissions() {
-  const { username, isLead, user, role, secondaryRoles } = useUser()
+  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin } = useUser()
 
-  // Also check localStorage directly as a last-resort fallback
-  const cachedRole = typeof window !== 'undefined' ? localStorage.getItem('scrum-role') : null
-  const effectiveRole = role || cachedRole || 'member'
+  // Use authority_tier if set, otherwise derive from legacy role
+  const tier = authorityTier || deriveTierFromRole(role, secondaryRoles)
 
-  const allRoles = [effectiveRole, ...(secondaryRoles || [])]
-  // Fallback: if legacy isLead is true OR cached role is lead, treat as elevated+admin
-  const legacyLead = isLead || cachedRole === 'lead'
-  const isElevated = legacyLead || allRoles.some(r => ELEVATED_ROLES.includes(r))
-  const isAdmin = legacyLead || allRoles.some(r => ADMIN_ROLES.includes(r))
-  const isGuest = effectiveRole === 'guest' && !legacyLead
+  const isGuest = tier === 'guest'
+  const isTeammate = tier === 'teammate'
+  const isTop = tier === 'top'
 
   return {
-    canEditContent: isElevated,
-    canManageUsers: isAdmin,
-    canReviewRequests: isElevated,
-    canReviewSuggestions: isElevated,
-    canDeleteScouting: isElevated,
-    canDragAnyTask: isElevated,
-    canDragOwnTask: !isGuest,
-    canRequestContent: effectiveRole === 'member' && !legacyLead,
-    canImport: isElevated,
+    tier,
     isGuest,
-    isElevated,
-    isAdmin,
-    role: effectiveRole,
+    isTeammate,
+    isTop,
+    isAuthorityAdmin: !!isAuthorityAdmin,
+
+    // View permissions (all tiers)
+    canViewBoards: true,
+    canViewOrgChart: true,
+    canViewAIManual: true,
+
+    // Teammate + Top
+    canSubmitScouting: !isGuest,
+    canSubmitNotebook: !isGuest,
+    canRequestContent: isTeammate,
+    canSelfCheckIn: !isGuest,
+    canUseChat: !isGuest,
+    canDeleteOwnMessages: !isGuest,
+    canViewOwnAttendance: !isGuest,
+    canViewScoutingData: !isGuest,
+    canSubmitSuggestions: !isGuest,
+    canDragOwnTask: !isGuest,
+
+    // Top only
+    canEditContent: isTop,
+    canReviewRequests: isTop,
+    canDeleteScouting: isTop,
+    canReorderScoutingRanks: isTop,
+    canPauseMuteChat: isTop,
+    canViewAllAttendance: isTop,
+    canOrganizeNotebook: isTop,
+    canApproveQuotes: isTop,
+    canImport: isTop,
+    canManageUsers: isTop,
+    canReviewSuggestions: isTop,
+    canDragAnyTask: isTop,
+
+    // Legacy compat
+    role,
     secondaryRoles,
+    isElevated: isTop,
+    isAdmin: isTop && !!isAuthorityAdmin,
   }
 }

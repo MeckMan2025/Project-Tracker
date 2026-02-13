@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
-import { Inbox, Check, X } from 'lucide-react'
+import { Inbox, Check, X, Bell } from 'lucide-react'
 import { usePendingRequests } from '../hooks/usePendingRequests'
+import { useUser } from '../contexts/UserContext'
+import { useToast } from './ToastProvider'
 
 function RequestsBadge({ type, boardId }) {
-  const { requests, count, handleApprove, handleDeny } = usePendingRequests({ type, boardId })
+  const { requests, count, handleApprove, handleDeny, handleRemind } = usePendingRequests({ type, boardId })
+  const { username } = useUser()
+  const { addToast } = useToast()
   const [open, setOpen] = useState(false)
+  const [remindingId, setRemindingId] = useState(null)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -18,6 +23,17 @@ function RequestsBadge({ type, boardId }) {
   const formatDate = (timestamp) => {
     const date = new Date(timestamp)
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
+
+  const onRemind = async (r) => {
+    setRemindingId(r.id)
+    const result = await handleRemind(r)
+    setRemindingId(null)
+    if (result.success) {
+      addToast('Reminder sent to approvers', 'success')
+    } else {
+      addToast(result.error || 'Failed to send reminder', 'error')
+    }
   }
 
   return (
@@ -73,21 +89,33 @@ function RequestsBadge({ type, boardId }) {
                         by <span className="font-medium text-pastel-pink-dark">{r.requested_by}</span>
                       </p>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={() => handleApprove(r)}
-                        className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
-                        title="Approve"
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeny(r)}
-                        className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-                        title="Deny"
-                      >
-                        <X size={14} />
-                      </button>
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleApprove(r)}
+                          className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                          title="Approve"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeny(r)}
+                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                          title="Deny"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      {r.requested_by === username && (
+                        <button
+                          onClick={() => onRemind(r)}
+                          disabled={remindingId === r.id}
+                          className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-500 transition-colors disabled:opacity-50"
+                          title="Remind approvers"
+                        >
+                          <Bell size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

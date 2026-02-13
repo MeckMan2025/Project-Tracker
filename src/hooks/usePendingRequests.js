@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
 export function usePendingRequests({ type, boardId } = {}) {
-  const { username } = useUser()
+  const { username, user } = useUser()
   const [requests, setRequests] = useState([])
 
   useEffect(() => {
@@ -85,7 +85,19 @@ export function usePendingRequests({ type, boardId } = {}) {
       await supabase.from('requests').update({
         status: 'approved',
         reviewed_by: username,
+        reviewed_at: new Date().toISOString(),
       }).eq('id', request.id)
+
+      // Notify requester
+      if (request.requested_by_user_id) {
+        await supabase.from('notifications').insert({
+          id: String(Date.now()) + Math.random().toString(36).slice(2),
+          user_id: request.requested_by_user_id,
+          type: 'request_approved',
+          title: 'Request Approved',
+          body: `Your ${request.type === 'task' ? 'task' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
+        })
+      }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))
     } catch (err) {
@@ -93,12 +105,25 @@ export function usePendingRequests({ type, boardId } = {}) {
     }
   }, [username])
 
-  const handleDeny = useCallback(async (request) => {
+  const handleDeny = useCallback(async (request, reason = '') => {
     try {
       await supabase.from('requests').update({
         status: 'denied',
         reviewed_by: username,
+        reviewed_at: new Date().toISOString(),
+        decision_reason: reason,
       }).eq('id', request.id)
+
+      // Notify requester
+      if (request.requested_by_user_id) {
+        await supabase.from('notifications').insert({
+          id: String(Date.now()) + Math.random().toString(36).slice(2),
+          user_id: request.requested_by_user_id,
+          type: 'request_denied',
+          title: 'Request Denied',
+          body: `Your ${request.type === 'task' ? 'task' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
+        })
+      }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))
     } catch (err) {
@@ -106,5 +131,58 @@ export function usePendingRequests({ type, boardId } = {}) {
     }
   }, [username])
 
-  return { requests, count: requests.length, handleApprove, handleDeny }
+  const handleRemind = useCallback(async (request) => {
+    if (!user) return { success: false, error: 'Not logged in' }
+
+    try {
+      // Check cooldown (1 hour)
+      const { data: recentReminders } = await supabase
+        .from('request_reminders')
+        .select('reminded_at')
+        .eq('request_id', request.id)
+        .eq('reminded_by_user_id', user.id)
+        .order('reminded_at', { ascending: false })
+        .limit(1)
+
+      if (recentReminders && recentReminders.length > 0) {
+        const lastRemind = new Date(recentReminders[0].reminded_at)
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+        if (lastRemind > hourAgo) {
+          return { success: false, error: 'Please wait 1 hour between reminders' }
+        }
+      }
+
+      // Insert reminder record
+      await supabase.from('request_reminders').insert({
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        request_id: request.id,
+        reminded_by_user_id: user.id,
+      })
+
+      // Get all top-tier approvers
+      const { data: approvers } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('authority_tier', 'top')
+
+      // Insert notification for each approver
+      if (approvers && approvers.length > 0) {
+        const notifications = approvers.map(a => ({
+          id: String(Date.now()) + Math.random().toString(36).slice(2) + a.id.slice(0, 4),
+          user_id: a.id,
+          type: 'request_reminder',
+          title: 'Request Reminder',
+          body: `${username} is reminding you about a pending ${request.type === 'task' ? 'task' : 'event'} request: "${request.data?.title || request.data?.name}"`,
+        }))
+        await supabase.from('notifications').insert(notifications)
+      }
+
+      return { success: true }
+    } catch (err) {
+      console.error('Error sending reminder:', err)
+      return { success: false, error: err.message }
+    }
+  }, [user, username])
+
+  return { requests, count: requests.length, handleApprove, handleDeny, handleRemind }
 }

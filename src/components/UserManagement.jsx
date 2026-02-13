@@ -2,29 +2,26 @@ import { useState, useEffect } from 'react'
 import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
-const ALL_ROLES = ['member', 'guest', 'lead', 'coach', 'mentor', 'cofounder']
+const AUTHORITY_TIERS = ['guest', 'teammate', 'top']
 
-const ROLE_DESCRIPTIONS = {
-  member: 'Can view, request tasks/events, drag own tasks',
-  guest: 'View-only, no interactions',
-  lead: 'Full access — manage users, content, and approvals',
-  coach: 'Full content access, review suggestions, no user management',
-  mentor: 'Full access including user management',
-  cofounder: 'Full access including user management',
+const TIER_DESCRIPTIONS = {
+  guest: 'View-only access to boards, tasks, calendar, org chart, and AI manual',
+  teammate: 'Can submit scouting, notebook, chat, request tasks/events, view data, drag own tasks',
+  top: 'Full create/edit/delete access, approve requests, manage users',
 }
-
-const SECONDARY_ROLE_OPTIONS = ['lead', 'coach', 'mentor', 'cofounder']
 
 function UserManagement() {
   const { user } = useUser()
+  const { isAuthorityAdmin, canManageUsers, isTop } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
   const [activeSection, setActiveSection] = useState('whitelist')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [newEmail, setNewEmail] = useState('')
-  const [newRole, setNewRole] = useState('member')
+  const [newTier, setNewTier] = useState('teammate')
   const [bulkText, setBulkText] = useState('')
   const [error, setError] = useState('')
   const [resetTarget, setResetTarget] = useState(null)
@@ -41,6 +38,12 @@ function UserManagement() {
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
+  const [showTierInfo, setShowTierInfo] = useState(false)
+
+  // Per-member editing state keyed by member id
+  const [editingFields, setEditingFields] = useState({})
+  const [tagInput, setTagInput] = useState({})
+  const [savingFields, setSavingFields] = useState({})
 
   useEffect(() => {
     async function load() {
@@ -76,6 +79,8 @@ function UserManagement() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
+  // --- Whitelist handlers ---
+
   const handleAddEmail = async (e) => {
     e.preventDefault()
     if (!newEmail.trim()) return
@@ -85,7 +90,7 @@ function UserManagement() {
       .from('approved_emails')
       .insert({
         email: newEmail.toLowerCase().trim(),
-        role: newRole,
+        role: newTier,
         added_by: user.id,
       })
       .select()
@@ -104,7 +109,7 @@ function UserManagement() {
       setWhitelistedEmails(prev => [data, ...prev])
     }
     setNewEmail('')
-    setNewRole('member')
+    setNewTier('teammate')
     setShowAddForm(false)
   }
 
@@ -116,7 +121,6 @@ function UserManagement() {
   }
 
   const handleBulkImport = async () => {
-    // Split on newlines, commas, semicolons, or spaces to handle any format
     const lines = bulkText
       .split(/[\n,;\s]+/)
       .map(l => l.trim().toLowerCase())
@@ -127,13 +131,12 @@ function UserManagement() {
     }
     setError('')
 
-    // Insert one at a time to avoid upsert issues with RLS
     let added = []
     let failed = 0
     for (const email of lines) {
       const { data, error: insertError } = await supabase
         .from('approved_emails')
-        .insert({ email, role: 'member', added_by: user.id })
+        .insert({ email, role: 'teammate', added_by: user.id })
         .select()
         .single()
 
@@ -158,25 +161,96 @@ function UserManagement() {
     }
   }
 
-  const handleChangeRole = async (memberId, role) => {
-    const { error } = await supabase.from('profiles').update({ role }).eq('id', memberId)
+  // --- Member field handlers ---
+
+  const handleChangeTier = async (memberId, authority_tier) => {
+    const { error } = await supabase.from('profiles').update({ authority_tier }).eq('id', memberId)
     if (!error) {
-      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, role } : m))
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier } : m))
     }
   }
 
-  const handleToggleSecondaryRole = async (memberId, toggleRole) => {
-    const member = registeredMembers.find(m => m.id === memberId)
-    if (!member) return
-    const current = member.secondary_roles || []
-    const updated = current.includes(toggleRole)
-      ? current.filter(r => r !== toggleRole)
-      : [...current, toggleRole]
-    const { error } = await supabase.from('profiles').update({ secondary_roles: updated }).eq('id', memberId)
+  const handleChangePrimaryRoleLabel = async (memberId, primary_role_label) => {
+    const { error } = await supabase.from('profiles').update({ primary_role_label }).eq('id', memberId)
     if (!error) {
-      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, secondary_roles: updated } : m))
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, primary_role_label } : m))
     }
   }
+
+  const handleChangeShortBio = async (memberId, short_bio) => {
+    const { error } = await supabase.from('profiles').update({ short_bio }).eq('id', memberId)
+    if (!error) {
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, short_bio } : m))
+    }
+  }
+
+  const handleToggleAuthorityAdmin = async (memberId, is_authority_admin) => {
+    const { error } = await supabase.from('profiles').update({ is_authority_admin }).eq('id', memberId)
+    if (!error) {
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_authority_admin } : m))
+    }
+  }
+
+  const handleAddTag = async (memberId, tag) => {
+    const member = registeredMembers.find(m => m.id === memberId)
+    if (!member) return
+    const currentTags = member.function_tags || []
+    if (currentTags.includes(tag)) return
+    const updated = [...currentTags, tag]
+    const { error } = await supabase.from('profiles').update({ function_tags: updated }).eq('id', memberId)
+    if (!error) {
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
+    }
+  }
+
+  const handleRemoveTag = async (memberId, tag) => {
+    const member = registeredMembers.find(m => m.id === memberId)
+    if (!member) return
+    const updated = (member.function_tags || []).filter(t => t !== tag)
+    const { error } = await supabase.from('profiles').update({ function_tags: updated }).eq('id', memberId)
+    if (!error) {
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
+    }
+  }
+
+  // --- Local edit helpers (debounced save on blur) ---
+
+  const getEditValue = (memberId, field, fallback) => {
+    const key = `${memberId}-${field}`
+    if (key in editingFields) return editingFields[key]
+    return fallback
+  }
+
+  const setEditValue = (memberId, field, value) => {
+    const key = `${memberId}-${field}`
+    setEditingFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleBlurSave = async (memberId, field) => {
+    const key = `${memberId}-${field}`
+    const value = editingFields[key]
+    if (value === undefined) return
+
+    const member = registeredMembers.find(m => m.id === memberId)
+    if (!member) return
+
+    // Only save if actually changed
+    if (value === (member[field] || '')) {
+      setEditingFields(prev => { const n = { ...prev }; delete n[key]; return n })
+      return
+    }
+
+    setSavingFields(prev => ({ ...prev, [key]: true }))
+    if (field === 'primary_role_label') {
+      await handleChangePrimaryRoleLabel(memberId, value)
+    } else if (field === 'short_bio') {
+      await handleChangeShortBio(memberId, value)
+    }
+    setSavingFields(prev => { const n = { ...prev }; delete n[key]; return n })
+    setEditingFields(prev => { const n = { ...prev }; delete n[key]; return n })
+  }
+
+  // --- Modal handlers ---
 
   const handleResetPassword = async () => {
     setResetError('')
@@ -243,11 +317,10 @@ function UserManagement() {
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       setCreateSuccess(`Account created for ${createDisplayName.trim()}. Tell them their temporary password.`)
-      // Add to members list
       setRegisteredMembers(prev => [{
         id: data.userId,
         display_name: data.displayName,
-        role: createTarget.role,
+        authority_tier: createTarget.role === 'guest' ? 'guest' : 'teammate',
         created_at: new Date().toISOString(),
       }, ...prev])
       setCreateDisplayName('')
@@ -261,18 +334,28 @@ function UserManagement() {
 
   const bulkCount = bulkText.split(/[\n,;\s]+/).filter(l => l.trim() && l.includes('@')).length
 
-  const [showRoleInfo, setShowRoleInfo] = useState(false)
-
-  const roleBadge = (role) => {
+  const tierBadge = (tier) => {
     const colors = {
-      lead: 'bg-pastel-orange/50 text-orange-700',
-      mentor: 'bg-pastel-blue/50 text-blue-700',
-      coach: 'bg-purple-100 text-purple-700',
-      cofounder: 'bg-green-100 text-green-700',
+      top: 'bg-pastel-orange/50 text-orange-700',
+      teammate: 'bg-pastel-blue/50 text-blue-700',
       guest: 'bg-yellow-100 text-yellow-700',
-      member: 'bg-gray-100 text-gray-600',
     }
-    return colors[role] || colors.member
+    return colors[tier] || colors.teammate
+  }
+
+  const tagColors = [
+    'bg-purple-100 text-purple-700',
+    'bg-green-100 text-green-700',
+    'bg-pastel-pink/50 text-pink-700',
+    'bg-blue-100 text-blue-700',
+    'bg-orange-100 text-orange-700',
+    'bg-teal-100 text-teal-700',
+  ]
+
+  const getTagColor = (tag) => {
+    let hash = 0
+    for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash)
+    return tagColors[Math.abs(hash) % tagColors.length]
   }
 
   return (
@@ -287,9 +370,9 @@ function UserManagement() {
             <p className="text-sm text-gray-500">Manage team access</p>
           </div>
           <button
-            onClick={() => setShowRoleInfo(true)}
+            onClick={() => setShowTierInfo(true)}
             className="w-10 shrink-0 flex items-center justify-center p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-            title="Role descriptions"
+            title="Tier descriptions"
           >
             <Info size={18} className="text-gray-400" />
           </button>
@@ -353,12 +436,12 @@ function UserManagement() {
                     required
                   />
                   <select
-                    value={newRole}
-                    onChange={(e) => setNewRole(e.target.value)}
+                    value={newTier}
+                    onChange={(e) => setNewTier(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                   >
-                    {ALL_ROLES.map(r => (
-                      <option key={r} value={r}>{r}</option>
+                    {AUTHORITY_TIERS.map(t => (
+                      <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
                   {error && <p className="text-sm text-red-500">{error}</p>}
@@ -382,7 +465,7 @@ function UserManagement() {
 
               {showBulkImport && (
                 <div className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-3">
-                  <p className="text-sm text-gray-500">Paste email addresses, one per line. All will be added as &quot;member&quot; role.</p>
+                  <p className="text-sm text-gray-500">Paste email addresses, one per line. All will be added as &quot;teammate&quot; tier.</p>
                   <textarea
                     value={bulkText}
                     onChange={(e) => setBulkText(e.target.value)}
@@ -419,7 +502,7 @@ function UserManagement() {
                       <div className="flex-1 min-w-0">
                         <span className="text-sm text-gray-700 block truncate">{entry.email}</span>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full mr-3 ${roleBadge(entry.role)}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full mr-3 ${tierBadge(entry.role)}`}>
                         {entry.role}
                       </span>
                       <div className="flex items-center gap-1">
@@ -443,66 +526,144 @@ function UserManagement() {
               </div>
             </>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {registeredMembers.length === 0 ? (
                 <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
               ) : (
-                registeredMembers.map((member) => (
-                  <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-gray-700 block truncate">{member.display_name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
-                          title="Reset password"
-                          className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-                        >
-                          <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
-                        </button>
-                        {member.id !== user.id && (
+                registeredMembers.map((member) => {
+                  const memberTier = member.authority_tier || 'teammate'
+                  const memberTags = member.function_tags || []
+                  const currentTagInput = tagInput[member.id] || ''
+
+                  return (
+                    <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 space-y-3">
+                      {/* Row 1: Name + action buttons + tier selector */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-700 block truncate">{member.display_name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
-                            onClick={() => { setDeleteTarget(member); setDeleteError('') }}
-                            title="Delete member"
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                            onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
+                            title="Reset password"
+                            className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
                           >
-                            <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                            <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
                           </button>
-                        )}
-                        <select
-                          value={member.role}
-                          onChange={(e) => handleChangeRole(member.id, e.target.value)}
-                          className="text-xs border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                        >
-                          {ALL_ROLES.map(r => (
-                            <option key={r} value={r}>{r}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    {/* Secondary roles chips */}
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      <span className="text-xs text-gray-400 self-center mr-1">Secondary:</span>
-                      {SECONDARY_ROLE_OPTIONS.filter(r => r !== member.role).map(r => {
-                        const isActive = (member.secondary_roles || []).includes(r)
-                        return (
-                          <button
-                            key={r}
-                            onClick={() => handleToggleSecondaryRole(member.id, r)}
-                            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                              isActive
-                                ? roleBadge(r) + ' font-medium'
-                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                          {member.id !== user.id && (
+                            <button
+                              onClick={() => { setDeleteTarget(member); setDeleteError('') }}
+                              title="Delete member"
+                              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                            </button>
+                          )}
+                          <select
+                            value={memberTier}
+                            onChange={(e) => handleChangeTier(member.id, e.target.value)}
+                            disabled={!isAuthorityAdmin}
+                            className={`text-xs border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
+                              !isAuthorityAdmin ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''
                             }`}
                           >
-                            {r}
-                          </button>
-                        )
-                      })}
+                            {AUTHORITY_TIERS.map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Primary role label */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 shrink-0 w-20">Role label:</span>
+                        <input
+                          type="text"
+                          value={getEditValue(member.id, 'primary_role_label', member.primary_role_label || '')}
+                          onChange={(e) => setEditValue(member.id, 'primary_role_label', e.target.value)}
+                          onBlur={() => handleBlurSave(member.id, 'primary_role_label')}
+                          placeholder="e.g. Lead Programmer, Business Captain"
+                          className="flex-1 text-xs px-2 py-1 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                        />
+                        {savingFields[`${member.id}-primary_role_label`] && (
+                          <span className="text-xs text-gray-400">Saving...</span>
+                        )}
+                      </div>
+
+                      {/* Row 3: Function tags chip editor */}
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-gray-400 shrink-0 w-20 mt-1">Tags:</span>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap gap-1.5 mb-1.5">
+                            {memberTags.map(tag => (
+                              <button
+                                key={tag}
+                                onClick={() => handleRemoveTag(member.id, tag)}
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 hover:opacity-70 transition-opacity ${getTagColor(tag)}`}
+                                title="Click to remove"
+                              >
+                                {tag}
+                                <X size={10} className="opacity-60" />
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="text"
+                            value={currentTagInput}
+                            onChange={(e) => setTagInput(prev => ({ ...prev, [member.id]: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const val = currentTagInput.trim()
+                                if (val) {
+                                  handleAddTag(member.id, val)
+                                  setTagInput(prev => ({ ...prev, [member.id]: '' }))
+                                }
+                              }
+                            }}
+                            placeholder="Type a tag, press Enter"
+                            className="text-xs px-2 py-1 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent w-full"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 4: Short bio */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 shrink-0 w-20">Bio:</span>
+                        <input
+                          type="text"
+                          value={getEditValue(member.id, 'short_bio', member.short_bio || '')}
+                          onChange={(e) => setEditValue(member.id, 'short_bio', e.target.value)}
+                          onBlur={() => handleBlurSave(member.id, 'short_bio')}
+                          placeholder="Short bio"
+                          className="flex-1 text-xs px-2 py-1 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                        />
+                        {savingFields[`${member.id}-short_bio`] && (
+                          <span className="text-xs text-gray-400">Saving...</span>
+                        )}
+                      </div>
+
+                      {/* Row 5: Authority admin toggle (only visible to authority admins) */}
+                      {isAuthorityAdmin && (
+                        <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                          <span className="text-xs text-gray-400 shrink-0 w-20">Admin:</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!member.is_authority_admin}
+                              onChange={(e) => handleToggleAuthorityAdmin(member.id, e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-pastel-blue rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-pastel-orange" />
+                          </label>
+                          <span className="text-xs text-gray-500">
+                            {member.is_authority_admin ? 'Authority admin' : 'Not admin'}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           )}
@@ -623,26 +784,26 @@ function UserManagement() {
         </div>
       )}
 
-      {/* Role Descriptions Modal */}
-      {showRoleInfo && (
+      {/* Tier Descriptions Modal */}
+      {showTierInfo && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700">Role Descriptions</h3>
-              <button onClick={() => setShowRoleInfo(false)} className="p-1 rounded hover:bg-gray-100">
+              <h3 className="font-semibold text-gray-700">Tier Descriptions</h3>
+              <button onClick={() => setShowTierInfo(false)} className="p-1 rounded hover:bg-gray-100">
                 <X size={16} className="text-gray-400" />
               </button>
             </div>
             <div className="space-y-2">
-              {ALL_ROLES.map(r => (
-                <div key={r} className="flex items-start gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${roleBadge(r)}`}>{r}</span>
-                  <p className="text-sm text-gray-600">{ROLE_DESCRIPTIONS[r]}</p>
+              {AUTHORITY_TIERS.map(t => (
+                <div key={t} className="flex items-start gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${tierBadge(t)}`}>{t}</span>
+                  <p className="text-sm text-gray-600">{TIER_DESCRIPTIONS[t]}</p>
                 </div>
               ))}
             </div>
             <p className="text-xs text-gray-400 pt-1 border-t">
-              Secondary roles grant additional permissions on top of the primary role.
+              Authority admins can change tiers and toggle admin status for other members.
             </p>
           </div>
         </div>

@@ -60,8 +60,8 @@ const DEFAULT_PROFILE_DATA = {
 }
 
 function ProfileView() {
-  const { username, user } = useUser()
-  const { role, secondaryRoles, isElevated } = usePermissions()
+  const { username, user, authorityTier, primaryRoleLabel, functionTags, shortBio } = useUser()
+  const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
   const [profile, setProfile] = useState(DEFAULT_PROFILE_DATA)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -220,15 +220,25 @@ function ProfileView() {
               <div className="flex-1 min-w-0">
                 <h2 className="text-xl font-bold text-gray-800">{username || 'Unknown'}</h2>
                 <p className="text-sm text-gray-500">{user?.email}</p>
+                {primaryRoleLabel && (
+                  <p className="text-sm text-gray-600 font-medium mt-0.5">{primaryRoleLabel}</p>
+                )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                    isElevated ? 'bg-pastel-orange/30 text-pastel-orange-dark' : 'bg-gray-100 text-gray-500'
+                    tier === 'top' ? 'bg-pastel-orange/30 text-pastel-orange-dark' :
+                    tier === 'teammate' ? 'bg-pastel-blue/30 text-pastel-blue-dark' :
+                    'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {role}
+                    {tier}
                   </span>
-                  {secondaryRoles.length > 0 && secondaryRoles.map(sr => (
-                    <span key={sr} className="text-xs px-2 py-0.5 rounded-full font-medium capitalize bg-pastel-blue/30 text-pastel-blue-dark">
-                      +{sr}
+                  {isAuthorityAdmin && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">
+                      Admin
+                    </span>
+                  )}
+                  {functionTags.length > 0 && functionTags.map(tag => (
+                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-pink/30 text-pastel-pink-dark">
+                      {tag}
                     </span>
                   ))}
                   {profile.discipline && (
@@ -237,6 +247,9 @@ function ProfileView() {
                     </span>
                   )}
                 </div>
+                {shortBio && (
+                  <p className="text-sm text-gray-500 mt-2 italic">{shortBio}</p>
+                )}
               </div>
             </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const STARTING_POSITIONS = ['Close to goal', 'Far from goal', 'Center']
 

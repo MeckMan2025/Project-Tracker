@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const SENDER_COLORS = [
   { bg: '#FFCAD4', name: '#F4A3B5' }, // pastel pink
@@ -19,6 +20,7 @@ function getSenderColor(sender) {
 
 function QuickChat() {
   const { username } = useUser()
+  const { canUseChat, canDeleteOwnMessages, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const messagesEndRef = useRef(null)

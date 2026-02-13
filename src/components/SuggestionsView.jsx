@@ -6,7 +6,7 @@ import { usePermissions } from '../hooks/usePermissions'
 
 function SuggestionsView() {
   const { username } = useUser()
-  const { canReviewSuggestions } = usePermissions()
+  const { canReviewSuggestions, canSubmitSuggestions, isGuest } = usePermissions()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
   const [submitted, setSubmitted] = useState(false)

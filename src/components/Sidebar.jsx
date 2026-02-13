@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, canManageUsers, canReviewRequests }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers }) {
   const { logout } = useUser()
+  const { isGuest, isTop, canManageUsers, canReviewRequests } = usePermissions()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -111,107 +113,113 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         )}
 
         <nav className="p-2 flex-1 overflow-y-auto">
-          {/* Scouting Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'scouting' || activeTab === 'schedule'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              setScoutingOpen(prev => !prev)
-            }}
-          >
-            <ClipboardList size={16} className="text-pastel-orange-dark" />
-            <span className="truncate flex-1">Scouting</span>
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
-            />
-          </div>
+          {/* Scouting Tab — hidden for guests */}
+          {!isGuest && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'scouting' || activeTab === 'schedule'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  setScoutingOpen(prev => !prev)
+                }}
+              >
+                <ClipboardList size={16} className="text-pastel-orange-dark" />
+                <span className="truncate flex-1">Scouting</span>
+                <ChevronRight
+                  size={14}
+                  className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
+                />
+              </div>
 
-          {/* Scouting sub-items */}
-          {(scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
-            <div className="ml-4 mt-1 space-y-1">
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'scouting' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => {
-                  onTabChange('scouting')
-                  onToggle()
-                }}
-              >
-                <ChevronRight size={14} className={activeTab === 'scouting' ? 'rotate-90' : ''} />
-                <span className="truncate">Scouting Form</span>
-              </div>
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'schedule' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => {
-                  onTabChange('schedule')
-                  onToggle()
-                }}
-              >
-                <ChevronRight size={14} className={activeTab === 'schedule' ? 'rotate-90' : ''} />
-                <span className="truncate">Schedule</span>
-              </div>
-            </div>
+              {/* Scouting sub-items */}
+              {(scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
+                <div className="ml-4 mt-1 space-y-1">
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'scouting' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => {
+                      onTabChange('scouting')
+                      onToggle()
+                    }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'scouting' ? 'rotate-90' : ''} />
+                    <span className="truncate">Scouting Form</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'schedule' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => {
+                      onTabChange('schedule')
+                      onToggle()
+                    }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'schedule' ? 'rotate-90' : ''} />
+                    <span className="truncate">Schedule</span>
+                  </div>
+                </div>
+              )}
+
+              <hr className="my-2 border-gray-200" />
+            </>
           )}
 
-          <hr className="my-2 border-gray-200" />
-
-          {/* Data Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'data' || activeTab === 'attendance'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              setDataOpen(prev => !prev)
-            }}
-          >
-            <LineChart size={16} className="text-pastel-blue-dark" />
-            <span className="truncate flex-1">Data</span>
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' ? 'rotate-90' : ''}`}
-            />
-          </div>
-
-          {/* Data sub-items */}
-          {(dataOpen || activeTab === 'data' || activeTab === 'attendance') && (
-            <div className="ml-4 mt-1 space-y-1">
+          {!isGuest && (
+            <>
               <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'data' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'data' || activeTab === 'attendance'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
                 }`}
                 onClick={() => {
-                  onTabChange('data')
-                  onToggle()
+                  setDataOpen(prev => !prev)
                 }}
               >
-                <ChevronRight size={14} className={activeTab === 'data' ? 'rotate-90' : ''} />
-                <span className="truncate">Scouting</span>
+                <LineChart size={16} className="text-pastel-blue-dark" />
+                <span className="truncate flex-1">Data</span>
+                <ChevronRight
+                  size={14}
+                  className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' ? 'rotate-90' : ''}`}
+                />
               </div>
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'attendance' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => {
-                  onTabChange('attendance')
-                  onToggle()
-                }}
-              >
-                <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
-                <span className="truncate">Attendance</span>
-              </div>
-            </div>
+
+              {(dataOpen || activeTab === 'data' || activeTab === 'attendance') && (
+                <div className="ml-4 mt-1 space-y-1">
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'data' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => {
+                      onTabChange('data')
+                      onToggle()
+                    }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'data' ? 'rotate-90' : ''} />
+                    <span className="truncate">Scouting</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'attendance' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => {
+                      onTabChange('attendance')
+                      onToggle()
+                    }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
+                    <span className="truncate">Attendance</span>
+                  </div>
+                </div>
+              )}
+
+              <hr className="my-2 border-gray-200" />
+            </>
           )}
-
-          <hr className="my-2 border-gray-200" />
 
           {/* AI Manual Tab */}
           <div
@@ -231,23 +239,27 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
-          {/* Quick Chat Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'quick-chat'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('quick-chat')
-              onToggle()
-            }}
-          >
-            <MessageCircle size={16} className="text-pastel-pink-dark" />
-            <span className="truncate">Quick Chat</span>
-          </div>
+          {/* Quick Chat Tab — hidden for guests */}
+          {!isGuest && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'quick-chat'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('quick-chat')
+                  onToggle()
+                }}
+              >
+                <MessageCircle size={16} className="text-pastel-pink-dark" />
+                <span className="truncate">Quick Chat</span>
+              </div>
 
-          <hr className="my-2 border-gray-200" />
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
 
           {/* Boards Tab */}
           <div
@@ -403,41 +415,44 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
-          {/* Engineering Notebook Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'notebook'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('notebook')
-              onToggle()
-            }}
-          >
-            <BookOpen size={16} className="text-pastel-blue-dark" />
-            <span className="truncate">Engineering Notebook</span>
-          </div>
+          {/* Engineering Notebook — hidden for guests */}
+          {!isGuest && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'notebook'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('notebook')
+                  onToggle()
+                }}
+              >
+                <BookOpen size={16} className="text-pastel-blue-dark" />
+                <span className="truncate">Engineering Notebook</span>
+              </div>
 
-          <hr className="my-2 border-gray-200" />
+              <hr className="my-2 border-gray-200" />
 
-          {/* Suggestions Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'suggestions'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('suggestions')
-              onToggle()
-            }}
-          >
-            <HelpCircle size={16} className="text-pastel-orange-dark" />
-            <span className="truncate">Suggestions</span>
-          </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'suggestions'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('suggestions')
+                  onToggle()
+                }}
+              >
+                <HelpCircle size={16} className="text-pastel-orange-dark" />
+                <span className="truncate">Suggestions</span>
+              </div>
 
-          <hr className="my-2 border-gray-200" />
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
 
           {/* Calendar Tab */}
           <div

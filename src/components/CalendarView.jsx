@@ -3,11 +3,14 @@ import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { useToast } from './ToastProvider'
 import RequestsBadge from './RequestsBadge'
+import RestrictedAccess from './RestrictedAccess'
 
 function CalendarView() {
-  const { username } = useUser()
-  const { canEditContent, canRequestContent, canReviewRequests } = usePermissions()
+  const { username, user } = useUser()
+  const { canEditContent, canRequestContent, canReviewRequests, isGuest } = usePermissions()
+  const { addToast } = useToast()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState({})
   const [selectedDay, setSelectedDay] = useState(null)
@@ -103,10 +106,11 @@ function CalendarView() {
             description: eventDesc.trim(),
           },
           requested_by: username,
+          requested_by_user_id: user?.id,
           status: 'pending',
         }
         await supabase.from('requests').insert(request)
-        alert('Request sent! A lead will review it.')
+        addToast('Request sent! A lead will review it.', 'success')
       } catch (err) {
         console.error('Error submitting request:', err)
       }

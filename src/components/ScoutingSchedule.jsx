@@ -27,7 +27,8 @@ const ALLIANCE_POSITIONS = ['Red 1', 'Red 2', 'Blue 1', 'Blue 2']
 
 export default function ScoutingSchedule() {
   const { username } = useUser()
-  const { canEditContent: isLead } = usePermissions()
+  const { canEditContent, isGuest } = usePermissions()
+  const isLead = canEditContent
   const [data, setData] = useState(null)
   const saveTimer = useRef(null)
 
