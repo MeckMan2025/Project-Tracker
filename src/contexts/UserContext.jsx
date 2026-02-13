@@ -87,8 +87,22 @@ export function UserProvider({ children }) {
             return
           }
           setUser(session.user)
+          // Use cached profile to unblock loading immediately, refresh in background
+          const cachedName = localStorage.getItem('scrum-username')
+          const cachedRole = localStorage.getItem('scrum-role')
+          if (cachedName) {
+            setUsername(cachedName)
+            setIsLead(cachedRole === 'lead')
+            if (mounted) setLoading(false)
+          }
+          // Fetch fresh profile (updates in background if cache was used)
           const profile = await fetchProfile(session.user.id)
-          if (mounted) applyProfile(profile)
+          if (mounted) {
+            applyProfile(profile)
+            if (profile) localStorage.setItem('scrum-role', profile.role)
+            if (!cachedName) setLoading(false)
+          }
+          return
         }
       } catch (err) {
         console.error('Failed to restore session:', err)

@@ -126,21 +126,36 @@ const mapTask = (t) => ({
   createdAt: t.created_at,
 })
 
+// Restore cached data from localStorage for instant load
+function getCachedData() {
+  try {
+    const cached = localStorage.getItem('scrum-cache')
+    if (cached) {
+      const { tabs: cachedTabs, tasksByTab: cachedTasks } = JSON.parse(cached)
+      if (cachedTabs && cachedTasks) {
+        return { tabs: [...SYSTEM_TABS, ...cachedTabs], tasksByTab: cachedTasks }
+      }
+    }
+  } catch (e) { /* ignore corrupt cache */ }
+  return null
+}
+
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired } = useUser()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
-  const [tabs, setTabs] = useState([...SYSTEM_TABS, ...DEFAULT_BOARDS])
+  const cachedData = useRef(getCachedData())
+  const [tabs, setTabs] = useState(() => cachedData.current?.tabs || [...SYSTEM_TABS, ...DEFAULT_BOARDS])
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
     return saved || 'business'
   })
-  const [tasksByTab, setTasksByTab] = useState({})
+  const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [dbReady, setDbReady] = useState(false)
+  const [dbReady, setDbReady] = useState(() => !!cachedData.current)
   const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
@@ -196,7 +211,8 @@ function App() {
       const extra = allBoards
         .filter(b => !defaultIds.includes(b.id))
         .map(b => ({ id: b.id, name: b.name, permanent: b.permanent }))
-      setTabs([...SYSTEM_TABS, ...DEFAULT_BOARDS, ...extra])
+      const boardTabs = [...DEFAULT_BOARDS, ...extra]
+      setTabs([...SYSTEM_TABS, ...boardTabs])
 
       const grouped = {}
       allBoards.forEach(b => { grouped[b.id] = [] })
@@ -206,6 +222,11 @@ function App() {
       })
       setTasksByTab(grouped)
       setDbReady(true)
+
+      // Cache for instant load next time
+      try {
+        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
+      } catch (e) { /* ignore quota errors */ }
     } catch (err) {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
