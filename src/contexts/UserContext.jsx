@@ -75,32 +75,32 @@ export function UserProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
+    // If we have cached credentials, unblock the app immediately
+    // Supabase session check + profile fetch happen in the background
+    const cachedName = localStorage.getItem('scrum-username')
+    const cachedRole = localStorage.getItem('scrum-role')
+    if (cachedName && sessionStorage.getItem('session-start') && !isSessionExpired()) {
+      setUsername(cachedName)
+      setIsLead(cachedRole === 'lead')
+      setLoading(false)
+    }
+
     async function init() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (!mounted) return
         if (session?.user) {
-          // Check 12-hour expiry
           if (isSessionExpired()) {
             await expireSession()
             if (mounted) setLoading(false)
             return
           }
           setUser(session.user)
-          // Use cached profile to unblock loading immediately, refresh in background
-          const cachedName = localStorage.getItem('scrum-username')
-          const cachedRole = localStorage.getItem('scrum-role')
-          if (cachedName) {
-            setUsername(cachedName)
-            setIsLead(cachedRole === 'lead')
-            if (mounted) setLoading(false)
-          }
-          // Fetch fresh profile (updates in background if cache was used)
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
             applyProfile(profile)
             if (profile) localStorage.setItem('scrum-role', profile.role)
-            if (!cachedName) setLoading(false)
+            setLoading(false)
           }
           return
         }
@@ -162,7 +162,7 @@ export function UserProvider({ children }) {
     // Safety fallback — never stay on loading screen forever
     const timeout = setTimeout(() => {
       if (mounted) setLoading(false)
-    }, 5000)
+    }, 2000)
 
     return () => {
       mounted = false
