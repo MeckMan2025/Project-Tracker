@@ -155,7 +155,6 @@ function App() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [dbReady, setDbReady] = useState(() => !!cachedData.current)
   const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
@@ -165,9 +164,6 @@ function App() {
   const loadData = useCallback(async () => {
     if (!user) return
     setLoadError(null)
-    // Only show loading spinner if we have NO cached data to display
-    // If cache exists, keep showing it while we refresh in the background
-    if (!cachedData.current) setDbReady(false)
 
     try {
       // Load boards and tasks in parallel for speed
@@ -179,14 +175,12 @@ function App() {
       if (boardsResult.error) {
         console.error('Failed to load boards:', boardsResult.error.message)
         setLoadError('Failed to load boards: ' + boardsResult.error.message)
-        setDbReady(true)
         return
       }
 
       if (tasksResult.error) {
         console.error('Failed to load tasks:', tasksResult.error.message)
         setLoadError('Failed to load tasks: ' + tasksResult.error.message)
-        setDbReady(true)
         return
       }
 
@@ -223,8 +217,6 @@ function App() {
         grouped[t.board_id].push(mapTask(t))
       })
       setTasksByTab(grouped)
-      setDbReady(true)
-      cachedData.current = null // Clear so future retries show loading if needed
 
       // Cache for instant load next time
       try {
@@ -233,25 +225,11 @@ function App() {
     } catch (err) {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
-      setDbReady(true)
-      cachedData.current = null
     }
   }, [user])
 
   useEffect(() => {
     loadData()
-
-    // Safety timeout — if Supabase hangs, stop waiting after 5 seconds
-    const timeout = setTimeout(() => {
-      setDbReady(prev => {
-        if (!prev) {
-          setLoadError('Loading is taking too long. Try the Retry button.')
-        }
-        return true
-      })
-    }, 5000)
-
-    return () => clearTimeout(timeout)
   }, [loadData])
 
   // Real-time: listen for board changes (use payload, no re-query)
@@ -769,11 +747,6 @@ function App() {
 
         {/* Board */}
         <main className="flex-1 p-4 overflow-x-auto">
-          {!dbReady ? (
-            <div className="flex items-center justify-center h-48">
-              <p className="text-gray-500 animate-pulse">Loading boards...</p>
-            </div>
-          ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 min-w-[300px]">
               {COLUMNS.map(column => (
@@ -827,7 +800,6 @@ function App() {
               ))}
             </div>
           </DragDropContext>
-          )}
         </main>
       </div>
       )}
