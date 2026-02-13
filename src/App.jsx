@@ -329,19 +329,28 @@ function App() {
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
-    // Delete from Supabase FIRST — only update UI after confirmed
+    // Delete from Supabase FIRST — use .select() to verify rows were actually deleted
+    // (RLS can silently block deletes without returning an error)
     console.log('[DELETE BOARD] Deleting tasks for board_id:', tabId)
-    const { error: tasksError } = await supabase.from('tasks').delete().eq('board_id', tabId)
+    const { data: deletedTasks, error: tasksError } = await supabase.from('tasks').delete().eq('board_id', tabId).select()
+    console.log('[DELETE BOARD] Tasks delete response:', { deletedTasks, tasksError })
     if (tasksError) {
       console.error('[DELETE BOARD] Failed to delete tasks:', tasksError)
-      alert('Failed to delete board. Check console for details.')
+      alert('Failed to delete board tasks: ' + tasksError.message)
       return
     }
-    console.log('[DELETE BOARD] Tasks deleted. Deleting board id:', tabId)
-    const { error: boardError } = await supabase.from('boards').delete().eq('id', tabId)
+
+    console.log('[DELETE BOARD] Deleting board id:', tabId)
+    const { data: deletedBoard, error: boardError } = await supabase.from('boards').delete().eq('id', tabId).select()
+    console.log('[DELETE BOARD] Board delete response:', { deletedBoard, boardError })
     if (boardError) {
       console.error('[DELETE BOARD] Failed to delete board:', boardError)
-      alert('Failed to delete board. Check console for details.')
+      alert('Failed to delete board: ' + boardError.message)
+      return
+    }
+    if (!deletedBoard || deletedBoard.length === 0) {
+      console.error('[DELETE BOARD] RLS blocked delete — no rows were removed for id:', tabId)
+      alert('Delete was blocked by database permissions. Ask a lead to check Supabase RLS policies.')
       return
     }
     console.log('[DELETE BOARD] Board deleted successfully:', tabId)
@@ -467,12 +476,19 @@ function App() {
   }
 
   const handleDeleteTask = async (taskId) => {
-    // Delete from Supabase FIRST — only update UI after confirmed
+    // Delete from Supabase FIRST — use .select() to verify rows were actually deleted
+    // (RLS can silently block deletes without returning an error)
     console.log('[DELETE TASK] Deleting task id:', taskId)
-    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+    const { data: deletedRows, error } = await supabase.from('tasks').delete().eq('id', taskId).select()
+    console.log('[DELETE TASK] Response:', { deletedRows, error })
     if (error) {
       console.error('[DELETE TASK] Failed:', error)
-      alert('Failed to delete task. Check console for details.')
+      alert('Failed to delete task: ' + error.message)
+      return
+    }
+    if (!deletedRows || deletedRows.length === 0) {
+      console.error('[DELETE TASK] RLS blocked delete — no rows were removed for id:', taskId)
+      alert('Delete was blocked by database permissions. Ask a lead to check Supabase RLS policies.')
       return
     }
     console.log('[DELETE TASK] Task deleted successfully:', taskId)
