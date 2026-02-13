@@ -21,6 +21,7 @@ import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import { useUser } from './contexts/UserContext'
+import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
 import { supabase } from './supabase'
 
@@ -142,6 +143,7 @@ function getCachedData() {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired } = useUser()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers } = usePermissions()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
   const cachedData = useRef(getCachedData())
@@ -571,7 +573,8 @@ function App() {
   }
 
   const canDragTask = (task) => {
-    if (isLead) return true
+    if (canDragAnyTask) return true
+    if (!canDragOwnTask) return false
     return task.assignee && task.assignee.toLowerCase() === username.toLowerCase()
   }
 
@@ -620,7 +623,8 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
-        isLead={isLead}
+        canManageUsers={canManageUsers}
+        canReviewRequests={canReviewRequests}
       />
 
       {/* Main Content */}
@@ -704,8 +708,8 @@ function App() {
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              {isLead && <RequestsBadge type="task" boardId={activeTab} />}
-              {isLead && (
+              {canReviewRequests && <RequestsBadge type="task" boardId={activeTab} />}
+              {canImport && (
                 <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">
                   <Upload size={18} />
                   <span className="hidden sm:inline">Import</span>
@@ -724,7 +728,7 @@ function App() {
                 <Download size={18} />
                 <span className="hidden sm:inline">Export</span>
               </button>
-              {isLead ? (
+              {canEditContent ? (
                 <button
                   onClick={() => setIsModalOpen(true)}
                   className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors"
@@ -732,7 +736,7 @@ function App() {
                   <Plus size={18} />
                   <span className="hidden sm:inline">Add Task</span>
                 </button>
-              ) : (
+              ) : canRequestContent ? (
                 <button
                   onClick={() => setIsRequestModalOpen(true)}
                   className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg transition-colors"
@@ -740,7 +744,7 @@ function App() {
                   <Plus size={18} />
                   <span className="hidden sm:inline">Request Task</span>
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </header>
@@ -786,7 +790,7 @@ function App() {
                                   isDragging={snapshot.isDragging}
                                   onEdit={() => setEditingTask(task)}
                                   onDelete={() => handleDeleteTask(task.id)}
-                                  isLead={isLead}
+                                  canEdit={canEditContent}
                                 />
                               </div>
                             )}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
@@ -59,7 +60,8 @@ const DEFAULT_PROFILE_DATA = {
 }
 
 function ProfileView() {
-  const { username, isLead, user } = useUser()
+  const { username, user } = useUser()
+  const { role, secondaryRoles, isElevated } = usePermissions()
   const [profile, setProfile] = useState(DEFAULT_PROFILE_DATA)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -218,12 +220,17 @@ function ProfileView() {
               <div className="flex-1 min-w-0">
                 <h2 className="text-xl font-bold text-gray-800">{username || 'Unknown'}</h2>
                 <p className="text-sm text-gray-500">{user?.email}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    isLead ? 'bg-pastel-orange/30 text-pastel-orange-dark' : 'bg-gray-100 text-gray-500'
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                    isElevated ? 'bg-pastel-orange/30 text-pastel-orange-dark' : 'bg-gray-100 text-gray-500'
                   }`}>
-                    {isLead ? 'Lead' : 'Member'}
+                    {role}
                   </span>
+                  {secondaryRoles.length > 0 && secondaryRoles.map(sr => (
+                    <span key={sr} className="text-xs px-2 py-0.5 rounded-full font-medium capitalize bg-pastel-blue/30 text-pastel-blue-dark">
+                      +{sr}
+                    </span>
+                  ))}
                   {profile.discipline && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-pastel-blue/30 text-pastel-blue-dark font-medium">
                       {profile.discipline}

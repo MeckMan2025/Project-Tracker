@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { Send, Plus, X, Trash2, Check, BookOpen, FolderOpen, MessageSquareQuote, Filter, ExternalLink, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
@@ -53,7 +54,8 @@ function SectionHeader({ title }) {
 }
 
 export default function EngineeringNotebook() {
-  const { username, isLead } = useUser()
+  const { username } = useUser()
+  const { canEditContent: isLead } = usePermissions()
   const [view, setView] = useState('timeline')
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])

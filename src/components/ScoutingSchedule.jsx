@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { Plus, Trash2, Users, Calendar } from 'lucide-react'
 
 const DEFAULT_DATA = {
@@ -25,7 +26,8 @@ const DEFAULT_DATA = {
 const ALLIANCE_POSITIONS = ['Red 1', 'Red 2', 'Blue 1', 'Blue 2']
 
 export default function ScoutingSchedule() {
-  const { username, isLead } = useUser()
+  const { username } = useUser()
+  const { canEditContent: isLead } = usePermissions()
   const [data, setData] = useState(null)
   const saveTimer = useRef(null)
 

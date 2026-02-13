@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 function SuggestionsView() {
-  const { username, isLead } = useUser()
+  const { username } = useUser()
+  const { canReviewSuggestions } = usePermissions()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
-  const isReviewer = isLead
+  const isReviewer = canReviewSuggestions
 
   // Load suggestions from Supabase on mount
   useEffect(() => {

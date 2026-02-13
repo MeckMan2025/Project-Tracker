@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import RequestsBadge from './RequestsBadge'
 
 function CalendarView() {
-  const { username, isLead } = useUser()
+  const { username } = useUser()
+  const { canEditContent, canRequestContent, canReviewRequests } = usePermissions()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState({})
   const [selectedDay, setSelectedDay] = useState(null)
@@ -89,7 +91,7 @@ function CalendarView() {
     if (!eventName.trim() || !selectedDay) return
     const key = dateKey(selectedDay)
 
-    if (!isLead) {
+    if (!canEditContent) {
       // Non-lead: submit a request
       try {
         const request = {
@@ -183,7 +185,7 @@ function CalendarView() {
             <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors">
               <ChevronRight size={20} />
             </button>
-            {isLead && <RequestsBadge type="calendar_event" />}
+            {canReviewRequests && <RequestsBadge type="calendar_event" />}
           </div>
         </div>
       </header>
@@ -289,7 +291,7 @@ function CalendarView() {
                       )}
                       <p className="text-xs text-gray-400 mt-0.5">Added by {ev.addedBy}</p>
                     </div>
-                    {isLead && (
+                    {canEditContent && (
                       <button
                         onClick={() => handleDeleteEvent(selectedDay, ev.id)}
                         className="p-1 rounded hover:bg-red-100 transition-colors"
@@ -324,12 +326,12 @@ function CalendarView() {
                 type="submit"
                 disabled={!eventName.trim()}
                 className={`w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-700 transition-colors disabled:opacity-40 ${
-                  isLead
+                  canEditContent
                     ? 'bg-pastel-pink hover:bg-pastel-pink-dark'
                     : 'bg-pastel-blue hover:bg-pastel-blue-dark'
                 }`}
               >
-                {isLead ? 'Add Event' : 'Request Event'}
+                {canEditContent ? 'Add Event' : 'Request Event'}
               </button>
             </form>
           </div>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isLead }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, canManageUsers, canReviewRequests }) {
   const { logout } = useUser()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -81,7 +81,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark' },
                     { icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' },
                     { icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' },
-                    ...(isLead ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
+                    ...(canManageUsers ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
                     { icon: HelpCircle, label: 'Help', color: 'text-pastel-orange-dark' },
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab }) => (
@@ -455,7 +455,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Calendar</span>
           </div>
 
-          {isLead && (
+          {canReviewRequests && (
             <>
               <hr className="my-2 border-gray-200" />
 
@@ -473,7 +473,11 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <Inbox size={16} className="text-pastel-pink-dark" />
                 <span className="truncate">Requests</span>
               </div>
+            </>
+          )}
 
+          {canManageUsers && (
+            <>
               <hr className="my-2 border-gray-200" />
 
               <div

@@ -1,7 +1,20 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+
+const ALL_ROLES = ['member', 'guest', 'lead', 'coach', 'mentor', 'cofounder']
+
+const ROLE_DESCRIPTIONS = {
+  member: 'Can view, request tasks/events, drag own tasks',
+  guest: 'View-only, no interactions',
+  lead: 'Full access — manage users, content, and approvals',
+  coach: 'Full content access, review suggestions, no user management',
+  mentor: 'Full access including user management',
+  cofounder: 'Full access including user management',
+}
+
+const SECONDARY_ROLE_OPTIONS = ['lead', 'coach', 'mentor', 'cofounder']
 
 function UserManagement() {
   const { user } = useUser()
@@ -39,7 +52,7 @@ function UserManagement() {
 
       const { data: members } = await supabase
         .from('profiles')
-        .select('id, display_name, role, created_at')
+        .select('*')
         .order('created_at', { ascending: false })
       if (members) setRegisteredMembers(members)
     }
@@ -152,6 +165,19 @@ function UserManagement() {
     }
   }
 
+  const handleToggleSecondaryRole = async (memberId, toggleRole) => {
+    const member = registeredMembers.find(m => m.id === memberId)
+    if (!member) return
+    const current = member.secondary_roles || []
+    const updated = current.includes(toggleRole)
+      ? current.filter(r => r !== toggleRole)
+      : [...current, toggleRole]
+    const { error } = await supabase.from('profiles').update({ secondary_roles: updated }).eq('id', memberId)
+    if (!error) {
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, secondary_roles: updated } : m))
+    }
+  }
+
   const handleResetPassword = async () => {
     setResetError('')
     setResetSuccess('')
@@ -235,11 +261,15 @@ function UserManagement() {
 
   const bulkCount = bulkText.split(/[\n,;\s]+/).filter(l => l.trim() && l.includes('@')).length
 
+  const [showRoleInfo, setShowRoleInfo] = useState(false)
+
   const roleBadge = (role) => {
     const colors = {
       lead: 'bg-pastel-orange/50 text-orange-700',
       mentor: 'bg-pastel-blue/50 text-blue-700',
       coach: 'bg-purple-100 text-purple-700',
+      cofounder: 'bg-green-100 text-green-700',
+      guest: 'bg-yellow-100 text-yellow-700',
       member: 'bg-gray-100 text-gray-600',
     }
     return colors[role] || colors.member
@@ -256,7 +286,13 @@ function UserManagement() {
             </h1>
             <p className="text-sm text-gray-500">Manage team access</p>
           </div>
-          <div className="w-10 shrink-0" />
+          <button
+            onClick={() => setShowRoleInfo(true)}
+            className="w-10 shrink-0 flex items-center justify-center p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+            title="Role descriptions"
+          >
+            <Info size={18} className="text-gray-400" />
+          </button>
         </div>
         <div className="flex border-t">
           <button
@@ -321,10 +357,9 @@ function UserManagement() {
                     onChange={(e) => setNewRole(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                   >
-                    <option value="member">Member</option>
-                    <option value="lead">Lead</option>
-                    <option value="mentor">Mentor</option>
-                    <option value="coach">Coach</option>
+                    {ALL_ROLES.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
                   </select>
                   {error && <p className="text-sm text-red-500">{error}</p>}
                   <div className="flex gap-2">
@@ -413,37 +448,58 @@ function UserManagement() {
                 <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
               ) : (
                 registeredMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-700 block truncate">{member.display_name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
-                        title="Reset password"
-                        className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-                      >
-                        <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
-                      </button>
-                      {member.id !== user.id && (
+                  <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-gray-700 block truncate">{member.display_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => { setDeleteTarget(member); setDeleteError('') }}
-                          title="Delete member"
-                          className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
+                          title="Reset password"
+                          className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
                         >
-                          <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                          <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
                         </button>
-                      )}
-                      <select
-                        value={member.role}
-                        onChange={(e) => handleChangeRole(member.id, e.target.value)}
-                        className="text-xs border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                      >
-                        <option value="member">member</option>
-                        <option value="lead">lead</option>
-                        <option value="mentor">mentor</option>
-                        <option value="coach">coach</option>
-                      </select>
+                        {member.id !== user.id && (
+                          <button
+                            onClick={() => { setDeleteTarget(member); setDeleteError('') }}
+                            title="Delete member"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                          </button>
+                        )}
+                        <select
+                          value={member.role}
+                          onChange={(e) => handleChangeRole(member.id, e.target.value)}
+                          className="text-xs border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                        >
+                          {ALL_ROLES.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {/* Secondary roles chips */}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="text-xs text-gray-400 self-center mr-1">Secondary:</span>
+                      {SECONDARY_ROLE_OPTIONS.filter(r => r !== member.role).map(r => {
+                        const isActive = (member.secondary_roles || []).includes(r)
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => handleToggleSecondaryRole(member.id, r)}
+                            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                              isActive
+                                ? roleBadge(r) + ' font-medium'
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            }`}
+                          >
+                            {r}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 ))
@@ -563,6 +619,31 @@ function UserManagement() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Descriptions Modal */}
+      {showRoleInfo && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-700">Role Descriptions</h3>
+              <button onClick={() => setShowRoleInfo(false)} className="p-1 rounded hover:bg-gray-100">
+                <X size={16} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {ALL_ROLES.map(r => (
+                <div key={r} className="flex items-start gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${roleBadge(r)}`}>{r}</span>
+                  <p className="text-sm text-gray-600">{ROLE_DESCRIPTIONS[r]}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 pt-1 border-t">
+              Secondary roles grant additional permissions on top of the primary role.
+            </p>
           </div>
         </div>
       )}

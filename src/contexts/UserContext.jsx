@@ -7,6 +7,13 @@ const SESSION_MAX_AGE = 12 * 60 * 60 * 1000 // 12 hours
 export function UserProvider({ children }) {
   const [username, setUsername] = useState('')
   const [isLead, setIsLead] = useState(false)
+  const [role, setRole] = useState(() => localStorage.getItem('scrum-role') || 'member')
+  const [secondaryRoles, setSecondaryRoles] = useState(() => {
+    try {
+      const cached = localStorage.getItem('scrum-secondary-roles')
+      return cached ? JSON.parse(cached) : []
+    } catch (e) { return [] }
+  })
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
@@ -16,7 +23,7 @@ export function UserProvider({ children }) {
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, role, must_change_password')
+      .select('*')
       .eq('id', userId)
       .single()
 
@@ -42,9 +49,15 @@ export function UserProvider({ children }) {
     if (profile) {
       setUsername(profile.display_name)
       setIsLead(profile.role === 'lead')
+      const profileRole = profile.role || 'member'
+      const profileSecondaryRoles = profile.secondary_roles || []
+      setRole(profileRole)
+      setSecondaryRoles(profileSecondaryRoles)
       setMustChangePassword(!!profile.must_change_password)
       localStorage.setItem('scrum-username', profile.display_name)
       localStorage.setItem('chat-username', profile.display_name)
+      localStorage.setItem('scrum-role', profileRole)
+      localStorage.setItem('scrum-secondary-roles', JSON.stringify(profileSecondaryRoles))
     }
   }
 
@@ -52,9 +65,13 @@ export function UserProvider({ children }) {
     setUser(null)
     setUsername('')
     setIsLead(false)
+    setRole('member')
+    setSecondaryRoles([])
     sessionStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
+    localStorage.removeItem('scrum-role')
+    localStorage.removeItem('scrum-secondary-roles')
   }
 
   const isSessionExpired = () => {
@@ -89,9 +106,14 @@ export function UserProvider({ children }) {
           // Use cached profile to unblock faster, refresh in background
           const cachedName = localStorage.getItem('scrum-username')
           const cachedRole = localStorage.getItem('scrum-role')
+          const cachedSecondary = localStorage.getItem('scrum-secondary-roles')
           if (cachedName) {
             setUsername(cachedName)
             setIsLead(cachedRole === 'lead')
+            if (cachedRole) setRole(cachedRole)
+            if (cachedSecondary) {
+              try { setSecondaryRoles(JSON.parse(cachedSecondary)) } catch (e) {}
+            }
             if (mounted) setLoading(false)
           }
           const profile = await fetchProfile(session.user.id)
@@ -233,7 +255,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
+      value={{ username, isLead, role, secondaryRoles, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
     >
       {children}
     </UserContext.Provider>

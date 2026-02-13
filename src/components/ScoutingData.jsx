@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 // Teams being considered for alliance
 const CONSIDERED_NUMBERS = ['6603', '20097', '22479']
@@ -106,7 +107,7 @@ const ALL_TEAMS = [
   { rank: 34, number: '8813',  name: 'The Winter Soldiers',                rp: 0,    tbp: 0,      autoAvg: 0,     teleopAvg: 0,     highScore: 0,   record: '--',     played: 0  },
 ]
 
-const ALLOWED_DELETERS = ['yukti', 'kayden', 'lily', 'nick', 'harshita']
+// Delete permission now handled by usePermissions hook (canDeleteScouting)
 
 function pctBar(value) {
   return (
@@ -197,10 +198,9 @@ function computeScoutingStats(matches) {
 
 function ScoutingData() {
   const { username } = useUser()
+  const { canDeleteScouting: canDelete } = usePermissions()
   const [records, setRecords] = useState([])
   const [expandedTeams, setExpandedTeams] = useState({})
-
-  const canDelete = ALLOWED_DELETERS.includes((username || '').toLowerCase())
 
   // Load from Supabase
   useEffect(() => {

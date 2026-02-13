@@ -1,6 +1,6 @@
 import { Calendar, User, Pencil, Trash2, MessageCircle } from 'lucide-react'
 
-function TaskCard({ task, isDragging, onEdit, onDelete, isLead }) {
+function TaskCard({ task, isDragging, onEdit, onDelete, canEdit }) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
 
   return (
@@ -11,7 +11,7 @@ function TaskCard({ task, isDragging, onEdit, onDelete, isLead }) {
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-medium text-gray-800 flex-1">{task.title}</h3>
-        {isLead && (
+        {canEdit && (
           <div className="flex gap-1 ml-2">
             <button
               onMouseDown={(e) => e.stopPropagation()}

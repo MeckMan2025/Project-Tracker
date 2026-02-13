@@ -1,9 +1,9 @@
 import { Calendar, User } from 'lucide-react'
-import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import RequestsBadge from './RequestsBadge'
 
 function TasksView({ tasksByTab, tabs }) {
-  const { isLead } = useUser()
+  const { canReviewRequests } = usePermissions()
   const boardTabs = tabs.filter(t => t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'quick-chat' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart')
 
   const totalTasks = boardTabs.reduce((sum, tab) => sum + (tasksByTab[tab.id] || []).length, 0)
@@ -24,7 +24,7 @@ function TasksView({ tasksByTab, tabs }) {
             </h1>
             <p className="text-sm text-gray-500">{totalTasks} task{totalTasks !== 1 ? 's' : ''} across all boards</p>
           </div>
-          {isLead && <RequestsBadge type="task" />}
+          {canReviewRequests && <RequestsBadge type="task" />}
         </div>
       </header>
 
