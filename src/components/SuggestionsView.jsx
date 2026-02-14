@@ -23,14 +23,12 @@ function SuggestionsView() {
   useEffect(() => {
     async function load() {
       if (isReviewer) {
-        // Co-founders see everything
         const { data } = await supabase
           .from('suggestions')
           .select('*')
           .order('created_at', { ascending: false })
         if (data) setSuggestions(data)
       } else if (user) {
-        // Everyone else sees only their own
         const { data } = await supabase
           .from('suggestions')
           .select('*')
@@ -49,7 +47,6 @@ function SuggestionsView() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, (payload) => {
         setSuggestions(prev => {
           if (prev.some(s => s.id === payload.new.id)) return prev
-          // Only add if reviewer or it's the user's own
           if (isReviewer || payload.new.user_id === user?.id) {
             return [payload.new, ...prev]
           }
@@ -73,17 +70,15 @@ function SuggestionsView() {
 
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
-      username,
+      author: username,
       user_id: user.id,
-      content: newSuggestion.trim(),
+      text: newSuggestion.trim(),
       status: 'pending',
     }
 
-    // Update UI immediately
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
-    // Persist in background (fire-and-forget, never blocks UI)
     supabase.from('suggestions').insert(suggestion).then(({ error }) => {
       if (error) {
         console.error('Failed to save suggestion:', error.message)
@@ -100,12 +95,11 @@ function SuggestionsView() {
       setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: s.status } : x))
       return
     }
-    // Notify submitter
     if (s.user_id) {
-      await supabase.from('notifications').insert({
+      supabase.from('notifications').insert({
         user_id: s.user_id,
         title: 'Suggestion approved!',
-        body: `Your suggestion was approved: "${s.content.slice(0, 80)}${s.content.length > 80 ? '...' : ''}"`,
+        body: `Your suggestion was approved: "${s.text.slice(0, 80)}${s.text.length > 80 ? '...' : ''}"`,
       }).catch(() => {})
     }
   }
@@ -118,12 +112,11 @@ function SuggestionsView() {
       setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: s.status } : x))
       return
     }
-    // Notify submitter
     if (s.user_id) {
-      await supabase.from('notifications').insert({
+      supabase.from('notifications').insert({
         user_id: s.user_id,
         title: 'Suggestion reviewed',
-        body: `Your suggestion was reviewed and dismissed: "${s.content.slice(0, 80)}${s.content.length > 80 ? '...' : ''}"`,
+        body: `Your suggestion was dismissed: "${s.text.slice(0, 80)}${s.text.length > 80 ? '...' : ''}"`,
       }).catch(() => {})
     }
   }
@@ -147,7 +140,6 @@ function SuggestionsView() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="py-4 px-4 flex items-center">
           <div className="w-10 shrink-0" />
@@ -164,10 +156,8 @@ function SuggestionsView() {
       </header>
 
       {isReviewer ? (
-        /* Co-founders: review all suggestions */
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
-            {/* Pending */}
             {pending.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
@@ -179,10 +169,10 @@ function SuggestionsView() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.username}</span>
+                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.content}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -206,7 +196,6 @@ function SuggestionsView() {
               </div>
             )}
 
-            {/* Reviewed */}
             {reviewed.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -217,13 +206,13 @@ function SuggestionsView() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.username}</span>
+                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status]}`}>
                             {s.status}
                           </span>
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.content}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
                       </div>
                       <button
                         onClick={() => handleDelete(s.id)}
@@ -244,10 +233,8 @@ function SuggestionsView() {
           </div>
         </main>
       ) : (
-        /* Everyone else: submit + see their own suggestions */
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto space-y-6">
-            {/* Submit form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <h2 className="text-xl font-semibold text-gray-700 text-center">
                 What would make this app better?
@@ -269,7 +256,6 @@ function SuggestionsView() {
               </button>
             </form>
 
-            {/* User's own past suggestions */}
             {suggestions.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Suggestions</h3>
@@ -281,7 +267,7 @@ function SuggestionsView() {
                         {s.status || 'pending'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.content}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
                   </div>
                 ))}
               </div>
