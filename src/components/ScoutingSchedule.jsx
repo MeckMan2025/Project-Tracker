@@ -32,16 +32,29 @@ export default function ScoutingSchedule() {
   const [data, setData] = useState(null)
   const saveTimer = useRef(null)
 
-  // Load
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  // Load via direct REST (bypasses auth lock)
   useEffect(() => {
     async function load() {
       try {
-        const { data: rows } = await supabase
-          .from('scouting_schedule')
-          .select('*')
-          .eq('id', 'main')
-        const row = rows && rows.length > 0 ? rows[0] : null
-        setData(row?.data || { ...DEFAULT_DATA })
+        let token = supabaseKey
+        try {
+          const { data: s } = await supabase.auth.getSession()
+          if (s?.session?.access_token) token = s.session.access_token
+        } catch (e) { /* fall back to anon key */ }
+
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.main&select=*`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const rows = await res.json()
+          const row = rows && rows.length > 0 ? rows[0] : null
+          setData(row?.data || { ...DEFAULT_DATA })
+        } else {
+          setData({ ...DEFAULT_DATA })
+        }
       } catch {
         setData({ ...DEFAULT_DATA })
       }
@@ -60,13 +73,21 @@ export default function ScoutingSchedule() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  // Auto-save with debounce
+  // Auto-save with debounce via direct REST
   const autoSave = useCallback((newData) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(async () => {
-      await supabase
-        .from('scouting_schedule')
-        .upsert({ id: 'main', data: newData, updated_by: username, updated_at: new Date().toISOString() })
+    saveTimer.current = setTimeout(() => {
+      const body = { id: 'main', data: newData, updated_by: username, updated_at: new Date().toISOString() }
+      fetch(`${supabaseUrl}/rest/v1/scouting_schedule`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify(body),
+      }).catch(err => console.error('Failed to save schedule:', err))
     }, 800)
   }, [username])
 
