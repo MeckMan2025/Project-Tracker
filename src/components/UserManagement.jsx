@@ -54,52 +54,49 @@ function UserManagement() {
   const [loadStatus, setLoadStatus] = useState('')
   const [loadingData, setLoadingData] = useState(true)
 
+  // Direct REST fetch bypasses the Supabase client's auth token lock,
+  // which can hang after a hard refresh (Cmd+Shift+R).
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  const fetchTable = async (table, columns) => {
+    const url = `${supabaseUrl}/rest/v1/${table}?select=${encodeURIComponent(columns)}`
+    const res = await fetch(url, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`${res.status}: ${text}`)
+    }
+    return res.json()
+  }
+
   const loadData = async () => {
     setLoadingData(true)
     setLoadStatus('')
     let msg = ''
     console.log('[UserMgmt] loadData started')
 
-    // Race each query against a 10s timeout so we never hang forever
-    const withTimeout = (promise, label) =>
-      Promise.race([
-        promise,
-        new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' timed out after 10s')), 10000))
-      ])
-
     try {
-      const r1 = await withTimeout(
-        supabase.from('approved_emails').select('id, email, role, created_at'),
-        'Whitelist query'
-      )
-      if (r1.error) {
-        msg += 'Whitelist error: ' + r1.error.message + ' | '
-        console.error('[UserMgmt] Whitelist fetch error:', r1.error)
-      } else {
-        msg += 'Whitelist: ' + (r1.data ? r1.data.length : 0) + ' rows | '
-        console.log('[UserMgmt] Whitelist loaded:', r1.data?.length, 'rows')
-      }
-      if (r1.data) setWhitelistedEmails(r1.data)
+      const data = await fetchTable('approved_emails', 'id,email,role,created_at')
+      msg += 'Whitelist: ' + data.length + ' rows | '
+      console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
+      setWhitelistedEmails(data)
     } catch (e) {
-      msg += 'Whitelist: ' + e.message + ' | '
+      msg += 'Whitelist error: ' + e.message + ' | '
       console.error('[UserMgmt] Whitelist exception:', e)
     }
 
     try {
-      const r2 = await withTimeout(
-        supabase.from('profiles').select('id, display_name, function_tags'),
-        'Members query'
-      )
-      if (r2.error) {
-        msg += 'Members error: ' + r2.error.message
-        console.error('[UserMgmt] Members fetch error:', r2.error)
-      } else {
-        msg += 'Members: ' + (r2.data ? r2.data.length : 0) + ' rows'
-        console.log('[UserMgmt] Members loaded:', r2.data?.length, 'rows')
-      }
-      if (r2.data) setRegisteredMembers(r2.data)
+      const data = await fetchTable('profiles', 'id,display_name,function_tags')
+      msg += 'Members: ' + data.length + ' rows'
+      console.log('[UserMgmt] Members loaded:', data.length, 'rows')
+      setRegisteredMembers(data)
     } catch (e) {
-      msg += 'Members: ' + e.message
+      msg += 'Members error: ' + e.message
       console.error('[UserMgmt] Members exception:', e)
     }
 
