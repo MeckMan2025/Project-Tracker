@@ -79,35 +79,31 @@ function SuggestionsView() {
       created_at: new Date().toISOString(),
     }
 
-    const { error } = await supabase.from('suggestions').insert(suggestion)
-    if (error) {
-      console.error('Failed to save suggestion:', error.message)
-      setSubmitting(false)
-      return
-    }
-
+    // Optimistic — update UI immediately
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
     setSubmitting(false)
 
-    // Notify co-founders
-    try {
-      const { data: cofounders } = await supabase
-        .from('profiles')
-        .select('id')
-        .contains('function_tags', ['Co-Founder'])
+    // Persist + notify in background (don't block UI)
+    supabase.from('suggestions').insert(suggestion).then(({ error }) => {
+      if (error) {
+        console.error('Failed to save suggestion:', error.message)
+        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+      }
+    })
+
+    // Notify co-founders (fire-and-forget)
+    supabase.from('profiles').select('id').contains('function_tags', ['Co-Founder']).then(({ data: cofounders }) => {
       if (cofounders && cofounders.length > 0) {
-        await supabase.from('notifications').insert(
+        supabase.from('notifications').insert(
           cofounders.map(cf => ({
             user_id: cf.id,
             title: 'New suggestion',
             body: `${username}: ${suggestion.content.slice(0, 100)}${suggestion.content.length > 100 ? '...' : ''}`,
           }))
-        )
+        ).catch(() => {})
       }
-    } catch (err) {
-      console.error('Failed to notify co-founders:', err)
-    }
+    }).catch(() => {})
   }
 
   const handleApprove = async (s) => {
