@@ -51,23 +51,36 @@ function UserManagement() {
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
+  const [debugMsg, setDebugMsg] = useState('Loading...')
 
   useEffect(() => {
     async function load() {
+      let msg = ''
       try {
+        setDebugMsg('Fetching whitelist...')
         const r1 = await Promise.race([
           supabase.from('approved_emails').select('id, email, role, created_at'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
         ])
+        if (r1.error) msg += 'WL err: ' + r1.error.message + ' | '
+        else msg += 'WL: ' + (r1.data ? r1.data.length : 0) + ' | '
         if (r1.data) setWhitelistedEmails(r1.data)
-      } catch (e) { /* timeout */ }
+      } catch (e) {
+        msg += 'WL: ' + e.message + ' | '
+      }
       try {
+        setDebugMsg(msg + 'Fetching members...')
         const r2 = await Promise.race([
           supabase.from('profiles').select('id, display_name, function_tags'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
         ])
+        if (r2.error) msg += 'Mem err: ' + r2.error.message
+        else msg += 'Mem: ' + (r2.data ? r2.data.length : 0)
         if (r2.data) setRegisteredMembers(r2.data)
-      } catch (e) { /* timeout */ }
+      } catch (e) {
+        msg += 'Mem: ' + e.message
+      }
+      setDebugMsg(msg)
     }
     load()
   }, [])
