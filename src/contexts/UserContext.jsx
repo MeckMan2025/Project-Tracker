@@ -288,8 +288,13 @@ export function UserProvider({ children }) {
   }
 
   const logout = async () => {
+    // signOut() can hang if the Supabase auth lock is stuck (e.g. after hard refresh).
+    // Give it 3 seconds max, then proceed with local cleanup regardless.
     try {
-      await supabase.auth.signOut()
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise(resolve => setTimeout(resolve, 3000))
+      ])
     } catch (e) {
       // sign out even if supabase call fails
     }
