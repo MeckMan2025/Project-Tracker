@@ -243,13 +243,32 @@ DROP POLICY IF EXISTS "Allow all access to scouting_schedule" ON scouting_schedu
 CREATE POLICY "Allow all access to scouting_schedule" ON scouting_schedule
   FOR ALL USING (true) WITH CHECK (true);
 
--- 14. ENABLE REALTIME on all tables
+-- 14. SCOUTING PERIODS TABLE (accountability tracking during competitions)
+CREATE TABLE IF NOT EXISTS scouting_periods (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by text NOT NULL,
+  expected_scouts jsonb DEFAULT '[]'
+);
+
+ALTER TABLE scouting_periods ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to scouting_periods" ON scouting_periods;
+CREATE POLICY "Allow all access to scouting_periods" ON scouting_periods
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 15. ADD scouting_period_id TO scouting_records
+ALTER TABLE scouting_records ADD COLUMN IF NOT EXISTS scouting_period_id text DEFAULT '';
+
+-- 16. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

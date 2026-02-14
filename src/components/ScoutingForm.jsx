@@ -166,12 +166,33 @@ function ScoutingForm() {
     existing.push(record)
     localStorage.setItem('scouting-records', JSON.stringify(existing))
 
+    // Check for active scouting period
+    let scoutingPeriodId = ''
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      let token = supabaseKey
+      try {
+        const { data: s } = await supabase.auth.getSession()
+        if (s?.session?.access_token) token = s.session.access_token
+      } catch (e) { /* fall back to anon key */ }
+      const periodRes = await fetch(
+        `${supabaseUrl}/rest/v1/scouting_periods?is_active=eq.true&select=id&limit=1`,
+        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` } }
+      )
+      if (periodRes.ok) {
+        const periods = await periodRes.json()
+        if (periods && periods.length > 0) scoutingPeriodId = periods[0].id
+      }
+    } catch { /* ignore - submit without period link */ }
+
     // Also save to Supabase for shared analytics
     const { error } = await supabase.from('scouting_records').insert({
       id,
       data: formData,
       submitted_by: username || '',
       submitted_at: new Date().toISOString(),
+      scouting_period_id: scoutingPeriodId,
     })
     if (error) {
       console.error('Failed to save scouting record to Supabase:', error.message)
