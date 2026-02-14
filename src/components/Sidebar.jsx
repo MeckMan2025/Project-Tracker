@@ -5,7 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers }) {
   const { logout } = useUser()
-  const { isGuest, isTop, canManageUsers, canReviewRequests } = usePermissions()
+  const { isGuest, isTop, canManageUsers, canReviewRequests, canEditContent } = usePermissions()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -82,7 +82,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark' },
                     { icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' },
-                    { icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' },
+                    ...(!isGuest ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
                     ...(canManageUsers ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
                     { icon: HelpCircle, label: 'Help', color: 'text-pastel-orange-dark' },
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
@@ -239,23 +239,27 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
-          {/* AI Manual Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'ai-manual'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('ai-manual')
-              onToggle()
-            }}
-          >
-            <BookOpen size={16} className="text-pastel-orange-dark" />
-            <span className="truncate">AI Manual</span>
-          </div>
+          {/* AI Manual Tab — hidden for guests */}
+          {!isGuest && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'ai-manual'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('ai-manual')
+                  onToggle()
+                }}
+              >
+                <BookOpen size={16} className="text-pastel-orange-dark" />
+                <span className="truncate">AI Manual</span>
+              </div>
 
-          <hr className="my-2 border-gray-200" />
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
 
           {/* Quick Chat Tab — hidden for guests */}
           {!isGuest && (
@@ -320,7 +324,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   />
                   <span className="truncate">{tab.name}</span>
                 </div>
-                {!tab.permanent && (
+                {!tab.permanent && canEditContent && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -337,8 +341,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               </div>
             ))}
 
-            {/* Add Board button */}
-            <div className="pt-1">
+            {/* Add Board button — hidden for guests */}
+            {!isGuest && <div className="pt-1">
               {isAdding ? (
                 <form onSubmit={handleAddTab} className="space-y-2 px-2">
                   <input
@@ -377,7 +381,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   Add Board
                 </button>
               )}
-            </div>
+            </div>}
           </div>}
 
           <hr className="my-2 border-gray-200" />
@@ -416,18 +420,20 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <ChevronRight size={14} className={activeTab === 'tasks' ? 'rotate-90' : ''} />
                 <span className="truncate">Scrum</span>
               </div>
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'workshops' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => {
-                  onTabChange('workshops')
-                  onToggle()
-                }}
-              >
-                <ChevronRight size={14} className={activeTab === 'workshops' ? 'rotate-90' : ''} />
-                <span className="truncate">Workshops</span>
-              </div>
+              {!isGuest && (
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                    activeTab === 'workshops' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                  }`}
+                  onClick={() => {
+                    onTabChange('workshops')
+                    onToggle()
+                  }}
+                >
+                  <ChevronRight size={14} className={activeTab === 'workshops' ? 'rotate-90' : ''} />
+                  <span className="truncate">Workshops</span>
+                </div>
+              )}
             </div>
           )}
 

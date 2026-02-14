@@ -56,6 +56,9 @@ export function usePermissions() {
     canManageUsers: isTop,
     canReviewSuggestions: isTop,
     canDragAnyTask: isTop,
+    canEditScouting: isTop,
+    canOverrideAttendance: isTop,
+    canChangeAuthorityTier: isTop && !!isAuthorityAdmin,
 
     // Legacy compat
     role,

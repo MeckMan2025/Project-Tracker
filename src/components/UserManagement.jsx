@@ -15,20 +15,26 @@ const PERMANENT_COFOUNDERS = [
 ]
 
 const ROLE_DESCRIPTIONS = {
-  'Co-Founder': 'Team co-founder',
-  'Mentor': 'TBD',
-  'Coach': 'TBD',
-  'Team Lead': 'TBD',
-  'Business Lead': 'TBD',
-  'Technical Lead': 'TBD',
-  'Website': 'TBD',
-  'Build': 'TBD',
-  'CAD': 'TBD',
-  'Scouting': 'TBD',
-  'Outreach': 'TBD',
-  'Communications': 'TBD',
-  'Programming': 'TBD',
-  'Guest': 'TBD',
+  'Co-Founder': 'Team co-founder with full administrative access',
+  'Mentor': 'Adult mentor providing guidance and oversight',
+  'Coach': 'Team coach supervising strategy and development',
+  'Team Lead': 'Overall team lead coordinating all sub-teams',
+  'Business Lead': 'Leads business plan, outreach, and fundraising',
+  'Technical Lead': 'Leads robot design, build, and programming',
+  'Website': 'Manages the team website and online presence',
+  'Build': 'Builds and assembles the physical robot',
+  'CAD': 'Creates 3D models and technical drawings',
+  'Scouting': 'Collects and analyzes match data at competitions',
+  'Outreach': 'Manages community outreach and partnerships',
+  'Communications': 'Handles social media and team communications',
+  'Programming': 'Writes and maintains robot control software',
+  'Guest': 'Limited access — can view boards, tasks, and calendar only',
+}
+
+const TIER_DESCRIPTIONS = {
+  'guest': 'Can view boards, tasks, and calendar. Cannot access scouting, chat, notebook, or data.',
+  'teammate': 'Full team member. Can access all features except admin tools like User Management and Requests.',
+  'top': 'Full access including content editing, user management, request review, and all admin tools.',
 }
 
 function UserManagement() {
@@ -99,7 +105,7 @@ function UserManagement() {
     }
 
     try {
-      const data = await fetchTable('profiles', 'id,display_name,function_tags')
+      const data = await fetchTable('profiles', 'id,display_name,function_tags,authority_tier')
       msg += 'Members: ' + data.length + ' rows'
       console.log('[UserMgmt] Members loaded:', data.length, 'rows')
       setRegisteredMembers(data)
@@ -247,6 +253,35 @@ function UserManagement() {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
       alert('Failed to save role: ' + err.message)
+    }
+  }
+
+  // --- Tier change handler (authority admins only) ---
+
+  const handleChangeTier = async (memberId, newTier) => {
+    const member = registeredMembers.find(m => m.id === memberId)
+    if (!member) return
+    const oldTier = member.authority_tier
+    // Optimistic update
+    setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: newTier } : m))
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/update_member_tier`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ target_id: memberId, new_tier: newTier }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || res.statusText)
+      }
+    } catch (err) {
+      // Rollback
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: oldTier } : m))
+      alert('Failed to change tier: ' + err.message)
     }
   }
 
@@ -608,7 +643,18 @@ function UserManagement() {
                         return (
                           <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
                             <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
+                                {member.authority_tier && (
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                                    member.authority_tier === 'top' ? 'bg-purple-100 text-purple-700' :
+                                    member.authority_tier === 'guest' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-pastel-blue/50 text-blue-700'
+                                  }`}>
+                                    {member.authority_tier}
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 <button
                                   onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
@@ -628,6 +674,20 @@ function UserManagement() {
                                 )}
                               </div>
                             </div>
+                            {isAuthorityAdmin && member.id !== user.id && (
+                              <div className="mb-2">
+                                <select
+                                  value={member.authority_tier || ''}
+                                  onChange={(e) => handleChangeTier(member.id, e.target.value)}
+                                  className="text-xs px-2 py-1 border rounded-lg bg-gray-50 text-gray-600 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                                >
+                                  <option value="">No tier set</option>
+                                  <option value="guest">Guest</option>
+                                  <option value="teammate">Teammate</option>
+                                  <option value="top">Top</option>
+                                </select>
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-1.5">
                               {memberRoles.map(role => (
                                 <span
@@ -822,12 +882,27 @@ function UserManagement() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700">Role Permissions</h3>
+              <h3 className="font-semibold text-gray-700">Roles & Tiers</h3>
               <button onClick={() => setShowRoleInfo(false)} className="p-1 rounded hover:bg-gray-100">
                 <X size={16} className="text-gray-400" />
               </button>
             </div>
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Authority Tiers</h4>
+              {Object.entries(TIER_DESCRIPTIONS).map(([tier, desc]) => (
+                <div key={tier} className="flex items-start gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${
+                    tier === 'top' ? 'bg-purple-100 text-purple-700' :
+                    tier === 'guest' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-pastel-blue/50 text-blue-700'
+                  }`}>{tier}</span>
+                  <p className="text-sm text-gray-600">{desc}</p>
+                </div>
+              ))}
+            </div>
+            <hr className="border-gray-200" />
             <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Function Roles</h4>
               {ALL_ROLES.map(role => (
                 <div key={role} className="flex items-start gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${getTagColor(role)}`}>{role}</span>

@@ -33,8 +33,10 @@ import { supabase } from './supabase'
 const TAB_ACCESS = {
   // All tiers
   'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
-  'org-chart': 'guest', 'ai-manual': 'guest', 'profile': 'guest',
-  'workshops': 'guest', 'attendance': 'guest',
+  'profile': 'guest',
+  // Teammate+ (restricted from guests)
+  'org-chart': 'teammate', 'ai-manual': 'teammate',
+  'workshops': 'teammate', 'attendance': 'teammate',
   // Teammate+
   'scouting': 'teammate', 'schedule': 'teammate', 'quick-chat': 'teammate',
   'notebook': 'teammate', 'suggestions': 'teammate', 'data': 'teammate',
