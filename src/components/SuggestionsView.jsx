@@ -15,7 +15,6 @@ function SuggestionsView() {
   const { username, user, functionTags } = useUser()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
   const isReviewer = (functionTags || []).includes('Co-Founder') ||
     COFOUNDER_NAMES.includes(username?.toLowerCase())
@@ -68,10 +67,9 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
-    setSubmitting(true)
 
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -84,15 +82,14 @@ function SuggestionsView() {
     // Update UI immediately
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
-    setSubmitting(false)
 
-    // Persist in background
-    const { error } = await supabase.from('suggestions').insert(suggestion)
-    if (error) {
-      console.error('Failed to save suggestion:', error.message)
-      // Rollback
-      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
-    }
+    // Persist in background (fire-and-forget, never blocks UI)
+    supabase.from('suggestions').insert(suggestion).then(({ error }) => {
+      if (error) {
+        console.error('Failed to save suggestion:', error.message)
+        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+      }
+    })
   }
 
   const handleApprove = async (s) => {
@@ -264,11 +261,11 @@ function SuggestionsView() {
               />
               <button
                 type="submit"
-                disabled={!newSuggestion.trim() || submitting}
+                disabled={!newSuggestion.trim()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-gray-700"
               >
                 <Send size={16} />
-                {submitting ? 'Sending...' : 'Submit Suggestion'}
+                Submit Suggestion
               </button>
             </form>
 
