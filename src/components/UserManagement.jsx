@@ -51,7 +51,6 @@ function UserManagement() {
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
-  const [debugMsg, setDebugMsg] = useState('Loading...')
 
   useEffect(() => {
     async function fetchWithRetry(table, columns, maxRetries = 3) {
@@ -73,7 +72,6 @@ function UserManagement() {
     async function load() {
       let msg = ''
       try {
-        setDebugMsg('Fetching whitelist...')
         const r1 = await fetchWithRetry('approved_emails', 'id, email, role, created_at')
         if (r1.error) msg += 'WL err: ' + r1.error.message + ' | '
         else msg += 'WL: ' + (r1.data ? r1.data.length : 0) + ' | '
@@ -82,7 +80,6 @@ function UserManagement() {
         msg += 'WL: ' + e.message + ' | '
       }
       try {
-        setDebugMsg(msg + 'Fetching members...')
         const r2 = await fetchWithRetry('profiles', 'id, display_name, function_tags')
         if (r2.error) msg += 'Mem err: ' + r2.error.message
         else msg += 'Mem: ' + (r2.data ? r2.data.length : 0)
@@ -90,7 +87,6 @@ function UserManagement() {
       } catch (e) {
         msg += 'Mem: ' + e.message
       }
-      setDebugMsg(msg)
     }
     load()
   }, [])
@@ -355,7 +351,6 @@ function UserManagement() {
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
-          {debugMsg && <p className="text-xs text-red-500 mb-2 bg-red-50 p-2 rounded">{debugMsg}</p>}
           {activeSection === 'whitelist' ? (
             <>
               <div className="flex gap-2 mb-4">
