@@ -2,22 +2,39 @@ import { useUser } from '../contexts/UserContext'
 
 const ELEVATED_LEGACY_ROLES = ['lead', 'coach', 'mentor', 'cofounder']
 const ELEVATED_FUNCTION_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
+const TEAMMATE_FUNCTION_TAGS = ['Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming']
+const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 
-function deriveTierFromRole(role, secondaryRoles, functionTags) {
+function deriveTierFromTags(functionTags) {
+  if (!functionTags || functionTags.length === 0) return null
+  if (functionTags.some(t => ELEVATED_FUNCTION_TAGS.includes(t))) return 'top'
+  if (functionTags.some(t => TEAMMATE_FUNCTION_TAGS.includes(t))) return 'teammate'
+  if (functionTags.includes('Guest')) return 'guest'
+  return null
+}
+
+function deriveTierFromRole(role, secondaryRoles) {
   if (role === 'guest') return 'guest'
-  // Check function tags first (newer system)
-  if (functionTags && functionTags.some(t => ELEVATED_FUNCTION_TAGS.includes(t))) return 'top'
-  // Fall back to legacy roles
   const allRoles = [role, ...(secondaryRoles || [])]
   if (allRoles.some(r => ELEVATED_LEGACY_ROLES.includes(r))) return 'top'
   return 'teammate'
 }
 
+function highestTier(...tiers) {
+  let best = 'guest'
+  for (const t of tiers) {
+    if (t && (TIER_RANK[t] || 0) > (TIER_RANK[best] || 0)) best = t
+  }
+  return best
+}
+
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags } = useUser()
 
-  // Use authority_tier if explicitly set, otherwise derive from function tags / legacy role
-  const tier = authorityTier || deriveTierFromRole(role, secondaryRoles, functionTags)
+  // Take the highest of: DB tier, function tag tier, legacy role tier
+  const tagTier = deriveTierFromTags(functionTags)
+  const legacyTier = deriveTierFromRole(role, secondaryRoles)
+  const tier = highestTier(authorityTier || 'guest', tagTier || 'guest', legacyTier)
 
   const isGuest = tier === 'guest'
   const isTeammate = tier === 'teammate'
