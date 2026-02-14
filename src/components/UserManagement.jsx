@@ -229,11 +229,33 @@ function UserManagement() {
       : [...currentRoles, role]
     // Optimistic update
     setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
-    const { error } = await supabase.from('profiles').update({ function_tags: updated }).eq('id', memberId)
-    if (error) {
+    try {
+      // Get fresh session token
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Not logged in')
+      // Direct REST call to bypass any client issues
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ function_tags: updated }),
+        }
+      )
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || res.statusText)
+      }
+    } catch (err) {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
-      setError('Failed to update role: ' + error.message)
+      alert('Failed to save role: ' + err.message)
     }
   }
 
