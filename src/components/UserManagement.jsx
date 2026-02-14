@@ -58,31 +58,20 @@ function UserManagement() {
     setLoadingData(true)
     setLoadStatus('')
     let msg = ''
+    console.log('[UserMgmt] loadData started')
 
-    // Ensure the Supabase session token is fresh before querying
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) {
-        console.warn('[UserMgmt] Session check error:', sessionError.message)
-      }
-      if (!session) {
-        // Try refreshing the session
-        console.warn('[UserMgmt] No session found, attempting refresh...')
-        const { error: refreshError } = await supabase.auth.refreshSession()
-        if (refreshError) {
-          console.error('[UserMgmt] Session refresh failed:', refreshError.message)
-          msg = 'Session error: ' + refreshError.message
-          setLoadStatus(msg)
-          setLoadingData(false)
-          return
-        }
-      }
-    } catch (e) {
-      console.error('[UserMgmt] Session check exception:', e)
-    }
+    // Race each query against a 10s timeout so we never hang forever
+    const withTimeout = (promise, label) =>
+      Promise.race([
+        promise,
+        new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' timed out after 10s')), 10000))
+      ])
 
     try {
-      const r1 = await supabase.from('approved_emails').select('id, email, role, created_at')
+      const r1 = await withTimeout(
+        supabase.from('approved_emails').select('id, email, role, created_at'),
+        'Whitelist query'
+      )
       if (r1.error) {
         msg += 'Whitelist error: ' + r1.error.message + ' | '
         console.error('[UserMgmt] Whitelist fetch error:', r1.error)
@@ -97,7 +86,10 @@ function UserManagement() {
     }
 
     try {
-      const r2 = await supabase.from('profiles').select('id, display_name, function_tags')
+      const r2 = await withTimeout(
+        supabase.from('profiles').select('id, display_name, function_tags'),
+        'Members query'
+      )
       if (r2.error) {
         msg += 'Members error: ' + r2.error.message
         console.error('[UserMgmt] Members fetch error:', r2.error)
@@ -111,6 +103,7 @@ function UserManagement() {
       console.error('[UserMgmt] Members exception:', e)
     }
 
+    console.log('[UserMgmt] loadData finished:', msg)
     setLoadStatus(msg)
     setLoadingData(false)
   }
