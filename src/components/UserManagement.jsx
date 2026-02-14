@@ -5,11 +5,17 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 
 const ALL_ROLES = [
-  'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
+  'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
   'Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming',
 ]
 
+const PERMANENT_COFOUNDERS = [
+  { id: '__cofounder_yukti', display_name: 'Yukti', function_tags: ['Co-Founder'], permanent: true },
+  { id: '__cofounder_kayden', display_name: 'Kayden', function_tags: ['Co-Founder'], permanent: true },
+]
+
 const ROLE_DESCRIPTIONS = {
+  'Co-Founder': 'Team co-founder',
   'Mentor': 'TBD',
   'Coach': 'TBD',
   'Team Lead': 'TBD',
@@ -524,10 +530,22 @@ function UserManagement() {
             </>
           ) : (
             <div className="space-y-2">
+              {PERMANENT_COFOUNDERS.map((member) => (
+                <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium text-gray-700">{member.display_name}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
+                      Co-Founder
+                    </span>
+                  </div>
+                </div>
+              ))}
               {loadingData ? (
                 <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
               ) : registeredMembers.length === 0 ? (
-                <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
+                <p className="text-center text-gray-400 mt-10">No other registered members yet.</p>
               ) : (
                 registeredMembers.map((member) => {
                   const memberRoles = member.function_tags || []
@@ -571,37 +589,12 @@ function UserManagement() {
                             </button>
                           </span>
                         ))}
-                        <div className="relative">
-                          <button
-                            onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
-                            className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
-                          >
-                            <Plus size={12} /> Add
-                          </button>
-                          {rolePickerOpen === member.id && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setRolePickerOpen(null)} />
-                              <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-44">
-                                {ALL_ROLES.filter(r => !memberRoles.includes(r)).length === 0 ? (
-                                  <p className="text-xs text-gray-400 px-3 py-2">All roles assigned</p>
-                                ) : (
-                                  ALL_ROLES.filter(r => !memberRoles.includes(r)).map(role => (
-                                    <button
-                                      key={role}
-                                      onClick={() => {
-                                        handleToggleRole(member.id, role)
-                                        setRolePickerOpen(null)
-                                      }}
-                                      className="w-full text-left text-xs px-3 py-1.5 hover:bg-pastel-blue/20 transition-colors text-gray-600"
-                                    >
-                                      {role}
-                                    </button>
-                                  ))
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
+                          className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                        >
+                          <Plus size={12} /> Add
+                        </button>
                       </div>
                     </div>
                   )
@@ -611,6 +604,44 @@ function UserManagement() {
           )}
         </div>
       </main>
+
+      {/* Role Picker Modal */}
+      {rolePickerOpen && (() => {
+        const member = registeredMembers.find(m => m.id === rolePickerOpen)
+        if (!member) return null
+        const memberRoles = member.function_tags || []
+        const available = ALL_ROLES.filter(r => !memberRoles.includes(r))
+        return (
+          <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={() => setRolePickerOpen(null)}>
+            <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:w-80 max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="sticky top-0 bg-white px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700 text-sm">Add role to {member.display_name}</h3>
+                <button onClick={() => setRolePickerOpen(null)} className="p-1 rounded hover:bg-gray-100">
+                  <X size={16} className="text-gray-400" />
+                </button>
+              </div>
+              {available.length === 0 ? (
+                <p className="text-sm text-gray-400 px-4 py-6 text-center">All roles assigned</p>
+              ) : (
+                <div className="py-1">
+                  {available.map(role => (
+                    <button
+                      key={role}
+                      onClick={() => {
+                        handleToggleRole(member.id, role)
+                        setRolePickerOpen(null)
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-blue/20 active:bg-pastel-blue/30 transition-colors text-gray-600 border-b border-gray-50"
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Create Account Modal */}
       {createTarget && (

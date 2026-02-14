@@ -164,8 +164,16 @@ export function UserProvider({ children }) {
           }
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
-            applyProfile(profile)
-            if (profile) localStorage.setItem('scrum-role', profile.role)
+            if (profile) {
+              applyProfile(profile)
+              localStorage.setItem('scrum-role', profile.role)
+            } else if (!cachedName) {
+              // Profile fetch failed and no cache — session is likely invalid, force re-login
+              console.warn('[Auth] No profile and no cache — forcing re-login')
+              await expireSession()
+              setLoading(false)
+              return
+            }
             if (!cachedName) setLoading(false)
           }
           return
