@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Send, Trash2, Check, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -9,15 +10,13 @@ const STATUS_STYLES = {
   dismissed: 'bg-red-100 text-red-600',
 }
 
-const COFOUNDER_NAMES = ['kayden', 'yukti']
-
 function SuggestionsView() {
-  const { username, user, functionTags } = useUser()
+  const { username, user } = useUser()
+  const { canReviewSuggestions } = usePermissions()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
 
-  const isReviewer = (functionTags || []).includes('Co-Founder') ||
-    COFOUNDER_NAMES.includes(username?.toLowerCase())
+  const isReviewer = canReviewSuggestions
 
   // Load suggestions
   useEffect(() => {
