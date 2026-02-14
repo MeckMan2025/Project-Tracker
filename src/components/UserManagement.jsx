@@ -54,15 +54,20 @@ function UserManagement() {
 
   useEffect(() => {
     async function load() {
-      const { data: emails } = await supabase
-        .from('approved_emails')
-        .select('id, email, role, created_at')
-      if (emails) setWhitelistedEmails(emails)
-
-      const { data: members } = await supabase
-        .from('profiles')
-        .select('id, display_name, function_tags')
-      if (members) setRegisteredMembers(members)
+      try {
+        const r1 = await Promise.race([
+          supabase.from('approved_emails').select('id, email, role, created_at'),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+        ])
+        if (r1.data) setWhitelistedEmails(r1.data)
+      } catch (e) { /* timeout */ }
+      try {
+        const r2 = await Promise.race([
+          supabase.from('profiles').select('id, display_name, function_tags'),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+        ])
+        if (r2.data) setRegisteredMembers(r2.data)
+      } catch (e) { /* timeout */ }
     }
     load()
   }, [])
