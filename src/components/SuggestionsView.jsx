@@ -9,13 +9,16 @@ const STATUS_STYLES = {
   dismissed: 'bg-red-100 text-red-600',
 }
 
+const COFOUNDER_NAMES = ['kayden', 'yukti']
+
 function SuggestionsView() {
   const { username, user, functionTags } = useUser()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const isReviewer = (functionTags || []).includes('Co-Founder')
+  const isReviewer = (functionTags || []).includes('Co-Founder') ||
+    COFOUNDER_NAMES.includes(username?.toLowerCase())
 
   // Load suggestions
   useEffect(() => {
