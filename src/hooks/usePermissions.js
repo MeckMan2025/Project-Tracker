@@ -4,10 +4,9 @@ const TOP_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead',
 const TEAMMATE_TAGS = ['Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming']
 
 function deriveTierFromTags(functionTags) {
-  if (!functionTags || functionTags.length === 0) return 'guest'
-  if (functionTags.some(t => TOP_TAGS.includes(t))) return 'top'
-  if (functionTags.some(t => TEAMMATE_TAGS.includes(t))) return 'teammate'
-  if (functionTags.includes('Guest')) return 'guest'
+  if (functionTags && functionTags.includes('Guest')) return 'guest'
+  if (functionTags && functionTags.some(t => TOP_TAGS.includes(t))) return 'top'
+  if (functionTags && functionTags.some(t => TEAMMATE_TAGS.includes(t))) return 'teammate'
   return 'teammate'
 }
 
