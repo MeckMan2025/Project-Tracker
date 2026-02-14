@@ -695,7 +695,7 @@ function UserManagement() {
                                 )}
                               </div>
                             </div>
-                            {isAuthorityAdmin && member.id !== user.id && (
+                            {isTop && member.id !== user.id && (
                               <div className="mb-2">
                                 <select
                                   value={member.authority_tier || ''}
