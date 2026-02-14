@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -51,6 +51,7 @@ function UserManagement() {
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
+  const [rolePickerOpen, setRolePickerOpen] = useState(null)
   const [loadStatus, setLoadStatus] = useState('')
   const [loadingData, setLoadingData] = useState(true)
 
@@ -555,22 +556,52 @@ function UserManagement() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {ALL_ROLES.map(role => {
-                          const active = memberRoles.includes(role)
-                          return (
+                        {memberRoles.map(role => (
+                          <span
+                            key={role}
+                            className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
+                          >
+                            {role}
                             <button
-                              key={role}
                               onClick={() => handleToggleRole(member.id, role)}
-                              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all ${
-                                active
-                                  ? getTagColor(role)
-                                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                              }`}
+                              className="hover:opacity-70 transition-opacity"
+                              title={`Remove ${role}`}
                             >
-                              {role}
+                              <X size={12} />
                             </button>
-                          )
-                        })}
+                          </span>
+                        ))}
+                        <div className="relative">
+                          <button
+                            onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
+                            className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                          >
+                            <Plus size={12} /> Add
+                          </button>
+                          {rolePickerOpen === member.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setRolePickerOpen(null)} />
+                              <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-44">
+                                {ALL_ROLES.filter(r => !memberRoles.includes(r)).length === 0 ? (
+                                  <p className="text-xs text-gray-400 px-3 py-2">All roles assigned</p>
+                                ) : (
+                                  ALL_ROLES.filter(r => !memberRoles.includes(r)).map(role => (
+                                    <button
+                                      key={role}
+                                      onClick={() => {
+                                        handleToggleRole(member.id, role)
+                                        setRolePickerOpen(null)
+                                      }}
+                                      className="w-full text-left text-xs px-3 py-1.5 hover:bg-pastel-blue/20 transition-colors text-gray-600"
+                                    >
+                                      {role}
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
