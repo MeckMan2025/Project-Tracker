@@ -56,22 +56,30 @@ function UserManagement() {
   useEffect(() => {
     async function load() {
       let msg = ''
-      const { data: emails, error: emailErr } = await supabase
-        .from('approved_emails')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (emailErr) msg += 'Whitelist error: ' + emailErr.message + ' | '
-      else msg += 'Whitelist: ' + (emails ? emails.length : 0) + ' rows | '
-      if (emails) setWhitelistedEmails(emails)
-
-      const { data: members, error: memberErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (memberErr) msg += 'Members error: ' + memberErr.message
-      else msg += 'Members: ' + (members ? members.length : 0) + ' rows'
-      if (members) setRegisteredMembers(members)
-
+      try {
+        setDebugMsg('Fetching whitelist...')
+        const r1 = await Promise.race([
+          supabase.from('approved_emails').select('*'),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
+        ])
+        if (r1.error) msg += 'Whitelist error: ' + r1.error.message + ' | '
+        else msg += 'Whitelist: ' + (r1.data ? r1.data.length : 0) + ' rows | '
+        if (r1.data) setWhitelistedEmails(r1.data)
+      } catch (e) {
+        msg += 'Whitelist: ' + e.message + ' | '
+      }
+      try {
+        setDebugMsg(msg + 'Fetching members...')
+        const r2 = await Promise.race([
+          supabase.from('profiles').select('*'),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
+        ])
+        if (r2.error) msg += 'Members error: ' + r2.error.message
+        else msg += 'Members: ' + (r2.data ? r2.data.length : 0) + ' rows'
+        if (r2.data) setRegisteredMembers(r2.data)
+      } catch (e) {
+        msg += 'Members: ' + e.message
+      }
       setDebugMsg(msg)
     }
     load()
