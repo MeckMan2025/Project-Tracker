@@ -77,14 +77,13 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
     setSubmitError('')
 
-    const tempId = 'temp-' + Date.now()
-    const optimistic = {
-      id: tempId,
+    const suggestion = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
       author: username,
       user_id: user.id,
       text: newSuggestion.trim(),
@@ -92,49 +91,29 @@ function SuggestionsView() {
       created_at: new Date().toISOString(),
     }
 
-    setSuggestions(prev => [optimistic, ...prev])
+    setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
-    // Direct REST insert — don't send id, let DB auto-generate UUID
-    try {
-      let token = supabaseKey
-      try {
-        const { data } = await supabase.auth.getSession()
-        if (data?.session?.access_token) token = data.session.access_token
-      } catch (e) { /* fall back to anon key */ }
-
-      const res = await fetch(`${supabaseUrl}/rest/v1/suggestions`, {
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify({
-          author: username,
-          user_id: user.id,
-          text: newSuggestion.trim() || optimistic.text,
-          status: 'pending',
-        }),
-      })
-
+    // Direct REST insert (bypasses Supabase client auth lock)
+    fetch(`${supabaseUrl}/rest/v1/suggestions`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(suggestion),
+    }).then(async (res) => {
       if (!res.ok) {
         const errText = await res.text()
         setSubmitError('Failed to save: ' + errText)
-        setSuggestions(prev => prev.filter(s => s.id !== tempId))
-        return
+        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
       }
-
-      const rows = await res.json()
-      if (rows[0]) {
-        // Replace optimistic entry with real DB row
-        setSuggestions(prev => prev.map(s => s.id === tempId ? rows[0] : s))
-      }
-    } catch (err) {
+    }).catch((err) => {
       setSubmitError('Failed to save: ' + err.message)
-      setSuggestions(prev => prev.filter(s => s.id !== tempId))
-    }
+      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+    })
   }
 
   const handleApprove = async (s) => {
