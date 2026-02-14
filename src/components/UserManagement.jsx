@@ -149,37 +149,58 @@ function UserManagement() {
     if (!newEmail.trim()) return
     setError('')
 
-    const { data, error: insertError } = await supabase
-      .from('approved_emails')
-      .insert({
+    try {
+      const body = {
         email: newEmail.toLowerCase().trim(),
         role: newTier,
         added_by: user.id,
-      })
-      .select()
-      .single()
-
-    if (insertError) {
-      if (insertError.message.includes('duplicate') || insertError.code === '23505') {
-        setError('This email is already on the whitelist')
-      } else {
-        setError(insertError.message)
       }
-      return
+      const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        if (text.includes('duplicate') || text.includes('23505')) {
+          setError('This email is already on the whitelist')
+        } else {
+          setError(text || res.statusText)
+        }
+        return
+      }
+      const rows = await res.json()
+      const data = rows[0]
+      if (data) {
+        setWhitelistedEmails(prev => [data, ...prev])
+      }
+      setNewEmail('')
+      setNewTier('teammate')
+      setShowAddForm(false)
+    } catch (err) {
+      setError('Failed to add email: ' + err.message)
     }
-
-    if (data) {
-      setWhitelistedEmails(prev => [data, ...prev])
-    }
-    setNewEmail('')
-    setNewTier('teammate')
-    setShowAddForm(false)
   }
 
   const handleRemoveEmail = async (id) => {
-    const { error } = await supabase.from('approved_emails').delete().eq('id', id)
-    if (!error) {
-      setWhitelistedEmails(prev => prev.filter(e => e.id !== id))
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      })
+      if (res.ok) {
+        setWhitelistedEmails(prev => prev.filter(e => e.id !== id))
+      }
+    } catch (err) {
+      console.error('Failed to remove email:', err)
     }
   }
 
@@ -197,16 +218,25 @@ function UserManagement() {
     let added = []
     let failed = 0
     for (const email of lines) {
-      const { data, error: insertError } = await supabase
-        .from('approved_emails')
-        .insert({ email, role: 'teammate', added_by: user.id })
-        .select()
-        .single()
-
-      if (insertError) {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({ email, role: 'teammate', added_by: user.id }),
+        })
+        if (!res.ok) {
+          failed++
+        } else {
+          const rows = await res.json()
+          if (rows[0]) added.push(rows[0])
+        }
+      } catch (err) {
         failed++
-      } else if (data) {
-        added.push(data)
       }
     }
 
