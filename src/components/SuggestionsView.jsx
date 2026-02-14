@@ -77,13 +77,14 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
     setSubmitError('')
 
-    const suggestion = {
-      id: String(Date.now()) + Math.random().toString(36).slice(2),
+    const tempId = 'temp-' + Date.now()
+    const optimistic = {
+      id: tempId,
       author: username,
       user_id: user.id,
       text: newSuggestion.trim(),
@@ -91,28 +92,49 @@ function SuggestionsView() {
       created_at: new Date().toISOString(),
     }
 
-    setSuggestions(prev => [suggestion, ...prev])
+    setSuggestions(prev => [optimistic, ...prev])
     setNewSuggestion('')
 
-    // Use Supabase client with timeout to prevent hanging
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-    Promise.race([
-      supabase.from('suggestions').insert(suggestion),
-      timeout,
-    ]).then(result => {
-      if (result?.error) {
-        setSubmitError('Failed to save: ' + result.error.message)
-        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+    // Direct REST insert — don't send id, let DB auto-generate UUID
+    try {
+      let token = supabaseKey
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (data?.session?.access_token) token = data.session.access_token
+      } catch (e) { /* fall back to anon key */ }
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/suggestions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify({
+          author: username,
+          user_id: user.id,
+          text: newSuggestion.trim() || optimistic.text,
+          status: 'pending',
+        }),
+      })
+
+      if (!res.ok) {
+        const errText = await res.text()
+        setSubmitError('Failed to save: ' + errText)
+        setSuggestions(prev => prev.filter(s => s.id !== tempId))
+        return
       }
-    }).catch(err => {
-      if (err.message === 'timeout') {
-        // Timed out but suggestion may still save — keep it optimistically
-        console.warn('Suggestion insert timed out, may still save')
-      } else {
-        setSubmitError('Failed to save: ' + err.message)
-        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+
+      const rows = await res.json()
+      if (rows[0]) {
+        // Replace optimistic entry with real DB row
+        setSuggestions(prev => prev.map(s => s.id === tempId ? rows[0] : s))
       }
-    })
+    } catch (err) {
+      setSubmitError('Failed to save: ' + err.message)
+      setSuggestions(prev => prev.filter(s => s.id !== tempId))
+    }
   }
 
   const handleApprove = async (s) => {
