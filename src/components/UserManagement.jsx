@@ -51,44 +51,72 @@ function UserManagement() {
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
+  const [loadStatus, setLoadStatus] = useState('')
+  const [loadingData, setLoadingData] = useState(true)
 
-  useEffect(() => {
-    async function fetchWithRetry(table, columns, maxRetries = 3) {
-      for (let i = 0; i < maxRetries; i++) {
-        try {
-          const result = await Promise.race([
-            supabase.from(table).select(columns),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
-          ])
-          if (result.data) return result
-          if (result.error) return result
-        } catch (e) {
-          if (i === maxRetries - 1) throw e
-          await new Promise(r => setTimeout(r, 2000))
+  const loadData = async () => {
+    setLoadingData(true)
+    setLoadStatus('')
+    let msg = ''
+
+    // Ensure the Supabase session token is fresh before querying
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        console.warn('[UserMgmt] Session check error:', sessionError.message)
+      }
+      if (!session) {
+        // Try refreshing the session
+        console.warn('[UserMgmt] No session found, attempting refresh...')
+        const { error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) {
+          console.error('[UserMgmt] Session refresh failed:', refreshError.message)
+          msg = 'Session error: ' + refreshError.message
+          setLoadStatus(msg)
+          setLoadingData(false)
+          return
         }
       }
+    } catch (e) {
+      console.error('[UserMgmt] Session check exception:', e)
     }
 
-    async function load() {
-      let msg = ''
-      try {
-        const r1 = await fetchWithRetry('approved_emails', 'id, email, role, created_at')
-        if (r1.error) msg += 'WL err: ' + r1.error.message + ' | '
-        else msg += 'WL: ' + (r1.data ? r1.data.length : 0) + ' | '
-        if (r1.data) setWhitelistedEmails(r1.data)
-      } catch (e) {
-        msg += 'WL: ' + e.message + ' | '
+    try {
+      const r1 = await supabase.from('approved_emails').select('id, email, role, created_at')
+      if (r1.error) {
+        msg += 'Whitelist error: ' + r1.error.message + ' | '
+        console.error('[UserMgmt] Whitelist fetch error:', r1.error)
+      } else {
+        msg += 'Whitelist: ' + (r1.data ? r1.data.length : 0) + ' rows | '
+        console.log('[UserMgmt] Whitelist loaded:', r1.data?.length, 'rows')
       }
-      try {
-        const r2 = await fetchWithRetry('profiles', 'id, display_name, function_tags')
-        if (r2.error) msg += 'Mem err: ' + r2.error.message
-        else msg += 'Mem: ' + (r2.data ? r2.data.length : 0)
-        if (r2.data) setRegisteredMembers(r2.data)
-      } catch (e) {
-        msg += 'Mem: ' + e.message
-      }
+      if (r1.data) setWhitelistedEmails(r1.data)
+    } catch (e) {
+      msg += 'Whitelist: ' + e.message + ' | '
+      console.error('[UserMgmt] Whitelist exception:', e)
     }
-    load()
+
+    try {
+      const r2 = await supabase.from('profiles').select('id, display_name, function_tags')
+      if (r2.error) {
+        msg += 'Members error: ' + r2.error.message
+        console.error('[UserMgmt] Members fetch error:', r2.error)
+      } else {
+        msg += 'Members: ' + (r2.data ? r2.data.length : 0) + ' rows'
+        console.log('[UserMgmt] Members loaded:', r2.data?.length, 'rows')
+      }
+      if (r2.data) setRegisteredMembers(r2.data)
+    } catch (e) {
+      msg += 'Members: ' + e.message
+      console.error('[UserMgmt] Members exception:', e)
+    }
+
+    setLoadStatus(msg)
+    setLoadingData(false)
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   useEffect(() => {
@@ -351,6 +379,33 @@ function UserManagement() {
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
+          {loadingData && whitelistedEmails.length === 0 && registeredMembers.length === 0 && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 text-center">
+              Loading data...
+            </div>
+          )}
+          {loadStatus && (loadStatus.includes('error') || loadStatus.includes('timeout') || loadStatus.includes('Session')) && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between">
+              <span><strong>Load issue:</strong> {loadStatus}</span>
+              <button
+                onClick={loadData}
+                className="ml-3 px-3 py-1 bg-red-200 hover:bg-red-300 rounded-lg text-red-800 font-medium transition-colors shrink-0"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {!loadingData && whitelistedEmails.length === 0 && registeredMembers.length === 0 && !loadStatus.includes('error') && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center justify-between">
+              <span>No data loaded. This may be a connection issue.</span>
+              <button
+                onClick={loadData}
+                className="ml-3 px-3 py-1 bg-yellow-200 hover:bg-yellow-300 rounded-lg text-yellow-800 font-medium transition-colors shrink-0"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {activeSection === 'whitelist' ? (
             <>
               <div className="flex gap-2 mb-4">
