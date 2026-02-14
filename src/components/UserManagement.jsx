@@ -6,7 +6,7 @@ import { usePermissions } from '../hooks/usePermissions'
 
 const ALL_ROLES = [
   'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
-  'Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming',
+  'Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming', 'Guest',
 ]
 
 const PERMANENT_COFOUNDERS = [
@@ -28,6 +28,7 @@ const ROLE_DESCRIPTIONS = {
   'Outreach': 'TBD',
   'Communications': 'TBD',
   'Programming': 'TBD',
+  'Guest': 'TBD',
 }
 
 function UserManagement() {
