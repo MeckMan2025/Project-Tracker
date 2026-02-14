@@ -105,10 +105,12 @@ function UserManagement() {
     setLoadingData(false)
   }
 
+  // Fetch data — try multiple strategies until one works
   useEffect(() => {
     loadData()
   }, [])
 
+  // Realtime: listen for whitelist changes
   useEffect(() => {
     const channel = supabase
       .channel('approved-emails-changes')
@@ -484,7 +486,9 @@ function UserManagement() {
               )}
 
               <div className="space-y-2">
-                {whitelistedEmails.length === 0 ? (
+                {loadingData ? (
+                  <p className="text-center text-gray-400 mt-10 animate-pulse">Loading emails...</p>
+                ) : whitelistedEmails.length === 0 ? (
                   <p className="text-center text-gray-400 mt-10">No whitelisted emails yet. Add emails to allow team members to sign up.</p>
                 ) : (
                   whitelistedEmails.map((entry) => (
@@ -519,7 +523,9 @@ function UserManagement() {
             </>
           ) : (
             <div className="space-y-2">
-              {registeredMembers.length === 0 ? (
+              {loadingData ? (
+                <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
+              ) : registeredMembers.length === 0 ? (
                 <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
               ) : (
                 registeredMembers.map((member) => {

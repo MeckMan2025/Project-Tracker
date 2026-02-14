@@ -20,6 +20,7 @@ import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
+import HomeView from './components/HomeView'
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
@@ -31,7 +32,7 @@ import { supabase } from './supabase'
 // Tab access requirements: which minimum tier is needed
 const TAB_ACCESS = {
   // All tiers
-  'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
+  'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
   'org-chart': 'guest', 'ai-manual': 'guest', 'profile': 'guest',
   'workshops': 'guest', 'attendance': 'guest',
   // Teammate+
@@ -117,6 +118,7 @@ const COLUMNS = [
   { id: 'done', title: 'Done', color: 'bg-pastel-blue' },
 ]
 
+const HOME_TAB = { id: 'home', name: 'Home', type: 'home' }
 const SCOUTING_TAB = { id: 'scouting', name: 'Scouting', type: 'scouting' }
 const BOARDS_TAB = { id: 'boards', name: 'Boards', type: 'boards' }
 const DATA_TAB = { id: 'data', name: 'Data', type: 'data' }
@@ -138,7 +140,7 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
-const SYSTEM_TABS = [SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
+const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -175,7 +177,7 @@ function App() {
   const [tabs, setTabs] = useState(() => cachedData.current?.tabs || [...SYSTEM_TABS, ...DEFAULT_BOARDS])
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
-    return saved || 'business'
+    return saved || 'home'
   })
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -355,7 +357,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -654,6 +656,8 @@ function App() {
       {/* Main Content */}
       {!hasAccess(activeTab, tier) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
+      ) : activeTab === 'home' ? (
+        <HomeView tasksByTab={tasksByTab} tabs={tabs} onTabChange={setActiveTab} />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (

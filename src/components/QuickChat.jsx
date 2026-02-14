@@ -23,6 +23,7 @@ function QuickChat() {
   const { canUseChat, canDeleteOwnMessages, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
+  const [sendError, setSendError] = useState(null)
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -52,7 +53,7 @@ function QuickChat() {
       for (let i = 0; i < 3; i++) {
         try {
           const { data } = await Promise.race([
-            supabase.from('messages').select('id, sender, content, created_at, seen_by').limit(100),
+            supabase.from('messages').select('id, sender, content, created_at, seen_by').order('created_at', { ascending: false }).limit(100),
             new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
           ])
           if (data) {
@@ -109,7 +110,13 @@ function QuickChat() {
 
     setNewMessage('')
     setMessages(prev => [...prev, message])
-    await supabase.from('messages').insert(message)
+    const { error } = await supabase.from('messages').insert(message)
+    if (error) {
+      console.error('Failed to send message:', error)
+      setMessages(prev => prev.filter(m => m.id !== message.id))
+      setSendError('Message failed to send. Try again.')
+      setTimeout(() => setSendError(null), 4000)
+    }
   }
 
   const handleDelete = async (msgId) => {
@@ -224,6 +231,9 @@ function QuickChat() {
 
       {/* Input */}
       <div className="bg-white/80 backdrop-blur-sm border-t p-3">
+        {sendError && (
+          <p className="text-xs text-red-500 text-center mb-2">{sendError}</p>
+        )}
         <form onSubmit={handleSend} className="max-w-2xl mx-auto flex gap-2">
           <input
             type="text"
