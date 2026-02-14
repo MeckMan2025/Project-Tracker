@@ -60,7 +60,7 @@ function UserManagement() {
         setDebugMsg('Fetching whitelist...')
         const r1 = await Promise.race([
           supabase.from('approved_emails').select('id, email, role, created_at'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout 15s')), 15000))
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
         ])
         if (r1.error) msg += 'WL err: ' + r1.error.message + ' | '
         else msg += 'WL: ' + (r1.data ? r1.data.length : 0) + ' | '
@@ -72,7 +72,7 @@ function UserManagement() {
         setDebugMsg(msg + 'Fetching members...')
         const r2 = await Promise.race([
           supabase.from('profiles').select('id, display_name, function_tags'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout 15s')), 15000))
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
         ])
         if (r2.error) msg += 'Mem err: ' + r2.error.message
         else msg += 'Mem: ' + (r2.data ? r2.data.length : 0)
@@ -345,7 +345,7 @@ function UserManagement() {
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
-          <p className="text-xs text-gray-400 mb-2 bg-gray-50 p-2 rounded">{debugMsg}</p>
+          {debugMsg && <p className="text-xs text-red-500 mb-2 bg-red-50 p-2 rounded">{debugMsg}</p>}
           {activeSection === 'whitelist' ? (
             <>
               <div className="flex gap-2 mb-4">
