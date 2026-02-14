@@ -51,22 +51,28 @@ function UserManagement() {
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
+  const [debugMsg, setDebugMsg] = useState('Loading...')
 
   useEffect(() => {
     async function load() {
+      let msg = ''
       const { data: emails, error: emailErr } = await supabase
         .from('approved_emails')
         .select('*')
         .order('created_at', { ascending: false })
-      if (emailErr) console.error('Failed to load whitelist:', emailErr)
+      if (emailErr) msg += 'Whitelist error: ' + emailErr.message + ' | '
+      else msg += 'Whitelist: ' + (emails ? emails.length : 0) + ' rows | '
       if (emails) setWhitelistedEmails(emails)
 
       const { data: members, error: memberErr } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
-      if (memberErr) console.error('Failed to load members:', memberErr)
+      if (memberErr) msg += 'Members error: ' + memberErr.message
+      else msg += 'Members: ' + (members ? members.length : 0) + ' rows'
       if (members) setRegisteredMembers(members)
+
+      setDebugMsg(msg)
     }
     load()
   }, [])
@@ -331,6 +337,7 @@ function UserManagement() {
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
+          {debugMsg && <p className="text-xs text-red-500 mb-2 bg-red-50 p-2 rounded">{debugMsg}</p>}
           {activeSection === 'whitelist' ? (
             <>
               <div className="flex gap-2 mb-4">
