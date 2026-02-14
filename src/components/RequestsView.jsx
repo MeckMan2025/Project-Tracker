@@ -102,9 +102,11 @@ function RequestsView() {
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             r.type === 'task'
                               ? 'bg-pastel-pink/40 text-pastel-pink-dark'
+                              : r.type === 'board'
+                              ? 'bg-pastel-blue/40 text-pastel-blue-dark'
                               : 'bg-pastel-orange/40 text-pastel-orange-dark'
                           }`}>
-                            {r.type === 'task' ? 'Task' : 'Calendar Event'}
+                            {r.type === 'task' ? 'Task' : r.type === 'board' ? 'Board' : 'Calendar Event'}
                           </span>
                           <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
                         </div>
@@ -180,9 +182,11 @@ function RequestsView() {
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             r.type === 'task'
                               ? 'bg-pastel-pink/40 text-pastel-pink-dark'
+                              : r.type === 'board'
+                              ? 'bg-pastel-blue/40 text-pastel-blue-dark'
                               : 'bg-pastel-orange/40 text-pastel-orange-dark'
                           }`}>
-                            {r.type === 'task' ? 'Task' : 'Event'}
+                            {r.type === 'task' ? 'Task' : r.type === 'board' ? 'Board' : 'Event'}
                           </span>
                         </div>
                         <p className="text-sm font-semibold text-gray-700">

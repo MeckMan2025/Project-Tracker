@@ -80,6 +80,13 @@ export function usePendingRequests({ type, boardId } = {}) {
           added_by: request.requested_by,
         }
         await supabase.from('calendar_events').insert(event)
+      } else if (request.type === 'board') {
+        const board = {
+          id: String(Date.now()),
+          name: request.data.name,
+          permanent: false,
+        }
+        await supabase.from('boards').insert(board)
       }
 
       await supabase.from('requests').update({
@@ -95,7 +102,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: request.requested_by_user_id,
           type: 'request_approved',
           title: 'Request Approved',
-          body: `Your ${request.type === 'task' ? 'task' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
+          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
         })
       }
 
@@ -121,7 +128,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: request.requested_by_user_id,
           type: 'request_denied',
           title: 'Request Denied',
-          body: `Your ${request.type === 'task' ? 'task' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
+          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
         })
       }
 
@@ -172,7 +179,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: a.id,
           type: 'request_reminder',
           title: 'Request Reminder',
-          body: `${username} is reminding you about a pending ${request.type === 'task' ? 'task' : 'event'} request: "${request.data?.title || request.data?.name}"`,
+          body: `${username} is reminding you about a pending ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request: "${request.data?.title || request.data?.name}"`,
         }))
         await supabase.from('notifications').insert(notifications)
       }

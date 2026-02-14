@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { useToast } from './ToastProvider'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers }) {
-  const { logout } = useUser()
-  const { isGuest, isTop, canManageUsers, canReviewRequests, canEditContent } = usePermissions()
+  const { logout, username, user } = useUser()
+  const { isGuest, isTop, canManageUsers, canReviewRequests, canEditContent, canRequestContent } = usePermissions()
+  const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -20,6 +22,33 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
     onAddTab(newTabName.trim())
     setNewTabName('')
     setIsAdding(false)
+  }
+
+  const handleRequestBoard = async (e) => {
+    e.preventDefault()
+    if (!newTabName.trim()) return
+    const request = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      type: 'board',
+      data: { name: newTabName.trim() },
+      requested_by: username,
+      requested_by_user_id: user?.id,
+      status: 'pending',
+    }
+    setNewTabName('')
+    setIsAdding(false)
+    addToast('Board request submitted for approval', 'success')
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    fetch(`${supabaseUrl}/rest/v1/requests`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    }).catch(err => console.error('Failed to request board:', err))
   }
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
@@ -341,10 +370,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               </div>
             ))}
 
-            {/* Add Board button — hidden for guests */}
-            {!isGuest && <div className="pt-1">
+            {/* Add/Request Board button — hidden for guests */}
+            {(canEditContent || canRequestContent) && <div className="pt-1">
               {isAdding ? (
-                <form onSubmit={handleAddTab} className="space-y-2 px-2">
+                <form onSubmit={canEditContent ? handleAddTab : handleRequestBoard} className="space-y-2 px-2">
                   <input
                     type="text"
                     value={newTabName}
@@ -368,7 +397,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                       type="submit"
                       className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
                     >
-                      Create
+                      {canEditContent ? 'Create' : 'Request'}
                     </button>
                   </div>
                 </form>
@@ -378,7 +407,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
                 >
                   <Plus size={14} />
-                  Add Board
+                  {canEditContent ? 'Add Board' : 'Request Board'}
                 </button>
               )}
             </div>}

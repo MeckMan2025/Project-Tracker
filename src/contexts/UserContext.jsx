@@ -98,7 +98,7 @@ export function UserProvider({ children }) {
     setPrimaryRoleLabel('')
     setFunctionTags([])
     setShortBio('')
-    sessionStorage.removeItem('session-start')
+    localStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
     localStorage.removeItem('scrum-role')
@@ -111,7 +111,7 @@ export function UserProvider({ children }) {
   }
 
   const isSessionExpired = () => {
-    const start = sessionStorage.getItem('session-start')
+    const start = localStorage.getItem('session-start')
     if (!start) return true
     return Date.now() - parseInt(start, 10) > SESSION_MAX_AGE
   }
@@ -193,7 +193,7 @@ export function UserProvider({ children }) {
           setPasswordRecovery(true)
           if (session?.user) setUser(session.user)
         } else if (event === 'SIGNED_IN' && session?.user) {
-          sessionStorage.setItem('session-start', Date.now().toString())
+          localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
           const profile = await fetchProfile(session.user.id)
@@ -209,7 +209,7 @@ export function UserProvider({ children }) {
 
     // Periodic 12-hour check (every 60 seconds)
     const interval = setInterval(() => {
-      if (sessionStorage.getItem('session-start') && isSessionExpired()) {
+      if (localStorage.getItem('session-start') && isSessionExpired()) {
         expireSession()
       }
     }, 60 * 1000)
@@ -217,14 +217,14 @@ export function UserProvider({ children }) {
     // Detect stale session on tab/laptop wake
     const handleVisibility = async () => {
       if (document.visibilityState !== 'visible') return
-      if (sessionStorage.getItem('session-start') && isSessionExpired()) {
+      if (localStorage.getItem('session-start') && isSessionExpired()) {
         expireSession()
         return
       }
       // Verify session is still valid with Supabase
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (!session && sessionStorage.getItem('session-start')) {
+        if (!session && localStorage.getItem('session-start')) {
           expireSession()
         }
       } catch (e) {
