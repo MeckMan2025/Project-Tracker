@@ -15,6 +15,7 @@ function SuggestionsView() {
   const { canReviewSuggestions } = usePermissions()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
+  const [submitError, setSubmitError] = useState('')
 
   const isReviewer = canReviewSuggestions
 
@@ -76,9 +77,10 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
+    setSubmitError('')
 
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -92,29 +94,24 @@ function SuggestionsView() {
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
-    // Get user's JWT for RLS
-    let token = supabaseKey
-    try {
-      const { data } = await supabase.auth.getSession()
-      if (data?.session?.access_token) token = data.session.access_token
-    } catch (e) { /* fall back to anon key */ }
-
-    fetch(`${supabaseUrl}/rest/v1/suggestions`, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(suggestion),
-    }).then(res => {
-      if (!res.ok) {
-        res.text().then(t => console.error('Failed to save suggestion:', t))
+    // Use Supabase client with timeout to prevent hanging
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    Promise.race([
+      supabase.from('suggestions').insert(suggestion),
+      timeout,
+    ]).then(result => {
+      if (result?.error) {
+        setSubmitError('Failed to save: ' + result.error.message)
         setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
       }
     }).catch(err => {
-      console.error('Failed to save suggestion:', err)
-      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+      if (err.message === 'timeout') {
+        // Timed out but suggestion may still save — keep it optimistically
+        console.warn('Suggestion insert timed out, may still save')
+      } else {
+        setSubmitError('Failed to save: ' + err.message)
+        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+      }
     })
   }
 
@@ -277,6 +274,7 @@ function SuggestionsView() {
                 rows={4}
                 className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none text-sm"
               />
+              {submitError && <p className="text-sm text-red-500 text-center">{submitError}</p>}
               <button
                 type="submit"
                 disabled={!newSuggestion.trim()}
