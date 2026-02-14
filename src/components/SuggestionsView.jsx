@@ -64,6 +64,9 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
 
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
@@ -79,11 +82,22 @@ function SuggestionsView() {
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
-    supabase.from('suggestions').insert(suggestion).then(({ error }) => {
-      if (error) {
-        console.error('Failed to save suggestion:', error.message)
+    fetch(`${supabaseUrl}/rest/v1/suggestions`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(suggestion),
+    }).then(res => {
+      if (!res.ok) {
+        console.error('Failed to save suggestion:', res.statusText)
         setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
       }
+    }).catch(err => {
+      console.error('Failed to save suggestion:', err)
+      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
     })
   }
 
