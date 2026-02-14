@@ -22,6 +22,7 @@ export function usePermissions() {
   const isGuest = tier === 'guest'
   const isTeammate = tier === 'teammate'
   const isTop = tier === 'top'
+  const isCofounder = functionTags && functionTags.includes('Co-Founder')
 
   return {
     tier,
@@ -46,6 +47,7 @@ export function usePermissions() {
     canViewScoutingData: !isGuest,
     canSubmitSuggestions: !isGuest,
     canDragOwnTask: !isGuest,
+    canImport: !isGuest,
 
     // Top only
     canEditContent: isTop,
@@ -56,18 +58,21 @@ export function usePermissions() {
     canViewAllAttendance: isTop,
     canOrganizeNotebook: isTop,
     canApproveQuotes: isTop,
-    canImport: isTop,
     canManageUsers: isTop,
-    canReviewSuggestions: isTop,
     canDragAnyTask: isTop,
-    canEditScouting: isTop,
     canOverrideAttendance: isTop,
-    canChangeAuthorityTier: isTop && !!isAuthorityAdmin,
+    canChangeAuthorityTier: isTop,
+
+    // Co-Founders only
+    canReviewSuggestions: isCofounder,
+
+    // Nobody
+    canEditScouting: false,
 
     // Legacy compat
     role,
     secondaryRoles,
     isElevated: isTop,
-    isAdmin: isTop && !!isAuthorityAdmin,
+    isAdmin: isTop,
   }
 }
