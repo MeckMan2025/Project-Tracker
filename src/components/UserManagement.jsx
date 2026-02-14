@@ -54,14 +54,27 @@ function UserManagement() {
   const [debugMsg, setDebugMsg] = useState('Loading...')
 
   useEffect(() => {
+    async function fetchWithRetry(table, columns, maxRetries = 3) {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const result = await Promise.race([
+            supabase.from(table).select(columns),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
+          ])
+          if (result.data) return result
+          if (result.error) return result
+        } catch (e) {
+          if (i === maxRetries - 1) throw e
+          await new Promise(r => setTimeout(r, 2000))
+        }
+      }
+    }
+
     async function load() {
       let msg = ''
       try {
         setDebugMsg('Fetching whitelist...')
-        const r1 = await Promise.race([
-          supabase.from('approved_emails').select('id, email, role, created_at'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
-        ])
+        const r1 = await fetchWithRetry('approved_emails', 'id, email, role, created_at')
         if (r1.error) msg += 'WL err: ' + r1.error.message + ' | '
         else msg += 'WL: ' + (r1.data ? r1.data.length : 0) + ' | '
         if (r1.data) setWhitelistedEmails(r1.data)
@@ -70,10 +83,7 @@ function UserManagement() {
       }
       try {
         setDebugMsg(msg + 'Fetching members...')
-        const r2 = await Promise.race([
-          supabase.from('profiles').select('id, display_name, function_tags'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
-        ])
+        const r2 = await fetchWithRetry('profiles', 'id, display_name, function_tags')
         if (r2.error) msg += 'Mem err: ' + r2.error.message
         else msg += 'Mem: ' + (r2.data ? r2.data.length : 0)
         if (r2.data) setRegisteredMembers(r2.data)
