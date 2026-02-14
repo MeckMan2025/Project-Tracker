@@ -229,11 +229,16 @@ function UserManagement() {
       : [...currentRoles, role]
     // Optimistic update
     setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
-    const { error } = await supabase.from('profiles').update({ function_tags: updated }).eq('id', memberId)
-    if (error) {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-update-roles', {
+        body: { userId: memberId, functionTags: updated },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+    } catch (err) {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
-      setError('Failed to update role: ' + error.message)
+      setError('Failed to update role: ' + err.message)
     }
   }
 
