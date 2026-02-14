@@ -59,26 +59,26 @@ function UserManagement() {
       try {
         setDebugMsg('Fetching whitelist...')
         const r1 = await Promise.race([
-          supabase.from('approved_emails').select('*'),
+          supabase.from('approved_emails').select('id, email, role, created_at'),
           new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
         ])
-        if (r1.error) msg += 'Whitelist error: ' + r1.error.message + ' | '
-        else msg += 'Whitelist: ' + (r1.data ? r1.data.length : 0) + ' rows | '
+        if (r1.error) msg += 'WL err: ' + r1.error.message + ' | '
+        else msg += 'WL: ' + (r1.data ? r1.data.length : 0) + ' | '
         if (r1.data) setWhitelistedEmails(r1.data)
       } catch (e) {
-        msg += 'Whitelist: ' + e.message + ' | '
+        msg += 'WL: ' + e.message + ' | '
       }
       try {
         setDebugMsg(msg + 'Fetching members...')
         const r2 = await Promise.race([
-          supabase.from('profiles').select('*'),
+          supabase.from('profiles').select('id, display_name, function_tags'),
           new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout after 5s')), 5000))
         ])
-        if (r2.error) msg += 'Members error: ' + r2.error.message
-        else msg += 'Members: ' + (r2.data ? r2.data.length : 0) + ' rows'
+        if (r2.error) msg += 'Mem err: ' + r2.error.message
+        else msg += 'Mem: ' + (r2.data ? r2.data.length : 0)
         if (r2.data) setRegisteredMembers(r2.data)
       } catch (e) {
-        msg += 'Members: ' + e.message
+        msg += 'Mem: ' + e.message
       }
       setDebugMsg(msg)
     }
