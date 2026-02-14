@@ -1,19 +1,23 @@
 import { useUser } from '../contexts/UserContext'
 
 const ELEVATED_LEGACY_ROLES = ['lead', 'coach', 'mentor', 'cofounder']
+const ELEVATED_FUNCTION_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
 
-function deriveTierFromRole(role, secondaryRoles) {
+function deriveTierFromRole(role, secondaryRoles, functionTags) {
   if (role === 'guest') return 'guest'
+  // Check function tags first (newer system)
+  if (functionTags && functionTags.some(t => ELEVATED_FUNCTION_TAGS.includes(t))) return 'top'
+  // Fall back to legacy roles
   const allRoles = [role, ...(secondaryRoles || [])]
   if (allRoles.some(r => ELEVATED_LEGACY_ROLES.includes(r))) return 'top'
   return 'teammate'
 }
 
 export function usePermissions() {
-  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin } = useUser()
+  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags } = useUser()
 
-  // Use authority_tier if set, otherwise derive from legacy role
-  const tier = authorityTier || deriveTierFromRole(role, secondaryRoles)
+  // Use authority_tier if explicitly set, otherwise derive from function tags / legacy role
+  const tier = authorityTier || deriveTierFromRole(role, secondaryRoles, functionTags)
 
   const isGuest = tier === 'guest'
   const isTeammate = tier === 'teammate'

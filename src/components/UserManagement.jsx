@@ -645,15 +645,6 @@ function UserManagement() {
                             <div className="flex items-center justify-between gap-2 mb-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
-                                {member.authority_tier && (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                                    member.authority_tier === 'top' ? 'bg-purple-100 text-purple-700' :
-                                    member.authority_tier === 'guest' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-pastel-blue/50 text-blue-700'
-                                  }`}>
-                                    {member.authority_tier}
-                                  </span>
-                                )}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 <button
@@ -674,20 +665,6 @@ function UserManagement() {
                                 )}
                               </div>
                             </div>
-                            {isAuthorityAdmin && member.id !== user.id && (
-                              <div className="mb-2">
-                                <select
-                                  value={member.authority_tier || ''}
-                                  onChange={(e) => handleChangeTier(member.id, e.target.value)}
-                                  className="text-xs px-2 py-1 border rounded-lg bg-gray-50 text-gray-600 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                                >
-                                  <option value="">No tier set</option>
-                                  <option value="guest">Guest</option>
-                                  <option value="teammate">Teammate</option>
-                                  <option value="top">Top</option>
-                                </select>
-                              </div>
-                            )}
                             <div className="flex flex-wrap gap-1.5">
                               {memberRoles.map(role => (
                                 <span
