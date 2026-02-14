@@ -46,18 +46,24 @@ function QuickChat() {
     )
   }
 
-  // Load messages on mount
+  // Load messages on mount with retry for sleeping DB
   useEffect(() => {
     async function loadMessages() {
-      const { data } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100)
-      if (data) {
-        data.reverse()
-        setMessages(data)
-        markMessagesAsSeen(data)
+      for (let i = 0; i < 3; i++) {
+        try {
+          const { data } = await Promise.race([
+            supabase.from('messages').select('id, sender, content, created_at, seen_by').limit(100),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
+          ])
+          if (data) {
+            data.reverse()
+            setMessages(data)
+            markMessagesAsSeen(data)
+            break
+          }
+        } catch (e) {
+          if (i < 2) await new Promise(r => setTimeout(r, 2000))
+        }
       }
     }
     loadMessages()
