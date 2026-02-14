@@ -17,18 +17,27 @@ function CalendarView() {
   const [eventName, setEventName] = useState('')
   const [eventDesc, setEventDesc] = useState('')
 
-  // Load events from Supabase on mount
+  // Load events via direct REST (bypasses Supabase client auth lock)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .order('created_at', { ascending: true })
-      if (error) {
-        console.error('Failed to load calendar events:', error.message)
-        return
-      }
-      if (data) {
+      try {
+        let token = supabaseKey
+        try {
+          const { data } = await supabase.auth.getSession()
+          if (data?.session?.access_token) token = data.session.access_token
+        } catch (e) { /* fall back to anon key */ }
+
+        const res = await fetch(`${supabaseUrl}/rest/v1/calendar_events?select=*&order=date_key.asc`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+        if (!res.ok) return
+        const data = await res.json()
         const grouped = {}
         data.forEach(ev => {
           if (!grouped[ev.date_key]) grouped[ev.date_key] = []
@@ -40,6 +49,8 @@ function CalendarView() {
           })
         })
         setEvents(grouped)
+      } catch (err) {
+        console.error('Failed to load calendar events:', err)
       }
     }
     load()
@@ -89,78 +100,94 @@ function CalendarView() {
 
   const dateKey = (day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
-  const handleAddEvent = async (e) => {
+  const handleAddEvent = (e) => {
     e.preventDefault()
     if (!eventName.trim() || !selectedDay) return
     const key = dateKey(selectedDay)
+    const name = eventName.trim()
+    const desc = eventDesc.trim()
 
     if (!canEditContent) {
-      // Non-lead: submit a request
-      try {
-        const request = {
-          id: String(Date.now()) + Math.random().toString(36).slice(2),
-          type: 'calendar_event',
-          data: {
-            date_key: key,
-            name: eventName.trim(),
-            description: eventDesc.trim(),
-          },
-          requested_by: username,
-          requested_by_user_id: user?.id,
-          status: 'pending',
-        }
-        await supabase.from('requests').insert(request)
-        addToast('Request sent! A lead will review it.', 'success')
-      } catch (err) {
-        console.error('Error submitting request:', err)
+      // Non-lead: submit a request via direct REST
+      const request = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        type: 'calendar_event',
+        data: { date_key: key, name, description: desc },
+        requested_by: username,
+        requested_by_user_id: user?.id,
+        status: 'pending',
       }
       setEventName('')
       setEventDesc('')
+      addToast('Request sent! A lead will review it.', 'success')
+      fetch(`${supabaseUrl}/rest/v1/requests`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      }).catch(err => console.error('Error submitting request:', err))
       return
     }
 
     const newEvent = {
       id: String(Date.now()),
       date_key: key,
-      name: eventName.trim(),
-      description: eventDesc.trim(),
+      name,
+      description: desc,
       added_by: username,
     }
 
-    const { error } = await supabase.from('calendar_events').insert(newEvent)
-    if (error) {
-      console.error('Failed to save calendar event:', error.message)
-      return
-    }
-
+    // Optimistic update
     setEvents(prev => {
       const updated = { ...prev }
       if (!updated[key]) updated[key] = []
-      updated[key].push({
-        id: newEvent.id,
-        name: newEvent.name,
-        description: newEvent.description,
-        addedBy: newEvent.added_by,
-      })
+      updated[key].push({ id: newEvent.id, name: newEvent.name, description: newEvent.description, addedBy: newEvent.added_by })
       return updated
     })
     setEventName('')
     setEventDesc('')
+
+    fetch(`${supabaseUrl}/rest/v1/calendar_events`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(newEvent),
+    }).then(async (res) => {
+      if (!res.ok) {
+        console.error('Failed to save calendar event:', await res.text())
+        setEvents(prev => {
+          const updated = { ...prev }
+          updated[key] = (updated[key] || []).filter(ev => ev.id !== newEvent.id)
+          if (updated[key].length === 0) delete updated[key]
+          return updated
+        })
+      }
+    }).catch(err => console.error('Failed to save calendar event:', err))
   }
 
-  const handleDeleteEvent = async (day, eventId) => {
-    const { error } = await supabase.from('calendar_events').delete().eq('id', eventId)
-    if (error) {
-      console.error('Failed to delete calendar event:', error.message)
-      return
-    }
+  const handleDeleteEvent = (day, eventId) => {
     const key = dateKey(day)
+    // Optimistic delete
     setEvents(prev => {
       const updated = { ...prev }
       updated[key] = (updated[key] || []).filter(ev => ev.id !== eventId)
       if (updated[key].length === 0) delete updated[key]
       return updated
     })
+
+    fetch(`${supabaseUrl}/rest/v1/calendar_events?id=eq.${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    }).catch(err => console.error('Failed to delete calendar event:', err))
   }
 
   const today = new Date()
