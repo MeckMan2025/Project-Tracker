@@ -25,6 +25,12 @@ function SuggestionsView() {
   useEffect(() => {
     async function load() {
       try {
+        let token = supabaseKey
+        try {
+          const { data } = await supabase.auth.getSession()
+          if (data?.session?.access_token) token = data.session.access_token
+        } catch (e) { /* fall back to anon key */ }
+
         let url = `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc`
         if (!isReviewer && user) {
           url += `&user_id=eq.${user.id}`
@@ -32,7 +38,7 @@ function SuggestionsView() {
         const res = await fetch(url, {
           headers: {
             'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
+            'Authorization': `Bearer ${token}`,
           },
         })
         if (res.ok) {
@@ -70,7 +76,7 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
 
@@ -86,17 +92,24 @@ function SuggestionsView() {
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
+    // Get user's JWT for RLS
+    let token = supabaseKey
+    try {
+      const { data } = await supabase.auth.getSession()
+      if (data?.session?.access_token) token = data.session.access_token
+    } catch (e) { /* fall back to anon key */ }
+
     fetch(`${supabaseUrl}/rest/v1/suggestions`, {
       method: 'POST',
       headers: {
         'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(suggestion),
     }).then(res => {
       if (!res.ok) {
-        console.error('Failed to save suggestion:', res.statusText)
+        res.text().then(t => console.error('Failed to save suggestion:', t))
         setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
       }
     }).catch(err => {
