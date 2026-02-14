@@ -2,8 +2,11 @@ import { useUser } from '../contexts/UserContext'
 
 const TOP_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
 const TEAMMATE_TAGS = ['Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming']
+const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
-function deriveTierFromTags(functionTags) {
+function deriveTierFromTags(functionTags, displayName) {
+  // Permanent co-founders always get top
+  if (displayName && PERMANENT_COFOUNDERS.includes(displayName.toLowerCase())) return 'top'
   if (functionTags && functionTags.includes('Guest')) return 'guest'
   if (functionTags && functionTags.some(t => TOP_TAGS.includes(t))) return 'top'
   if (functionTags && functionTags.some(t => TEAMMATE_TAGS.includes(t))) return 'teammate'
@@ -13,12 +16,13 @@ function deriveTierFromTags(functionTags) {
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, isAuthorityAdmin, functionTags } = useUser()
 
-  const tier = deriveTierFromTags(functionTags)
+  const tier = deriveTierFromTags(functionTags, username)
 
   const isGuest = tier === 'guest'
   const isTeammate = tier === 'teammate'
   const isTop = tier === 'top'
-  const isCofounder = functionTags && functionTags.includes('Co-Founder')
+  const isCofounder = (functionTags && functionTags.includes('Co-Founder')) ||
+    (username && PERMANENT_COFOUNDERS.includes(username.toLowerCase()))
 
   return {
     tier,
