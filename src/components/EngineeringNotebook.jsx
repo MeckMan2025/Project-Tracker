@@ -190,23 +190,24 @@ export default function EngineeringNotebook() {
       photo_url: formData.photoUrl.trim(),
     }
 
+    // Close form immediately, save in background
     if (editingEntryId) {
-      const { error } = await supabase.from('notebook_entries').update(entryData).eq('id', editingEntryId)
-      if (!error) {
-        setEntries(prev => prev.map(e => e.id === editingEntryId ? { ...e, ...entryData } : e))
-        setSubmitFeedback('Entry updated!')
-      }
+      setEntries(prev => prev.map(e => e.id === editingEntryId ? { ...e, ...entryData } : e))
+      setSubmitFeedback('Entry updated!')
+      supabase.from('notebook_entries').update(entryData).eq('id', editingEntryId).then(({ error }) => {
+        if (error) console.error('Failed to update entry:', error)
+      })
     } else {
       const newEntry = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         ...entryData,
         created_at: new Date().toISOString(),
       }
-      const { error } = await supabase.from('notebook_entries').insert(newEntry)
-      if (!error) {
-        setEntries(prev => [newEntry, ...prev])
-        setSubmitFeedback('Entry saved!')
-      }
+      setEntries(prev => [newEntry, ...prev])
+      setSubmitFeedback('Entry saved!')
+      supabase.from('notebook_entries').insert(newEntry).then(({ error }) => {
+        if (error) console.error('Failed to save entry:', error)
+      })
     }
 
     setFormData({ ...INITIAL_ENTRY })

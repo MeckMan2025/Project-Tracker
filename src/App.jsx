@@ -462,29 +462,29 @@ function App() {
   }
 
   const handleRequestTask = async (newTask) => {
+    setIsRequestModalOpen(false)
+    const request = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      type: 'task',
+      data: {
+        title: newTask.title,
+        description: newTask.description || '',
+        assignee: newTask.assignee || '',
+        dueDate: newTask.dueDate || '',
+        status: newTask.status || 'todo',
+        skills: newTask.skills || [],
+      },
+      requested_by: username,
+      requested_by_user_id: user.id,
+      status: 'pending',
+      board_id: activeTab,
+    }
+    addToast('Request sent! A lead will review it.', 'success')
     try {
-      const request = {
-        id: String(Date.now()) + Math.random().toString(36).slice(2),
-        type: 'task',
-        data: {
-          title: newTask.title,
-          description: newTask.description || '',
-          assignee: newTask.assignee || '',
-          dueDate: newTask.dueDate || '',
-          status: newTask.status || 'todo',
-          skills: newTask.skills || [],
-        },
-        requested_by: username,
-        requested_by_user_id: user.id,
-        status: 'pending',
-        board_id: activeTab,
-      }
       await supabase.from('requests').insert(request)
-      addToast('Request sent! A lead will review it.', 'success')
     } catch (err) {
       console.error('Error submitting request:', err)
     }
-    setIsRequestModalOpen(false)
   }
 
   const handleEditTask = async (updatedTask) => {
