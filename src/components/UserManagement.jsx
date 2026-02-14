@@ -226,9 +226,13 @@ function UserManagement() {
     const updated = currentRoles.includes(role)
       ? currentRoles.filter(r => r !== role)
       : [...currentRoles, role]
+    // Optimistic update
+    setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
     const { error } = await supabase.from('profiles').update({ function_tags: updated }).eq('id', memberId)
-    if (!error) {
-      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
+    if (error) {
+      // Rollback
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
+      setError('Failed to update role: ' + error.message)
     }
   }
 
@@ -530,76 +534,116 @@ function UserManagement() {
             </>
           ) : (
             <div className="space-y-2">
-              {PERMANENT_COFOUNDERS.map((member) => (
-                <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-gray-700">{member.display_name}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
-                      Co-Founder
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {loadingData ? (
-                <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
-              ) : registeredMembers.length === 0 ? (
-                <p className="text-center text-gray-400 mt-10">No other registered members yet.</p>
-              ) : (
-                registeredMembers.map((member) => {
-                  const memberRoles = member.function_tags || []
-
-                  return (
-                    <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
-                            title="Reset password"
-                            className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-                          >
-                            <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
-                          </button>
-                          {member.id !== user.id && (
-                            <button
-                              onClick={() => { setDeleteTarget(member); setDeleteError('') }}
-                              title="Delete member"
-                              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {memberRoles.map(role => (
-                          <span
-                            key={role}
-                            className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
-                          >
-                            {role}
-                            <button
-                              onClick={() => handleToggleRole(member.id, role)}
-                              className="hover:opacity-70 transition-opacity"
-                              title={`Remove ${role}`}
-                            >
-                              <X size={12} />
-                            </button>
-                          </span>
-                        ))}
-                        <button
-                          onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
-                          className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
-                        >
-                          <Plus size={12} /> Add
-                        </button>
-                      </div>
-                    </div>
-                  )
+              {(() => {
+                const cofounderNames = PERMANENT_COFOUNDERS.map(c => c.display_name.toLowerCase())
+                const cofounderMembers = PERMANENT_COFOUNDERS.map(cf => {
+                  const dbMember = registeredMembers.find(m => m.display_name?.toLowerCase() === cf.display_name.toLowerCase())
+                  return { ...cf, dbId: dbMember?.id || null, dbRoles: dbMember?.function_tags || [] }
                 })
-              )}
+                const otherMembers = registeredMembers.filter(m => !cofounderNames.includes(m.display_name?.toLowerCase()))
+
+                return (
+                  <>
+                    {cofounderMembers.map((member) => {
+                      const extraRoles = member.dbRoles.filter(r => r !== 'Co-Founder')
+                      return (
+                        <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-medium text-gray-700">{member.display_name}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
+                              Co-Founder
+                            </span>
+                            {extraRoles.map(role => (
+                              <span
+                                key={role}
+                                className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
+                              >
+                                {role}
+                                {member.dbId && (
+                                  <button
+                                    onClick={() => handleToggleRole(member.dbId, role)}
+                                    className="hover:opacity-70 transition-opacity"
+                                    title={`Remove ${role}`}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                            {member.dbId && (
+                              <button
+                                onClick={() => setRolePickerOpen(rolePickerOpen === member.dbId ? null : member.dbId)}
+                                className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                              >
+                                <Plus size={12} /> Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {loadingData ? (
+                      <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
+                    ) : otherMembers.length === 0 ? (
+                      <p className="text-center text-gray-400 mt-10">No other registered members yet.</p>
+                    ) : (
+                      otherMembers.map((member) => {
+                        const memberRoles = member.function_tags || []
+                        return (
+                          <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
+                                  title="Reset password"
+                                  className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                                >
+                                  <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                                </button>
+                                {member.id !== user.id && (
+                                  <button
+                                    onClick={() => { setDeleteTarget(member); setDeleteError('') }}
+                                    title="Delete member"
+                                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                  >
+                                    <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {memberRoles.map(role => (
+                                <span
+                                  key={role}
+                                  className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
+                                >
+                                  {role}
+                                  <button
+                                    onClick={() => handleToggleRole(member.id, role)}
+                                    className="hover:opacity-70 transition-opacity"
+                                    title={`Remove ${role}`}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              ))}
+                              <button
+                                onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
+                                className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                              >
+                                <Plus size={12} /> Add
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>
@@ -609,8 +653,10 @@ function UserManagement() {
       {rolePickerOpen && (() => {
         const member = registeredMembers.find(m => m.id === rolePickerOpen)
         if (!member) return null
+        const cofounderNames = PERMANENT_COFOUNDERS.map(c => c.display_name.toLowerCase())
+        const isCofounder = cofounderNames.includes(member.display_name?.toLowerCase())
         const memberRoles = member.function_tags || []
-        const available = ALL_ROLES.filter(r => !memberRoles.includes(r))
+        const available = ALL_ROLES.filter(r => !memberRoles.includes(r) && !(isCofounder && r === 'Co-Founder'))
         return (
           <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={() => setRolePickerOpen(null)}>
             <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:w-80 max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
