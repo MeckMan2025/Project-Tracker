@@ -19,24 +19,31 @@ function SuggestionsView() {
   const isReviewer = canReviewSuggestions
 
   // Load suggestions
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
   useEffect(() => {
     async function load() {
-      if (isReviewer) {
-        const { data } = await supabase
-          .from('suggestions')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (data) setSuggestions(data)
-      } else if (user) {
-        const { data } = await supabase
-          .from('suggestions')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-        if (data) setSuggestions(data)
+      try {
+        let url = `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc`
+        if (!isReviewer && user) {
+          url += `&user_id=eq.${user.id}`
+        }
+        const res = await fetch(url, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setSuggestions(data)
+        }
+      } catch (err) {
+        console.error('Failed to load suggestions:', err)
       }
     }
-    load()
+    if (user) load()
   }, [user, isReviewer])
 
   // Real-time subscription
@@ -62,9 +69,6 @@ function SuggestionsView() {
 
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, user])
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
   const handleSubmit = (e) => {
     e.preventDefault()
