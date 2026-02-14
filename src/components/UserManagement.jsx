@@ -665,6 +665,20 @@ function UserManagement() {
                                 )}
                               </div>
                             </div>
+                            {isAuthorityAdmin && member.id !== user.id && (
+                              <div className="mb-2">
+                                <select
+                                  value={member.authority_tier || ''}
+                                  onChange={(e) => handleChangeTier(member.id, e.target.value)}
+                                  className="text-xs px-2 py-1 border rounded-lg bg-gray-50 text-gray-600 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                                >
+                                  <option value="">No tier set</option>
+                                  <option value="guest">Guest</option>
+                                  <option value="teammate">Teammate</option>
+                                  <option value="top">Top</option>
+                                </select>
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-1.5">
                               {memberRoles.map(role => (
                                 <span
