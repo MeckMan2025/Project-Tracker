@@ -76,6 +76,7 @@ function SuggestionsView() {
       user_id: user.id,
       text: newSuggestion.trim(),
       status: 'pending',
+      created_at: new Date().toISOString(),
     }
 
     setSuggestions(prev => [suggestion, ...prev])
@@ -275,9 +276,9 @@ function SuggestionsView() {
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
+                      <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status || 'pending']}`}>
-                        {s.status || 'pending'}
+                        {(s.status || 'pending') === 'pending' ? 'Pending Review' : s.status === 'approved' ? 'Approved' : 'Dismissed'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
