@@ -24,5 +24,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Auto-refresh when a new deploy is detected
+      fetch('/?_t=' + Date.now(), { cache: 'no-store' })
+        .then(function(r) { return r.text() })
+        .then(function(html) {
+          var match = html.match(/index-([^.]+)\.js/)
+          if (match) {
+            var current = document.querySelector('script[src*="index-"]')
+            if (current && !current.src.includes(match[1])) {
+              location.reload()
+            }
+          }
+        })
+        .catch(function() {})
+    </script>
   </body>
 </html>
