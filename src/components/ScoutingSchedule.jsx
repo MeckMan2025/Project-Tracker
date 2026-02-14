@@ -49,24 +49,17 @@ export default function ScoutingSchedule() {
   // Keep ref in sync for realtime callbacks
   useEffect(() => { activePeriodRef.current = activePeriod }, [activePeriod])
 
-  // Helper: get auth headers for REST calls
-  const getHeaders = useCallback(async () => {
-    let token = supabaseKey
-    try {
-      const { data: s } = await supabase.auth.getSession()
-      if (s?.session?.access_token) token = s.session.access_token
-    } catch (e) { /* fall back to anon key */ }
-    return {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    }
-  }, [supabaseKey])
+  // REST headers using anon key (bypasses auth lock that hangs getSession)
+  const restHeaders = {
+    'apikey': supabaseKey,
+    'Authorization': `Bearer ${supabaseKey}`,
+    'Content-Type': 'application/json',
+  }
 
   // Load submissions for a period
   const loadSubmissions = useCallback(async (periodId) => {
     try {
-      const headers = await getHeaders()
+      const headers = restHeaders
       const res = await fetch(
         `${supabaseUrl}/rest/v1/scouting_records?scouting_period_id=eq.${periodId}&select=submitted_by`,
         { headers }
@@ -76,13 +69,13 @@ export default function ScoutingSchedule() {
         setPeriodSubmissions(rows.map(r => r.submitted_by))
       }
     } catch { /* ignore */ }
-  }, [supabaseUrl, getHeaders])
+  }, [supabaseUrl, supabaseKey])
 
   // Load schedule data via REST
   useEffect(() => {
     async function load() {
       try {
-        const headers = await getHeaders()
+        const headers = restHeaders
         const res = await fetch(
           `${supabaseUrl}/rest/v1/scouting_schedule?id=eq.main&select=*`,
           { headers }
@@ -104,13 +97,13 @@ export default function ScoutingSchedule() {
       }
     }
     load()
-  }, [supabaseUrl, getHeaders])
+  }, [supabaseUrl, supabaseKey])
 
   // Load active scouting period via REST
   useEffect(() => {
     async function loadPeriod() {
       try {
-        const headers = await getHeaders()
+        const headers = restHeaders
         const res = await fetch(
           `${supabaseUrl}/rest/v1/scouting_periods?is_active=eq.true&select=*&limit=1`,
           { headers }
@@ -124,7 +117,7 @@ export default function ScoutingSchedule() {
       } catch { /* ignore */ }
     }
     loadPeriod()
-  }, [supabaseUrl, getHeaders, loadSubmissions])
+  }, [supabaseUrl, supabaseKey, loadSubmissions])
 
   // Realtime subscriptions
   useEffect(() => {
@@ -162,7 +155,7 @@ export default function ScoutingSchedule() {
     saveTimer.current = setTimeout(async () => {
       const body = { id: 'main', data: newData, updated_by: username, updated_at: new Date().toISOString() }
       try {
-        const headers = await getHeaders()
+        const headers = restHeaders
         await fetch(`${supabaseUrl}/rest/v1/scouting_schedule`, {
           method: 'POST',
           headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
@@ -199,7 +192,7 @@ export default function ScoutingSchedule() {
       expected_scouts: expectedScouts,
     }
     try {
-      const headers = await getHeaders()
+      const headers = restHeaders
       const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods`, {
         method: 'POST',
         headers,
@@ -222,7 +215,7 @@ export default function ScoutingSchedule() {
   const stopPeriod = async () => {
     if (!activePeriod) return
     try {
-      const headers = await getHeaders()
+      const headers = restHeaders
       await fetch(`${supabaseUrl}/rest/v1/scouting_periods?id=eq.${activePeriod.id}`, {
         method: 'PATCH',
         headers,
