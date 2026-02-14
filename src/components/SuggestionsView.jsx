@@ -70,40 +70,53 @@ function SuggestionsView() {
     if (!newSuggestion.trim()) return
     setSubmitting(true)
 
-    const suggestion = {
-      id: String(Date.now()) + Math.random().toString(36).slice(2),
-      username,
-      user_id: user.id,
-      content: newSuggestion.trim(),
-      status: 'pending',
-      created_at: new Date().toISOString(),
+    try {
+      const suggestion = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        username,
+        content: newSuggestion.trim(),
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      }
+
+      // Try with user_id first, fall back without if column doesn't exist
+      let insertError
+      const withUserId = { ...suggestion, user_id: user.id }
+      const { error: err1 } = await supabase.from('suggestions').insert(withUserId)
+      if (err1 && err1.message.includes('user_id')) {
+        const { error: err2 } = await supabase.from('suggestions').insert(suggestion)
+        insertError = err2
+      } else {
+        insertError = err1
+        Object.assign(suggestion, { user_id: user.id })
+      }
+
+      if (insertError) {
+        console.error('Failed to save suggestion:', insertError.message)
+        setSubmitting(false)
+        return
+      }
+
+      setSuggestions(prev => [suggestion, ...prev])
+      setNewSuggestion('')
+
+      // Notify co-founders (fire-and-forget)
+      supabase.from('profiles').select('id').contains('function_tags', ['Co-Founder']).then(({ data: cofounders }) => {
+        if (cofounders && cofounders.length > 0) {
+          supabase.from('notifications').insert(
+            cofounders.map(cf => ({
+              user_id: cf.id,
+              title: 'New suggestion',
+              body: `${username}: ${suggestion.content.slice(0, 100)}${suggestion.content.length > 100 ? '...' : ''}`,
+            }))
+          ).catch(() => {})
+        }
+      }).catch(() => {})
+    } catch (err) {
+      console.error('Suggestion submit error:', err)
+    } finally {
+      setSubmitting(false)
     }
-
-    // Optimistic — update UI immediately
-    setSuggestions(prev => [suggestion, ...prev])
-    setNewSuggestion('')
-    setSubmitting(false)
-
-    // Persist + notify in background (don't block UI)
-    supabase.from('suggestions').insert(suggestion).then(({ error }) => {
-      if (error) {
-        console.error('Failed to save suggestion:', error.message)
-        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
-      }
-    })
-
-    // Notify co-founders (fire-and-forget)
-    supabase.from('profiles').select('id').contains('function_tags', ['Co-Founder']).then(({ data: cofounders }) => {
-      if (cofounders && cofounders.length > 0) {
-        supabase.from('notifications').insert(
-          cofounders.map(cf => ({
-            user_id: cf.id,
-            title: 'New suggestion',
-            body: `${username}: ${suggestion.content.slice(0, 100)}${suggestion.content.length > 100 ? '...' : ''}`,
-          }))
-        ).catch(() => {})
-      }
-    }).catch(() => {})
   }
 
   const handleApprove = async (s) => {
