@@ -31,11 +31,6 @@ const ROLE_DESCRIPTIONS = {
   'Guest': 'Limited access — can view boards, tasks, and calendar only',
 }
 
-const TIER_DESCRIPTIONS = {
-  'guest': 'Can view boards, tasks, and calendar. Cannot access scouting, chat, notebook, or data.',
-  'teammate': 'Full team member. Can access all features except admin tools like User Management and Requests.',
-  'top': 'Full access including content editing, user management, request review, and all admin tools.',
-}
 
 function UserManagement() {
   const { user } = useUser()
@@ -889,27 +884,12 @@ function UserManagement() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700">Roles & Tiers</h3>
+              <h3 className="font-semibold text-gray-700">Roles</h3>
               <button onClick={() => setShowRoleInfo(false)} className="p-1 rounded hover:bg-gray-100">
                 <X size={16} className="text-gray-400" />
               </button>
             </div>
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Authority Tiers</h4>
-              {Object.entries(TIER_DESCRIPTIONS).map(([tier, desc]) => (
-                <div key={tier} className="flex items-start gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${
-                    tier === 'top' ? 'bg-purple-100 text-purple-700' :
-                    tier === 'guest' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-pastel-blue/50 text-blue-700'
-                  }`}>{tier}</span>
-                  <p className="text-sm text-gray-600">{desc}</p>
-                </div>
-              ))}
-            </div>
-            <hr className="border-gray-200" />
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Function Roles</h4>
               {ALL_ROLES.map(role => (
                 <div key={role} className="flex items-start gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${getTagColor(role)}`}>{role}</span>
