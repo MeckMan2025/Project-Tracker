@@ -165,7 +165,7 @@ export default function ScoutingSchedule() {
         console.error('Failed to save schedule:', err)
       }
     }, 800)
-  }, [username, supabaseUrl, getHeaders])
+  }, [username, supabaseUrl, supabaseKey])
 
   const update = (updater) => {
     setData(prev => {
