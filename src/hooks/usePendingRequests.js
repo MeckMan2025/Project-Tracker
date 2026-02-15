@@ -55,6 +55,15 @@ export function usePendingRequests({ type, boardId } = {}) {
   }, [type, boardId])
 
   const handleApprove = useCallback(async (request) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const headers = {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    }
+
     try {
       if (request.type === 'task') {
         const d = request.data
@@ -69,7 +78,9 @@ export function usePendingRequests({ type, boardId } = {}) {
           skills: d.skills || [],
           created_at: new Date().toISOString().split('T')[0],
         }
-        await supabase.from('tasks').insert(task)
+        await fetch(`${supabaseUrl}/rest/v1/tasks`, {
+          method: 'POST', headers, body: JSON.stringify(task),
+        })
       } else if (request.type === 'calendar_event') {
         const d = request.data
         const event = {
@@ -79,31 +90,42 @@ export function usePendingRequests({ type, boardId } = {}) {
           description: d.description || '',
           added_by: request.requested_by,
         }
-        await supabase.from('calendar_events').insert(event)
+        await fetch(`${supabaseUrl}/rest/v1/calendar_events`, {
+          method: 'POST', headers, body: JSON.stringify(event),
+        })
       } else if (request.type === 'board') {
         const board = {
           id: String(Date.now()),
           name: request.data.name,
           permanent: false,
         }
-        await supabase.from('boards').insert(board)
+        await fetch(`${supabaseUrl}/rest/v1/boards`, {
+          method: 'POST', headers, body: JSON.stringify(board),
+        })
       }
 
-      await supabase.from('requests').update({
-        status: 'approved',
-        reviewed_by: username,
-        reviewed_at: new Date().toISOString(),
-      }).eq('id', request.id)
+      // Mark request as approved
+      await fetch(`${supabaseUrl}/rest/v1/requests?id=eq.${request.id}`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({
+          status: 'approved',
+          reviewed_by: username,
+          reviewed_at: new Date().toISOString(),
+        }),
+      })
 
       // Notify requester
       if (request.requested_by_user_id) {
-        await supabase.from('notifications').insert({
-          id: String(Date.now()) + Math.random().toString(36).slice(2),
-          user_id: request.requested_by_user_id,
-          type: 'request_approved',
-          title: 'Request Approved',
-          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
-        })
+        fetch(`${supabaseUrl}/rest/v1/notifications`, {
+          method: 'POST', headers,
+          body: JSON.stringify({
+            id: String(Date.now()) + Math.random().toString(36).slice(2),
+            user_id: request.requested_by_user_id,
+            type: 'request_approved',
+            title: 'Request Approved',
+            body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
+          }),
+        }).catch(err => console.error('Failed to notify:', err))
       }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))
@@ -113,23 +135,38 @@ export function usePendingRequests({ type, boardId } = {}) {
   }, [username])
 
   const handleDeny = useCallback(async (request, reason = '') => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const headers = {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    }
+
     try {
-      await supabase.from('requests').update({
-        status: 'denied',
-        reviewed_by: username,
-        reviewed_at: new Date().toISOString(),
-        decision_reason: reason,
-      }).eq('id', request.id)
+      await fetch(`${supabaseUrl}/rest/v1/requests?id=eq.${request.id}`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({
+          status: 'denied',
+          reviewed_by: username,
+          reviewed_at: new Date().toISOString(),
+          decision_reason: reason,
+        }),
+      })
 
       // Notify requester
       if (request.requested_by_user_id) {
-        await supabase.from('notifications').insert({
-          id: String(Date.now()) + Math.random().toString(36).slice(2),
-          user_id: request.requested_by_user_id,
-          type: 'request_denied',
-          title: 'Request Denied',
-          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
-        })
+        fetch(`${supabaseUrl}/rest/v1/notifications`, {
+          method: 'POST', headers,
+          body: JSON.stringify({
+            id: String(Date.now()) + Math.random().toString(36).slice(2),
+            user_id: request.requested_by_user_id,
+            type: 'request_denied',
+            title: 'Request Denied',
+            body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
+          }),
+        }).catch(err => console.error('Failed to notify:', err))
       }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))
