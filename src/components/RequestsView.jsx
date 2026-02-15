@@ -15,6 +15,12 @@ function RequestsView() {
   const [history, setHistory] = useState([])
   const [remindingId, setRemindingId] = useState(null)
 
+  const sectionColors = [
+    { border: 'border-pastel-blue', text: 'text-pastel-blue-dark' },
+    { border: 'border-pastel-pink', text: 'text-pastel-pink-dark' },
+    { border: 'border-pastel-orange', text: 'text-pastel-orange-dark' },
+  ]
+
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -100,12 +106,11 @@ function RequestsView() {
                 </div>
               ) : (
                 (() => {
-                  // Group requests by category
                   const groups = {}
                   requests.forEach(r => {
                     let label
                     if (r.type === 'task') {
-                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) + ' Tasks' : 'Tasks'
+                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) : 'Tasks'
                     } else if (r.type === 'board') {
                       label = 'Boards'
                     } else {
@@ -114,13 +119,13 @@ function RequestsView() {
                     if (!groups[label]) groups[label] = []
                     groups[label].push(r)
                   })
-                  return Object.entries(groups).map(([label, items]) => (
+                  return Object.entries(groups).map(([label, items], idx) => {
+                    const color = sectionColors[idx % sectionColors.length]
+                    return (
                     <div key={label} className="space-y-2">
-                      <div className="flex items-center gap-2 pt-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</h3>
-                        <span className="text-xs text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
-                        <div className="flex-1 border-b border-gray-100" />
-                      </div>
+                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                        {label}
+                      </h2>
                       {items.map((r) => (
                         <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                           <div className="flex items-start justify-between gap-3">
@@ -173,7 +178,7 @@ function RequestsView() {
                         </div>
                       ))}
                     </div>
-                  ))
+                  )})
                 })()
               )}
             </>
@@ -190,7 +195,7 @@ function RequestsView() {
                   history.forEach(r => {
                     let label
                     if (r.type === 'task') {
-                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) + ' Tasks' : 'Tasks'
+                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) : 'Tasks'
                     } else if (r.type === 'board') {
                       label = 'Boards'
                     } else {
@@ -199,13 +204,13 @@ function RequestsView() {
                     if (!groups[label]) groups[label] = []
                     groups[label].push(r)
                   })
-                  return Object.entries(groups).map(([label, items]) => (
+                  return Object.entries(groups).map(([label, items], idx) => {
+                    const color = sectionColors[idx % sectionColors.length]
+                    return (
                     <div key={label} className="space-y-2">
-                      <div className="flex items-center gap-2 pt-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</h3>
-                        <span className="text-xs text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
-                        <div className="flex-1 border-b border-gray-100" />
-                      </div>
+                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                        {label}
+                      </h2>
                       {items.map((r) => (
                         <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                           <div className="flex items-start justify-between gap-3">
@@ -237,7 +242,7 @@ function RequestsView() {
                         </div>
                       ))}
                     </div>
-                  ))
+                  )})
                 })()
               )}
             </>
