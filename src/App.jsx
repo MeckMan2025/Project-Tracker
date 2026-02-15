@@ -478,16 +478,24 @@ function App() {
     }))
     setIsModalOpen(false)
 
-    // Persist to Supabase — use .select() to verify it actually saved
-    const { data: insertedRows, error } = await supabase.from('tasks').insert(task).select()
-    if (error || !insertedRows || insertedRows.length === 0) {
-      console.error('Failed to save task:', error?.message || 'Insert returned no rows')
+    // Persist to Supabase (don't chain .select() — it can cause RLS transaction rollback on insert)
+    const { error } = await supabase.from('tasks').insert(task)
+    if (error) {
+      console.error('Failed to save task:', error.message)
       // Rollback on failure
       setTasksByTab(prev => ({
         ...prev,
         [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
       }))
-      addToast('Failed to save task. Please try again.', 'error')
+      addToast('Failed to save task: ' + error.message, 'error')
+      return
+    }
+
+    // Verify it actually persisted by reading it back
+    const { data: verify } = await supabase.from('tasks').select('id').eq('id', task.id)
+    if (!verify || verify.length === 0) {
+      console.error('Task insert succeeded but row not found — RLS may be blocking reads')
+      addToast('Task may not have saved — check permissions.', 'error')
     }
   }
 
