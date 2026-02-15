@@ -537,30 +537,29 @@ function App() {
     }
   }
 
-  const handleDeleteTask = async (taskId) => {
+  const handleDeleteTask = (taskId) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return
-    try {
-      const { data: deletedRows, error } = await supabase.from('tasks').delete().eq('id', taskId).select()
-      if (error) {
-        alert('DELETE ERROR: ' + error.message)
-        return
+
+    // Optimistic UI update — remove immediately
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
       }
-      if (!deletedRows || deletedRows.length === 0) {
-        alert('DELETE BLOCKED: RLS policy prevented deletion. No rows removed for id: ' + taskId)
-        return
-      }
-      // Supabase confirmed — remove from UI + sync cache
-      setTasksByTab(prev => {
-        const updated = {
-          ...prev,
-          [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
-        }
-        syncCache(updated)
-        return updated
-      })
-    } catch (err) {
-      alert('DELETE EXCEPTION: ' + (err.message || String(err)))
-    }
+      syncCache(updated)
+      return updated
+    })
+
+    // Delete from Supabase via direct fetch (same pattern as CalendarView)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    fetch(`${supabaseUrl}/rest/v1/tasks?id=eq.${taskId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    }).catch(err => console.error('Failed to delete task:', err))
   }
 
   const handleExport = () => {
