@@ -19,7 +19,7 @@ function getSenderColor(sender) {
 }
 
 function QuickChat() {
-  const { username, chatName } = useUser()
+  const { username, chatName, nickname } = useUser()
   const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
@@ -34,11 +34,9 @@ function QuickChat() {
   const markMessagesAsSeen = (msgs) => {
     if (!username) return
     const unseen = msgs.filter(
-      (m) => m.sender !== username && !m.seen_by?.includes(username)
+      (m) => m.sender !== username && m.sender !== chatName && !(nickname && m.sender === nickname) && !m.seen_by?.includes(username)
     )
     if (unseen.length === 0) return
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     unseen.forEach((m) => {
       fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${m.id}`, {
         method: 'PATCH',
@@ -245,7 +243,7 @@ function QuickChat() {
                 </span>
               </div>
               {msgs.map((msg) => {
-                const isOwn = msg.sender === username
+                const isOwn = msg.sender === username || msg.sender === chatName || (nickname && msg.sender === nickname)
                 const senderColor = !isOwn ? getSenderColor(msg.sender) : null
                 return (
                   <div
