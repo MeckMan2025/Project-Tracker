@@ -159,24 +159,7 @@ export default function EngineeringNotebook() {
     localStorage.setItem('notebook-entry-draft', JSON.stringify(formData))
   }, [formData])
 
-  // Check if editing existing entry for today
-  useEffect(() => {
-    const existing = entries.find(e => e.username === username && e.meeting_date === meetingDate)
-    if (existing && !editingEntryId) {
-      setEditingEntryId(existing.id)
-      setFormData({
-        category: existing.category || 'Technical',
-        customCategory: existing.custom_category || '',
-        whatDid: existing.what_did || '',
-        whyOption: existing.why_option || '',
-        whyNote: existing.why_note || '',
-        engagement: existing.engagement || 'Somewhat',
-        projectId: existing.project_id || '',
-        projectLink: existing.project_link || '',
-        photoUrl: existing.photo_url || '',
-      })
-    }
-  }, [entries, username, meetingDate])
+  // No longer auto-edit existing entries — always allow adding new ones
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
 
