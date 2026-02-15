@@ -381,7 +381,14 @@ export default function EngineeringNotebook() {
               return (
                 <button
                   key={v.id}
-                  onClick={() => setView(v.id)}
+                  onClick={() => {
+                    if (v.id === 'entry') {
+                      setFormData({ ...INITIAL_ENTRY })
+                      setEditingEntryId(null)
+                      localStorage.removeItem('notebook-entry-draft')
+                    }
+                    setView(v.id)
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     view === v.id ? 'bg-pastel-pink text-gray-800' : 'text-gray-500 hover:bg-pastel-blue/30'
                   }`}
@@ -436,7 +443,7 @@ export default function EngineeringNotebook() {
                   {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
                 <button
-                  onClick={() => setView('entry')}
+                  onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); localStorage.removeItem('notebook-entry-draft'); setView('entry') }}
                   className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
                 >
                   <Plus size={14} />
