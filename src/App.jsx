@@ -197,23 +197,11 @@ function App() {
     setLoadError(null)
 
     try {
-      let [boardsResult, tasksResult] = await Promise.all([
+      // Load boards and tasks in parallel for speed
+      const [boardsResult, tasksResult] = await Promise.all([
         supabase.from('boards').select('*').order('created_at'),
         supabase.from('tasks').select('*'),
       ])
-
-      // Supabase sometimes aborts internally — auto-retry once
-      if (boardsResult.error || tasksResult.error) {
-        const isAbort = [boardsResult.error, tasksResult.error].some(
-          e => e && (e.name === 'AbortError' || e.message?.includes('abort'))
-        )
-        if (isAbort) {
-          ;[boardsResult, tasksResult] = await Promise.all([
-            supabase.from('boards').select('*').order('created_at'),
-            supabase.from('tasks').select('*'),
-          ])
-        }
-      }
 
       if (boardsResult.error) {
         console.error('Failed to load boards:', boardsResult.error.message)
@@ -260,6 +248,11 @@ function App() {
         grouped[t.board_id].push(mapTask(t))
       })
       setTasksByTab(grouped)
+
+      // Cache for instant load next time
+      try {
+        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
+      } catch (e) { /* ignore quota errors */ }
     } catch (err) {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
@@ -269,16 +262,6 @@ function App() {
   useEffect(() => {
     loadData()
   }, [loadData])
-
-  // Sync localStorage cache whenever tasksByTab changes so refresh always has latest data
-  useEffect(() => {
-    try {
-      const boardTabs = tabs.filter(t => !t.type)
-      if (boardTabs.length > 0 && Object.keys(tasksByTab).length > 0) {
-        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab }))
-      }
-    } catch (e) { /* ignore quota errors */ }
-  }, [tasksByTab, tabs])
 
   // Real-time: listen for board changes (use payload, no re-query)
   useEffect(() => {
@@ -423,35 +406,20 @@ function App() {
     const { source, destination, draggableId } = result
     if (source.droppableId === destination.droppableId) return
 
-    const oldStatus = source.droppableId
-    const newStatus = destination.droppableId
+    // Update locally
+    setTasksByTab(prev => ({
+      ...prev,
+      [activeTab]: (prev[activeTab] || []).map(task =>
+        task.id === draggableId
+          ? { ...task, status: destination.droppableId }
+          : task
+      ),
+    }))
 
-    // Update locally (optimistic) — cache auto-syncs via useEffect
-    setTasksByTab(prev => {
-      return {
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).map(task =>
-          task.id === draggableId
-            ? { ...task, status: newStatus }
-            : task
-        ),
-      }
-    })
-
-    // Persist to Supabase — use .select() to verify RLS didn't silently block
-    const { data: updatedRows, error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId).select()
-    if (error || !updatedRows || updatedRows.length === 0) {
-      console.error('Failed to update task status:', error?.message || 'RLS blocked update')
-      addToast('Failed to move task. Reverting.', 'error')
-      // Rollback
-      setTasksByTab(prev => ({
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).map(task =>
-          task.id === draggableId
-            ? { ...task, status: oldStatus }
-            : task
-        ),
-      }))
+    // Update in Supabase
+    const { error } = await supabase.from('tasks').update({ status: destination.droppableId }).eq('id', draggableId)
+    if (error) {
+      console.error('Failed to update task status:', error.message)
     }
   }
 
@@ -489,7 +457,7 @@ function App() {
         ...prev,
         [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
       }))
-      addToast('Failed to save task: ' + error.message, 'error')
+      addToast('Failed to save task. Please try again.', 'error')
     }
   }
 
@@ -529,17 +497,16 @@ function App() {
     }))
     setEditingTask(null)
 
-    const { data: updatedRows, error } = await supabase.from('tasks').update({
+    const { error } = await supabase.from('tasks').update({
       title: updatedTask.title,
       description: updatedTask.description || '',
       assignee: updatedTask.assignee || '',
       due_date: updatedTask.dueDate || '',
       status: updatedTask.status || 'todo',
       skills: updatedTask.skills || [],
-    }).eq('id', updatedTask.id).select()
-    if (error || !updatedRows || updatedRows.length === 0) {
-      console.error('Failed to update task:', error?.message || 'RLS blocked update')
-      addToast('Failed to save task changes.', 'error')
+    }).eq('id', updatedTask.id)
+    if (error) {
+      console.error('Failed to update task:', error.message)
     }
   }
 
@@ -665,7 +632,7 @@ function App() {
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
           <span>{loadError}</span>
           <button
-            onClick={() => loadData()}
+            onClick={loadData}
             className="px-3 py-1 bg-red-200 hover:bg-red-300 rounded-lg text-red-800 font-semibold transition-colors"
           >
             Retry
