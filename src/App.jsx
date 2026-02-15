@@ -191,6 +191,16 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
 
+  // Keep localStorage cache in sync so refresh always has latest data
+  const syncCache = useCallback((updatedTasks) => {
+    try {
+      const boardTabs = tabs.filter(t => !t.type)
+      if (boardTabs.length > 0) {
+        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: updatedTasks }))
+      }
+    } catch (e) { /* ignore quota errors */ }
+  }, [tabs])
+
   // Load boards and tasks from Supabase once user is authenticated
   const loadData = useCallback(async () => {
     if (!user) return
@@ -406,20 +416,25 @@ function App() {
     const { source, destination, draggableId } = result
     if (source.droppableId === destination.droppableId) return
 
-    // Update locally
-    setTasksByTab(prev => ({
-      ...prev,
-      [activeTab]: (prev[activeTab] || []).map(task =>
-        task.id === draggableId
-          ? { ...task, status: destination.droppableId }
-          : task
-      ),
-    }))
+    // Update locally + sync cache
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(task =>
+          task.id === draggableId
+            ? { ...task, status: destination.droppableId }
+            : task
+        ),
+      }
+      syncCache(updated)
+      return updated
+    })
 
     // Update in Supabase
     const { error } = await supabase.from('tasks').update({ status: destination.droppableId }).eq('id', draggableId)
     if (error) {
       console.error('Failed to update task status:', error.message)
+      addToast('Failed to move task.', 'error')
     }
   }
 
@@ -440,12 +455,16 @@ function App() {
       created_at: new Date().toISOString().split('T')[0],
     }
 
-    // Add to local state immediately (optimistic) — realtime handler will dedup
+    // Add to local state immediately (optimistic) + sync cache
     const localTask = mapTask(task)
-    setTasksByTab(prev => ({
-      ...prev,
-      [activeTab]: [...(prev[activeTab] || []), localTask],
-    }))
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: [...(prev[activeTab] || []), localTask],
+      }
+      syncCache(updated)
+      return updated
+    })
     setIsModalOpen(false)
 
     // Persist to Supabase
@@ -453,10 +472,14 @@ function App() {
     if (error) {
       console.error('Failed to save task:', error.message)
       // Rollback on failure
-      setTasksByTab(prev => ({
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
-      }))
+      setTasksByTab(prev => {
+        const updated = {
+          ...prev,
+          [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
+        }
+        syncCache(updated)
+        return updated
+      })
       addToast('Failed to save task. Please try again.', 'error')
     }
   }
@@ -488,13 +511,17 @@ function App() {
   }
 
   const handleEditTask = async (updatedTask) => {
-    // Update UI immediately — realtime handler will overwrite with same data
-    setTasksByTab(prev => ({
-      ...prev,
-      [activeTab]: (prev[activeTab] || []).map(task =>
-        task.id === updatedTask.id ? updatedTask : task
-      ),
-    }))
+    // Update UI immediately + sync cache
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(task =>
+          task.id === updatedTask.id ? updatedTask : task
+        ),
+      }
+      syncCache(updated)
+      return updated
+    })
     setEditingTask(null)
 
     const { error } = await supabase.from('tasks').update({
@@ -528,11 +555,15 @@ function App() {
     }
     console.log('[DELETE TASK] Task deleted successfully:', taskId)
 
-    // Supabase confirmed — now remove from UI
-    setTasksByTab(prev => ({
-      ...prev,
-      [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
-    }))
+    // Supabase confirmed — now remove from UI + sync cache
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
+      }
+      syncCache(updated)
+      return updated
+    })
   }
 
   const handleExport = () => {
