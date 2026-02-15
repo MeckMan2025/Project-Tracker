@@ -47,13 +47,17 @@ function QuickChat() {
     )
   }
 
-  // Load messages on mount with retry for sleeping DB
+  // Load messages on mount with retry for sleeping DB — only last 24 hours
   useEffect(() => {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
     async function loadMessages() {
       for (let i = 0; i < 3; i++) {
         try {
           const { data } = await Promise.race([
-            supabase.from('messages').select('id, sender, content, created_at, seen_by').order('created_at', { ascending: false }).limit(100),
+            supabase.from('messages').select('id, sender, content, created_at, seen_by')
+              .gte('created_at', cutoff)
+              .order('created_at', { ascending: false }).limit(100),
             new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
           ])
           if (data) {
@@ -67,7 +71,22 @@ function QuickChat() {
         }
       }
     }
+
+    // Clean up messages older than 24 hours from the DB
+    async function cleanupOldMessages() {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      fetch(`${supabaseUrl}/rest/v1/messages?created_at=lt.${cutoff}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      }).catch(err => console.error('Failed to clean up old messages:', err))
+    }
+
     loadMessages()
+    cleanupOldMessages()
   }, [username])
 
   // Real-time subscription
@@ -75,6 +94,8 @@ function QuickChat() {
     const channel = supabase
       .channel('messages-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const age = Date.now() - new Date(payload.new.created_at).getTime()
+        if (age > 24 * 60 * 60 * 1000) return // ignore messages older than 24h
         setMessages(prev => {
           if (prev.some(m => m.id === payload.new.id)) return prev
           return [...prev, payload.new]
