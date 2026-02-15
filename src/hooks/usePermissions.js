@@ -56,8 +56,8 @@ export function usePermissions() {
     canOverrideAttendance: isTop,
     canChangeAuthorityTier: isTop,
 
-    // Co-Founders only
-    canReviewSuggestions: isCofounder,
+    // Co-Founders & Top
+    canReviewSuggestions: isTop || isCofounder,
 
     // Nobody
     canEditScouting: false,

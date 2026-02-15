@@ -18,40 +18,26 @@ function SuggestionsView() {
   const [submitError, setSubmitError] = useState('')
 
   const isReviewer = canReviewSuggestions
-
-  // Load suggestions
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
+  // Load suggestions via direct fetch
   useEffect(() => {
     async function load() {
       try {
-        let token = supabaseKey
-        try {
-          const { data } = await supabase.auth.getSession()
-          if (data?.session?.access_token) token = data.session.access_token
-        } catch (e) { /* fall back to anon key */ }
-
         let url = `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc`
-        if (!isReviewer && user) {
-          url += `&user_id=eq.${user.id}`
+        if (!isReviewer && username) {
+          url += `&username=eq.${encodeURIComponent(username)}`
         }
-        const res = await fetch(url, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setSuggestions(data)
-        }
+        const res = await fetch(url, { headers })
+        if (res.ok) setSuggestions(await res.json())
       } catch (err) {
         console.error('Failed to load suggestions:', err)
       }
     }
-    if (user) load()
-  }, [user, isReviewer])
+    if (username) load()
+  }, [username, isReviewer])
 
   // Real-time subscription
   useEffect(() => {
@@ -60,7 +46,7 @@ function SuggestionsView() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, (payload) => {
         setSuggestions(prev => {
           if (prev.some(s => s.id === payload.new.id)) return prev
-          if (isReviewer || payload.new.user_id === user?.id) {
+          if (isReviewer || payload.new.username === username) {
             return [payload.new, ...prev]
           }
           return prev
@@ -75,7 +61,7 @@ function SuggestionsView() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [isReviewer, user])
+  }, [isReviewer, username])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -84,88 +70,41 @@ function SuggestionsView() {
 
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
-      author: username,
-      user_id: user.id,
-      text: newSuggestion.trim(),
-      status: 'pending',
+      username,
+      content: newSuggestion.trim(),
       created_at: new Date().toISOString(),
     }
 
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
-    // Direct REST insert (bypasses Supabase client auth lock)
     fetch(`${supabaseUrl}/rest/v1/suggestions`, {
       method: 'POST',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
+      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(suggestion),
-    }).then(async (res) => {
+    }).then(res => {
       if (!res.ok) {
-        const errText = await res.text()
-        setSubmitError('Failed to save: ' + errText)
+        res.text().then(t => setSubmitError('Failed to save: ' + t))
         setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
       }
-    }).catch((err) => {
+    }).catch(err => {
       setSubmitError('Failed to save: ' + err.message)
       setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
     })
   }
 
-  const handleApprove = async (s) => {
-    setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'approved' } : x))
-    const { error } = await supabase.from('suggestions').update({ status: 'approved' }).eq('id', s.id)
-    if (error) {
-      console.error('Failed to approve suggestion:', error.message)
-      setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: s.status } : x))
-      return
-    }
-    if (s.user_id) {
-      supabase.from('notifications').insert({
-        user_id: s.user_id,
-        title: 'Suggestion approved!',
-        body: `Your suggestion was approved: "${s.text.slice(0, 80)}${s.text.length > 80 ? '...' : ''}"`,
-      }).catch(() => {})
-    }
-  }
-
-  const handleDismiss = async (s) => {
-    setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: 'dismissed' } : x))
-    const { error } = await supabase.from('suggestions').update({ status: 'dismissed' }).eq('id', s.id)
-    if (error) {
-      console.error('Failed to dismiss suggestion:', error.message)
-      setSuggestions(prev => prev.map(x => x.id === s.id ? { ...x, status: s.status } : x))
-      return
-    }
-    if (s.user_id) {
-      supabase.from('notifications').insert({
-        user_id: s.user_id,
-        title: 'Suggestion reviewed',
-        body: `Your suggestion was dismissed: "${s.text.slice(0, 80)}${s.text.length > 80 ? '...' : ''}"`,
-      }).catch(() => {})
-    }
-  }
-
-  const handleDelete = async (id) => {
-    const { error } = await supabase.from('suggestions').delete().eq('id', id)
-    if (error) {
-      console.error('Failed to delete suggestion:', error.message)
-      return
-    }
+  const handleDelete = (id) => {
     setSuggestions(prev => prev.filter(s => s.id !== id))
+    fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
+      method: 'DELETE',
+      headers,
+    }).catch(err => console.error('Failed to delete suggestion:', err))
   }
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp)
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
-
-  const pending = suggestions.filter(s => s.status === 'pending' || !s.status)
-  const reviewed = suggestions.filter(s => s.status === 'approved' || s.status === 'dismissed')
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -187,76 +126,30 @@ function SuggestionsView() {
       {isReviewer ? (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
-            {pending.length > 0 && (
+            {suggestions.length > 0 ? (
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
-                  <Clock size={14} />
-                  Pending ({pending.length})
-                </h2>
-                {pending.map((s) => (
-                  <div key={s.id} className="bg-white rounded-xl shadow-sm border border-yellow-200 p-4">
+                {suggestions.map((s) => (
+                  <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
+                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.username}</span>
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleApprove(s)}
-                          className="p-2 rounded-lg hover:bg-green-50 transition-colors"
-                          title="Approve"
-                        >
-                          <Check size={16} className="text-green-500" />
-                        </button>
-                        <button
-                          onClick={() => handleDismiss(s)}
-                          className="p-2 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Dismiss"
-                        >
-                          <Trash2 size={16} className="text-red-400" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {reviewed.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                  Reviewed ({reviewed.length})
-                </h2>
-                {reviewed.map((s) => (
-                  <div key={s.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 p-4 opacity-75">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status]}`}>
-                            {s.status}
-                          </span>
-                          <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
-                        </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.content}</p>
                       </div>
                       <button
                         onClick={() => handleDelete(s.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-opacity shrink-0"
-                        title="Delete permanently"
+                        className="p-2 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+                        title="Delete"
                       >
-                        <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                        <Trash2 size={16} className="text-gray-400 hover:text-red-400" />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-
-            {suggestions.length === 0 && (
+            ) : (
               <p className="text-center text-gray-400 mt-20">No suggestions yet.</p>
             )}
           </div>
@@ -291,13 +184,8 @@ function SuggestionsView() {
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Suggestions</h3>
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status || 'pending']}`}>
-                        {(s.status || 'pending') === 'pending' ? 'Pending Review' : s.status === 'approved' ? 'Approved' : 'Dismissed'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
+                    <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mt-1">{s.content}</p>
                   </div>
                 ))}
               </div>
