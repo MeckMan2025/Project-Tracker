@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, X, Clock, Bell, History } from 'lucide-react'
+import { Check, X, Clock, Bell, History, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -54,6 +54,18 @@ function RequestsView({ tabs = [] }) {
       addToast('Reminder sent to approvers', 'success')
     } else {
       addToast(result.error || 'Failed to send reminder', 'error')
+    }
+  }
+
+  const handleDeleteHistory = async (id) => {
+    setHistory(prev => prev.filter(r => r.id !== id))
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/requests?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      })
+    } catch (err) {
+      console.error('Failed to delete request:', err)
     }
   }
 
@@ -187,35 +199,32 @@ function RequestsView({ tabs = [] }) {
               })
             })()
           ) : (
-            <>
-              {history.length === 0 ? (
-                <div className="text-center mt-20">
-                  <History size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-400">No request history</p>
-                </div>
-              ) : (
-                (() => {
-                  const groups = {}
-                  history.forEach(r => {
-                    let label
-                    if (r.type === 'task') {
-                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) : 'Tasks'
-                    } else if (r.type === 'board') {
-                      label = 'Boards'
-                    } else {
-                      label = 'Calendar Events'
-                    }
-                    if (!groups[label]) groups[label] = []
-                    groups[label].push(r)
-                  })
-                  return Object.entries(groups).map(([label, items], idx) => {
-                    const color = sectionColors[idx % sectionColors.length]
-                    return (
-                    <div key={label} className="space-y-2">
-                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                        {label}
-                      </h2>
-                      {items.map((r) => (
+            (() => {
+              const sections = [
+                { key: 'tasks', label: 'Tasks' },
+                { key: 'boards', label: 'Boards' },
+                { key: 'calendar', label: 'Calendar' },
+              ]
+
+              const groups = { tasks: [], boards: [], calendar: [] }
+              history.forEach(r => {
+                if (r.type === 'task') groups.tasks.push(r)
+                else if (r.type === 'board') groups.boards.push(r)
+                else groups.calendar.push(r)
+              })
+
+              return sections.map((section, idx) => {
+                const items = groups[section.key] || []
+                const color = sectionColors[idx % sectionColors.length]
+                return (
+                  <div key={section.key} className="space-y-2">
+                    <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                      {section.label}
+                    </h2>
+                    {items.length === 0 ? (
+                      <p className="text-sm text-gray-400 pb-2">No history</p>
+                    ) : (
+                      items.map((r) => (
                         <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
@@ -227,13 +236,11 @@ function RequestsView({ tabs = [] }) {
                                 }`}>
                                   {r.status === 'approved' ? 'Approved' : 'Denied'}
                                 </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                  r.type === 'task' ? 'bg-pastel-blue/30 text-pastel-blue-dark'
-                                  : r.type === 'board' ? 'bg-pastel-pink/30 text-pastel-pink-dark'
-                                  : 'bg-pastel-orange/30 text-pastel-orange-dark'
-                                }`}>
-                                  {r.type === 'board' ? 'New Board' : r.type === 'calendar_event' ? 'Calendar Event' : 'Task'}
-                                </span>
+                                {r.board_id && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-blue/30 text-pastel-blue-dark">
+                                    {r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1)}
+                                  </span>
+                                )}
                                 <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
                               </div>
                               <p className="text-sm font-semibold text-gray-700">
@@ -249,14 +256,23 @@ function RequestsView({ tabs = [] }) {
                                 </p>
                               )}
                             </div>
+                            {isTop && (
+                              <button
+                                onClick={() => handleDeleteHistory(r.id)}
+                                className="p-2 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} className="text-gray-400 hover:text-red-400" />
+                              </button>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )})
-                })()
-              )}
-            </>
+                      ))
+                    )}
+                  </div>
+                )
+              })
+            })()
           )}
         </div>
       </main>
