@@ -19,7 +19,7 @@ function getSenderColor(sender) {
 }
 
 function QuickChat() {
-  const { username, chatName, nickname } = useUser()
+  const { username, chatName, nickname, user } = useUser()
   const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
@@ -34,7 +34,10 @@ function QuickChat() {
   const markMessagesAsSeen = (msgs) => {
     if (!username) return
     const unseen = msgs.filter(
-      (m) => m.sender !== username && m.sender !== chatName && !(nickname && m.sender === nickname) && !m.seen_by?.includes(username)
+      (m) => {
+        const isMine = (user && m.id.startsWith(user.id + ':')) || m.sender === username || m.sender === chatName || (nickname && m.sender === nickname)
+        return !isMine && !m.seen_by?.includes(username)
+      }
     )
     if (unseen.length === 0) return
     unseen.forEach((m) => {
@@ -131,7 +134,7 @@ function QuickChat() {
     if (!newMessage.trim()) return
 
     const message = {
-      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      id: (user?.id || 'anon') + ':' + Date.now() + Math.random().toString(36).slice(2),
       sender: chatName || username,
       content: newMessage.trim(),
       created_at: new Date().toISOString(),
@@ -243,7 +246,7 @@ function QuickChat() {
                 </span>
               </div>
               {msgs.map((msg) => {
-                const isOwn = msg.sender === username || msg.sender === chatName || (nickname && msg.sender === nickname)
+                const isOwn = (user && msg.id.startsWith(user.id + ':')) || msg.sender === username || msg.sender === chatName || (nickname && msg.sender === nickname)
                 const senderColor = !isOwn ? getSenderColor(msg.sender) : null
                 return (
                   <div
