@@ -6,7 +6,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { usePendingRequests } from '../hooks/usePendingRequests'
 import { useToast } from './ToastProvider'
 
-function RequestsView() {
+function RequestsView({ tabs = [] }) {
   const { username, user } = useUser()
   const { isTop } = usePermissions()
   const { requests, handleApprove, handleDeny, handleRemind } = usePendingRequests()
@@ -98,35 +98,42 @@ function RequestsView() {
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto space-y-3">
           {tab === 'pending' ? (
-            <>
-              {requests.length === 0 ? (
-                <div className="text-center mt-20">
-                  <Clock size={48} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-400">No pending requests</p>
-                </div>
-              ) : (
-                (() => {
-                  const groups = {}
-                  requests.forEach(r => {
-                    let label
-                    if (r.type === 'task') {
-                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) : 'Tasks'
-                    } else if (r.type === 'board') {
-                      label = 'Boards'
-                    } else {
-                      label = 'Calendar Events'
-                    }
-                    if (!groups[label]) groups[label] = []
-                    groups[label].push(r)
-                  })
-                  return Object.entries(groups).map(([label, items], idx) => {
-                    const color = sectionColors[idx % sectionColors.length]
-                    return (
-                    <div key={label} className="space-y-2">
-                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                        {label}
-                      </h2>
-                      {items.map((r) => (
+            (() => {
+              // Build section list from board tabs + Boards + Calendar Events
+              const boardTabs = tabs.filter(t => !t.type)
+              const sections = [
+                ...boardTabs.map(b => ({ key: b.id, label: b.name })),
+                { key: '_boards', label: 'Boards' },
+                { key: '_calendar', label: 'Calendar Events' },
+              ]
+
+              // Group requests into sections
+              const groups = {}
+              sections.forEach(s => { groups[s.key] = [] })
+              requests.forEach(r => {
+                if (r.type === 'task') {
+                  const key = r.board_id || 'business'
+                  if (!groups[key]) groups[key] = []
+                  groups[key].push(r)
+                } else if (r.type === 'board') {
+                  groups['_boards'].push(r)
+                } else {
+                  groups['_calendar'].push(r)
+                }
+              })
+
+              return sections.map((section, idx) => {
+                const items = groups[section.key] || []
+                const color = sectionColors[idx % sectionColors.length]
+                return (
+                  <div key={section.key} className="space-y-2">
+                    <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                      {section.label}
+                    </h2>
+                    {items.length === 0 ? (
+                      <p className="text-sm text-gray-400 pb-2">No pending requests</p>
+                    ) : (
+                      items.map((r) => (
                         <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
@@ -176,12 +183,12 @@ function RequestsView() {
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )})
-                })()
-              )}
-            </>
+                      ))
+                    )}
+                  </div>
+                )
+              })
+            })()
           ) : (
             <>
               {history.length === 0 ? (

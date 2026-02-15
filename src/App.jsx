@@ -740,7 +740,7 @@ function App() {
       ) : activeTab === 'user-management' ? (
         <UserManagement />
       ) : activeTab === 'requests' ? (
-        <RequestsView />
+        <RequestsView tabs={tabs} />
       ) : activeTab === 'profile' ? (
         <ProfileView />
       ) : activeTab === 'data' ? (
