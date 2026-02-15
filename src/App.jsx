@@ -181,8 +181,7 @@ function App() {
     const saved = localStorage.getItem('scrum-active-tab')
     return saved || 'home'
   })
-  // Don't initialize tasks from cache — always load fresh from Supabase to avoid stale data
-  const [tasksByTab, setTasksByTab] = useState({})
+  const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
@@ -261,11 +260,6 @@ function App() {
         grouped[t.board_id].push(mapTask(t))
       })
       setTasksByTab(grouped)
-
-      // Cache for instant load next time
-      try {
-        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
-      } catch (e) { /* ignore quota errors */ }
     } catch (err) {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
@@ -275,6 +269,16 @@ function App() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Sync localStorage cache whenever tasksByTab changes so refresh always has latest data
+  useEffect(() => {
+    try {
+      const boardTabs = tabs.filter(t => !t.type)
+      if (boardTabs.length > 0 && Object.keys(tasksByTab).length > 0) {
+        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab }))
+      }
+    } catch (e) { /* ignore quota errors */ }
+  }, [tasksByTab, tabs])
 
   // Real-time: listen for board changes (use payload, no re-query)
   useEffect(() => {
@@ -422,9 +426,9 @@ function App() {
     const oldStatus = source.droppableId
     const newStatus = destination.droppableId
 
-    // Update locally (optimistic)
+    // Update locally (optimistic) — cache auto-syncs via useEffect
     setTasksByTab(prev => {
-      const updated = {
+      return {
         ...prev,
         [activeTab]: (prev[activeTab] || []).map(task =>
           task.id === draggableId
@@ -432,12 +436,6 @@ function App() {
             : task
         ),
       }
-      // Sync cache so refresh doesn't revert
-      try {
-        const boardTabs = tabs.filter(t => !t.type)
-        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: updated }))
-      } catch (e) { /* ignore quota errors */ }
-      return updated
     })
 
     // Persist to Supabase — use .select() to verify RLS didn't silently block
@@ -482,7 +480,7 @@ function App() {
     }))
     setIsModalOpen(false)
 
-    // Persist to Supabase (don't chain .select() — it can cause RLS transaction rollback on insert)
+    // Persist to Supabase
     const { error } = await supabase.from('tasks').insert(task)
     if (error) {
       console.error('Failed to save task:', error.message)
@@ -492,14 +490,6 @@ function App() {
         [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
       }))
       addToast('Failed to save task: ' + error.message, 'error')
-      return
-    }
-
-    // Verify it actually persisted by reading it back
-    const { data: verify } = await supabase.from('tasks').select('id').eq('id', task.id)
-    if (!verify || verify.length === 0) {
-      console.error('Task insert succeeded but row not found — RLS may be blocking reads')
-      addToast('Task may not have saved — check permissions.', 'error')
     }
   }
 
