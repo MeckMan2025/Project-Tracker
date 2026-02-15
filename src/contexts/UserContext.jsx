@@ -24,6 +24,8 @@ export function UserProvider({ children }) {
     } catch (e) { return [] }
   })
   const [shortBio, setShortBio] = useState(() => localStorage.getItem('scrum-short-bio') || '')
+  const [nickname, setNickname] = useState(() => localStorage.getItem('scrum-nickname') || '')
+  const [useNickname, setUseNickname] = useState(() => localStorage.getItem('scrum-use-nickname') === 'true')
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
@@ -75,6 +77,10 @@ export function UserProvider({ children }) {
       setPrimaryRoleLabel(roleLabel)
       setFunctionTags(tags)
       setShortBio(bio)
+      const nick = profile.nickname || ''
+      const useNick = !!profile.use_nickname
+      setNickname(nick)
+      setUseNickname(useNick)
       localStorage.setItem('scrum-username', profile.display_name)
       localStorage.setItem('chat-username', profile.display_name)
       localStorage.setItem('scrum-role', profileRole)
@@ -84,6 +90,8 @@ export function UserProvider({ children }) {
       localStorage.setItem('scrum-primary-role-label', roleLabel)
       localStorage.setItem('scrum-function-tags', JSON.stringify(tags))
       localStorage.setItem('scrum-short-bio', bio)
+      localStorage.setItem('scrum-nickname', nick)
+      localStorage.setItem('scrum-use-nickname', String(useNick))
     }
   }
 
@@ -98,6 +106,8 @@ export function UserProvider({ children }) {
     setPrimaryRoleLabel('')
     setFunctionTags([])
     setShortBio('')
+    setNickname('')
+    setUseNickname(false)
     localStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
@@ -108,6 +118,8 @@ export function UserProvider({ children }) {
     localStorage.removeItem('scrum-primary-role-label')
     localStorage.removeItem('scrum-function-tags')
     localStorage.removeItem('scrum-short-bio')
+    localStorage.removeItem('scrum-nickname')
+    localStorage.removeItem('scrum-use-nickname')
   }
 
   const isSessionExpired = () => {
@@ -314,7 +326,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
     >
       {children}
     </UserContext.Provider>

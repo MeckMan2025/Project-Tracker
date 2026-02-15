@@ -60,8 +60,11 @@ const DEFAULT_PROFILE_DATA = {
 }
 
 function ProfileView() {
-  const { username, user, authorityTier, primaryRoleLabel, functionTags, shortBio } = useUser()
+  const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio } = useUser()
   const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
+  const [editName, setEditName] = useState('')
+  const [editNickname, setEditNickname] = useState('')
+  const [editUseNickname, setEditUseNickname] = useState(false)
   const [profile, setProfile] = useState(DEFAULT_PROFILE_DATA)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -84,6 +87,9 @@ function ProfileView() {
         .eq('id', user.id)
         .single()
       if (data && !error) {
+        setEditName(data.display_name || '')
+        setEditNickname(data.nickname || '')
+        setEditUseNickname(!!data.use_nickname)
         setProfile(prev => ({
           ...prev,
           discipline: data.discipline || '',
@@ -127,25 +133,43 @@ function ProfileView() {
   const handleSave = async () => {
     if (!user) return
     setSaving(true)
-    const { error } = await supabase.from('profiles').update({
-      discipline: profile.discipline,
-      timezone: profile.timezone,
-      status: profile.status,
-      sprint_capacity: profile.sprint_capacity,
-      systems_owned: profile.systems_owned,
-      review_responsibilities: profile.review_responsibilities,
-      skills: profile.skills,
-      tools: profile.tools,
-      safety_certs: profile.safety_certs,
-      permissions: profile.permissions,
-      comm_style: profile.comm_style,
-      comm_notes: profile.comm_notes,
-    }).eq('id', user.id)
-    setSaving(false)
-    if (!error) {
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          display_name: editName.trim() || username,
+          nickname: editNickname.trim(),
+          use_nickname: editUseNickname,
+          discipline: profile.discipline,
+          timezone: profile.timezone,
+          status: profile.status,
+          sprint_capacity: profile.sprint_capacity,
+          systems_owned: profile.systems_owned,
+          review_responsibilities: profile.review_responsibilities,
+          skills: profile.skills,
+          tools: profile.tools,
+          safety_certs: profile.safety_certs,
+          permissions: profile.permissions,
+          comm_style: profile.comm_style,
+          comm_notes: profile.comm_notes,
+        }),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      }
+    } catch (err) {
+      console.error('Failed to save profile:', err)
     }
+    setSaving(false)
   }
 
   const handleStatusChange = async (newStatus) => {
@@ -218,7 +242,52 @@ function ProfileView() {
                 <User size={32} className="text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-gray-800">{username || 'Unknown'}</h2>
+                <div className="space-y-2 mb-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-0.5">Display Name</label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full px-3 py-1.5 border rounded-lg text-sm font-bold text-gray-800 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-0.5">Nickname</label>
+                    <input
+                      type="text"
+                      value={editNickname}
+                      onChange={(e) => setEditNickname(e.target.value)}
+                      placeholder="Optional nickname"
+                      className="w-full px-3 py-1.5 border rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Show in chat as</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditUseNickname(false)}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          !editUseNickname ? 'bg-pastel-pink font-medium text-gray-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {editName || username || 'Name'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditUseNickname(true)}
+                        disabled={!editNickname.trim()}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-40 ${
+                          editUseNickname ? 'bg-pastel-pink font-medium text-gray-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {editNickname.trim() || 'Nickname'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <p className="text-sm text-gray-500">{user?.email}</p>
                 {primaryRoleLabel && (
                   <p className="text-sm text-gray-600 font-medium mt-0.5">{primaryRoleLabel}</p>

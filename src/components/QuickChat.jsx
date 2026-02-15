@@ -19,7 +19,7 @@ function getSenderColor(sender) {
 }
 
 function QuickChat() {
-  const { username } = useUser()
+  const { username, chatName } = useUser()
   const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
@@ -133,7 +133,7 @@ function QuickChat() {
 
     const message = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
-      sender: username,
+      sender: chatName || username,
       content: newMessage.trim(),
       created_at: new Date().toISOString(),
     }
@@ -224,7 +224,7 @@ function QuickChat() {
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Quick Chat
             </h1>
-            <p className="text-sm text-gray-500">Logged in as {username}</p>
+            <p className="text-sm text-gray-500">Chatting as {chatName || username}</p>
           </div>
           {/* Spacer to balance header */}
           <div className="w-10 shrink-0" />

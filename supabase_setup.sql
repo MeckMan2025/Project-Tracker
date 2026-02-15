@@ -122,6 +122,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS safety_certs jsonb DEFAULT '[]';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS permissions jsonb DEFAULT '[]';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS comm_style text DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS comm_notes text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nickname text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS use_nickname boolean DEFAULT false;
 
 -- After leads sign up, run this to grant lead role:
 -- UPDATE profiles SET role = 'lead' WHERE display_name IN ('Kayden', 'Yukti', 'Nick', 'Harshita', 'Lily');
