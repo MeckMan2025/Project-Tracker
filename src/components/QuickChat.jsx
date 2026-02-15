@@ -61,7 +61,7 @@ function QuickChat() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/messages?created_at=gte.${cutoff}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by`,
+        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by`,
         { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
       )
       if (!res.ok) return
@@ -86,15 +86,17 @@ function QuickChat() {
     }).catch(err => console.error('Failed to clean up old messages:', err))
   }, [username])
 
-  // Re-fetch messages when phone wakes up / tab becomes visible
+  // Re-fetch on tab wake + poll every 15s as safety net for dropped realtime
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchMessages()
-      }
+      if (document.visibilityState === 'visible') fetchMessages()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
+    const interval = setInterval(fetchMessages, 15000)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      clearInterval(interval)
+    }
   }, [username])
 
   // Real-time subscription
