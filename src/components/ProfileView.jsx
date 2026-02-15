@@ -77,16 +77,21 @@ function ProfileView() {
   const [taskStats, setTaskStats] = useState({ active: 0, blocked: 0, total: 0 })
   const [assignedTasks, setAssignedTasks] = useState([])
 
-  // Load profile data
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  // Load profile data via direct fetch
   useEffect(() => {
     async function load() {
       if (!user) return
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      if (data && !error) {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=*`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (!res.ok) return
+        const rows = await res.json()
+        const data = rows[0]
+        if (!data) return
         setEditName(data.display_name || '')
         setEditNickname(data.nickname || '')
         setEditUseNickname(!!data.use_nickname)
@@ -105,26 +110,31 @@ function ProfileView() {
           comm_style: data.comm_style || '',
           comm_notes: data.comm_notes || '',
         }))
+      } catch (err) {
+        console.error('Failed to load profile:', err)
       }
     }
     load()
   }, [user])
 
-  // Load task stats
+  // Load task stats via direct fetch
   useEffect(() => {
     async function loadTasks() {
       if (!username) return
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .ilike('assignee', username)
-      if (data) {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${encodeURIComponent(username)}&select=*`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
         setAssignedTasks(data)
         setTaskStats({
           active: data.filter(t => t.status !== 'done').length,
           blocked: data.filter(t => t.status === 'todo').length,
           total: data.length,
         })
+      } catch (err) {
+        console.error('Failed to load tasks:', err)
       }
     }
     loadTasks()
@@ -133,8 +143,6 @@ function ProfileView() {
   const handleSave = async () => {
     if (!user) return
     setSaving(true)
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     try {
       const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
         method: 'PATCH',
@@ -163,6 +171,12 @@ function ProfileView() {
         }),
       })
       if (res.ok) {
+        // Update localStorage so UserContext picks up changes on next load
+        const newName = editName.trim() || username
+        localStorage.setItem('scrum-username', newName)
+        localStorage.setItem('chat-username', newName)
+        localStorage.setItem('scrum-nickname', editNickname.trim())
+        localStorage.setItem('scrum-use-nickname', String(editUseNickname))
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       }
@@ -176,7 +190,16 @@ function ProfileView() {
     setProfile(prev => ({ ...prev, status: newStatus }))
     setStatusOpen(false)
     if (user) {
-      await supabase.from('profiles').update({ status: newStatus }).eq('id', user.id)
+      fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      }).catch(err => console.error('Failed to update status:', err))
     }
   }
 
