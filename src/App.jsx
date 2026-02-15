@@ -192,15 +192,21 @@ function App() {
   const audioRef = useRef(null)
 
   // Load boards and tasks from Supabase once user is authenticated
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (signal) => {
     if (!user) return
     setLoadError(null)
 
     try {
       // Load boards and tasks in parallel for speed
+      let boardsQuery = supabase.from('boards').select('*').order('created_at')
+      let tasksQuery = supabase.from('tasks').select('*')
+      if (signal instanceof AbortSignal) {
+        boardsQuery = boardsQuery.abortSignal(signal)
+        tasksQuery = tasksQuery.abortSignal(signal)
+      }
       const [boardsResult, tasksResult] = await Promise.all([
-        supabase.from('boards').select('*').order('created_at'),
-        supabase.from('tasks').select('*'),
+        boardsQuery,
+        tasksQuery,
       ])
 
       if (boardsResult.error) {
@@ -254,13 +260,16 @@ function App() {
         localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
       } catch (e) { /* ignore quota errors */ }
     } catch (err) {
+      if (err.name === 'AbortError') return // request was cancelled, ignore
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
     }
   }, [user])
 
   useEffect(() => {
-    loadData()
+    const controller = new AbortController()
+    loadData(controller.signal)
+    return () => controller.abort()
   }, [loadData])
 
   // Real-time: listen for board changes (use payload, no re-query)
@@ -406,20 +415,41 @@ function App() {
     const { source, destination, draggableId } = result
     if (source.droppableId === destination.droppableId) return
 
-    // Update locally
-    setTasksByTab(prev => ({
-      ...prev,
-      [activeTab]: (prev[activeTab] || []).map(task =>
-        task.id === draggableId
-          ? { ...task, status: destination.droppableId }
-          : task
-      ),
-    }))
+    const oldStatus = source.droppableId
+    const newStatus = destination.droppableId
 
-    // Update in Supabase
-    const { error } = await supabase.from('tasks').update({ status: destination.droppableId }).eq('id', draggableId)
+    // Update locally (optimistic)
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(task =>
+          task.id === draggableId
+            ? { ...task, status: newStatus }
+            : task
+        ),
+      }
+      // Sync cache so refresh doesn't revert
+      try {
+        const boardTabs = tabs.filter(t => !t.type)
+        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: updated }))
+      } catch (e) { /* ignore quota errors */ }
+      return updated
+    })
+
+    // Persist to Supabase
+    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId)
     if (error) {
       console.error('Failed to update task status:', error.message)
+      addToast('Failed to move task. Reverting.', 'error')
+      // Rollback
+      setTasksByTab(prev => ({
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(task =>
+          task.id === draggableId
+            ? { ...task, status: oldStatus }
+            : task
+        ),
+      }))
     }
   }
 
@@ -632,7 +662,7 @@ function App() {
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
           <span>{loadError}</span>
           <button
-            onClick={loadData}
+            onClick={() => loadData()}
             className="px-3 py-1 bg-red-200 hover:bg-red-300 rounded-lg text-red-800 font-semibold transition-colors"
           >
             Retry
