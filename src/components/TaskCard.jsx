@@ -14,6 +14,7 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit }) {
         {canEdit && (
           <div className="flex gap-1 ml-2">
             <button
+              onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onEdit() }}
               className="p-1 text-gray-400 hover:text-pastel-blue-dark rounded"
@@ -21,6 +22,7 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit }) {
               <Pencil size={14} />
             </button>
             <button
+              onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onDelete() }}
               className="p-1 text-gray-400 hover:text-red-400 rounded"

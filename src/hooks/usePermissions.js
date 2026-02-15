@@ -42,7 +42,7 @@ export function usePermissions() {
     canImport: !isGuest,
 
     // Top only
-    canEditContent: isTop,
+    canEditContent: isTop || isCofounder,
     canReviewRequests: isTop,
     canDeleteScouting: isTop,
     canReorderScoutingRanks: isTop,

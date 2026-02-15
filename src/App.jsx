@@ -538,32 +538,38 @@ function App() {
   }
 
   const handleDeleteTask = async (taskId) => {
-    // Delete from Supabase FIRST — use .select() to verify rows were actually deleted
-    // (RLS can silently block deletes without returning an error)
-    console.log('[DELETE TASK] Deleting task id:', taskId)
-    const { data: deletedRows, error } = await supabase.from('tasks').delete().eq('id', taskId).select()
-    console.log('[DELETE TASK] Response:', { deletedRows, error })
-    if (error) {
-      console.error('[DELETE TASK] Failed:', error)
-      addToast('Failed to delete task: ' + error.message, 'error')
-      return
-    }
-    if (!deletedRows || deletedRows.length === 0) {
-      console.error('[DELETE TASK] RLS blocked delete — no rows were removed for id:', taskId)
-      addToast('Delete was blocked by database permissions. Ask a lead to check RLS policies.', 'error')
-      return
-    }
-    console.log('[DELETE TASK] Task deleted successfully:', taskId)
-
-    // Supabase confirmed — now remove from UI + sync cache
-    setTasksByTab(prev => {
-      const updated = {
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
+    if (!window.confirm('Are you sure you want to delete this task?')) return
+    try {
+      // Delete from Supabase FIRST — use .select() to verify rows were actually deleted
+      // (RLS can silently block deletes without returning an error)
+      console.log('[DELETE TASK] Deleting task id:', taskId)
+      const { data: deletedRows, error } = await supabase.from('tasks').delete().eq('id', taskId).select()
+      console.log('[DELETE TASK] Response:', { deletedRows, error })
+      if (error) {
+        console.error('[DELETE TASK] Failed:', error)
+        addToast('Failed to delete task: ' + error.message, 'error')
+        return
       }
-      syncCache(updated)
-      return updated
-    })
+      if (!deletedRows || deletedRows.length === 0) {
+        console.error('[DELETE TASK] RLS blocked delete — no rows were removed for id:', taskId)
+        addToast('Delete was blocked by database permissions. Ask a lead to check RLS policies.', 'error')
+        return
+      }
+      console.log('[DELETE TASK] Task deleted successfully:', taskId)
+
+      // Supabase confirmed — now remove from UI + sync cache
+      setTasksByTab(prev => {
+        const updated = {
+          ...prev,
+          [activeTab]: (prev[activeTab] || []).filter(task => task.id !== taskId),
+        }
+        syncCache(updated)
+        return updated
+      })
+    } catch (err) {
+      console.error('[DELETE TASK] Unexpected error:', err)
+      addToast('Failed to delete task: ' + (err.message || 'Unknown error'), 'error')
+    }
   }
 
   const handleExport = () => {
