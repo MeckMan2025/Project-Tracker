@@ -293,18 +293,6 @@ function ProfileView() {
                   <p className="text-sm text-gray-600 font-medium mt-0.5">{primaryRoleLabel}</p>
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                    tier === 'top' ? 'bg-pastel-orange/30 text-pastel-orange-dark' :
-                    tier === 'teammate' ? 'bg-pastel-blue/30 text-pastel-blue-dark' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {tier}
-                  </span>
-                  {isAuthorityAdmin && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">
-                      Admin
-                    </span>
-                  )}
                   {functionTags.length > 0 && functionTags.map(tag => (
                     <span key={tag} className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-pink/30 text-pastel-pink-dark">
                       {tag}

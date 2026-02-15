@@ -133,17 +133,6 @@ function ProfileModal({ profile, onClose }) {
             </div>
           )}
 
-          {/* Tier badge */}
-          <div className="mb-4">
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${
-              tier === 'top' ? 'bg-pastel-orange/30 text-pastel-orange-dark' :
-              tier === 'guest' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-pastel-blue/30 text-pastel-blue-dark'
-            }`}>
-              {tier}
-            </span>
-          </div>
-
           {/* View Profile button — placeholder, links to profile tab */}
           <button
             onClick={onClose}
