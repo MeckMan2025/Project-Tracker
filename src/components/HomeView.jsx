@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Calendar, ClipboardList, FolderKanban, MessageCircle, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { supabase } from '../supabase'
+
 
 function HomeView({ tasksByTab, tabs, onTabChange }) {
   const { username } = useUser()
@@ -19,35 +19,31 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
 
-    supabase
-      .from('calendar_events')
-      .select('*')
-      .gte('date_key', today)
-      .order('date_key', { ascending: true })
-      .limit(1)
-      .then(({ data }) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+    fetch(`${supabaseUrl}/rest/v1/calendar_events?date_key=gte.${today}&order=date_key.asc&limit=1&select=*`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
         setNextEvent(data && data.length > 0 ? data[0] : null)
         setEventLoading(false)
       })
       .catch(() => setEventLoading(false))
 
-    supabase
-      .from('requests')
-      .select('id')
-      .eq('status', 'pending')
-      .then(({ data }) => {
-        setPendingRequestCount(data ? data.length : 0)
-      })
+    fetch(`${supabaseUrl}/rest/v1/requests?status=eq.pending&select=id`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setPendingRequestCount(data ? data.length : 0))
+      .catch(() => {})
 
-    supabase
-      .from('fun_quotes')
-      .select('*')
-      .eq('approved', true)
-      .then(({ data }) => {
+    fetch(`${supabaseUrl}/rest/v1/fun_quotes?approved=eq.true&select=*`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
         if (data && data.length > 0) {
           setQuote(data[Math.floor(Math.random() * data.length)])
         }
       })
+      .catch(() => {})
   }, [])
 
   // Compute task stats from existing tasksByTab
@@ -282,11 +278,11 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
           <div className="text-center py-3">
             {quote ? (
               <p className="text-sm italic text-gray-400">
-                "{quote.text || quote.quote || quote.content}"
-                {quote.author && <span className="not-italic"> — {quote.author}</span>}
+                "{quote.content}"
+                {quote.submitted_by && <span className="not-italic"> — {quote.submitted_by}</span>}
               </p>
             ) : (
-              <p className="text-sm italic text-gray-400">No fun quotes yet</p>
+              <p className="text-sm italic text-gray-400">No fun quotes yet — submit one in the Notebook!</p>
             )}
           </div>
         )}
