@@ -15,16 +15,21 @@ function RequestsView() {
   const [history, setHistory] = useState([])
   const [remindingId, setRemindingId] = useState(null)
 
-  // Load history (approved + denied)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  // Load history (approved + denied) via direct fetch
   useEffect(() => {
     async function loadHistory() {
-      const { data } = await supabase
-        .from('requests')
-        .select('*')
-        .in('status', ['approved', 'denied'])
-        .order('created_at', { ascending: false })
-        .limit(50)
-      if (data) setHistory(data)
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/requests?status=in.(approved,denied)&order=created_at.desc&limit=50&select=*`,
+          { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+        )
+        if (res.ok) setHistory(await res.json())
+      } catch (err) {
+        console.error('Failed to load request history:', err)
+      }
     }
     loadHistory()
   }, [requests]) // Refresh history when pending requests change
@@ -94,69 +99,82 @@ function RequestsView() {
                   <p className="text-gray-400">No pending requests</p>
                 </div>
               ) : (
-                requests.map((r) => (
-                  <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            r.type === 'task'
-                              ? 'bg-pastel-pink/40 text-pastel-pink-dark'
-                              : r.type === 'board'
-                              ? 'bg-pastel-blue/40 text-pastel-blue-dark'
-                              : 'bg-pastel-orange/40 text-pastel-orange-dark'
-                          }`}>
-                            {r.type === 'task' ? 'Task' : r.type === 'board' ? 'Board' : 'Calendar Event'}
-                          </span>
-                          <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
-                        </div>
-                        <p className="text-sm font-semibold text-gray-700">
-                          {r.data?.title || r.data?.name}
-                        </p>
-                        {r.data?.description && (
-                          <p className="text-xs text-gray-500 mt-0.5">{r.data.description}</p>
-                        )}
-                        <p className="text-xs text-gray-400 mt-1">
-                          Requested by <span className="font-medium text-pastel-pink-dark">{r.requested_by}</span>
-                          {r.board_id && r.type === 'task' && (
-                            <> for board <span className="font-medium">{r.board_id}</span></>
-                          )}
-                        </p>
+                (() => {
+                  // Group requests by category
+                  const groups = {}
+                  requests.forEach(r => {
+                    let label
+                    if (r.type === 'task') {
+                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) + ' Tasks' : 'Tasks'
+                    } else if (r.type === 'board') {
+                      label = 'Boards'
+                    } else {
+                      label = 'Calendar Events'
+                    }
+                    if (!groups[label]) groups[label] = []
+                    groups[label].push(r)
+                  })
+                  return Object.entries(groups).map(([label, items]) => (
+                    <div key={label} className="space-y-2">
+                      <div className="flex items-center gap-2 pt-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</h3>
+                        <span className="text-xs text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
+                        <div className="flex-1 border-b border-gray-100" />
                       </div>
-                      <div className="flex flex-col gap-1 shrink-0">
-                        {isTop && (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleApprove(r)}
-                              className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
-                              title="Approve"
-                            >
-                              <Check size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDeny(r)}
-                              className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-                              title="Deny"
-                            >
-                              <X size={18} />
-                            </button>
+                      {items.map((r) => (
+                        <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
+                              </div>
+                              <p className="text-sm font-semibold text-gray-700">
+                                {r.data?.title || r.data?.name}
+                              </p>
+                              {r.data?.description && (
+                                <p className="text-xs text-gray-500 mt-0.5">{r.data.description}</p>
+                              )}
+                              <p className="text-xs text-gray-400 mt-1">
+                                Requested by <span className="font-medium text-pastel-pink-dark">{r.requested_by}</span>
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              {isTop && (
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handleApprove(r)}
+                                    className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                                    title="Approve"
+                                  >
+                                    <Check size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeny(r)}
+                                    className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                                    title="Deny"
+                                  >
+                                    <X size={18} />
+                                  </button>
+                                </div>
+                              )}
+                              {r.requested_by === username && (
+                                <button
+                                  onClick={() => onRemind(r)}
+                                  disabled={remindingId === r.id}
+                                  className="flex items-center gap-1 p-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-500 transition-colors disabled:opacity-50 text-xs"
+                                  title="Remind approvers"
+                                >
+                                  <Bell size={14} />
+                                  <span className="hidden sm:inline">Remind</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {r.requested_by === username && (
-                          <button
-                            onClick={() => onRemind(r)}
-                            disabled={remindingId === r.id}
-                            className="flex items-center gap-1 p-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-500 transition-colors disabled:opacity-50 text-xs"
-                            title="Remind approvers"
-                          >
-                            <Bell size={14} />
-                            <span className="hidden sm:inline">Remind</span>
-                          </button>
-                        )}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))
+                  ))
+                })()
               )}
             </>
           ) : (
@@ -167,47 +185,60 @@ function RequestsView() {
                   <p className="text-gray-400">No request history</p>
                 </div>
               ) : (
-                history.map((r) => (
-                  <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            r.status === 'approved'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-600'
-                          }`}>
-                            {r.status === 'approved' ? 'Approved' : 'Denied'}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            r.type === 'task'
-                              ? 'bg-pastel-pink/40 text-pastel-pink-dark'
-                              : r.type === 'board'
-                              ? 'bg-pastel-blue/40 text-pastel-blue-dark'
-                              : 'bg-pastel-orange/40 text-pastel-orange-dark'
-                          }`}>
-                            {r.type === 'task' ? 'Task' : r.type === 'board' ? 'Board' : 'Event'}
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold text-gray-700">
-                          {r.data?.title || r.data?.name}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Requested by <span className="font-medium">{r.requested_by}</span>
-                        </p>
-                        {r.reviewed_by && (
-                          <p className="text-xs text-gray-400">
-                            Reviewed by <span className="font-medium">{r.reviewed_by}</span>
-                            {r.reviewed_at && <> on {formatDate(r.reviewed_at)}</>}
-                          </p>
-                        )}
-                        {r.decision_reason && (
-                          <p className="text-xs text-gray-500 mt-1 italic">Reason: {r.decision_reason}</p>
-                        )}
+                (() => {
+                  const groups = {}
+                  history.forEach(r => {
+                    let label
+                    if (r.type === 'task') {
+                      label = r.board_id ? r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1) + ' Tasks' : 'Tasks'
+                    } else if (r.type === 'board') {
+                      label = 'Boards'
+                    } else {
+                      label = 'Calendar Events'
+                    }
+                    if (!groups[label]) groups[label] = []
+                    groups[label].push(r)
+                  })
+                  return Object.entries(groups).map(([label, items]) => (
+                    <div key={label} className="space-y-2">
+                      <div className="flex items-center gap-2 pt-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</h3>
+                        <span className="text-xs text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
+                        <div className="flex-1 border-b border-gray-100" />
                       </div>
+                      {items.map((r) => (
+                        <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  r.status === 'approved'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-red-100 text-red-600'
+                                }`}>
+                                  {r.status === 'approved' ? 'Approved' : 'Denied'}
+                                </span>
+                                <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
+                              </div>
+                              <p className="text-sm font-semibold text-gray-700">
+                                {r.data?.title || r.data?.name}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                Requested by <span className="font-medium">{r.requested_by}</span>
+                              </p>
+                              {r.reviewed_by && (
+                                <p className="text-xs text-gray-400">
+                                  Reviewed by <span className="font-medium">{r.reviewed_by}</span>
+                                  {r.reviewed_at && <> on {formatDate(r.reviewed_at)}</>}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))
+                  ))
+                })()
               )}
             </>
           )}
