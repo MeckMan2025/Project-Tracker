@@ -31,20 +31,26 @@ function QuickChat() {
   }
 
   // Mark messages from other users as seen
-  const markMessagesAsSeen = async (msgs) => {
+  const markMessagesAsSeen = (msgs) => {
     if (!username) return
     const unseen = msgs.filter(
       (m) => m.sender !== username && !m.seen_by?.includes(username)
     )
     if (unseen.length === 0) return
-    await Promise.all(
-      unseen.map((m) =>
-        supabase
-          .from('messages')
-          .update({ seen_by: [...(m.seen_by || []), username] })
-          .eq('id', m.id)
-      )
-    )
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    unseen.forEach((m) => {
+      fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${m.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ seen_by: [...(m.seen_by || []), username] }),
+      }).catch(err => console.error('Failed to mark message as seen:', err))
+    })
   }
 
   // Load messages on mount with retry for sleeping DB — only last 24 hours
@@ -118,9 +124,12 @@ function QuickChat() {
     scrollToBottom()
   }, [messages])
 
-  const handleSend = async (e) => {
+  const handleSend = (e) => {
     e.preventDefault()
     if (!newMessage.trim()) return
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
     const message = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -131,18 +140,44 @@ function QuickChat() {
 
     setNewMessage('')
     setMessages(prev => [...prev, message])
-    const { error } = await supabase.from('messages').insert(message)
-    if (error) {
-      console.error('Failed to send message:', error)
+
+    // Use direct fetch — supabase client .insert() can hang
+    fetch(`${supabaseUrl}/rest/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(message),
+    }).then(res => {
+      if (!res.ok) {
+        console.error('Failed to send message:', res.status)
+        setMessages(prev => prev.filter(m => m.id !== message.id))
+        setSendError('Message failed to send. Try again.')
+        setTimeout(() => setSendError(null), 4000)
+      }
+    }).catch(err => {
+      console.error('Failed to send message:', err)
       setMessages(prev => prev.filter(m => m.id !== message.id))
       setSendError('Message failed to send. Try again.')
       setTimeout(() => setSendError(null), 4000)
-    }
+    })
   }
 
-  const handleDelete = async (msgId) => {
+  const handleDelete = (msgId) => {
     setMessages(prev => prev.filter(m => m.id !== msgId))
-    await supabase.from('messages').delete().eq('id', msgId)
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${msgId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    }).catch(err => console.error('Failed to delete message:', err))
   }
 
   const formatTime = (timestamp) => {
