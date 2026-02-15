@@ -118,6 +118,13 @@ function RequestsView({ tabs = [] }) {
                 { key: 'calendar', label: 'Calendar' },
               ]
 
+              // Resolve board_id to board name
+              const boardTabs = tabs.filter(t => !t.type)
+              const boardName = (id) => {
+                const b = boardTabs.find(t => t.id === id)
+                return b ? b.name : (id ? id.charAt(0).toUpperCase() + id.slice(1) : '')
+              }
+
               // Group requests into sections
               const groups = { tasks: [], boards: [], calendar: [] }
               requests.forEach(r => {
@@ -144,7 +151,7 @@ function RequestsView({ tabs = [] }) {
                               <div className="flex items-center gap-2 mb-1">
                                 {r.board_id && (
                                   <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-blue/30 text-pastel-blue-dark">
-                                    {r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1)}
+                                    {boardName(r.board_id)}
                                   </span>
                                 )}
                                 <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
@@ -206,6 +213,13 @@ function RequestsView({ tabs = [] }) {
                 { key: 'calendar', label: 'Calendar' },
               ]
 
+              // Resolve board_id to board name
+              const boardTabs = tabs.filter(t => !t.type)
+              const boardName = (id) => {
+                const b = boardTabs.find(t => t.id === id)
+                return b ? b.name : (id ? id.charAt(0).toUpperCase() + id.slice(1) : '')
+              }
+
               const groups = { tasks: [], boards: [], calendar: [] }
               history.forEach(r => {
                 if (r.type === 'task') groups.tasks.push(r)
@@ -238,7 +252,7 @@ function RequestsView({ tabs = [] }) {
                                 </span>
                                 {r.board_id && (
                                   <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-blue/30 text-pastel-blue-dark">
-                                    {r.board_id.charAt(0).toUpperCase() + r.board_id.slice(1)}
+                                    {boardName(r.board_id)}
                                   </span>
                                 )}
                                 <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
