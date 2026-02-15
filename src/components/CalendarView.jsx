@@ -13,6 +13,7 @@ function CalendarView() {
   const { addToast } = useToast()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState({})
+  const [tasksDue, setTasksDue] = useState({})
   const [selectedDay, setSelectedDay] = useState(null)
   const [eventName, setEventName] = useState('')
   const [eventDesc, setEventDesc] = useState('')
@@ -56,6 +57,39 @@ function CalendarView() {
     load()
   }, [])
 
+  // Load tasks with due dates
+  useEffect(() => {
+    async function loadTaskDueDates() {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?due_date=neq.&select=id,title,assignee,status,due_date,board_id`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const grouped = {}
+        data.forEach(task => {
+          if (!task.due_date) return
+          const key = task.due_date
+          if (!grouped[key]) grouped[key] = []
+          grouped[key].push({
+            id: task.id,
+            title: task.title,
+            assignee: task.assignee,
+            status: task.status,
+            boardId: task.board_id,
+          })
+        })
+        setTasksDue(grouped)
+      } catch (err) {
+        console.error('Failed to load task due dates:', err)
+      }
+    }
+    loadTaskDueDates()
+  }, [])
+
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
@@ -85,7 +119,48 @@ function CalendarView() {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    // Listen for task changes to update due dates on calendar
+    const taskChannel = supabase
+      .channel('calendar-task-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const id = payload.old.id
+          setTasksDue(prev => {
+            const updated = {}
+            for (const [key, list] of Object.entries(prev)) {
+              const filtered = list.filter(t => t.id !== id)
+              if (filtered.length > 0) updated[key] = filtered
+            }
+            return updated
+          })
+        } else {
+          const t = payload.new
+          // Remove from old date
+          setTasksDue(prev => {
+            const updated = {}
+            for (const [key, list] of Object.entries(prev)) {
+              const filtered = list.filter(task => task.id !== t.id)
+              if (filtered.length > 0) updated[key] = filtered
+            }
+            // Add to new date if it has a due_date
+            if (t.due_date) {
+              const key = t.due_date
+              if (!updated[key]) updated[key] = []
+              updated[key].push({
+                id: t.id, title: t.title, assignee: t.assignee,
+                status: t.status, boardId: t.board_id,
+              })
+            }
+            return updated
+          })
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+      supabase.removeChannel(taskChannel)
+    }
   }, [])
 
   const year = currentDate.getFullYear()
@@ -243,6 +318,7 @@ function CalendarView() {
             const day = i + 1
             const key = dateKey(day)
             const dayEvents = events[key] || []
+            const dayTasks = tasksDue[key] || []
             const selected = selectedDay === day
 
             return (
@@ -291,6 +367,16 @@ function CalendarView() {
                       <span className="text-xs text-gray-600 truncate">{ev.name}</span>
                     </div>
                   ))}
+                  {dayTasks.map(task => (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-1"
+                      title={`Task: ${task.title}${task.assignee ? ' (' + task.assignee + ')' : ''}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${task.status === 'done' ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
+                      <span className={`text-xs truncate ${task.status === 'done' ? 'text-green-600 line-through' : 'text-pastel-blue-dark'}`}>{task.title}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )
@@ -310,7 +396,7 @@ function CalendarView() {
             </div>
 
             {/* Events list */}
-            {(events[dateKey(selectedDay)] || []).length > 0 ? (
+            {(events[dateKey(selectedDay)] || []).length > 0 && (
               <div className="space-y-2 mb-3">
                 {(events[dateKey(selectedDay)] || []).map(ev => (
                   <div key={ev.id} className="flex items-start gap-2 bg-pastel-orange/20 rounded-lg px-3 py-2">
@@ -333,8 +419,29 @@ function CalendarView() {
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-gray-400 mb-3">No events on this day.</p>
+            )}
+
+            {/* Tasks due on this day */}
+            {(tasksDue[dateKey(selectedDay)] || []).length > 0 && (
+              <div className="space-y-2 mb-3">
+                <p className="text-xs font-semibold text-pastel-blue-dark uppercase tracking-wide">Tasks Due</p>
+                {(tasksDue[dateKey(selectedDay)] || []).map(task => (
+                  <div key={task.id} className={`flex items-start gap-2 rounded-lg px-3 py-2 ${task.status === 'done' ? 'bg-green-50' : 'bg-pastel-blue/20'}`}>
+                    <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${task.status === 'done' ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${task.status === 'done' ? 'text-green-700 line-through' : 'text-gray-700'}`}>{task.title}</p>
+                      {task.assignee && (
+                        <p className="text-xs text-gray-400 mt-0.5">Assigned to {task.assignee}</p>
+                      )}
+                      <p className="text-xs text-gray-400">{task.status === 'done' ? 'Completed' : task.status === 'todo' ? 'To Do' : task.status}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(events[dateKey(selectedDay)] || []).length === 0 && (tasksDue[dateKey(selectedDay)] || []).length === 0 && (
+              <p className="text-sm text-gray-400 mb-3">No events or tasks on this day.</p>
             )}
 
             {/* Add/Request event form */}
