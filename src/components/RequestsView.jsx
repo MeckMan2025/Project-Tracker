@@ -99,15 +99,11 @@ function RequestsView({ tabs = [] }) {
         <div className="max-w-2xl mx-auto space-y-3">
           {tab === 'pending' ? (
             (() => {
-              // Build section list from board tabs + Boards + Calendar Events
+              // Build section list from board tabs only
               const boardTabs = tabs.filter(t => !t.type)
-              const sections = [
-                ...boardTabs.map(b => ({ key: b.id, label: b.name })),
-                { key: '_boards', label: 'Boards' },
-                { key: '_calendar', label: 'Calendar Events' },
-              ]
+              const sections = boardTabs.map(b => ({ key: b.id, label: b.name }))
 
-              // Group requests into sections
+              // Group requests into sections by board_id
               const groups = {}
               sections.forEach(s => { groups[s.key] = [] })
               requests.forEach(r => {
@@ -115,12 +111,22 @@ function RequestsView({ tabs = [] }) {
                   const key = r.board_id || 'business'
                   if (!groups[key]) groups[key] = []
                   groups[key].push(r)
-                } else if (r.type === 'board') {
-                  groups['_boards'].push(r)
                 } else {
-                  groups['_calendar'].push(r)
+                  // Board/calendar requests go under first section
+                  const firstKey = sections.length > 0 ? sections[0].key : null
+                  if (firstKey) {
+                    if (!groups[firstKey]) groups[firstKey] = []
+                    groups[firstKey].push(r)
+                  }
                 }
               })
+
+              // Helper to get request type label
+              const getTypeLabel = (r) => {
+                if (r.type === 'board') return 'New Board'
+                if (r.type === 'calendar_event') return 'Calendar Event'
+                return 'Task'
+              }
 
               return sections.map((section, idx) => {
                 const items = groups[section.key] || []
@@ -138,6 +144,13 @@ function RequestsView({ tabs = [] }) {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  r.type === 'task' ? 'bg-pastel-blue/30 text-pastel-blue-dark'
+                                  : r.type === 'board' ? 'bg-pastel-pink/30 text-pastel-pink-dark'
+                                  : 'bg-pastel-orange/30 text-pastel-orange-dark'
+                                }`}>
+                                  {getTypeLabel(r)}
+                                </span>
                                 <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
                               </div>
                               <p className="text-sm font-semibold text-gray-700">
@@ -222,13 +235,20 @@ function RequestsView({ tabs = [] }) {
                         <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                                   r.status === 'approved'
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-red-100 text-red-600'
                                 }`}>
                                   {r.status === 'approved' ? 'Approved' : 'Denied'}
+                                </span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  r.type === 'task' ? 'bg-pastel-blue/30 text-pastel-blue-dark'
+                                  : r.type === 'board' ? 'bg-pastel-pink/30 text-pastel-pink-dark'
+                                  : 'bg-pastel-orange/30 text-pastel-orange-dark'
+                                }`}>
+                                  {r.type === 'board' ? 'New Board' : r.type === 'calendar_event' ? 'Calendar Event' : 'Task'}
                                 </span>
                                 <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
                               </div>
