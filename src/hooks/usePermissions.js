@@ -1,22 +1,14 @@
 import { useUser } from '../contexts/UserContext'
 
-const TOP_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
-const TEAMMATE_TAGS = ['Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming']
 const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
-function deriveTierFromTags(functionTags, displayName) {
-  // Permanent co-founders always get top
-  if (displayName && PERMANENT_COFOUNDERS.includes(displayName.toLowerCase())) return 'top'
-  if (functionTags && functionTags.includes('Guest')) return 'guest'
-  if (functionTags && functionTags.some(t => TOP_TAGS.includes(t))) return 'top'
-  if (functionTags && functionTags.some(t => TEAMMATE_TAGS.includes(t))) return 'teammate'
-  return 'teammate'
-}
-
 export function usePermissions() {
-  const { username, isLead, user, role, secondaryRoles, isAuthorityAdmin, functionTags } = useUser()
+  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags } = useUser()
 
-  const tier = deriveTierFromTags(functionTags, username)
+  // Use the authority_tier from the database profile directly.
+  // Fall back to 'top' for permanent co-founders even if profile hasn't loaded yet.
+  const isPermanentCofounder = username && PERMANENT_COFOUNDERS.includes(username.toLowerCase())
+  const tier = isPermanentCofounder ? 'top' : (authorityTier || 'teammate')
 
   const isGuest = tier === 'guest'
   const isTeammate = tier === 'teammate'

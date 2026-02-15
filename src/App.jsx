@@ -181,7 +181,8 @@ function App() {
     const saved = localStorage.getItem('scrum-active-tab')
     return saved || 'home'
   })
-  const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
+  // Don't initialize tasks from cache — always load fresh from Supabase to avoid stale data
+  const [tasksByTab, setTasksByTab] = useState({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
