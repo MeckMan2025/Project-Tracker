@@ -192,22 +192,28 @@ function App() {
   const audioRef = useRef(null)
 
   // Load boards and tasks from Supabase once user is authenticated
-  const loadData = useCallback(async (signal) => {
+  const loadData = useCallback(async () => {
     if (!user) return
     setLoadError(null)
 
     try {
-      // Load boards and tasks in parallel for speed
-      let boardsQuery = supabase.from('boards').select('*').order('created_at')
-      let tasksQuery = supabase.from('tasks').select('*')
-      if (signal instanceof AbortSignal) {
-        boardsQuery = boardsQuery.abortSignal(signal)
-        tasksQuery = tasksQuery.abortSignal(signal)
-      }
-      const [boardsResult, tasksResult] = await Promise.all([
-        boardsQuery,
-        tasksQuery,
+      let [boardsResult, tasksResult] = await Promise.all([
+        supabase.from('boards').select('*').order('created_at'),
+        supabase.from('tasks').select('*'),
       ])
+
+      // Supabase sometimes aborts internally — auto-retry once
+      if (boardsResult.error || tasksResult.error) {
+        const isAbort = [boardsResult.error, tasksResult.error].some(
+          e => e && (e.name === 'AbortError' || e.message?.includes('abort'))
+        )
+        if (isAbort) {
+          ;[boardsResult, tasksResult] = await Promise.all([
+            supabase.from('boards').select('*').order('created_at'),
+            supabase.from('tasks').select('*'),
+          ])
+        }
+      }
 
       if (boardsResult.error) {
         console.error('Failed to load boards:', boardsResult.error.message)
@@ -260,16 +266,13 @@ function App() {
         localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
       } catch (e) { /* ignore quota errors */ }
     } catch (err) {
-      if (err.name === 'AbortError') return // request was cancelled, ignore
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
     }
   }, [user])
 
   useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal)
-    return () => controller.abort()
+    loadData()
   }, [loadData])
 
   // Real-time: listen for board changes (use payload, no re-query)
