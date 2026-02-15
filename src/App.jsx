@@ -436,10 +436,10 @@ function App() {
       return updated
     })
 
-    // Persist to Supabase
-    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId)
-    if (error) {
-      console.error('Failed to update task status:', error.message)
+    // Persist to Supabase — use .select() to verify RLS didn't silently block
+    const { data: updatedRows, error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId).select()
+    if (error || !updatedRows || updatedRows.length === 0) {
+      console.error('Failed to update task status:', error?.message || 'RLS blocked update')
       addToast('Failed to move task. Reverting.', 'error')
       // Rollback
       setTasksByTab(prev => ({
@@ -478,10 +478,10 @@ function App() {
     }))
     setIsModalOpen(false)
 
-    // Persist to Supabase
-    const { error } = await supabase.from('tasks').insert(task)
-    if (error) {
-      console.error('Failed to save task:', error.message)
+    // Persist to Supabase — use .select() to verify it actually saved
+    const { data: insertedRows, error } = await supabase.from('tasks').insert(task).select()
+    if (error || !insertedRows || insertedRows.length === 0) {
+      console.error('Failed to save task:', error?.message || 'Insert returned no rows')
       // Rollback on failure
       setTasksByTab(prev => ({
         ...prev,
@@ -527,16 +527,17 @@ function App() {
     }))
     setEditingTask(null)
 
-    const { error } = await supabase.from('tasks').update({
+    const { data: updatedRows, error } = await supabase.from('tasks').update({
       title: updatedTask.title,
       description: updatedTask.description || '',
       assignee: updatedTask.assignee || '',
       due_date: updatedTask.dueDate || '',
       status: updatedTask.status || 'todo',
       skills: updatedTask.skills || [],
-    }).eq('id', updatedTask.id)
-    if (error) {
-      console.error('Failed to update task:', error.message)
+    }).eq('id', updatedTask.id).select()
+    if (error || !updatedRows || updatedRows.length === 0) {
+      console.error('Failed to update task:', error?.message || 'RLS blocked update')
+      addToast('Failed to save task changes.', 'error')
     }
   }
 
