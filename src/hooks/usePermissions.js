@@ -35,6 +35,7 @@ export function usePermissions() {
     canSelfCheckIn: !isGuest,
     canUseChat: !isGuest,
     canDeleteOwnMessages: !isGuest,
+    canDeleteAnyMessage: isTop || isCofounder,
     canViewOwnAttendance: !isGuest,
     canViewScoutingData: !isGuest,
     canSubmitSuggestions: !isGuest,

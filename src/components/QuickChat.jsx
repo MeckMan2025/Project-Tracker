@@ -20,7 +20,7 @@ function getSenderColor(sender) {
 
 function QuickChat() {
   const { username } = useUser()
-  const { canUseChat, canDeleteOwnMessages, canPauseMuteChat } = usePermissions()
+  const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sendError, setSendError] = useState(null)
@@ -204,6 +204,14 @@ function QuickChat() {
     return groups
   }, {})
 
+  if (!canUseChat) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-gray-400">You don't have access to the chat.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
@@ -253,10 +261,10 @@ function QuickChat() {
                       }`}
                       style={senderColor ? { backgroundColor: senderColor.bg } : undefined}
                     >
-                      {isOwn && (
+                      {(canDeleteAnyMessage || (canDeleteOwnMessages && isOwn)) && (
                         <button
                           onClick={() => handleDelete(msg.id)}
-                          className="absolute -top-2 -right-2 p-1 rounded-full bg-white shadow-md opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                          className={`absolute -top-2 ${isOwn ? '-left-2' : '-right-2'} p-1 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50`}
                           title="Delete message"
                         >
                           <Trash2 size={12} className="text-gray-400 hover:text-red-400" />
