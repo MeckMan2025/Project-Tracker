@@ -140,11 +140,37 @@ function ProfileView() {
     loadTasks()
   }, [username])
 
+  const [saveError, setSaveError] = useState('')
+
   const handleSave = async () => {
     if (!user) return
     setSaving(true)
+    setSaveError('')
+
+    const baseFields = {
+      display_name: editName.trim() || username,
+      discipline: profile.discipline,
+      timezone: profile.timezone,
+      status: profile.status,
+      sprint_capacity: profile.sprint_capacity,
+      systems_owned: profile.systems_owned,
+      review_responsibilities: profile.review_responsibilities,
+      skills: profile.skills,
+      tools: profile.tools,
+      safety_certs: profile.safety_certs,
+      permissions: profile.permissions,
+      comm_style: profile.comm_style,
+      comm_notes: profile.comm_notes,
+    }
+
+    const nicknameFields = {
+      nickname: editNickname.trim(),
+      use_nickname: editUseNickname,
+    }
+
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
+      // Try saving everything including nickname fields
+      let res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
         method: 'PATCH',
         headers: {
           'apikey': supabaseKey,
@@ -152,26 +178,29 @@ function ProfileView() {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({
-          display_name: editName.trim() || username,
-          nickname: editNickname.trim(),
-          use_nickname: editUseNickname,
-          discipline: profile.discipline,
-          timezone: profile.timezone,
-          status: profile.status,
-          sprint_capacity: profile.sprint_capacity,
-          systems_owned: profile.systems_owned,
-          review_responsibilities: profile.review_responsibilities,
-          skills: profile.skills,
-          tools: profile.tools,
-          safety_certs: profile.safety_certs,
-          permissions: profile.permissions,
-          comm_style: profile.comm_style,
-          comm_notes: profile.comm_notes,
-        }),
+        body: JSON.stringify({ ...baseFields, ...nicknameFields }),
       })
+
+      // If it failed (likely missing nickname columns), retry without nickname fields
+      if (!res.ok) {
+        console.warn('Full save failed, retrying without nickname fields...')
+        res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify(baseFields),
+        })
+        if (res.ok) {
+          setSaveError('Name saved! To save nicknames, run the SQL to add nickname columns.')
+          setTimeout(() => setSaveError(''), 5000)
+        }
+      }
+
       if (res.ok) {
-        // Update localStorage so UserContext picks up changes on next load
         const newName = editName.trim() || username
         localStorage.setItem('scrum-username', newName)
         localStorage.setItem('chat-username', newName)
@@ -179,9 +208,16 @@ function ProfileView() {
         localStorage.setItem('scrum-use-nickname', String(editUseNickname))
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
+      } else {
+        const errText = await res.text()
+        console.error('Save failed:', errText)
+        setSaveError('Save failed — check console for details')
+        setTimeout(() => setSaveError(''), 5000)
       }
     } catch (err) {
       console.error('Failed to save profile:', err)
+      setSaveError('Save failed — network error')
+      setTimeout(() => setSaveError(''), 5000)
     }
     setSaving(false)
   }
@@ -253,6 +289,9 @@ function ProfileView() {
             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
           </button>
         </div>
+        {saveError && (
+          <p className="text-xs text-amber-600 text-center pb-2 px-4">{saveError}</p>
+        )}
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
