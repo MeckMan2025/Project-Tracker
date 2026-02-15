@@ -4,7 +4,7 @@ import RequestsBadge from './RequestsBadge'
 
 function TasksView({ tasksByTab, tabs }) {
   const { canReviewRequests, isGuest } = usePermissions()
-  const boardTabs = tabs.filter(t => t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'quick-chat' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart')
+  const boardTabs = tabs.filter(t => !t.type)
 
   const totalTasks = boardTabs.reduce((sum, tab) => sum + (tasksByTab[tab.id] || []).length, 0)
 
