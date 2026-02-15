@@ -55,8 +55,11 @@ function SectionHeader({ title }) {
 
 export default function EngineeringNotebook() {
   const { username } = useUser()
-  const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest } = usePermissions()
+  const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest, isCofounder } = usePermissions()
   const isLead = canOrganizeNotebook
+  const isTop = canApproveQuotes
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const [view, setView] = useState('timeline')
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])
@@ -84,19 +87,25 @@ export default function EngineeringNotebook() {
   const [filterEngagement, setFilterEngagement] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
-  // Load data
+  // Load data via direct fetch
   useEffect(() => {
+    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
     async function load() {
-      const [eRes, pRes, qRes] = await Promise.all([
-        supabase.from('notebook_entries').select('*').order('created_at', { ascending: false }),
-        supabase.from('notebook_projects').select('*').order('created_at', { ascending: false }),
-        supabase.from('fun_quotes').select('*').order('created_at', { ascending: false }),
-      ])
-      if (eRes.data) setEntries(eRes.data)
-      if (pRes.data) setProjects(pRes.data)
-      if (qRes.data) {
-        setApprovedQuotes(qRes.data.filter(q => q.approved))
-        setPendingQuotes(qRes.data.filter(q => !q.approved))
+      try {
+        const [eRes, pRes, qRes] = await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=*&order=created_at.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&order=created_at.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/fun_quotes?select=*&order=created_at.desc`, { headers }),
+        ])
+        if (eRes.ok) setEntries(await eRes.json())
+        if (pRes.ok) setProjects(await pRes.json())
+        if (qRes.ok) {
+          const quotes = await qRes.json()
+          setApprovedQuotes(quotes.filter(q => q.approved))
+          setPendingQuotes(quotes.filter(q => !q.approved))
+        }
+      } catch (err) {
+        console.error('Failed to load notebook data:', err)
       }
     }
     load()
@@ -194,9 +203,11 @@ export default function EngineeringNotebook() {
     if (editingEntryId) {
       setEntries(prev => prev.map(e => e.id === editingEntryId ? { ...e, ...entryData } : e))
       setSubmitFeedback('Entry updated!')
-      supabase.from('notebook_entries').update(entryData).eq('id', editingEntryId).then(({ error }) => {
-        if (error) console.error('Failed to update entry:', error)
-      })
+      fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${editingEntryId}`, {
+        method: 'PATCH',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(entryData),
+      }).catch(err => console.error('Failed to update entry:', err))
     } else {
       const newEntry = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -205,9 +216,11 @@ export default function EngineeringNotebook() {
       }
       setEntries(prev => [newEntry, ...prev])
       setSubmitFeedback('Entry saved!')
-      supabase.from('notebook_entries').insert(newEntry).then(({ error }) => {
-        if (error) console.error('Failed to save entry:', error)
-      })
+      fetch(`${supabaseUrl}/rest/v1/notebook_entries`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(newEntry),
+      }).catch(err => console.error('Failed to save entry:', err))
     }
 
     setFormData({ ...INITIAL_ENTRY })
@@ -225,26 +238,33 @@ export default function EngineeringNotebook() {
     setView('timeline')
   }
 
-  // Delete entry
-  const handleDeleteEntry = async (id) => {
-    const { error } = await supabase.from('notebook_entries').delete().eq('id', id)
-    if (!error) setEntries(prev => prev.filter(e => e.id !== id))
+  // Delete entry (co-founders only)
+  const handleDeleteEntry = (id) => {
+    if (!window.confirm('Delete this notebook entry?')) return
+    setEntries(prev => prev.filter(e => e.id !== id))
+    fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    }).catch(err => console.error('Failed to delete entry:', err))
   }
 
   // Submit project
-  const handleSubmitProject = async () => {
+  const handleSubmitProject = () => {
     if (!projectForm.name.trim()) return
     if (editingProjectId) {
-      const { error } = await supabase.from('notebook_projects').update({
+      const updateData = {
         name: projectForm.name.trim(),
         category: projectForm.category,
         goal: projectForm.goal.trim(),
         reason: projectForm.reason.trim(),
         status: projectForm.status,
-      }).eq('id', editingProjectId)
-      if (!error) {
-        setProjects(prev => prev.map(p => p.id === editingProjectId ? { ...p, ...projectForm, name: projectForm.name.trim() } : p))
       }
+      setProjects(prev => prev.map(p => p.id === editingProjectId ? { ...p, ...updateData } : p))
+      fetch(`${supabaseUrl}/rest/v1/notebook_projects?id=eq.${editingProjectId}`, {
+        method: 'PATCH',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(updateData),
+      }).catch(err => console.error('Failed to update project:', err))
     } else {
       const newProject = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -255,8 +275,12 @@ export default function EngineeringNotebook() {
         created_by: username,
         created_at: new Date().toISOString(),
       }
-      const { error } = await supabase.from('notebook_projects').insert(newProject)
-      if (!error) setProjects(prev => [newProject, ...prev])
+      setProjects(prev => [newProject, ...prev])
+      fetch(`${supabaseUrl}/rest/v1/notebook_projects`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(newProject),
+      }).catch(err => console.error('Failed to save project:', err))
     }
     setProjectForm({ ...INITIAL_PROJECT })
     setEditingProjectId(null)
@@ -264,13 +288,16 @@ export default function EngineeringNotebook() {
   }
 
   // Delete project
-  const handleDeleteProject = async (id) => {
-    const { error } = await supabase.from('notebook_projects').delete().eq('id', id)
-    if (!error) setProjects(prev => prev.filter(p => p.id !== id))
+  const handleDeleteProject = (id) => {
+    setProjects(prev => prev.filter(p => p.id !== id))
+    fetch(`${supabaseUrl}/rest/v1/notebook_projects?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    }).catch(err => console.error('Failed to delete project:', err))
   }
 
   // Submit fun quote
-  const handleSubmitQuote = async () => {
+  const handleSubmitQuote = () => {
     if (!quoteText.trim()) return
     const newQuote = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -280,33 +307,38 @@ export default function EngineeringNotebook() {
       approved_by: '',
       created_at: new Date().toISOString(),
     }
-    const { error } = await supabase.from('fun_quotes').insert(newQuote)
-    if (!error) {
-      setPendingQuotes(prev => [newQuote, ...prev])
-      setQuoteText('')
-      setShowQuoteModal(false)
-      setSubmitFeedback('Quote submitted for approval!')
-      setTimeout(() => setSubmitFeedback(null), 3000)
-    }
+    setPendingQuotes(prev => [newQuote, ...prev])
+    setQuoteText('')
+    setShowQuoteModal(false)
+    setSubmitFeedback('Quote submitted for approval!')
+    setTimeout(() => setSubmitFeedback(null), 3000)
+    fetch(`${supabaseUrl}/rest/v1/fun_quotes`, {
+      method: 'POST',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(newQuote),
+    }).catch(err => console.error('Failed to submit quote:', err))
   }
 
-  // Approve quote
-  const handleApproveQuote = async (id) => {
-    const { error } = await supabase.from('fun_quotes').update({ approved: true, approved_by: username }).eq('id', id)
-    if (!error) {
-      const quote = pendingQuotes.find(q => q.id === id)
-      setPendingQuotes(prev => prev.filter(q => q.id !== id))
-      if (quote) setApprovedQuotes(prev => [{ ...quote, approved: true, approved_by: username }, ...prev])
-    }
+  // Approve quote (top only)
+  const handleApproveQuote = (id) => {
+    const quote = pendingQuotes.find(q => q.id === id)
+    setPendingQuotes(prev => prev.filter(q => q.id !== id))
+    if (quote) setApprovedQuotes(prev => [{ ...quote, approved: true, approved_by: username }, ...prev])
+    fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ approved: true, approved_by: username }),
+    }).catch(err => console.error('Failed to approve quote:', err))
   }
 
-  // Delete quote
-  const handleDeleteQuote = async (id) => {
-    const { error } = await supabase.from('fun_quotes').delete().eq('id', id)
-    if (!error) {
-      setPendingQuotes(prev => prev.filter(q => q.id !== id))
-      setApprovedQuotes(prev => prev.filter(q => q.id !== id))
-    }
+  // Delete quote (top only)
+  const handleDeleteQuote = (id) => {
+    setPendingQuotes(prev => prev.filter(q => q.id !== id))
+    setApprovedQuotes(prev => prev.filter(q => q.id !== id))
+    fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    }).catch(err => console.error('Failed to delete quote:', err))
   }
 
   // Filtered entries
@@ -344,17 +376,12 @@ export default function EngineeringNotebook() {
     } catch { return dateStr }
   }
 
-  const views = isLead
-    ? [
-        { id: 'timeline', label: 'Timeline', icon: BookOpen },
-        { id: 'entry', label: 'New Entry', icon: Plus },
-        { id: 'projects', label: 'Projects', icon: FolderOpen },
-        { id: 'quotes', label: 'Quotes', icon: MessageSquareQuote },
-      ]
-    : [
-        { id: 'timeline', label: 'Timeline', icon: BookOpen },
-        { id: 'entry', label: 'New Entry', icon: Plus },
-      ]
+  const views = [
+    { id: 'timeline', label: 'Timeline', icon: BookOpen },
+    { id: 'entry', label: 'New Entry', icon: Plus },
+    ...(isLead ? [{ id: 'projects', label: 'Projects', icon: FolderOpen }] : []),
+    { id: 'quotes', label: 'Quotes', icon: MessageSquareQuote },
+  ]
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -483,7 +510,7 @@ export default function EngineeringNotebook() {
                         const catColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Custom
                         const engDot = ENGAGEMENT_OPTIONS.find(o => o.value === entry.engagement)?.dot || 'bg-gray-400'
                         const project = projectMap[entry.project_id]
-                        const canDelete = isLead || entry.username === username
+                        const canDelete = isCofounder
                         return (
                           <div key={entry.id} className="bg-white rounded-lg p-3 shadow-sm">
                             <div className="flex items-start justify-between gap-2">
@@ -770,13 +797,13 @@ export default function EngineeringNotebook() {
             </div>
           )}
 
-          {/* ========== QUOTES VIEW (lead-only) ========== */}
-          {view === 'quotes' && isLead && (
+          {/* ========== QUOTES VIEW (visible to all, manage by top) ========== */}
+          {view === 'quotes' && (
             <div className="space-y-4">
               <SectionHeader title="Fun Quotes" />
 
-              {/* Pending quotes */}
-              {pendingQuotes.length > 0 && (
+              {/* Pending quotes (top can approve/delete) */}
+              {isTop && pendingQuotes.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 mb-2">Pending Approval ({pendingQuotes.length})</h3>
                   <div className="space-y-2">
@@ -813,14 +840,28 @@ export default function EngineeringNotebook() {
                           <p className="text-sm text-gray-700 italic">"{q.content}"</p>
                           <p className="text-xs text-gray-400 mt-1">- {q.submitted_by}</p>
                         </div>
-                        <button onClick={() => handleDeleteQuote(q.id)} className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
-                          <Trash2 size={14} />
-                        </button>
+                        {isTop && (
+                          <button onClick={() => handleDeleteQuote(q.id)} className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* Submit quote link */}
+              {!isGuest && (
+                <div className="text-center pt-2">
+                  <button
+                    onClick={() => setShowQuoteModal(true)}
+                    className="text-sm px-4 py-2 rounded-lg bg-pastel-orange/30 hover:bg-pastel-orange/50 transition-colors font-medium text-gray-700"
+                  >
+                    Submit a Fun Quote
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
