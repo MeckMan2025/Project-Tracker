@@ -53,46 +53,48 @@ function QuickChat() {
     })
   }
 
-  // Load messages on mount with retry for sleeping DB — only last 24 hours
-  useEffect(() => {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    async function loadMessages() {
-      for (let i = 0; i < 3; i++) {
-        try {
-          const { data } = await Promise.race([
-            supabase.from('messages').select('id, sender, content, created_at, seen_by')
-              .gte('created_at', cutoff)
-              .order('created_at', { ascending: false }).limit(100),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
-          ])
-          if (data) {
-            data.reverse()
-            setMessages(data)
-            markMessagesAsSeen(data)
-            break
-          }
-        } catch (e) {
-          if (i < 2) await new Promise(r => setTimeout(r, 2000))
-        }
-      }
+  // Fetch messages from DB via direct fetch
+  const fetchMessages = async () => {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    try {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/messages?created_at=gte.${cutoff}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by`,
+        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+      )
+      if (!res.ok) return
+      const data = await res.json()
+      data.reverse()
+      setMessages(data)
+      markMessagesAsSeen(data)
+    } catch (err) {
+      console.error('Failed to load messages:', err)
     }
+  }
+
+  // Load messages on mount + clean up old ones
+  useEffect(() => {
+    fetchMessages()
 
     // Clean up messages older than 24 hours from the DB
-    async function cleanupOldMessages() {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-      fetch(`${supabaseUrl}/rest/v1/messages?created_at=lt.${cutoff}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-      }).catch(err => console.error('Failed to clean up old messages:', err))
-    }
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    fetch(`${supabaseUrl}/rest/v1/messages?created_at=lt.${cutoff}`, {
+      method: 'DELETE',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    }).catch(err => console.error('Failed to clean up old messages:', err))
+  }, [username])
 
-    loadMessages()
-    cleanupOldMessages()
+  // Re-fetch messages when phone wakes up / tab becomes visible
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchMessages()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [username])
 
   // Real-time subscription
@@ -127,9 +129,6 @@ function QuickChat() {
   const handleSend = (e) => {
     e.preventDefault()
     if (!newMessage.trim()) return
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
     const message = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -169,8 +168,6 @@ function QuickChat() {
   const handleDelete = (msgId) => {
     setMessages(prev => prev.filter(m => m.id !== msgId))
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${msgId}`, {
       method: 'DELETE',
       headers: {
