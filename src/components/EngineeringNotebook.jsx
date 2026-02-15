@@ -65,12 +65,7 @@ export default function EngineeringNotebook() {
   const [projects, setProjects] = useState([])
   const [approvedQuotes, setApprovedQuotes] = useState([])
   const [pendingQuotes, setPendingQuotes] = useState([])
-  const [formData, setFormData] = useState(() => {
-    try {
-      const draft = localStorage.getItem('notebook-entry-draft')
-      return draft ? JSON.parse(draft) : { ...INITIAL_ENTRY }
-    } catch { return { ...INITIAL_ENTRY } }
-  })
+  const [formData, setFormData] = useState({ ...INITIAL_ENTRY })
   const [meetingDate, setMeetingDate] = useState(() => new Date().toISOString().split('T')[0])
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [projectForm, setProjectForm] = useState({ ...INITIAL_PROJECT })
@@ -80,7 +75,7 @@ export default function EngineeringNotebook() {
   const [showQuoteModal, setShowQuoteModal] = useState(false)
   const [quoteToast, setQuoteToast] = useState(null)
   const [submitFeedback, setSubmitFeedback] = useState(null)
-  const [showTeamEntries, setShowTeamEntries] = useState(isLead)
+  const [showTeamEntries, setShowTeamEntries] = useState(true)
   const [filterStudent, setFilterStudent] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterProject, setFilterProject] = useState('')
@@ -154,12 +149,6 @@ export default function EngineeringNotebook() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  // Draft persistence
-  useEffect(() => {
-    localStorage.setItem('notebook-entry-draft', JSON.stringify(formData))
-  }, [formData])
-
-  // No longer auto-edit existing entries — always allow adding new ones
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
 
@@ -208,7 +197,7 @@ export default function EngineeringNotebook() {
 
     setFormData({ ...INITIAL_ENTRY })
     setEditingEntryId(null)
-    localStorage.removeItem('notebook-entry-draft')
+
     setTimeout(() => setSubmitFeedback(null), 3000)
 
     // Show fun quote
@@ -385,7 +374,7 @@ export default function EngineeringNotebook() {
                     if (v.id === 'entry') {
                       setFormData({ ...INITIAL_ENTRY })
                       setEditingEntryId(null)
-                      localStorage.removeItem('notebook-entry-draft')
+                  
                     }
                     setView(v.id)
                   }}
