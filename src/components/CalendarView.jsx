@@ -183,6 +183,13 @@ function CalendarView() {
 
   const dateKey = (day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
+  const restHeaders = {
+    'apikey': supabaseKey,
+    'Authorization': `Bearer ${supabaseKey}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal',
+  }
+
   const handleAddEvent = (e) => {
     e.preventDefault()
     if (!eventName.trim() || !selectedDay) return
@@ -205,11 +212,7 @@ function CalendarView() {
       addToast('Request sent! A lead will review it.', 'success')
       fetch(`${supabaseUrl}/rest/v1/requests`, {
         method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers: restHeaders,
         body: JSON.stringify(request),
       }).catch(err => console.error('Error submitting request:', err))
       return
@@ -225,26 +228,21 @@ function CalendarView() {
     }
 
     // Optimistic update
-    setEvents(prev => {
-      const updated = { ...prev }
-      if (!updated[key]) updated[key] = []
-      updated[key].push({ id: newEvent.id, name: newEvent.name, description: newEvent.description, addedBy: newEvent.added_by, eventType })
-      return updated
-    })
+    setEvents(prev => ({
+      ...prev,
+      [key]: [...(prev[key] || []), { id: newEvent.id, name: newEvent.name, description: newEvent.description, addedBy: newEvent.added_by, eventType }],
+    }))
     setEventName('')
     setEventDesc('')
 
     fetch(`${supabaseUrl}/rest/v1/calendar_events`, {
       method: 'POST',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: restHeaders,
       body: JSON.stringify(newEvent),
-    }).then(async (res) => {
+    }).then(res => {
       if (!res.ok) {
-        console.error('Failed to save calendar event:', await res.text())
+        res.text().then(t => console.error('Failed to save calendar event:', t))
+        addToast('Failed to save event', 'error')
         setEvents(prev => {
           const updated = { ...prev }
           updated[key] = (updated[key] || []).filter(ev => ev.id !== newEvent.id)
@@ -267,10 +265,7 @@ function CalendarView() {
 
     fetch(`${supabaseUrl}/rest/v1/calendar_events?id=eq.${eventId}`, {
       method: 'DELETE',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-      },
+      headers: restHeaders,
     }).catch(err => console.error('Failed to delete calendar event:', err))
   }
 
