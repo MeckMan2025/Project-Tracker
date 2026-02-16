@@ -31,7 +31,7 @@ const ROLE_DESCRIPTIONS = {
 
 function UserManagement() {
   const { user } = useUser()
-  const { isAuthorityAdmin, canManageUsers, isTop } = usePermissions()
+  const { isAuthorityAdmin, canManageUsers, canChangeRoles, isTop } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
   const [activeSection, setActiveSection] = useState('whitelist')
@@ -661,21 +661,25 @@ function UserManagement() {
                               className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
                             >
                               {role}
-                              <button
-                                onClick={() => handleToggleRole(member.id, role)}
-                                className="hover:opacity-70 transition-opacity"
-                                title={`Remove ${role}`}
-                              >
-                                <X size={12} />
-                              </button>
+                              {canChangeRoles && (
+                                <button
+                                  onClick={() => handleToggleRole(member.id, role)}
+                                  className="hover:opacity-70 transition-opacity"
+                                  title={`Remove ${role}`}
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
                             </span>
                           ))}
-                          <button
-                            onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
-                            className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
-                          >
-                            <Plus size={12} /> Add
-                          </button>
+                          {canChangeRoles && (
+                            <button
+                              onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
+                              className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                            >
+                              <Plus size={12} /> Add
+                            </button>
+                          )}
                         </div>
                       </div>
                     )

@@ -16,6 +16,9 @@ export function usePermissions() {
   const isCofounder = (functionTags && functionTags.includes('Co-Founder')) ||
     (username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n)))
 
+  const ROLE_CHANGE_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
+  const hasRoleChangeTag = isCofounder || (functionTags && functionTags.some(t => ROLE_CHANGE_TAGS.includes(t)))
+
   return {
     tier,
     isGuest,
@@ -54,6 +57,7 @@ export function usePermissions() {
     canManageUsers: isTop,
     canDragAnyTask: isTop,
     canOverrideAttendance: isTop,
+    canChangeRoles: hasRoleChangeTag,
     canChangeAuthorityTier: isTop,
 
     // Co-Founders & Top
