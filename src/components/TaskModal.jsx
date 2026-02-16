@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 const SKILL_OPTIONS = [
@@ -6,7 +6,7 @@ const SKILL_OPTIONS = [
   'Presentation', 'Testing', 'Documentation', 'Outreach', 'Strategy'
 ]
 
-function TaskModal({ task, onSave, onClose, requestMode }) {
+function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
@@ -15,6 +15,38 @@ function TaskModal({ task, onSave, onClose, requestMode }) {
     dueDate: task?.dueDate || '',
     skills: task?.skills || [],
   })
+  const [teamMembers, setTeamMembers] = useState([])
+
+  // Fetch non-guest profiles for the assignee dropdown (leads only)
+  useEffect(() => {
+    if (!isLead) return
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    async function loadMembers() {
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?authority_tier=neq.guest&select=display_name`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+          }
+        )
+        if (res.ok) {
+          const data = await res.json()
+          const names = data
+            .map(p => p.display_name)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+          setTeamMembers(names)
+        }
+      } catch (err) {
+        console.error('Failed to load team members:', err)
+      }
+    }
+    loadMembers()
+  }, [isLead])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -84,13 +116,27 @@ function TaskModal({ task, onSave, onClose, requestMode }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Assignee
               </label>
-              <input
-                type="text"
-                value={formData.assignee}
-                onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                placeholder="Name"
-              />
+              {isLead && !requestMode ? (
+                <select
+                  value={formData.assignee}
+                  onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                >
+                  <option value="">Unassigned</option>
+                  <option value="__up_for_grabs__">Up for Grabs</option>
+                  {teamMembers.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.assignee}
+                  onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                  placeholder="Name"
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

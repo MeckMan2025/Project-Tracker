@@ -104,6 +104,15 @@ export function usePendingRequests({ type, boardId } = {}) {
         await fetch(`${supabaseUrl}/rest/v1/boards`, {
           method: 'POST', headers, body: JSON.stringify(board),
         })
+      } else if (request.type === 'leave_task') {
+        // Set the task's assignee back to "Up for Grabs"
+        const taskId = request.data?.task_id
+        if (taskId) {
+          await fetch(`${supabaseUrl}/rest/v1/tasks?id=eq.${taskId}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ assignee: '__up_for_grabs__' }),
+          })
+        }
       } else if (request.type === 'role_request') {
         // Add the requested role to the user's function_tags
         const targetUserId = request.requested_by_user_id
@@ -143,7 +152,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: request.requested_by_user_id,
           type: 'request_approved',
           title: 'Request Approved',
-          body: `Your ${request.type === 'role_request' ? 'role' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.role || request.data?.title || request.data?.name}" was approved by ${username}.`,
+          body: `Your ${request.type === 'role_request' ? 'role' : request.type === 'leave_task' ? 'leave task' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.role || request.data?.title || request.data?.name}" was approved by ${username}.`,
         }
         try {
           await fetch(`${supabaseUrl}/rest/v1/notifications`, {
@@ -215,7 +224,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: request.requested_by_user_id,
           type: 'request_denied',
           title: 'Request Denied',
-          body: `Your ${request.type === 'role_request' ? 'role' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.role || request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
+          body: `Your ${request.type === 'role_request' ? 'role' : request.type === 'leave_task' ? 'leave task' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.role || request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
         }
         try {
           await fetch(`${supabaseUrl}/rest/v1/notifications`, {
@@ -275,7 +284,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: a.id,
           type: 'request_reminder',
           title: 'Request Reminder',
-          body: `${username} is reminding you about a pending ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request: "${request.data?.title || request.data?.name}"`,
+          body: `${username} is reminding you about a pending ${request.type === 'leave_task' ? 'leave task' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request: "${request.data?.title || request.data?.name}"`,
         }))
         await supabase.from('notifications').insert(notifications)
         notifications.forEach(n => triggerPush(n))

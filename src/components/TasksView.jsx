@@ -1,4 +1,4 @@
-import { Calendar, User } from 'lucide-react'
+import { Calendar, User, Zap } from 'lucide-react'
 import { usePermissions } from '../hooks/usePermissions'
 import RequestsBadge from './RequestsBadge'
 
@@ -50,11 +50,12 @@ function TasksView({ tasksByTab, tabs }) {
                     <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:snap-none">
                       {tasks.map(task => {
                         const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
+                        const isUpForGrabs = task.assignee === '__up_for_grabs__'
                         return (
                           <div
                             key={task.id}
                             className={`bg-white rounded-lg p-3 shadow-sm border-l-4 shrink-0 w-[220px] snap-center ${
-                              isOverdue ? 'border-l-red-400' : 'border-l-pastel-pink-dark'
+                              isUpForGrabs ? 'border-l-amber-400' : isOverdue ? 'border-l-red-400' : 'border-l-pastel-pink-dark'
                             }`}
                           >
                             <div className="flex items-center justify-between mb-1">
@@ -77,12 +78,17 @@ function TasksView({ tasksByTab, tabs }) {
                             )}
 
                             <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-1">
-                              {task.assignee && (
+                              {isUpForGrabs ? (
+                                <span className="flex items-center gap-0.5 text-amber-500 font-medium">
+                                  <Zap size={8} />
+                                  Up for Grabs
+                                </span>
+                              ) : task.assignee ? (
                                 <span className="flex items-center gap-0.5">
                                   <User size={8} />
                                   {task.assignee}
                                 </span>
-                              )}
+                              ) : null}
                               {task.dueDate && (
                                 <span className={`flex items-center gap-0.5 ${isOverdue ? 'text-red-400' : ''}`}>
                                   <Calendar size={8} />

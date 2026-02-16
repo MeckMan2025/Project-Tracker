@@ -20,6 +20,7 @@ function RequestsView({ tabs = [] }) {
     { border: 'border-pastel-pink', text: 'text-pastel-pink-dark' },
     { border: 'border-pastel-orange', text: 'text-pastel-orange-dark' },
     { border: 'border-purple-300', text: 'text-purple-600' },
+    { border: 'border-amber-300', text: 'text-amber-600' },
   ]
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -105,6 +106,11 @@ function RequestsView({ tabs = [] }) {
                   Role Request
                 </span>
               )}
+              {r.type === 'leave_task' && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                  Leave Task
+                </span>
+              )}
               {r.board_id && (
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-blue/30 text-pastel-blue-dark">
                   {boardName(r.board_id)}
@@ -183,14 +189,16 @@ function RequestsView({ tabs = [] }) {
     { key: 'boards', label: 'Boards' },
     { key: 'calendar', label: 'Calendar' },
     { key: 'roles', label: 'Role Requests' },
+    { key: 'leave_tasks', label: 'Leave Task Requests' },
   ]
 
   const groupRequests = (items) => {
-    const groups = { tasks: [], boards: [], calendar: [], roles: [] }
+    const groups = { tasks: [], boards: [], calendar: [], roles: [], leave_tasks: [] }
     items.forEach(r => {
       if (r.type === 'task') groups.tasks.push(r)
       else if (r.type === 'board') groups.boards.push(r)
       else if (r.type === 'role_request') groups.roles.push(r)
+      else if (r.type === 'leave_task') groups.leave_tasks.push(r)
       else groups.calendar.push(r)
     })
     return groups

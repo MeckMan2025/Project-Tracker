@@ -542,6 +542,83 @@ function App() {
     }
   }
 
+  const handleClaimTask = async (taskId) => {
+    // Optimistic update: assign to current user
+    const prevTasks = tasksByTab[activeTab] || []
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(task =>
+          task.id === taskId ? { ...task, assignee: username } : task
+        ),
+      }
+      syncCache(updated)
+      return updated
+    })
+
+    // Race-condition guard: only claim if still up for grabs
+    const { data, error } = await supabase
+      .from('tasks')
+      .update({ assignee: username })
+      .eq('id', taskId)
+      .eq('assignee', '__up_for_grabs__')
+      .select()
+
+    if (error || !data || data.length === 0) {
+      // Rollback — someone else claimed it or update failed
+      setTasksByTab(prev => {
+        const updated = { ...prev, [activeTab]: prevTasks }
+        syncCache(updated)
+        return updated
+      })
+      addToast(error ? 'Failed to claim task.' : 'Someone else already claimed this task.', 'error')
+    } else {
+      addToast('Task claimed!', 'success')
+    }
+  }
+
+  const handleLeaveTaskRequest = async (task) => {
+    // Check for duplicate pending leave_task request
+    const { data: existing } = await supabase
+      .from('requests')
+      .select('id')
+      .eq('type', 'leave_task')
+      .eq('status', 'pending')
+      .eq('requested_by_user_id', user.id)
+      .eq('board_id', activeTab)
+
+    if (existing && existing.length > 0) {
+      // Check if any match this exact task
+      // We store task_id in data, so also check via data filter client-side
+      const hasDupe = existing.some(r => true) // any pending leave_task from this user on this board
+      if (hasDupe) {
+        addToast('You already have a pending leave request on this board.', 'error')
+        return
+      }
+    }
+
+    const request = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      type: 'leave_task',
+      data: {
+        task_id: task.id,
+        title: task.title,
+        assignee: task.assignee,
+      },
+      requested_by: username,
+      requested_by_user_id: user.id,
+      status: 'pending',
+      board_id: activeTab,
+    }
+
+    addToast('Leave request sent! A lead will review it.', 'success')
+    try {
+      await supabase.from('requests').insert(request)
+    } catch (err) {
+      console.error('Error submitting leave request:', err)
+    }
+  }
+
   const handleRequestTask = async (newTask) => {
     setIsRequestModalOpen(false)
     const request = {
@@ -928,6 +1005,10 @@ function App() {
                                   onEdit={() => setEditingTask(task)}
                                   onDelete={() => handleDeleteTask(task.id)}
                                   canEdit={canEditContent}
+                                  onClaim={handleClaimTask}
+                                  onLeaveTask={handleLeaveTaskRequest}
+                                  currentUser={username}
+                                  isGuest={isGuest}
                                 />
                               </div>
                             )}
@@ -954,6 +1035,7 @@ function App() {
             setIsModalOpen(false)
             setEditingTask(null)
           }}
+          isLead={canEditContent}
         />
       )}
 

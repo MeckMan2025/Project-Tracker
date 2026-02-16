@@ -1,13 +1,17 @@
-import { Calendar, User, Pencil, Trash2, MessageCircle } from 'lucide-react'
+import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand } from 'lucide-react'
 
-function TaskCard({ task, isDragging, onEdit, onDelete, canEdit }) {
+const UP_FOR_GRABS = '__up_for_grabs__'
+
+function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeaveTask, currentUser, isGuest }) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
+  const isUpForGrabs = task.assignee === UP_FOR_GRABS
+  const isAssignedToMe = currentUser && task.assignee && task.assignee.toLowerCase() === currentUser.toLowerCase()
 
   return (
     <div
       className={`bg-white rounded-lg p-3 mb-2 shadow-sm border-l-4 transition-shadow ${
         isDragging ? 'shadow-lg' : 'hover:shadow-md'
-      } ${isOverdue ? 'border-l-red-400' : 'border-l-pastel-pink-dark'}`}
+      } ${isUpForGrabs ? 'border-l-amber-400' : isOverdue ? 'border-l-red-400' : 'border-l-pastel-pink-dark'}`}
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-medium text-gray-800 flex-1">{task.title}</h3>
@@ -54,12 +58,17 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit }) {
 
       <div className="flex items-center justify-between text-xs text-gray-400">
         <div className="flex items-center gap-3">
-          {task.assignee && (
+          {isUpForGrabs ? (
+            <span className="flex items-center gap-1 text-amber-500 font-medium">
+              <Zap size={12} />
+              Up for Grabs
+            </span>
+          ) : task.assignee ? (
             <span className="flex items-center gap-1">
               <User size={12} />
               {task.assignee}
             </span>
-          )}
+          ) : null}
           {task.dueDate && (
             <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-400' : ''}`}>
               <Calendar size={12} />
@@ -68,6 +77,32 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit }) {
           )}
         </div>
       </div>
+
+      {/* Claim button for non-guests on Up for Grabs tasks */}
+      {isUpForGrabs && !isGuest && onClaim && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onClaim(task.id) }}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium rounded-lg transition-colors"
+        >
+          <Hand size={12} />
+          Claim Task
+        </button>
+      )}
+
+      {/* Request to Leave button for the assigned user */}
+      {isAssignedToMe && !isUpForGrabs && onLeaveTask && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onLeaveTask(task) }}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-500 text-xs font-medium rounded-lg transition-colors"
+        >
+          <LogOut size={12} />
+          Request to Leave
+        </button>
+      )}
     </div>
   )
 }
