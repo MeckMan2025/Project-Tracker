@@ -281,6 +281,7 @@ export function UserProvider({ children }) {
         id: data.user.id,
         display_name: displayName,
         role: role,
+        authority_tier: 'guest',
       })
       if (profileError) {
         console.error('Failed to create profile:', profileError.message)
