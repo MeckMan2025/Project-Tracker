@@ -24,17 +24,30 @@ export function usePushNotifications() {
     'PushManager' in window &&
     'Notification' in window
 
-  // Check current state on mount
+  // Check current state on mount and sync browser subscription to DB
   useEffect(() => {
     if (!isSupported) return
     setPermission(Notification.permission)
 
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.pushManager.getSubscription().then((sub) => {
-        setIsSubscribed(!!sub)
-      })
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const sub = await reg.pushManager.getSubscription()
+      setIsSubscribed(!!sub)
+
+      // If browser has a subscription but user is logged in, ensure it's in the DB
+      // (covers case where table didn't exist when user first subscribed)
+      if (sub && user) {
+        const subJson = sub.toJSON()
+        supabase.from('push_subscriptions').upsert({
+          user_id: user.id,
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys.p256dh,
+          auth: subJson.keys.auth,
+        }, { onConflict: 'user_id,endpoint' }).then(({ error }) => {
+          if (error) console.warn('Failed to sync push subscription to DB:', error)
+        })
+      }
     })
-  }, [isSupported])
+  }, [isSupported, user])
 
   const subscribe = useCallback(async () => {
     if (!isSupported || !user) return false

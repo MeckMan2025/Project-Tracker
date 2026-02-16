@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -65,6 +65,26 @@ function ProfileView() {
   const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
   const [notifPrefs, setNotifPrefs] = useState({ enabled: true, calendar: true, chat: true })
+
+  // Auto-save notification prefs whenever they change (after initial load)
+  const notifPrefsLoaded = useRef(false)
+  useEffect(() => {
+    if (!user) return
+    if (!notifPrefsLoaded.current) {
+      notifPrefsLoaded.current = true
+      return
+    }
+    fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ notification_prefs: notifPrefs }),
+    }).catch(err => console.error('Failed to save notification prefs:', err))
+  }, [notifPrefs, user])
   const [editName, setEditName] = useState('')
   const [editNickname, setEditNickname] = useState('')
   const [editUseNickname, setEditUseNickname] = useState(false)
