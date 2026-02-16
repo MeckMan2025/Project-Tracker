@@ -3,6 +3,10 @@ import { Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const restHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
 export default function NotificationBell() {
   const { user } = useUser()
   const [notifications, setNotifications] = useState([])
@@ -11,17 +15,15 @@ export default function NotificationBell() {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
-  // Load notifications
+  // Load notifications via direct REST (bypasses JS client auth token issues)
   useEffect(() => {
     if (!user) return
     async function load() {
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-      if (data) setNotifications(data)
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=20`,
+        { headers: restHeaders }
+      )
+      if (res.ok) setNotifications(await res.json())
     }
     load()
   }, [user])
@@ -76,25 +78,32 @@ export default function NotificationBell() {
   }, [open])
 
   const markAsRead = async (id) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id)
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+    fetch(`${supabaseUrl}/rest/v1/notifications?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...restHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ read: true }),
+    }).catch(() => {})
   }
 
   const markAllRead = async () => {
     const unread = notifications.filter(n => !n.read)
     if (unread.length === 0) return
-    await Promise.all(unread.map(n =>
-      supabase.from('notifications').update({ read: true }).eq('id', n.id)
-    ))
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}&read=eq.false`, {
+      method: 'PATCH',
+      headers: { ...restHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ read: true }),
+    }).catch(() => {})
   }
 
   const clearAll = async () => {
     if (notifications.length === 0) return
-    await Promise.all(notifications.map(n =>
-      supabase.from('notifications').delete().eq('id', n.id)
-    ))
     setNotifications([])
+    fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}`, {
+      method: 'DELETE',
+      headers: restHeaders,
+    }).catch(() => {})
   }
 
   const formatTime = (ts) => {

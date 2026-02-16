@@ -22,6 +22,8 @@ import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
+import AnnouncementsView from './components/AnnouncementsView'
+import AnnouncementModal from './components/AnnouncementModal'
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
@@ -39,6 +41,7 @@ const TAB_ACCESS = {
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'quick-chat': 'teammate', 'notebook': 'teammate', 'workshops': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
+  'announcements': 'teammate',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
@@ -132,6 +135,7 @@ const SCHEDULE_TAB = { id: 'schedule', name: 'Schedule', type: 'schedule' }
 const WORKSHOPS_TAB = { id: 'workshops', name: 'Workshops', type: 'workshops' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
+const ANNOUNCEMENTS_TAB = { id: 'announcements', name: 'Announcements', type: 'announcements' }
 
 const DEFAULT_BOARDS = [
   { id: 'business', name: 'Business', permanent: true },
@@ -139,7 +143,7 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
-const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
+const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, ANNOUNCEMENTS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -244,6 +248,7 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [announcementModalOpen, setAnnouncementModalOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -464,7 +469,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule' || tabId === 'announcements') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -880,6 +885,7 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
+        onCreateAnnouncement={() => setAnnouncementModalOpen(true)}
       />
 
 
@@ -951,6 +957,8 @@ function App() {
         <OrgChart />
       ) : activeTab === 'suggestions' ? (
         <SuggestionsView />
+      ) : activeTab === 'announcements' ? (
+        <AnnouncementsView />
       ) : activeTab === 'calendar' ? (
         <CalendarView />
       ) : activeTab === 'user-management' ? (
@@ -1122,6 +1130,11 @@ function App() {
           onClose={() => setIsRequestModalOpen(false)}
           requestMode
         />
+      )}
+
+      {/* Announcement Modal */}
+      {announcementModalOpen && (
+        <AnnouncementModal onClose={() => setAnnouncementModalOpen(false)} />
       )}
       </div>
     </div>

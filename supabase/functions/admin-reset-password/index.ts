@@ -42,14 +42,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify caller is a lead
+    // Verify caller is a lead (has a lead-level function tag)
+    const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead'];
     const { data: profile, error: profileError } = await supabaseUser
       .from("profiles")
-      .select("role")
+      .select("function_tags")
       .eq("id", caller.id)
       .single();
 
-    if (profileError || profile?.role !== "lead") {
+    const callerTags = profile?.function_tags || [];
+    const isLead = callerTags.some((t: string) => LEAD_TAGS.includes(t));
+
+    if (profileError || !isLead) {
       return new Response(
         JSON.stringify({ error: "Only leads can reset passwords" }),
         {
