@@ -7,28 +7,24 @@ const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead'
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags } = useUser()
 
-  // Use the authority_tier from the database profile directly.
-  // Fall back to 'top' for permanent co-founders even if profile hasn't loaded yet.
+  // Tier is auto-derived from roles (set by UserManagement on role change).
+  // Permanent co-founders always get teammate tier at minimum.
   const isPermanentCofounder = username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n))
-  const tier = isPermanentCofounder ? 'top' : (authorityTier || 'guest')
-  console.log('[Permissions]', username, '→ authorityTier:', authorityTier, '→ computed tier:', tier)
+  const tier = isPermanentCofounder ? 'teammate' : (authorityTier || 'guest')
 
   const isGuest = tier === 'guest'
-  const isTeammate = tier === 'teammate'
-  const isTop = tier === 'top'
-  const isCofounder = (functionTags && functionTags.includes('Co-Founder')) ||
-    (username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n)))
 
+  // Co-Founder: includes permanent co-founders + anyone with Co-Founder tag
+  const isCofounder = (functionTags && functionTags.includes('Co-Founder')) || isPermanentCofounder
+
+  // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Team Lead, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
 
   return {
     tier,
     isGuest,
-    isTeammate,
-    isTop,
     isCofounder,
     hasLeadTag,
-    isAuthorityAdmin: !!isAuthorityAdmin,
 
     // View permissions (all tiers including guest)
     canViewBoards: true,
@@ -69,16 +65,12 @@ export function usePermissions() {
     // Co-Founders only
     canReviewSuggestions: isCofounder,
 
-    // Top only
-    canChangeAuthorityTier: isTop,
-
     // Nobody
     canEditScouting: false,
 
     // Legacy compat
     role,
     secondaryRoles,
-    isElevated: isTop || hasLeadTag,
-    isAdmin: isTop,
+    isElevated: hasLeadTag,
   }
 }

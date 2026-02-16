@@ -57,7 +57,7 @@ export default function EngineeringNotebook() {
   const { username } = useUser()
   const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest } = usePermissions()
   const isLead = canOrganizeNotebook
-  const isTop = canApproveQuotes
+  const canReviewQuotes = canApproveQuotes
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const [view, setView] = useState('timeline')
@@ -782,7 +782,7 @@ export default function EngineeringNotebook() {
               <SectionHeader title="Fun Quotes" />
 
               {/* Pending quotes (top can approve/delete) */}
-              {isTop && pendingQuotes.length > 0 && (
+              {canReviewQuotes && pendingQuotes.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 mb-2">Pending Approval ({pendingQuotes.length})</h3>
                   <div className="space-y-2">
@@ -819,7 +819,7 @@ export default function EngineeringNotebook() {
                           <p className="text-sm text-gray-700 italic">"{q.content}"</p>
                           <p className="text-xs text-gray-400 mt-1">- {q.submitted_by}</p>
                         </div>
-                        {isTop && (
+                        {canReviewQuotes && (
                           <button onClick={() => handleDeleteQuote(q.id)} className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
                             <Trash2 size={14} />
                           </button>

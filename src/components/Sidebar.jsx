@@ -6,7 +6,7 @@ import { useToast } from './ToastProvider'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers }) {
   const { logout, username, user } = useUser()
-  const { isGuest, isTop, canManageUsers, canReviewRequests, canEditContent, canRequestContent } = usePermissions()
+  const { isGuest, canEditContent, canRequestContent } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)

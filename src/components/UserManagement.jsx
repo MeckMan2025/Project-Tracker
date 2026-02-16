@@ -32,7 +32,7 @@ const ROLE_DESCRIPTIONS = {
 
 function UserManagement() {
   const { user, username } = useUser()
-  const { canManageUsers, canChangeRoles, canRequestRoles, isTop, hasLeadTag } = usePermissions()
+  const { canManageUsers, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
   const [activeSection, setActiveSection] = useState(canManageUsers ? 'whitelist' : 'members')

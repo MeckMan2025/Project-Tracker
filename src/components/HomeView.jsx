@@ -6,9 +6,8 @@ import { usePermissions } from '../hooks/usePermissions'
 
 function HomeView({ tasksByTab, tabs, onTabChange }) {
   const { username } = useUser()
-  const { tier, isGuest } = usePermissions()
-  const isTop = tier === 'top'
-  const isTeammate = tier === 'teammate'
+  const { isGuest, hasLeadTag } = usePermissions()
+  const isLead = hasLeadTag
 
   const [nextEvent, setNextEvent] = useState(null)
   const [eventLoading, setEventLoading] = useState(true)
@@ -139,10 +138,10 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
             <div className="flex items-center gap-2 mb-3">
               <ClipboardList size={18} className="text-pastel-blue-dark" />
-              <h2 className="font-semibold text-gray-700">{isTop ? 'Team Overview' : 'My Tasks'}</h2>
+              <h2 className="font-semibold text-gray-700">{isLead ? 'Team Overview' : 'My Tasks'}</h2>
             </div>
 
-            {isTop ? (
+            {isLead ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-pastel-orange/20 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-pastel-orange-dark">{pendingRequestCount}</p>
@@ -213,7 +212,7 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
         {/* 3. Status Dashboard (hidden for guest) */}
         {!isGuest && (
           <div className="grid grid-cols-2 gap-3">
-            {isTop ? (
+            {isLead ? (
               <>
                 <StatCard icon={CheckCircle2} label="Team Tasks Done" value={stats.allDone.length} color="text-green-500" bg="bg-green-50" />
                 <StatCard icon={AlertCircle} label="Open Tasks" value={stats.allOpen.length} color="text-pastel-blue-dark" bg="bg-pastel-blue/20" />
@@ -244,7 +243,7 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
                 <QuickAction icon={MessageCircle} label="Quick Chat" onClick={() => onTabChange('quick-chat')} />
               </>
             )}
-            {isTop && (
+            {isLead && (
               <>
                 <QuickAction
                   icon={Inbox}
