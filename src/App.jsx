@@ -42,7 +42,7 @@ const TAB_ACCESS = {
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'quick-chat': 'teammate', 'notebook': 'teammate', 'workshops': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
-  'announcements': 'teammate',
+  'announcements': 'guest',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }

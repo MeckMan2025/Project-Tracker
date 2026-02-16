@@ -517,27 +517,23 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
-          {/* Announcements — hidden for guests */}
-          {!isGuest && (
-            <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'announcements'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('announcements')
-                  onToggle()
-                }}
-              >
-                <Megaphone size={16} className="text-pastel-pink-dark" />
-                <span className="truncate">Announcements</span>
-              </div>
+          {/* Announcements — visible to everyone */}
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+              activeTab === 'announcements'
+                ? 'bg-pastel-pink text-gray-800'
+                : 'hover:bg-pastel-blue/30 text-gray-600'
+            }`}
+            onClick={() => {
+              onTabChange('announcements')
+              onToggle()
+            }}
+          >
+            <Megaphone size={16} className="text-pastel-pink-dark" />
+            <span className="truncate">Announcements</span>
+          </div>
 
-              <hr className="my-2 border-gray-200" />
-            </>
-          )}
+          <hr className="my-2 border-gray-200" />
 
           {/* Calendar Tab */}
           <div
