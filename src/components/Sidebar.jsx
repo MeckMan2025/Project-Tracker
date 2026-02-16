@@ -489,23 +489,27 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
-          {/* Suggestions — visible to all */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'suggestions'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('suggestions')
-              onToggle()
-            }}
-          >
-            <HelpCircle size={16} className="text-pastel-orange-dark" />
-            <span className="truncate">Suggestions</span>
-          </div>
+          {/* Suggestions — hidden for guests */}
+          {!isGuest && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'suggestions'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('suggestions')
+                  onToggle()
+                }}
+              >
+                <HelpCircle size={16} className="text-pastel-orange-dark" />
+                <span className="truncate">Suggestions</span>
+              </div>
 
-          <hr className="my-2 border-gray-200" />
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
 
           {/* Calendar Tab */}
           <div

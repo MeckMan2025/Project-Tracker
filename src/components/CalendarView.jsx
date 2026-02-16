@@ -472,8 +472,8 @@ function CalendarView() {
               <p className="text-sm text-gray-400 mb-3">No events or tasks on this day.</p>
             )}
 
-            {/* Add/Request event form */}
-            <form onSubmit={handleAddEvent} className="space-y-2 border-t pt-3">
+            {/* Add/Request event form — hidden for guests */}
+            {!isGuest && <form onSubmit={handleAddEvent} className="space-y-2 border-t pt-3">
               <input
                 type="text"
                 value={eventName}
@@ -550,7 +550,7 @@ function CalendarView() {
               >
                 {canEditContent ? 'Add Event' : 'Request Event'}
               </button>
-            </form>
+            </form>}
           </div>
         )}
       </main>
