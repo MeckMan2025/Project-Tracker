@@ -60,8 +60,9 @@ export function UserProvider({ children }) {
 
   const applyProfile = (profile) => {
     if (profile) {
-      console.log('[Profile] Raw from DB:', { authority_tier: profile.authority_tier, function_tags: profile.function_tags, display_name: profile.display_name })
       setUsername(profile.display_name)
+      // Key the cache by user ID so it doesn't leak between accounts
+      localStorage.setItem('scrum-cached-user-id', profile.id)
       setIsLead(profile.role === 'lead')
       const profileRole = profile.role || 'member'
       const profileSecondaryRoles = profile.secondary_roles || []
@@ -153,13 +154,27 @@ export function UserProvider({ children }) {
             return
           }
           setUser(session.user)
-          // Always fetch profile from DB — don't trust cached permissions
+          // Load cached profile keyed by user ID for instant render
+          const cachedUserId = localStorage.getItem('scrum-cached-user-id')
+          if (cachedUserId === session.user.id) {
+            const cachedName = localStorage.getItem('scrum-username')
+            if (cachedName) {
+              setUsername(cachedName)
+              const cachedTier = localStorage.getItem('scrum-authority-tier')
+              if (cachedTier) setAuthorityTier(cachedTier)
+              const cachedTags = localStorage.getItem('scrum-function-tags')
+              if (cachedTags) { try { setFunctionTags(JSON.parse(cachedTags)) } catch (e) {} }
+              const cachedRole = localStorage.getItem('scrum-role')
+              if (cachedRole) { setRole(cachedRole); setIsLead(cachedRole === 'lead') }
+              if (mounted) setLoading(false)
+            }
+          }
+          // Always verify against DB
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
             if (profile) {
               applyProfile(profile)
-            } else {
-              // Profile fetch failed — session is likely invalid, force re-login
+            } else if (!cachedUserId || cachedUserId !== session.user.id) {
               console.warn('[Auth] No profile found — forcing re-login')
               await expireSession()
               setLoading(false)
@@ -185,11 +200,10 @@ export function UserProvider({ children }) {
           if (session?.user) setUser(session.user)
         } else if (event === 'SIGNED_IN' && session?.user) {
           // Clear stale cache from previous account before loading new profile
+          localStorage.removeItem('scrum-cached-user-id')
           setAuthorityTier('guest')
           setFunctionTags([])
           setUsername('')
-          localStorage.removeItem('scrum-authority-tier')
-          localStorage.removeItem('scrum-function-tags')
           localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
