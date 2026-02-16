@@ -9,10 +9,7 @@ const ALL_ROLES = [
   'Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming', 'Guest',
 ]
 
-const PERMANENT_COFOUNDERS = [
-  { id: '__cofounder_yukti', display_name: 'Yukti', function_tags: ['Co-Founder'], permanent: true },
-  { id: '__cofounder_kayden', display_name: 'Kayden', function_tags: ['Co-Founder'], permanent: true },
-]
+const PERMANENT_COFOUNDER_NAMES = ['yukti', 'kayden']
 
 const ROLE_DESCRIPTIONS = {
   'Co-Founder': 'Team co-founder with full administrative access',
@@ -608,118 +605,83 @@ function UserManagement() {
             </>
           ) : (
             <div className="space-y-2">
-              {(() => {
-                const cofounderNames = PERMANENT_COFOUNDERS.map(c => c.display_name.toLowerCase())
-                const cofounderMembers = PERMANENT_COFOUNDERS.map(cf => {
-                  const dbMember = registeredMembers.find(m => m.display_name?.toLowerCase() === cf.display_name.toLowerCase())
-                  return { ...cf, dbId: dbMember?.id || null, dbRoles: dbMember?.function_tags || [] }
-                })
-                const otherMembers = registeredMembers.filter(m => !cofounderNames.includes(m.display_name?.toLowerCase()))
+              {loadingData ? (
+                <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
+              ) : registeredMembers.length === 0 ? (
+                <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
+              ) : (
+                (() => {
+                  // Sort co-founders first
+                  const isCofounder = (m) => PERMANENT_COFOUNDER_NAMES.some(n => m.display_name?.toLowerCase().includes(n))
+                  const sorted = [...registeredMembers].sort((a, b) => {
+                    const aIsCo = isCofounder(a)
+                    const bIsCo = isCofounder(b)
+                    if (aIsCo && !bIsCo) return -1
+                    if (!aIsCo && bIsCo) return 1
+                    return 0
+                  })
 
-                return (
-                  <>
-                    {cofounderMembers.map((member) => {
-                      const extraRoles = member.dbRoles.filter(r => r !== 'Co-Founder')
-                      return (
-                        <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm font-medium text-gray-700">{member.display_name}</span>
+                  return sorted.map((member) => {
+                    const memberIsCofounder = isCofounder(member)
+                    const memberRoles = member.function_tags || []
+                    return (
+                      <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
-                              Co-Founder
-                            </span>
-                            {extraRoles.map(role => (
-                              <span
-                                key={role}
-                                className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
-                              >
-                                {role}
-                                {member.dbId && (
-                                  <button
-                                    onClick={() => handleToggleRole(member.dbId, role)}
-                                    className="hover:opacity-70 transition-opacity"
-                                    title={`Remove ${role}`}
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-                            {member.dbId && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
+                              title="Reset password"
+                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                            >
+                              <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                            </button>
+                            {member.id !== user.id && (
                               <button
-                                onClick={() => setRolePickerOpen(rolePickerOpen === member.dbId ? null : member.dbId)}
-                                className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                                onClick={() => { setDeleteTarget(member); setDeleteError('') }}
+                                title="Delete member"
+                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                               >
-                                <Plus size={12} /> Add
+                                <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
                               </button>
                             )}
                           </div>
                         </div>
-                      )
-                    })}
-                    {loadingData ? (
-                      <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
-                    ) : otherMembers.length === 0 ? (
-                      <p className="text-center text-gray-400 mt-10">No other registered members yet.</p>
-                    ) : (
-                      otherMembers.map((member) => {
-                        const memberRoles = member.function_tags || []
-                        return (
-                          <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
-                                  title="Reset password"
-                                  className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-                                >
-                                  <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
-                                </button>
-                                {member.id !== user.id && (
-                                  <button
-                                    onClick={() => { setDeleteTarget(member); setDeleteError('') }}
-                                    title="Delete member"
-                                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                                  >
-                                    <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {memberRoles.map(role => (
-                                <span
-                                  key={role}
-                                  className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
-                                >
-                                  {role}
-                                  <button
-                                    onClick={() => handleToggleRole(member.id, role)}
-                                    className="hover:opacity-70 transition-opacity"
-                                    title={`Remove ${role}`}
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                </span>
-                              ))}
+                        <div className="flex flex-wrap gap-1.5">
+                          {memberIsCofounder && (
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
+                              Co-Founder
+                            </span>
+                          )}
+                          {memberRoles.filter(r => !(memberIsCofounder && r === 'Co-Founder')).map(role => (
+                            <span
+                              key={role}
+                              className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
+                            >
+                              {role}
                               <button
-                                onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
-                                className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                                onClick={() => handleToggleRole(member.id, role)}
+                                className="hover:opacity-70 transition-opacity"
+                                title={`Remove ${role}`}
                               >
-                                <Plus size={12} /> Add
+                                <X size={12} />
                               </button>
-                            </div>
-                          </div>
-                        )
-                      })
-                    )}
-                  </>
-                )
-              })()}
+                            </span>
+                          ))}
+                          <button
+                            onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
+                            className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                          >
+                            <Plus size={12} /> Add
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+                })()
+              )}
             </div>
           )}
         </div>
@@ -729,8 +691,7 @@ function UserManagement() {
       {rolePickerOpen && (() => {
         const member = registeredMembers.find(m => m.id === rolePickerOpen)
         if (!member) return null
-        const cofounderNames = PERMANENT_COFOUNDERS.map(c => c.display_name.toLowerCase())
-        const isCofounder = cofounderNames.includes(member.display_name?.toLowerCase())
+        const isCofounder = PERMANENT_COFOUNDER_NAMES.some(n => member.display_name?.toLowerCase().includes(n))
         const memberRoles = member.function_tags || []
         const available = ALL_ROLES.filter(r => !memberRoles.includes(r) && !(isCofounder && r === 'Co-Founder'))
         return (
