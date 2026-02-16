@@ -267,13 +267,62 @@ CREATE POLICY "Allow all access to scouting_periods" ON scouting_periods
 -- 15. ADD scouting_period_id TO scouting_records
 ALTER TABLE scouting_records ADD COLUMN IF NOT EXISTS scouting_period_id text DEFAULT '';
 
--- 16. ENABLE REALTIME on all tables
+-- 16. NOTIFICATIONS TABLE (in-app notification feed)
+CREATE TABLE IF NOT EXISTS notifications (
+  id text PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  type text NOT NULL,
+  title text NOT NULL,
+  body text DEFAULT '',
+  read boolean DEFAULT false,
+  force boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to notifications" ON notifications;
+CREATE POLICY "Allow all access to notifications" ON notifications
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 17. PUSH SUBSCRIPTIONS TABLE (web push endpoints per user/device)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  endpoint text NOT NULL,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, endpoint)
+);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to push_subscriptions" ON push_subscriptions;
+CREATE POLICY "Allow all access to push_subscriptions" ON push_subscriptions
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 18. REQUEST REMINDERS TABLE (cooldown tracking for request nudges)
+CREATE TABLE IF NOT EXISTS request_reminders (
+  id text PRIMARY KEY,
+  request_id text NOT NULL,
+  reminded_by_user_id uuid NOT NULL REFERENCES auth.users(id),
+  reminded_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE request_reminders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to request_reminders" ON request_reminders;
+CREATE POLICY "Allow all access to request_reminders" ON request_reminders
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 19. ADD notification_prefs COLUMN to profiles
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs jsonb DEFAULT '{"enabled": true, "calendar": true, "chat": true}';
+
+-- 20. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

@@ -263,7 +263,7 @@ function CalendarView() {
               body,
               force: shouldForce,
             }
-            supabase.from('notifications').insert(notifRecord).then(() => {})
+            await supabase.from('notifications').insert(notifRecord)
             triggerPush(notifRecord)
           }
         }

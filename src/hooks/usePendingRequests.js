@@ -125,11 +125,15 @@ export function usePendingRequests({ type, boardId } = {}) {
           title: 'Request Approved',
           body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
         }
-        fetch(`${supabaseUrl}/rest/v1/notifications`, {
-          method: 'POST', headers,
-          body: JSON.stringify(approvalNotif),
-        }).then(() => triggerPush(approvalNotif))
-          .catch(err => console.error('Failed to notify:', err))
+        try {
+          await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+            method: 'POST', headers,
+            body: JSON.stringify(approvalNotif),
+          })
+          triggerPush(approvalNotif)
+        } catch (err) {
+          console.error('Failed to notify:', err)
+        }
       }
 
       // If approving a calendar_event with notify, send notifications to all users
@@ -148,7 +152,7 @@ export function usePendingRequests({ type, boardId } = {}) {
                 body,
                 force: !!request.data.force_notify,
               }
-              supabase.from('notifications').insert(notifRecord).then(() => {})
+              await supabase.from('notifications').insert(notifRecord)
               triggerPush(notifRecord)
             }
           }
@@ -193,11 +197,15 @@ export function usePendingRequests({ type, boardId } = {}) {
           title: 'Request Denied',
           body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
         }
-        fetch(`${supabaseUrl}/rest/v1/notifications`, {
-          method: 'POST', headers,
-          body: JSON.stringify(denialNotif),
-        }).then(() => triggerPush(denialNotif))
-          .catch(err => console.error('Failed to notify:', err))
+        try {
+          await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+            method: 'POST', headers,
+            body: JSON.stringify(denialNotif),
+          })
+          triggerPush(denialNotif)
+        } catch (err) {
+          console.error('Failed to notify:', err)
+        }
       }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))

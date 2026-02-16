@@ -7,7 +7,7 @@ export function triggerPush(notificationRecord) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ record: notificationRecord }),
-  }).catch(() => {
-    // Fire-and-forget — swallow errors silently
+  }).catch((err) => {
+    console.warn('Push notification failed:', err)
   })
 }
