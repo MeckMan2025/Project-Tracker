@@ -2,6 +2,8 @@ import { useUser } from '../contexts/UserContext'
 
 const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
+const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
+
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags } = useUser()
 
@@ -16,8 +18,7 @@ export function usePermissions() {
   const isCofounder = (functionTags && functionTags.includes('Co-Founder')) ||
     (username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n)))
 
-  const ROLE_CHANGE_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
-  const hasRoleChangeTag = isCofounder || (functionTags && functionTags.some(t => ROLE_CHANGE_TAGS.includes(t)))
+  const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
 
   return {
     tier,
@@ -45,19 +46,19 @@ export function usePermissions() {
     canDragOwnTask: !isGuest,
     canImport: !isGuest,
 
-    // Top only
-    canEditContent: isTop || isCofounder || isLead,
-    canReviewRequests: isTop,
+    // Top or Lead tags
+    canEditContent: isTop || hasLeadTag || isLead,
+    canReviewRequests: isTop || hasLeadTag,
     canDeleteScouting: isTop,
     canReorderScoutingRanks: isTop,
     canPauseMuteChat: isTop,
     canViewAllAttendance: isTop,
     canOrganizeNotebook: isTop,
     canApproveQuotes: isTop,
-    canManageUsers: isTop,
-    canDragAnyTask: isTop,
+    canManageUsers: isTop || hasLeadTag,
+    canDragAnyTask: isTop || hasLeadTag,
     canOverrideAttendance: isTop,
-    canChangeRoles: hasRoleChangeTag,
+    canChangeRoles: hasLeadTag,
     canChangeAuthorityTier: isTop,
 
     // Co-Founders & Top
