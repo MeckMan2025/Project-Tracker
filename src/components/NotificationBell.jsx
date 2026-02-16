@@ -89,6 +89,14 @@ export default function NotificationBell() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   }
 
+  const clearAll = async () => {
+    if (notifications.length === 0) return
+    await Promise.all(notifications.map(n =>
+      supabase.from('notifications').delete().eq('id', n.id)
+    ))
+    setNotifications([])
+  }
+
   const formatTime = (ts) => {
     const d = new Date(ts)
     return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -115,14 +123,24 @@ export default function NotificationBell() {
             <h3 className="text-sm font-semibold text-gray-700">
               Notifications
             </h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-pastel-blue-dark hover:underline"
-              >
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-pastel-blue-dark hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="text-xs text-red-400 hover:underline"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
 
           {notifications.length === 0 ? (
