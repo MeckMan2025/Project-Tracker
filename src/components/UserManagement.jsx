@@ -3,6 +3,7 @@ import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send 
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { triggerPush } from '../utils/pushHelper'
 
 const ALL_ROLES = [
   'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
@@ -259,9 +260,10 @@ function UserManagement() {
     const member = registeredMembers.find(m => m.id === memberId)
     if (!member) return
     const currentRoles = member.function_tags || []
-    const updated = currentRoles.includes(role)
-      ? currentRoles.filter(r => r !== role)
-      : [...currentRoles, role]
+    const wasAdded = !currentRoles.includes(role)
+    const updated = wasAdded
+      ? [...currentRoles, role]
+      : currentRoles.filter(r => r !== role)
     // Optimistic update
     setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
     try {
@@ -279,6 +281,23 @@ function UserManagement() {
         const text = await res.text()
         throw new Error(text || res.statusText)
       }
+      // Notify the user about their role change
+      const notif = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        user_id: memberId,
+        type: 'role_change',
+        title: wasAdded ? 'New Role Assigned!' : 'Role Removed',
+        body: wasAdded
+          ? `${username} assigned you the "${role}" role!`
+          : `${username} removed your "${role}" role.`,
+        data: JSON.stringify({ role, action: wasAdded ? 'added' : 'removed' }),
+      }
+      fetch(`${supabaseUrl}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(notif),
+      }).catch(() => {})
+      triggerPush(notif)
     } catch (err) {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
@@ -309,6 +328,22 @@ function UserManagement() {
         const text = await res.text()
         throw new Error(text || res.statusText)
       }
+      // Notify the user about their tier change
+      const tierLabel = newTier === 'top' ? 'Admin' : newTier === 'teammate' ? 'Teammate' : 'Guest'
+      const notif = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        user_id: memberId,
+        type: 'role_change',
+        title: 'Access Level Changed',
+        body: `${username} changed your access level to "${tierLabel}".`,
+        data: JSON.stringify({ tier: newTier }),
+      }
+      fetch(`${supabaseUrl}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(notif),
+      }).catch(() => {})
+      triggerPush(notif)
     } catch (err) {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: oldTier } : m))

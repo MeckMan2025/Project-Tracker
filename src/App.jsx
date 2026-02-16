@@ -165,8 +165,70 @@ function getCachedData() {
   return null
 }
 
+const ROLE_EMOJIS = {
+  'Website': { emoji: '💻', label: 'Web Developer' },
+  'Build': { emoji: '🔧', label: 'Builder' },
+  'CAD': { emoji: '📐', label: 'CAD Designer' },
+  'Scouting': { emoji: '🔍', label: 'Scout' },
+  'Outreach': { emoji: '🤝', label: 'Outreach Specialist' },
+  'Communications': { emoji: '📣', label: 'Communications Lead' },
+  'Programming': { emoji: '⌨️', label: 'Programmer' },
+  'Co-Founder': { emoji: '👑', label: 'Co-Founder' },
+  'Mentor': { emoji: '🎓', label: 'Mentor' },
+  'Coach': { emoji: '🏆', label: 'Coach' },
+  'Team Lead': { emoji: '🚀', label: 'Team Lead' },
+  'Business Lead': { emoji: '💼', label: 'Business Lead' },
+  'Technical Lead': { emoji: '⚙️', label: 'Technical Lead' },
+}
+
+function RoleChangeModal({ alert, onDismiss }) {
+  if (!alert) return null
+
+  let emoji = '🎉'
+  let title = ''
+  let subtitle = ''
+
+  if (alert.type === 'added') {
+    const role = alert.roles[0]
+    const info = ROLE_EMOJIS[role] || { emoji: '🎉', label: role }
+    emoji = info.emoji
+    title = `You're now: ${role}!`
+    subtitle = alert.roles.length > 1
+      ? `Also added: ${alert.roles.slice(1).join(', ')}`
+      : 'Your permissions have been updated.'
+  } else if (alert.type === 'removed') {
+    emoji = '📋'
+    title = `Role removed: ${alert.roles.join(', ')}`
+    subtitle = 'Your permissions have been updated.'
+  } else if (alert.type === 'tier') {
+    const tierLabels = { top: 'Admin', teammate: 'Teammate', guest: 'Guest' }
+    emoji = alert.tier === 'guest' ? '👁️' : alert.tier === 'top' ? '⭐' : '🤝'
+    title = `Access level: ${tierLabels[alert.tier] || alert.tier}`
+    subtitle = 'Your permissions have been updated.'
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-[100]" onClick={onDismiss} />
+      <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-80 pointer-events-auto text-center animate-bounce-in">
+          <div className="text-7xl mb-4">{emoji}</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{title}</h2>
+          <p className="text-sm text-gray-500 mb-6">{subtitle}</p>
+          <button
+            onClick={onDismiss}
+            className="px-6 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark rounded-xl font-semibold text-gray-700 transition-colors"
+          >
+            Got it!
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function App() {
-  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert } = useUser()
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
@@ -662,6 +724,9 @@ function App() {
           </button>
         </div>
       )}
+      {/* Role change celebration modal */}
+      <RoleChangeModal alert={roleChangeAlert} onDismiss={dismissRoleChangeAlert} />
+
       <div className="flex flex-1 min-h-0">
       {/* Sidebar */}
       <Sidebar

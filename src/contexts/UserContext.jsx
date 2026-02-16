@@ -5,6 +5,7 @@ const UserContext = createContext(null)
 const SESSION_MAX_AGE = 12 * 60 * 60 * 1000 // 12 hours
 
 export function UserProvider({ children }) {
+  const [roleChangeAlert, setRoleChangeAlert] = useState(null)
   const [username, setUsername] = useState('')
   const [isLead, setIsLead] = useState(false)
   const [role, setRole] = useState(() => localStorage.getItem('scrum-role') || 'member')
@@ -264,7 +265,24 @@ export function UserProvider({ children }) {
         table: 'profiles',
         filter: `id=eq.${user.id}`,
       }, (payload) => {
-        if (payload.new) applyProfile(payload.new)
+        if (payload.new) {
+          // Detect new roles added
+          const oldTags = functionTags || []
+          const newTags = payload.new.function_tags || []
+          const addedRoles = newTags.filter(t => !oldTags.includes(t))
+          const removedRoles = oldTags.filter(t => !newTags.includes(t))
+          // Detect tier change
+          const oldTier = authorityTier
+          const newTier = payload.new.authority_tier
+          if (addedRoles.length > 0) {
+            setRoleChangeAlert({ type: 'added', roles: addedRoles })
+          } else if (removedRoles.length > 0) {
+            setRoleChangeAlert({ type: 'removed', roles: removedRoles })
+          } else if (newTier && newTier !== oldTier) {
+            setRoleChangeAlert({ type: 'tier', tier: newTier })
+          }
+          applyProfile(payload.new)
+        }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -338,7 +356,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null) }}
     >
       {children}
     </UserContext.Provider>
