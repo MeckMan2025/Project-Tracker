@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Plus, Download, Upload } from 'lucide-react'
 import { downloadCSV } from './utils/csvUtils'
+import { triggerPush } from './utils/pushHelper'
 import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import Sidebar from './components/Sidebar'
@@ -258,6 +259,42 @@ function App() {
       }
     } catch (e) { /* ignore quota errors */ }
   }, [tabs])
+
+  // Send a notification when someone is assigned a task
+  const notifyAssignee = useCallback(async (assigneeName, taskTitle) => {
+    if (!assigneeName || assigneeName === '__up_for_grabs__' || !taskTitle) return
+    // Don't notify yourself
+    if (assigneeName.toLowerCase() === username.toLowerCase()) return
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    try {
+      // Look up the assignee's user ID by display_name
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?display_name=ilike.${encodeURIComponent(assigneeName)}&select=id`,
+        { headers }
+      )
+      if (!res.ok) return
+      const profiles = await res.json()
+      if (!profiles || profiles.length === 0) return
+      const targetUserId = profiles[0].id
+      const notif = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        user_id: targetUserId,
+        type: 'task_assigned',
+        title: 'Task Assigned',
+        body: `${username} assigned you to "${taskTitle}"`,
+      }
+      await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(notif),
+      })
+      triggerPush(notif)
+    } catch (err) {
+      console.error('Failed to notify assignee:', err)
+    }
+  }, [username])
 
   // Load boards and tasks from Supabase once user is authenticated
   const loadData = useCallback(async () => {
@@ -539,6 +576,8 @@ function App() {
         return updated
       })
       addToast('Failed to save task. Please try again.', 'error')
+    } else if (task.assignee) {
+      notifyAssignee(task.assignee, task.title)
     }
   }
 
@@ -648,6 +687,7 @@ function App() {
   const handleEditTask = async (updatedTask) => {
     // Save for rollback
     const prevTasks = tasksByTab[activeTab] || []
+    const oldTask = prevTasks.find(t => t.id === updatedTask.id)
 
     // Update UI immediately + sync cache
     setTasksByTab(prev => {
@@ -679,6 +719,13 @@ function App() {
         return updated
       })
       addToast('Failed to update task.', 'error')
+    } else {
+      // Notify if assignee changed to a new person
+      const newAssignee = updatedTask.assignee || ''
+      const oldAssignee = oldTask?.assignee || ''
+      if (newAssignee && newAssignee !== oldAssignee) {
+        notifyAssignee(newAssignee, updatedTask.title)
+      }
     }
   }
 
