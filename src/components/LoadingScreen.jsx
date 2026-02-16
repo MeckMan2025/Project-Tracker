@@ -6,8 +6,23 @@ function LoadingScreen({ onComplete, onMusicStart }) {
   const tappedRef = useRef(false)
 
   const startMusic = () => {
-    const songs = ['/intro.mp3', '/radical-robotics.mp3']
-    const audio = new Audio(songs[Math.floor(Math.random() * songs.length)])
+    const pref = localStorage.getItem('scrum-music-pref') || 'random'
+    if (pref === 'off') return
+
+    const SONG_MAP = {
+      'intro': '/intro.mp3',
+      'radical-robotics': '/radical-robotics.mp3',
+    }
+
+    let src
+    if (pref === 'random' || !SONG_MAP[pref]) {
+      const songs = Object.values(SONG_MAP)
+      src = songs[Math.floor(Math.random() * songs.length)]
+    } else {
+      src = SONG_MAP[pref]
+    }
+
+    const audio = new Audio(src)
     audio.volume = 1
     audio.play().catch(() => {})
     onMusicStart(audio)

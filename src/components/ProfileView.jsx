@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell } from 'lucide-react'
+import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell, Music } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -44,6 +44,13 @@ const SAFETY_OPTIONS = [
 const PERMISSION_OPTIONS = [
   'Lab Access', 'Tool Room Access', 'Release Authority',
   'Safety Sign-off', 'Drive Team', 'Pit Crew',
+]
+
+const MUSIC_OPTIONS = [
+  { id: 'random', label: 'Random', description: 'Pick a random song each time' },
+  { id: 'intro', label: 'Intro', description: '/intro.mp3' },
+  { id: 'radical-robotics', label: 'Radical Robotics', description: '/radical-robotics.mp3' },
+  { id: 'off', label: 'Off', description: 'No music on startup' },
 ]
 
 const DEFAULT_PROFILE_DATA = {
@@ -100,6 +107,7 @@ function ProfileView() {
   const [pwSuccess, setPwSuccess] = useState(false)
   const [pwSubmitting, setPwSubmitting] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
+  const [musicPref, setMusicPref] = useState(() => localStorage.getItem('scrum-music-pref') || 'random')
   const [taskStats, setTaskStats] = useState({ active: 0, blocked: 0, total: 0 })
   const [assignedTasks, setAssignedTasks] = useState([])
 
@@ -138,6 +146,10 @@ function ProfileView() {
         }))
         if (data.notification_prefs) {
           setNotifPrefs(data.notification_prefs)
+        }
+        if (data.music_preference) {
+          setMusicPref(data.music_preference)
+          localStorage.setItem('scrum-music-pref', data.music_preference)
         }
       } catch (err) {
         console.error('Failed to load profile:', err)
@@ -191,6 +203,7 @@ function ProfileView() {
       comm_style: profile.comm_style,
       comm_notes: profile.comm_notes,
       notification_prefs: notifPrefs,
+      music_preference: musicPref,
     }
 
     const nicknameFields = {
@@ -826,6 +839,34 @@ function ProfileView() {
                 )}
               </div>
             )}
+          </section>
+
+          {/* ─── Music Preference ─── */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Music size={16} className="text-pastel-pink-dark" />
+              Startup Music
+            </h3>
+            <p className="text-xs text-gray-400 mb-3">Choose which song plays when you open the app.</p>
+            <div className="space-y-2">
+              {MUSIC_OPTIONS.map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setMusicPref(opt.id)
+                    localStorage.setItem('scrum-music-pref', opt.id)
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
+                    musicPref === opt.id
+                      ? 'border-pastel-pink bg-pastel-pink/10'
+                      : 'border-gray-200 hover:border-pastel-pink/50'
+                  }`}
+                >
+                  <p className="text-sm font-medium text-gray-700">{opt.label}</p>
+                  <p className="text-xs text-gray-400">{opt.description}</p>
+                </button>
+              ))}
+            </div>
           </section>
 
           {/* ─── Change Password ─── */}
