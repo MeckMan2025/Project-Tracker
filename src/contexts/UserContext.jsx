@@ -15,7 +15,7 @@ export function UserProvider({ children }) {
       return cached ? JSON.parse(cached) : []
     } catch (e) { return [] }
   })
-  const [authorityTier, setAuthorityTier] = useState('guest')
+  const [authorityTier, setAuthorityTier] = useState(() => localStorage.getItem('scrum-authority-tier') || 'guest')
   const [isAuthorityAdmin, setIsAuthorityAdmin] = useState(() => localStorage.getItem('scrum-is-authority-admin') === 'true')
   const [primaryRoleLabel, setPrimaryRoleLabel] = useState(() => localStorage.getItem('scrum-primary-role-label') || '')
   const [functionTags, setFunctionTags] = useState(() => {
@@ -199,11 +199,15 @@ export function UserProvider({ children }) {
           setPasswordRecovery(true)
           if (session?.user) setUser(session.user)
         } else if (event === 'SIGNED_IN' && session?.user) {
-          // Clear stale cache from previous account before loading new profile
-          localStorage.removeItem('scrum-cached-user-id')
-          setAuthorityTier('guest')
-          setFunctionTags([])
-          setUsername('')
+          const cachedUserId = localStorage.getItem('scrum-cached-user-id')
+          const isSameUser = cachedUserId === session.user.id
+          if (!isSameUser) {
+            // Different user — clear stale cache from previous account
+            localStorage.removeItem('scrum-cached-user-id')
+            setAuthorityTier('guest')
+            setFunctionTags([])
+            setUsername('')
+          }
           localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
