@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 import { useToast } from './ToastProvider'
 import { triggerPush } from '../utils/pushHelper'
 import RequestsBadge from './RequestsBadge'
@@ -304,6 +305,7 @@ function CalendarView() {
             <p className="text-sm text-gray-500">Meetings, competitions & more</p>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors">
               <ChevronLeft size={20} />
             </button>

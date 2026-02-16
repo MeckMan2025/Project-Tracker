@@ -866,11 +866,6 @@ function App() {
       {/* Role change celebration modal */}
       <RoleChangeModal alert={roleChangeAlert} onDismiss={dismissRoleChangeAlert} />
 
-      {/* Global notification bell — always visible top-right */}
-      <div className="fixed top-3 right-3 z-50">
-        <NotificationBell />
-      </div>
-
       <div className="flex flex-1 min-h-0">
       {/* Sidebar */}
       <Sidebar
@@ -902,11 +897,14 @@ function App() {
       ) : activeTab === 'workshops' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-            <div className="px-4 py-3 ml-14">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-                Workshops
-              </h1>
-              <p className="text-sm text-gray-500">Coming soon</p>
+            <div className="px-4 py-3 ml-14 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                  Workshops
+                </h1>
+                <p className="text-sm text-gray-500">Coming soon</p>
+              </div>
+              <NotificationBell />
             </div>
           </header>
           <div className="flex-1 flex items-center justify-center">
@@ -918,7 +916,18 @@ function App() {
       ) : activeTab === 'quick-chat' ? (
         <QuickChat />
       ) : activeTab === 'ai-manual' ? (
-        <div className="flex-1 flex flex-col items-center justify-center min-w-0 gap-6 p-4">
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+            <div className="px-4 py-3 ml-14 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                  AI Manual
+                </h1>
+              </div>
+              <NotificationBell />
+            </div>
+          </header>
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-4">
           <div className="text-center">
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent mb-2">
               AI Manual
@@ -936,6 +945,7 @@ function App() {
           <p className="text-xs text-gray-400 text-center max-w-sm">
             Powered by FIRST. Trained on the current Competition Manual — always verify answers against the official manual.
           </p>
+          </div>
         </div>
       ) : activeTab === 'org-chart' ? (
         <OrgChart />
@@ -954,10 +964,23 @@ function App() {
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
-        <div className="flex-1 flex items-center justify-center min-w-0">
-          <p className="text-xl font-semibold text-gray-500 text-center px-4">
-            KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
-          </p>
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+            <div className="px-4 py-3 ml-14 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                  Attendance
+                </h1>
+                <p className="text-sm text-gray-500">Coming soon</p>
+              </div>
+              <NotificationBell />
+            </div>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-xl font-semibold text-gray-500 text-center px-4">
+              KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
+            </p>
+          </div>
         </div>
       ) : (
       <div className="flex-1 flex flex-col min-w-0">
@@ -973,6 +996,7 @@ function App() {
               </div>
             </div>
             <div className="flex gap-2 items-center">
+              <NotificationBell />
               {canReviewRequests && <RequestsBadge type="task" boardId={activeTab} />}
               {canImport && (
                 <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">

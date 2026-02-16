@@ -3,6 +3,7 @@ import { Check, X, Clock, Bell, History, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 import { usePendingRequests } from '../hooks/usePendingRequests'
 import { useToast } from './ToastProvider'
 
@@ -217,7 +218,7 @@ function RequestsView({ tabs = [] }) {
               {canReviewRequests ? 'Review and approve requests' : 'Track your requests'}
             </p>
           </div>
-          <div className="w-10 shrink-0" />
+          <NotificationBell />
         </div>
         <div className="flex border-t">
           <button

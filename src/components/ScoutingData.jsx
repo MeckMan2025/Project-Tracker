@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 
 // Teams being considered for alliance
 const CONSIDERED_NUMBERS = ['6603', '20097', '22479']
@@ -279,13 +280,16 @@ function ScoutingData() {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4 ml-10">
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            Scouting Data
-          </h1>
-          <p className="text-sm text-gray-500">
-            {ALL_TEAMS.length} teams &middot; {records.length} scouting response{records.length !== 1 ? 's' : ''}
-          </p>
+        <div className="px-4 py-4 ml-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              Scouting Data
+            </h1>
+            <p className="text-sm text-gray-500">
+              {ALL_TEAMS.length} teams &middot; {records.length} scouting response{records.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <NotificationBell />
         </div>
       </header>
 

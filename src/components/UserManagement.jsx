@@ -3,6 +3,7 @@ import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send 
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
 
 const ALL_ROLES = [
@@ -452,13 +453,16 @@ function UserManagement() {
             </h1>
             <p className="text-sm text-gray-500">{canManageUsers ? 'Manage team access' : 'View team members'}</p>
           </div>
-          <button
-            onClick={() => setShowRoleInfo(true)}
-            className="w-10 shrink-0 flex items-center justify-center p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-            title="Role descriptions"
-          >
-            <Info size={18} className="text-gray-400" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <NotificationBell />
+            <button
+              onClick={() => setShowRoleInfo(true)}
+              className="w-10 flex items-center justify-center p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+              title="Role descriptions"
+            >
+              <Info size={18} className="text-gray-400" />
+            </button>
+          </div>
         </div>
         {canManageUsers && (
           <div className="flex border-t">

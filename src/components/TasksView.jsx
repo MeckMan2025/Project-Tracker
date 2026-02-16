@@ -1,6 +1,7 @@
 import { Calendar, User, Zap } from 'lucide-react'
 import { usePermissions } from '../hooks/usePermissions'
 import RequestsBadge from './RequestsBadge'
+import NotificationBell from './NotificationBell'
 
 function TasksView({ tasksByTab, tabs }) {
   const { canReviewRequests, isGuest } = usePermissions()
@@ -24,7 +25,10 @@ function TasksView({ tasksByTab, tabs }) {
             </h1>
             <p className="text-sm text-gray-500">{totalTasks} task{totalTasks !== 1 ? 's' : ''} across all boards</p>
           </div>
-          {canReviewRequests && <RequestsBadge type="task" />}
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            {canReviewRequests && <RequestsBadge type="task" />}
+          </div>
         </div>
       </header>
 

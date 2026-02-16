@@ -3,6 +3,7 @@ import { Send, Trash2, Check, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -119,7 +120,7 @@ function SuggestionsView() {
               {isReviewer ? 'Review team feedback' : 'How can we make this app better?'}
             </p>
           </div>
-          <div className="w-10 shrink-0" />
+          <NotificationBell />
         </div>
       </header>
 

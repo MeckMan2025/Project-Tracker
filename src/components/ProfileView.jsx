@@ -3,6 +3,7 @@ import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCirc
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
 const STATUS_OPTIONS = [
@@ -309,14 +310,17 @@ function ProfileView() {
               My Profile
             </h1>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
-          >
-            <Save size={16} />
-            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
+            >
+              <Save size={16} />
+              {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
+            </button>
+          </div>
         </div>
         {saveError && (
           <p className="text-xs text-amber-600 text-center pb-2 px-4">{saveError}</p>

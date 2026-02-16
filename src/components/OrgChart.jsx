@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Users } from 'lucide-react'
 import { supabase } from '../supabase'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 
 // ── Tier → card border color ──
 const TIER_BORDER = {
@@ -235,12 +236,15 @@ function OrgChart() {
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4 pl-14">
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent flex items-center gap-2">
-            <Users size={22} className="text-pastel-pink-dark" />
-            Org Chart
-          </h1>
-          <p className="text-sm text-gray-500">Tap a card to view member details</p>
+        <div className="px-4 py-4 pl-14 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent flex items-center gap-2">
+              <Users size={22} className="text-pastel-pink-dark" />
+              Org Chart
+            </h1>
+            <p className="text-sm text-gray-500">Tap a card to view member details</p>
+          </div>
+          <NotificationBell />
         </div>
       </header>
 

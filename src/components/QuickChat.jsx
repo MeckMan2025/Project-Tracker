@@ -3,6 +3,7 @@ import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
 
 const SENDER_COLORS = [
@@ -248,8 +249,7 @@ function QuickChat() {
             </h1>
             <p className="text-sm text-gray-500">Chatting as {chatName || username}</p>
           </div>
-          {/* Spacer to balance header */}
-          <div className="w-10 shrink-0" />
+          <NotificationBell />
         </div>
       </header>
 

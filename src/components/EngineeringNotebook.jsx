@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Send, Plus, X, Trash2, Check, BookOpen, FolderOpen, MessageSquareQuote, Filter, ExternalLink, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 
@@ -359,10 +360,11 @@ export default function EngineeringNotebook() {
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 ml-14">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            Engineering Notebook
-          </h1>
+        <div className="px-4 py-3 ml-14 flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              Engineering Notebook
+            </h1>
           {/* Sub-tabs */}
           <div className="flex gap-1 mt-2 overflow-x-auto">
             {views.map(v => {
@@ -374,7 +376,7 @@ export default function EngineeringNotebook() {
                     if (v.id === 'entry') {
                       setFormData({ ...INITIAL_ENTRY })
                       setEditingEntryId(null)
-                  
+
                     }
                     setView(v.id)
                   }}
@@ -388,6 +390,8 @@ export default function EngineeringNotebook() {
               )
             })}
           </div>
+          </div>
+          <NotificationBell />
         </div>
       </header>
 

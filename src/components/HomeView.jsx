@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Calendar, ClipboardList, FolderKanban, MessageCircle, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import NotificationBell from './NotificationBell'
 
 
 function HomeView({ tasksByTab, tabs, onTabChange }) {
@@ -81,11 +82,14 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 ml-14">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            Mission Control
-          </h1>
-          <p className="text-sm text-gray-500">Welcome back{username ? `, ${username}` : ''}!</p>
+        <div className="px-4 py-3 ml-14 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              Mission Control
+            </h1>
+            <p className="text-sm text-gray-500">Welcome back{username ? `, ${username}` : ''}!</p>
+          </div>
+          <NotificationBell />
         </div>
       </header>
 

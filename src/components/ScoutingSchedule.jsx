@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Users, Shield, Clock, Play, Square } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 
 const ALLIANCE_SLOTS = ['Red 1', 'Red 2', 'Blue 1', 'Blue 2', 'Standby']
 
@@ -239,11 +240,14 @@ export default function ScoutingSchedule() {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 ml-14">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            Scouting Schedule
-          </h1>
-          <p className="text-sm text-gray-500">Alliance assignments & scouting accountability</p>
+        <div className="px-4 py-3 ml-14 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              Scouting Schedule
+            </h1>
+            <p className="text-sm text-gray-500">Alliance assignments & scouting accountability</p>
+          </div>
+          <NotificationBell />
         </div>
       </header>
 
