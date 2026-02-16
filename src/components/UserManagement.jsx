@@ -261,11 +261,19 @@ function UserManagement() {
     if (!member) return
     const currentRoles = member.function_tags || []
     const wasAdded = !currentRoles.includes(role)
-    const updated = wasAdded
-      ? [...currentRoles, role]
-      : currentRoles.filter(r => r !== role)
+    let updated
+    if (role === 'Guest') {
+      // Adding Guest removes all other roles; removing Guest leaves empty
+      updated = wasAdded ? ['Guest'] : []
+    } else {
+      updated = wasAdded
+        ? [...currentRoles.filter(r => r !== 'Guest'), role]
+        : currentRoles.filter(r => r !== role)
+    }
+    // Auto-derive tier from roles
+    const newTier = updated.length === 0 || (updated.length === 1 && updated[0] === 'Guest') ? 'guest' : 'teammate'
     // Optimistic update
-    setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
+    setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated, authority_tier: newTier } : m))
     try {
       const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`, {
         method: 'PATCH',
@@ -275,7 +283,7 @@ function UserManagement() {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ function_tags: updated }),
+        body: JSON.stringify({ function_tags: updated, authority_tier: newTier }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -302,52 +310,6 @@ function UserManagement() {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
       alert('Failed to save role: ' + err.message)
-    }
-  }
-
-  // --- Tier change handler (top only) ---
-
-  const handleChangeTier = async (memberId, newTier) => {
-    const member = registeredMembers.find(m => m.id === memberId)
-    if (!member) return
-    const oldTier = member.authority_tier
-    // Optimistic update
-    setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: newTier } : m))
-    try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify({ authority_tier: newTier }),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || res.statusText)
-      }
-      // Notify the user about their tier change
-      const tierLabel = newTier === 'top' ? 'Admin' : newTier === 'teammate' ? 'Teammate' : 'Guest'
-      const notif = {
-        id: String(Date.now()) + Math.random().toString(36).slice(2),
-        user_id: memberId,
-        type: 'role_change',
-        title: 'Access Level Changed',
-        body: `${username} changed your access level to "${tierLabel}".`,
-        data: JSON.stringify({ tier: newTier }),
-      }
-      fetch(`${supabaseUrl}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(notif),
-      }).catch(() => {})
-      triggerPush(notif)
-    } catch (err) {
-      // Rollback
-      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: oldTier } : m))
-      alert('Failed to change tier: ' + err.message)
     }
   }
 
@@ -747,19 +709,6 @@ function UserManagement() {
                             </div>
                           )}
                         </div>
-                        {isTop && (
-                          <div className="mb-2">
-                            <select
-                              value={member.authority_tier || 'teammate'}
-                              onChange={(e) => handleChangeTier(member.id, e.target.value)}
-                              className="text-xs px-2 py-1 border rounded-lg bg-gray-50 text-gray-600 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                            >
-                              <option value="guest">Guest</option>
-                              <option value="teammate">Teammate</option>
-                              <option value="top">Top</option>
-                            </select>
-                          </div>
-                        )}
                         <div className="flex flex-wrap gap-1.5">
                           {memberIsCofounder && (
                             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
