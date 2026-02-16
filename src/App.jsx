@@ -40,8 +40,8 @@ const TAB_ACCESS = {
   // Teammate+
   'scouting': 'teammate', 'schedule': 'teammate', 'quick-chat': 'teammate',
   'notebook': 'teammate', 'suggestions': 'teammate', 'data': 'teammate',
-  // Top only
-  'user-management': 'top', 'requests': 'top',
+  // Top or leads
+  'user-management': 'teammate', 'requests': 'teammate',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
