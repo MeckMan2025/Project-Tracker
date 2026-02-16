@@ -41,6 +41,17 @@ export default function NotificationBell() {
           if (prev.some(n => n.id === payload.new.id)) return prev
           return [payload.new, ...prev].slice(0, 20)
         })
+        // Show foreground browser notification if permission granted
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          try {
+            new Notification(payload.new.title || 'Notification', {
+              body: payload.new.body || '',
+              icon: '/icon-192.png',
+            })
+          } catch (e) {
+            // Ignore — may fail on mobile or if SW is handling it
+          }
+        }
       })
       .on('postgres_changes', {
         event: 'UPDATE',

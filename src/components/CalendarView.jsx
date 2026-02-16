@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
+import { triggerPush } from '../utils/pushHelper'
 import RequestsBadge from './RequestsBadge'
 import RestrictedAccess from './RestrictedAccess'
 
@@ -24,6 +25,9 @@ function CalendarView() {
   const [eventName, setEventName] = useState('')
   const [eventDesc, setEventDesc] = useState('')
   const [eventType, setEventType] = useState('other')
+  const [notifyEnabled, setNotifyEnabled] = useState(false)
+  const [notifyMessage, setNotifyMessage] = useState('')
+  const [forceNotify, setForceNotify] = useState(false)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -194,13 +198,16 @@ function CalendarView() {
       const request = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         type: 'calendar_event',
-        data: { date_key: key, name, description: desc, event_type: eventType },
+        data: { date_key: key, name, description: desc, event_type: eventType, notify: notifyEnabled, notify_message: notifyMessage, force_notify: forceNotify },
         requested_by: username,
         requested_by_user_id: user?.id,
         status: 'pending',
       }
       setEventName('')
       setEventDesc('')
+      setNotifyEnabled(false)
+      setNotifyMessage('')
+      setForceNotify(false)
       addToast('Request sent! A lead will review it.', 'success')
       const { error } = await supabase.from('requests').insert(request)
       if (error) console.error('Error submitting request:', error)
@@ -223,6 +230,12 @@ function CalendarView() {
     }))
     setEventName('')
     setEventDesc('')
+    const shouldNotify = notifyEnabled
+    const customMessage = notifyMessage
+    const shouldForce = forceNotify
+    setNotifyEnabled(false)
+    setNotifyMessage('')
+    setForceNotify(false)
 
     const { error } = await supabase.from('calendar_events').insert(newEvent)
     if (error) {
@@ -234,6 +247,29 @@ function CalendarView() {
         if (updated[key].length === 0) delete updated[key]
         return updated
       })
+    } else if (shouldNotify) {
+      // Notify all team members about this event
+      try {
+        const { data: profiles } = await supabase.from('profiles').select('id')
+        if (profiles) {
+          const body = customMessage || `New event: ${name} on ${key}`
+          for (const p of profiles) {
+            if (p.id === user?.id) continue
+            const notifRecord = {
+              id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
+              user_id: p.id,
+              type: 'calendar_event',
+              title: `Calendar: ${name}`,
+              body,
+              force: shouldForce,
+            }
+            supabase.from('notifications').insert(notifRecord).then(() => {})
+            triggerPush(notifRecord)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to send event notifications:', err)
+      }
     }
   }
 
@@ -468,6 +504,41 @@ function CalendarView() {
                   </button>
                 ))}
               </div>
+              {/* Notification options (leads only) */}
+              {canEditContent && (
+                <div className="space-y-2 bg-gray-50 rounded-lg p-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifyEnabled}
+                      onChange={(e) => setNotifyEnabled(e.target.checked)}
+                      className="rounded border-gray-300 text-pastel-pink-dark focus:ring-pastel-pink"
+                    />
+                    <Bell size={14} className="text-gray-500" />
+                    <span className="text-xs text-gray-600">Notify team about this event</span>
+                  </label>
+                  {notifyEnabled && (
+                    <>
+                      <input
+                        type="text"
+                        value={notifyMessage}
+                        onChange={(e) => setNotifyMessage(e.target.value)}
+                        placeholder="Custom message (optional)"
+                        className="w-full px-2.5 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={forceNotify}
+                          onChange={(e) => setForceNotify(e.target.checked)}
+                          className="rounded border-gray-300 text-pastel-orange-dark focus:ring-pastel-orange"
+                        />
+                        <span className="text-xs text-gray-500">Force-notify (sends even if turned off)</span>
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={!eventName.trim()}

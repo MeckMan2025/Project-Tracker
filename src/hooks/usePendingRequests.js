@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { triggerPush } from '../utils/pushHelper'
 
 export function usePendingRequests({ type, boardId } = {}) {
   const { username, user } = useUser()
@@ -117,16 +118,43 @@ export function usePendingRequests({ type, boardId } = {}) {
 
       // Notify requester
       if (request.requested_by_user_id) {
+        const approvalNotif = {
+          id: String(Date.now()) + Math.random().toString(36).slice(2),
+          user_id: request.requested_by_user_id,
+          type: 'request_approved',
+          title: 'Request Approved',
+          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
+        }
         fetch(`${supabaseUrl}/rest/v1/notifications`, {
           method: 'POST', headers,
-          body: JSON.stringify({
-            id: String(Date.now()) + Math.random().toString(36).slice(2),
-            user_id: request.requested_by_user_id,
-            type: 'request_approved',
-            title: 'Request Approved',
-            body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
-          }),
-        }).catch(err => console.error('Failed to notify:', err))
+          body: JSON.stringify(approvalNotif),
+        }).then(() => triggerPush(approvalNotif))
+          .catch(err => console.error('Failed to notify:', err))
+      }
+
+      // If approving a calendar_event with notify, send notifications to all users
+      if (request.type === 'calendar_event' && request.data?.notify) {
+        try {
+          const { data: profiles } = await supabase.from('profiles').select('id')
+          if (profiles) {
+            const body = request.data.notify_message || `New event: ${request.data.name} on ${request.data.date_key}`
+            for (const p of profiles) {
+              if (p.id === request.requested_by_user_id) continue
+              const notifRecord = {
+                id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
+                user_id: p.id,
+                type: 'calendar_event',
+                title: `Calendar: ${request.data.name}`,
+                body,
+                force: !!request.data.force_notify,
+              }
+              supabase.from('notifications').insert(notifRecord).then(() => {})
+              triggerPush(notifRecord)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to send calendar notifications on approval:', err)
+        }
       }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))
@@ -158,16 +186,18 @@ export function usePendingRequests({ type, boardId } = {}) {
 
       // Notify requester
       if (request.requested_by_user_id) {
+        const denialNotif = {
+          id: String(Date.now()) + Math.random().toString(36).slice(2),
+          user_id: request.requested_by_user_id,
+          type: 'request_denied',
+          title: 'Request Denied',
+          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
+        }
         fetch(`${supabaseUrl}/rest/v1/notifications`, {
           method: 'POST', headers,
-          body: JSON.stringify({
-            id: String(Date.now()) + Math.random().toString(36).slice(2),
-            user_id: request.requested_by_user_id,
-            type: 'request_denied',
-            title: 'Request Denied',
-            body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
-          }),
-        }).catch(err => console.error('Failed to notify:', err))
+          body: JSON.stringify(denialNotif),
+        }).then(() => triggerPush(denialNotif))
+          .catch(err => console.error('Failed to notify:', err))
       }
 
       setRequests(prev => prev.filter(r => r.id !== request.id))
@@ -220,6 +250,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           body: `${username} is reminding you about a pending ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request: "${request.data?.title || request.data?.name}"`,
         }))
         await supabase.from('notifications').insert(notifications)
+        notifications.forEach(n => triggerPush(n))
       }
 
       return { success: true }

@@ -3,6 +3,7 @@ import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { triggerPush } from '../utils/pushHelper'
 
 const SENDER_COLORS = [
   { bg: '#FFCAD4', name: '#F4A3B5' }, // pastel pink
@@ -25,6 +26,7 @@ function QuickChat() {
   const [newMessage, setNewMessage] = useState('')
   const [sendError, setSendError] = useState(null)
   const messagesEndRef = useRef(null)
+  const lastPushTimestamp = useRef(0)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -159,6 +161,26 @@ function QuickChat() {
         setMessages(prev => prev.filter(m => m.id !== message.id))
         setSendError('Message failed to send. Try again.')
         setTimeout(() => setSendError(null), 4000)
+      } else {
+        // Send push notification to other users (30s cooldown)
+        const now = Date.now()
+        if (now - lastPushTimestamp.current > 30000) {
+          lastPushTimestamp.current = now
+          const senderName = chatName || username
+          const truncatedMsg = message.content.length > 80 ? message.content.slice(0, 80) + '...' : message.content
+          supabase.from('profiles').select('id').then(({ data: profiles }) => {
+            if (!profiles) return
+            for (const p of profiles) {
+              if (p.id === user?.id) continue
+              triggerPush({
+                user_id: p.id,
+                type: 'chat_message',
+                title: `${senderName} in Quick Chat`,
+                body: truncatedMsg,
+              })
+            }
+          })
+        }
       }
     }).catch(err => {
       console.error('Failed to send message:', err)

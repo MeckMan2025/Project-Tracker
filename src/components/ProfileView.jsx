@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle } from 'lucide-react'
+import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
@@ -62,6 +63,8 @@ const DEFAULT_PROFILE_DATA = {
 function ProfileView() {
   const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio } = useUser()
   const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
+  const [notifPrefs, setNotifPrefs] = useState({ enabled: true, calendar: true, chat: true })
   const [editName, setEditName] = useState('')
   const [editNickname, setEditNickname] = useState('')
   const [editUseNickname, setEditUseNickname] = useState(false)
@@ -110,6 +113,9 @@ function ProfileView() {
           comm_style: data.comm_style || '',
           comm_notes: data.comm_notes || '',
         }))
+        if (data.notification_prefs) {
+          setNotifPrefs(data.notification_prefs)
+        }
       } catch (err) {
         console.error('Failed to load profile:', err)
       }
@@ -161,6 +167,7 @@ function ProfileView() {
       permissions: profile.permissions,
       comm_style: profile.comm_style,
       comm_notes: profile.comm_notes,
+      notification_prefs: notifPrefs,
     }
 
     const nicknameFields = {
@@ -693,6 +700,85 @@ function ProfileView() {
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none"
               />
             </div>
+          </section>
+
+          {/* ─── Push Notifications ─── */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Bell size={16} className="text-pastel-blue-dark" />
+              Push Notifications
+            </h3>
+            {!pushSupported ? (
+              <p className="text-sm text-gray-400">Push notifications are not supported in this browser.</p>
+            ) : (
+              <div className="space-y-3">
+                {/* Master toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Enable push notifications</p>
+                    <p className="text-xs text-gray-400">
+                      {pushPermission === 'denied'
+                        ? 'Notifications are blocked in browser settings'
+                        : pushSubscribed
+                        ? 'Receiving push notifications on this device'
+                        : 'Not subscribed on this device'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (pushSubscribed) {
+                        await pushUnsubscribe()
+                        setNotifPrefs(prev => ({ ...prev, enabled: false }))
+                      } else {
+                        const ok = await pushSubscribe()
+                        if (ok) setNotifPrefs(prev => ({ ...prev, enabled: true }))
+                      }
+                    }}
+                    disabled={pushPermission === 'denied'}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 ${
+                      pushSubscribed && notifPrefs.enabled ? 'bg-pastel-blue-dark' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      pushSubscribed && notifPrefs.enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Category toggles */}
+                {pushSubscribed && (
+                  <>
+                    <div className="flex items-center justify-between pl-4 border-l-2 border-gray-100">
+                      <p className="text-sm text-gray-600">Calendar events</p>
+                      <button
+                        onClick={() => setNotifPrefs(prev => ({ ...prev, calendar: !prev.calendar }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          notifPrefs.calendar ? 'bg-pastel-blue-dark' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          notifPrefs.calendar ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between pl-4 border-l-2 border-gray-100">
+                      <p className="text-sm text-gray-600">Chat messages</p>
+                      <button
+                        onClick={() => setNotifPrefs(prev => ({ ...prev, chat: !prev.chat }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          notifPrefs.chat ? 'bg-pastel-blue-dark' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          notifPrefs.chat ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 italic">Leads can force-send important notifications even if you turn these off.</p>
+                  </>
+                )}
+              </div>
+            )}
           </section>
 
           {/* ─── Change Password ─── */}
