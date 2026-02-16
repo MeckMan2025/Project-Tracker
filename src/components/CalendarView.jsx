@@ -239,10 +239,11 @@ function CalendarView() {
       method: 'POST',
       headers: restHeaders,
       body: JSON.stringify(newEvent),
-    }).then(res => {
+    }).then(async res => {
       if (!res.ok) {
-        res.text().then(t => console.error('Failed to save calendar event:', t))
-        addToast('Failed to save event', 'error')
+        const errText = await res.text()
+        console.error('Failed to save calendar event:', errText)
+        addToast('Failed to save event: ' + errText, 'error')
         setEvents(prev => {
           const updated = { ...prev }
           updated[key] = (updated[key] || []).filter(ev => ev.id !== newEvent.id)
