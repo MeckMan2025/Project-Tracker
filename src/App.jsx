@@ -678,6 +678,11 @@ function App() {
         onlineUsers={onlineUsers}
       />
 
+      {/* DEBUG: remove after testing */}
+      <div className="fixed bottom-2 right-2 z-50 bg-black text-white text-xs px-2 py-1 rounded opacity-70">
+        tier: {tier} | tab: {activeTab} | access: {hasAccess(activeTab, tier) ? 'YES' : 'NO'}
+      </div>
+
       {/* Main Content */}
       {!hasAccess(activeTab, tier) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
