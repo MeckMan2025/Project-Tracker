@@ -65,6 +65,8 @@ function ProfileView() {
   const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
   const [notifPrefs, setNotifPrefs] = useState({ enabled: true, calendar: true, chat: true })
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushError, setPushError] = useState('')
 
   // Auto-save notification prefs whenever they change (after initial load)
   const notifPrefsLoaded = useRef(false)
@@ -746,15 +748,34 @@ function ProfileView() {
                   </div>
                   <button
                     onClick={async () => {
-                      if (pushSubscribed) {
-                        await pushUnsubscribe()
-                        setNotifPrefs(prev => ({ ...prev, enabled: false }))
-                      } else {
-                        const ok = await pushSubscribe()
-                        if (ok) setNotifPrefs(prev => ({ ...prev, enabled: true }))
+                      setPushBusy(true)
+                      setPushError('')
+                      try {
+                        if (pushSubscribed) {
+                          const ok = await pushUnsubscribe()
+                          if (ok) {
+                            setNotifPrefs(prev => ({ ...prev, enabled: false }))
+                          } else {
+                            setPushError('Failed to unsubscribe')
+                          }
+                        } else {
+                          const ok = await pushSubscribe()
+                          if (ok) {
+                            setNotifPrefs(prev => ({ ...prev, enabled: true }))
+                          } else {
+                            setPushError(
+                              pushPermission === 'denied'
+                                ? 'Blocked in browser settings — check site permissions'
+                                : 'Subscribe failed — check browser console for details'
+                            )
+                          }
+                        }
+                      } catch (err) {
+                        setPushError(err.message)
                       }
+                      setPushBusy(false)
                     }}
-                    disabled={pushPermission === 'denied'}
+                    disabled={pushPermission === 'denied' || pushBusy}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 ${
                       pushSubscribed && notifPrefs.enabled ? 'bg-pastel-blue-dark' : 'bg-gray-300'
                     }`}
@@ -764,6 +785,8 @@ function ProfileView() {
                     }`} />
                   </button>
                 </div>
+                {pushBusy && <p className="text-xs text-gray-400">Working...</p>}
+                {pushError && <p className="text-xs text-red-500">{pushError}</p>}
 
                 {/* Category toggles */}
                 {pushSubscribed && (

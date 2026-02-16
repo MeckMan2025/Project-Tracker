@@ -50,17 +50,21 @@ export function usePushNotifications() {
   }, [isSupported, user])
 
   const subscribe = useCallback(async () => {
-    if (!isSupported || !user) return false
+    console.log('[Push] subscribe called, isSupported:', isSupported, 'user:', !!user)
+    if (!isSupported) { console.warn('[Push] Not supported'); return false }
+    if (!user) { console.warn('[Push] No user'); return false }
 
     try {
       const perm = await Notification.requestPermission()
+      console.log('[Push] Permission result:', perm)
       setPermission(perm)
       if (perm !== 'granted') return false
 
       const reg = await navigator.serviceWorker.ready
+      console.log('[Push] Service worker ready')
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
       if (!vapidPublicKey) {
-        console.error('VITE_VAPID_PUBLIC_KEY not set')
+        console.error('[Push] VITE_VAPID_PUBLIC_KEY not set')
         return false
       }
 
@@ -68,6 +72,7 @@ export function usePushNotifications() {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       })
+      console.log('[Push] Browser subscription created')
 
       const subJson = sub.toJSON()
       const { error } = await supabase.from('push_subscriptions').upsert({
@@ -78,14 +83,15 @@ export function usePushNotifications() {
       }, { onConflict: 'user_id,endpoint' })
 
       if (error) {
-        console.error('Failed to save push subscription:', error)
+        console.error('[Push] DB save failed:', error)
         return false
       }
 
+      console.log('[Push] Subscription saved to DB')
       setIsSubscribed(true)
       return true
     } catch (err) {
-      console.error('Push subscription failed:', err)
+      console.error('[Push] Subscribe error:', err)
       return false
     }
   }, [isSupported, user])
