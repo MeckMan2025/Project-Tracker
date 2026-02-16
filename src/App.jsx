@@ -24,6 +24,7 @@ import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
 import AnnouncementsView from './components/AnnouncementsView'
 import AnnouncementModal from './components/AnnouncementModal'
+import AnnouncementPopup from './components/AnnouncementPopup'
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
@@ -249,6 +250,7 @@ function App() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false)
+  const [announcementPopup, setAnnouncementPopup] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -434,6 +436,21 @@ function App() {
 
     return () => { supabase.removeChannel(channel) }
   }, [])
+
+  // Real-time: pop up new announcements on everyone's screen
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel('announcements-popup')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, (payload) => {
+        // Don't show popup to the author
+        if (payload.new.author_id === user.id) return
+        setAnnouncementPopup(payload.new)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   // Save activeTab locally (each user picks their own view)
   useEffect(() => {
@@ -1136,6 +1153,12 @@ function App() {
       {announcementModalOpen && (
         <AnnouncementModal onClose={() => setAnnouncementModalOpen(false)} />
       )}
+
+      {/* Announcement Popup (real-time, shows on everyone's screen) */}
+      <AnnouncementPopup
+        announcement={announcementPopup}
+        onDismiss={() => setAnnouncementPopup(null)}
+      />
       </div>
     </div>
     </>
