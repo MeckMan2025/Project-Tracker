@@ -31,17 +31,13 @@ import { supabase } from './supabase'
 
 // Tab access requirements: which minimum tier is needed
 const TAB_ACCESS = {
-  // All tiers
+  // All tiers (including guest)
   'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
-  'profile': 'guest',
+  'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'guest',
   // Teammate+ (restricted from guests)
-  'org-chart': 'teammate', 'ai-manual': 'teammate',
-  'workshops': 'teammate', 'attendance': 'teammate',
-  // Teammate+
-  'scouting': 'teammate', 'schedule': 'teammate', 'quick-chat': 'teammate',
-  'notebook': 'teammate', 'suggestions': 'teammate', 'data': 'teammate',
-  // Top or leads
-  'user-management': 'teammate', 'requests': 'teammate',
+  'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
+  'quick-chat': 'teammate', 'notebook': 'teammate', 'workshops': 'teammate',
+  'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }

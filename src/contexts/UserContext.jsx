@@ -59,6 +59,7 @@ export function UserProvider({ children }) {
 
   const applyProfile = (profile) => {
     if (profile) {
+      console.log('[Profile] Raw from DB:', { authority_tier: profile.authority_tier, function_tags: profile.function_tags, display_name: profile.display_name })
       setUsername(profile.display_name)
       setIsLead(profile.role === 'lead')
       const profileRole = profile.role || 'member'
@@ -226,7 +227,7 @@ export function UserProvider({ children }) {
       }
     }, 60 * 1000)
 
-    // Detect stale session on tab/laptop wake
+    // Detect stale session on tab/laptop wake + re-fetch profile for permission changes
     const handleVisibility = async () => {
       if (document.visibilityState !== 'visible') return
       if (localStorage.getItem('session-start') && isSessionExpired()) {
@@ -238,6 +239,10 @@ export function UserProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session && localStorage.getItem('session-start')) {
           expireSession()
+        } else if (session?.user && mounted) {
+          // Re-fetch profile to pick up any tier/role changes made by leads
+          const profile = await fetchProfile(session.user.id)
+          if (mounted && profile) applyProfile(profile)
         }
       } catch (e) {
         // ignore network errors on wake
@@ -258,6 +263,23 @@ export function UserProvider({ children }) {
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
+
+  // Realtime subscription on own profile — picks up tier/role changes made by leads instantly
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`profile-sync-${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user.id}`,
+      }, (payload) => {
+        if (payload.new) applyProfile(payload.new)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({

@@ -104,6 +104,26 @@ export function usePendingRequests({ type, boardId } = {}) {
         await fetch(`${supabaseUrl}/rest/v1/boards`, {
           method: 'POST', headers, body: JSON.stringify(board),
         })
+      } else if (request.type === 'role_request') {
+        // Add the requested role to the user's function_tags
+        const targetUserId = request.requested_by_user_id
+        if (targetUserId) {
+          const profileRes = await fetch(
+            `${supabaseUrl}/rest/v1/profiles?id=eq.${targetUserId}&select=function_tags`,
+            { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+          )
+          if (profileRes.ok) {
+            const profiles = await profileRes.json()
+            const currentTags = profiles[0]?.function_tags || []
+            const newRole = request.data?.role
+            if (newRole && !currentTags.includes(newRole)) {
+              await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${targetUserId}`, {
+                method: 'PATCH', headers,
+                body: JSON.stringify({ function_tags: [...currentTags, newRole] }),
+              })
+            }
+          }
+        }
       }
 
       // Mark request as approved
@@ -123,7 +143,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: request.requested_by_user_id,
           type: 'request_approved',
           title: 'Request Approved',
-          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was approved by ${username}.`,
+          body: `Your ${request.type === 'role_request' ? 'role' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.role || request.data?.title || request.data?.name}" was approved by ${username}.`,
         }
         try {
           await fetch(`${supabaseUrl}/rest/v1/notifications`, {
@@ -195,7 +215,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           user_id: request.requested_by_user_id,
           type: 'request_denied',
           title: 'Request Denied',
-          body: `Your ${request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
+          body: `Your ${request.type === 'role_request' ? 'role' : request.type === 'task' ? 'task' : request.type === 'board' ? 'board' : 'event'} request "${request.data?.role || request.data?.title || request.data?.name}" was denied by ${username}.${reason ? ' Reason: ' + reason : ''}`,
         }
         try {
           await fetch(`${supabaseUrl}/rest/v1/notifications`, {

@@ -128,6 +128,15 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS comm_notes text DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nickname text DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS use_nickname boolean DEFAULT false;
 
+-- Authority & role system columns
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS secondary_roles jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS authority_tier text DEFAULT 'teammate';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_authority_admin boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS primary_role_label text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS function_tags jsonb DEFAULT '[]';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS short_bio text DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS must_change_password boolean DEFAULT false;
+
 -- After leads sign up, run this to grant lead role:
 -- UPDATE profiles SET role = 'lead' WHERE display_name IN ('Kayden', 'Yukti', 'Nick', 'Harshita', 'Lily');
 

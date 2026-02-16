@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -30,11 +30,11 @@ const ROLE_DESCRIPTIONS = {
 
 
 function UserManagement() {
-  const { user } = useUser()
-  const { isAuthorityAdmin, canManageUsers, canChangeRoles, isTop } = usePermissions()
+  const { user, username } = useUser()
+  const { canManageUsers, canChangeRoles, canRequestRoles, isTop, hasLeadTag } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
-  const [activeSection, setActiveSection] = useState('whitelist')
+  const [activeSection, setActiveSection] = useState(canManageUsers ? 'whitelist' : 'members')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [newEmail, setNewEmail] = useState('')
@@ -57,6 +57,9 @@ function UserManagement() {
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
   const [rolePickerOpen, setRolePickerOpen] = useState(null)
+  const [roleRequestOpen, setRoleRequestOpen] = useState(false)
+  const [roleRequestSubmitting, setRoleRequestSubmitting] = useState(false)
+  const [roleRequestSuccess, setRoleRequestSuccess] = useState('')
   const [loadStatus, setLoadStatus] = useState('')
   const [loadingData, setLoadingData] = useState(true)
 
@@ -86,14 +89,16 @@ function UserManagement() {
     let msg = ''
     console.log('[UserMgmt] loadData started')
 
-    try {
-      const data = await fetchTable('approved_emails', 'id,email,role,created_at')
-      msg += 'Whitelist: ' + data.length + ' rows | '
-      console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
-      setWhitelistedEmails(data)
-    } catch (e) {
-      msg += 'Whitelist error: ' + e.message + ' | '
-      console.error('[UserMgmt] Whitelist exception:', e)
+    if (canManageUsers) {
+      try {
+        const data = await fetchTable('approved_emails', 'id,email,role,created_at')
+        msg += 'Whitelist: ' + data.length + ' rows | '
+        console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
+        setWhitelistedEmails(data)
+      } catch (e) {
+        msg += 'Whitelist error: ' + e.message + ' | '
+        console.error('[UserMgmt] Whitelist exception:', e)
+      }
     }
 
     try {
@@ -118,6 +123,7 @@ function UserManagement() {
 
   // Realtime: listen for whitelist changes
   useEffect(() => {
+    if (!canManageUsers) return
     const channel = supabase
       .channel('approved-emails-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'approved_emails' }, (payload) => {
@@ -132,7 +138,7 @@ function UserManagement() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [canManageUsers])
 
   // --- Whitelist handlers ---
 
@@ -246,9 +252,10 @@ function UserManagement() {
     }
   }
 
-  // --- Member role toggle ---
+  // --- Member role toggle (leads only, not on self) ---
 
   const handleToggleRole = async (memberId, role) => {
+    if (memberId === user.id) return
     const member = registeredMembers.find(m => m.id === memberId)
     if (!member) return
     const currentRoles = member.function_tags || []
@@ -258,14 +265,15 @@ function UserManagement() {
     // Optimistic update
     setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated } : m))
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/update_member_roles`, {
-        method: 'POST',
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`, {
+        method: 'PATCH',
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ target_id: memberId, new_tags: updated }),
+        body: JSON.stringify({ function_tags: updated }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -278,7 +286,7 @@ function UserManagement() {
     }
   }
 
-  // --- Tier change handler (authority admins only) ---
+  // --- Tier change handler (top only) ---
 
   const handleChangeTier = async (memberId, newTier) => {
     const member = registeredMembers.find(m => m.id === memberId)
@@ -287,14 +295,15 @@ function UserManagement() {
     // Optimistic update
     setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: newTier } : m))
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/update_member_tier`, {
-        method: 'POST',
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`, {
+        method: 'PATCH',
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ target_id: memberId, new_tier: newTier }),
+        body: JSON.stringify({ authority_tier: newTier }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -304,6 +313,31 @@ function UserManagement() {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, authority_tier: oldTier } : m))
       alert('Failed to change tier: ' + err.message)
+    }
+  }
+
+  // --- Role request handler (teammates only) ---
+
+  const handleRequestRole = async (role) => {
+    setRoleRequestSubmitting(true)
+    setRoleRequestSuccess('')
+    try {
+      const request = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        type: 'role_request',
+        data: { role, current_roles: registeredMembers.find(m => m.id === user.id)?.function_tags || [] },
+        requested_by: username,
+        requested_by_user_id: user.id,
+        status: 'pending',
+      }
+      const { error } = await supabase.from('requests').insert(request)
+      if (error) throw error
+      setRoleRequestSuccess(`Requested "${role}" — a lead will review it.`)
+      setRoleRequestOpen(false)
+    } catch (err) {
+      alert('Failed to submit role request: ' + err.message)
+    } finally {
+      setRoleRequestSubmitting(false)
     }
   }
 
@@ -406,6 +440,10 @@ function UserManagement() {
     return tagColors[Math.abs(hash) % tagColors.length]
   }
 
+  // Find current user's profile for role request
+  const myProfile = registeredMembers.find(m => m.id === user?.id)
+  const myRoles = myProfile?.function_tags || []
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -415,7 +453,7 @@ function UserManagement() {
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               User Management
             </h1>
-            <p className="text-sm text-gray-500">Manage team access</p>
+            <p className="text-sm text-gray-500">{canManageUsers ? 'Manage team access' : 'View team members'}</p>
           </div>
           <button
             onClick={() => setShowRoleInfo(true)}
@@ -425,30 +463,32 @@ function UserManagement() {
             <Info size={18} className="text-gray-400" />
           </button>
         </div>
-        <div className="flex border-t">
-          <button
-            onClick={() => setActiveSection('whitelist')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${
-              activeSection === 'whitelist'
-                ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Shield size={14} className="inline mr-1" />
-            Whitelist ({whitelistedEmails.length})
-          </button>
-          <button
-            onClick={() => setActiveSection('members')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${
-              activeSection === 'members'
-                ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Users size={14} className="inline mr-1" />
-            Members ({registeredMembers.length})
-          </button>
-        </div>
+        {canManageUsers && (
+          <div className="flex border-t">
+            <button
+              onClick={() => setActiveSection('whitelist')}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                activeSection === 'whitelist'
+                  ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Shield size={14} className="inline mr-1" />
+              Whitelist ({whitelistedEmails.length})
+            </button>
+            <button
+              onClick={() => setActiveSection('members')}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                activeSection === 'members'
+                  ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Users size={14} className="inline mr-1" />
+              Members ({registeredMembers.length})
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
@@ -480,7 +520,26 @@ function UserManagement() {
               </button>
             </div>
           )}
-          {activeSection === 'whitelist' ? (
+
+          {/* Teammate role request button */}
+          {canRequestRoles && (
+            <div className="mb-4">
+              {roleRequestSuccess && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 text-center">
+                  {roleRequestSuccess}
+                </div>
+              )}
+              <button
+                onClick={() => setRoleRequestOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg transition-colors text-sm text-gray-700"
+              >
+                <Send size={16} />
+                Request a Role
+              </button>
+            </div>
+          )}
+
+          {activeSection === 'whitelist' && canManageUsers ? (
             <>
               <div className="flex gap-2 mb-4">
                 <button
@@ -624,31 +683,48 @@ function UserManagement() {
                   return sorted.map((member) => {
                     const memberIsCofounder = isCofounder(member)
                     const memberRoles = member.function_tags || []
+                    const isSelf = member.id === user.id
                     return (
                       <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
+                            {isSelf && <span className="text-xs text-gray-400">(you)</span>}
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
-                              title="Reset password"
-                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-                            >
-                              <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
-                            </button>
-                            {member.id !== user.id && (
+                          {canManageUsers && (
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => { setDeleteTarget(member); setDeleteError('') }}
-                                title="Delete member"
-                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
+                                title="Reset password"
+                                className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
                               >
-                                <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                                <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
                               </button>
-                            )}
-                          </div>
+                              {!isSelf && (
+                                <button
+                                  onClick={() => { setDeleteTarget(member); setDeleteError('') }}
+                                  title="Delete member"
+                                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
+                        {isTop && (
+                          <div className="mb-2">
+                            <select
+                              value={member.authority_tier || 'teammate'}
+                              onChange={(e) => handleChangeTier(member.id, e.target.value)}
+                              className="text-xs px-2 py-1 border rounded-lg bg-gray-50 text-gray-600 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                            >
+                              <option value="guest">Guest</option>
+                              <option value="teammate">Teammate</option>
+                              <option value="top">Top</option>
+                            </select>
+                          </div>
+                        )}
                         <div className="flex flex-wrap gap-1.5">
                           {memberIsCofounder && (
                             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor('Co-Founder')}`}>
@@ -661,7 +737,7 @@ function UserManagement() {
                               className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
                             >
                               {role}
-                              {canChangeRoles && (
+                              {canChangeRoles && !isSelf && (
                                 <button
                                   onClick={() => handleToggleRole(member.id, role)}
                                   className="hover:opacity-70 transition-opacity"
@@ -672,7 +748,7 @@ function UserManagement() {
                               )}
                             </span>
                           ))}
-                          {canChangeRoles && (
+                          {canChangeRoles && !isSelf && (
                             <button
                               onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
                               className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
@@ -691,7 +767,7 @@ function UserManagement() {
         </div>
       </main>
 
-      {/* Role Picker Modal */}
+      {/* Role Picker Modal (leads adding roles to others) */}
       {rolePickerOpen && (() => {
         const member = registeredMembers.find(m => m.id === rolePickerOpen)
         if (!member) return null
@@ -729,6 +805,40 @@ function UserManagement() {
           </div>
         )
       })()}
+
+      {/* Role Request Modal (teammates requesting roles for themselves) */}
+      {roleRequestOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={() => setRoleRequestOpen(false)}>
+          <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:w-80 max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white px-4 py-3 border-b flex items-center justify-between">
+              <h3 className="font-semibold text-gray-700 text-sm">Request a Role</h3>
+              <button onClick={() => setRoleRequestOpen(false)} className="p-1 rounded hover:bg-gray-100">
+                <X size={16} className="text-gray-400" />
+              </button>
+            </div>
+            {(() => {
+              const available = ALL_ROLES.filter(r => !myRoles.includes(r))
+              return available.length === 0 ? (
+                <p className="text-sm text-gray-400 px-4 py-6 text-center">You have all available roles</p>
+              ) : (
+                <div className="py-1">
+                  {available.map(role => (
+                    <button
+                      key={role}
+                      disabled={roleRequestSubmitting}
+                      onClick={() => handleRequestRole(role)}
+                      className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-blue/20 active:bg-pastel-blue/30 transition-colors text-gray-600 border-b border-gray-50 disabled:opacity-50"
+                    >
+                      {role}
+                      <span className="block text-xs text-gray-400 mt-0.5">{ROLE_DESCRIPTIONS[role]}</span>
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Create Account Modal */}
       {createTarget && (

@@ -55,7 +55,7 @@ function SectionHeader({ title }) {
 
 export default function EngineeringNotebook() {
   const { username } = useUser()
-  const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest, isCofounder } = usePermissions()
+  const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest } = usePermissions()
   const isLead = canOrganizeNotebook
   const isTop = canApproveQuotes
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -489,7 +489,7 @@ export default function EngineeringNotebook() {
                         const catColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Custom
                         const engDot = ENGAGEMENT_OPTIONS.find(o => o.value === entry.engagement)?.dot || 'bg-gray-400'
                         const project = projectMap[entry.project_id]
-                        const canDelete = isCofounder
+                        const canDelete = isLead
                         return (
                           <div key={entry.id} className="bg-white rounded-lg p-3 shadow-sm">
                             <div className="flex items-start justify-between gap-2">

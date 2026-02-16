@@ -11,6 +11,7 @@ export function usePermissions() {
   // Fall back to 'top' for permanent co-founders even if profile hasn't loaded yet.
   const isPermanentCofounder = username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n))
   const tier = isPermanentCofounder ? 'top' : (authorityTier || 'teammate')
+  console.log('[Permissions]', username, '→ authorityTier:', authorityTier, '→ computed tier:', tier)
 
   const isGuest = tier === 'guest'
   const isTeammate = tier === 'teammate'
@@ -25,44 +26,51 @@ export function usePermissions() {
     isGuest,
     isTeammate,
     isTop,
+    isCofounder,
+    hasLeadTag,
     isAuthorityAdmin: !!isAuthorityAdmin,
 
-    // View permissions (all tiers)
+    // View permissions (all tiers including guest)
     canViewBoards: true,
-    canViewOrgChart: true,
+    canViewOrgChart: !isGuest,
     canViewAIManual: true,
+    canViewScoutingData: true,
 
-    // Teammate + Top
+    // Teammate (non-guest, non-lead) — request-based workflow
+    canRequestContent: !isGuest && !hasLeadTag,
+    canRequestRoles: !isGuest && !hasLeadTag,
+
+    // Teammate + Lead tags (non-guest)
     canSubmitScouting: !isGuest,
     canSubmitNotebook: !isGuest,
-    canRequestContent: isTeammate,
     canSelfCheckIn: !isGuest,
     canUseChat: !isGuest,
     canDeleteOwnMessages: !isGuest,
-    canDeleteAnyMessage: isTop || isCofounder,
     canViewOwnAttendance: !isGuest,
-    canViewScoutingData: !isGuest,
     canSubmitSuggestions: !isGuest,
     canDragOwnTask: !isGuest,
     canImport: !isGuest,
 
-    // Top or Lead tags
-    canEditContent: isTop || hasLeadTag || isLead,
-    canReviewRequests: isTop || hasLeadTag,
-    canDeleteScouting: isTop,
-    canReorderScoutingRanks: isTop,
-    canPauseMuteChat: isTop,
-    canViewAllAttendance: isTop,
-    canOrganizeNotebook: isTop,
-    canApproveQuotes: isTop,
-    canManageUsers: isTop || hasLeadTag,
-    canDragAnyTask: isTop || hasLeadTag,
-    canOverrideAttendance: isTop,
+    // Lead tags (Co-Founder, Mentor, Coach, Team Lead, Business Lead, Technical Lead)
+    canEditContent: hasLeadTag,
+    canReviewRequests: hasLeadTag,
+    canDeleteScouting: hasLeadTag,
+    canReorderScoutingRanks: hasLeadTag,
+    canPauseMuteChat: hasLeadTag,
+    canOrganizeNotebook: hasLeadTag,
+    canApproveQuotes: hasLeadTag,
+    canManageUsers: hasLeadTag,
+    canDragAnyTask: hasLeadTag,
+    canDeleteAnyMessage: hasLeadTag,
     canChangeRoles: hasLeadTag,
-    canChangeAuthorityTier: isTop,
+    canViewAllAttendance: hasLeadTag,
+    canOverrideAttendance: hasLeadTag,
 
-    // Co-Founders & Top
-    canReviewSuggestions: isTop || isCofounder,
+    // Co-Founders only
+    canReviewSuggestions: isCofounder,
+
+    // Top only
+    canChangeAuthorityTier: isTop,
 
     // Nobody
     canEditScouting: false,
@@ -70,7 +78,7 @@ export function usePermissions() {
     // Legacy compat
     role,
     secondaryRoles,
-    isElevated: isTop,
+    isElevated: isTop || hasLeadTag,
     isAdmin: isTop,
   }
 }
