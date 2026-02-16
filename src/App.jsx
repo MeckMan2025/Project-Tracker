@@ -679,8 +679,8 @@ function App() {
       />
 
       {/* DEBUG: remove after testing */}
-      <div className="fixed bottom-2 right-2 z-50 bg-black text-white text-xs px-2 py-1 rounded opacity-70">
-        tier: {tier} | tab: {activeTab} | access: {hasAccess(activeTab, tier) ? 'YES' : 'NO'}
+      <div className="fixed bottom-2 right-2 z-50 bg-black text-white text-xs px-2 py-1 rounded opacity-70 max-w-xs">
+        user: {username} | tier: {tier} | isGuest: {isGuest ? 'Y' : 'N'}
       </div>
 
       {/* Main Content */}
