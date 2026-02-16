@@ -325,7 +325,7 @@ function App() {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
     }
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
     loadData()
@@ -569,6 +569,9 @@ function App() {
   }
 
   const handleEditTask = async (updatedTask) => {
+    // Save for rollback
+    const prevTasks = tasksByTab[activeTab] || []
+
     // Update UI immediately + sync cache
     setTasksByTab(prev => {
       const updated = {
@@ -592,11 +595,21 @@ function App() {
     }).eq('id', updatedTask.id)
     if (error) {
       console.error('Failed to update task:', error.message)
+      // Rollback on failure
+      setTasksByTab(prev => {
+        const updated = { ...prev, [activeTab]: prevTasks }
+        syncCache(updated)
+        return updated
+      })
+      addToast('Failed to update task.', 'error')
     }
   }
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = async (taskId) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return
+
+    // Save for rollback
+    const prevTasks = tasksByTab[activeTab] || []
 
     // Optimistic UI update — remove immediately
     setTasksByTab(prev => {
@@ -608,16 +621,18 @@ function App() {
       return updated
     })
 
-    // Delete from Supabase via direct fetch (same pattern as CalendarView)
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    fetch(`${supabaseUrl}/rest/v1/tasks?id=eq.${taskId}`, {
-      method: 'DELETE',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-      },
-    }).catch(err => console.error('Failed to delete task:', err))
+    // Delete from Supabase using JS client (respects auth + RLS)
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+    if (error) {
+      console.error('Failed to delete task:', error.message)
+      // Rollback on failure
+      setTasksByTab(prev => {
+        const updated = { ...prev, [activeTab]: prevTasks }
+        syncCache(updated)
+        return updated
+      })
+      addToast('Failed to delete task.', 'error')
+    }
   }
 
   const handleExport = () => {
