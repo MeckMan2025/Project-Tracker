@@ -10,7 +10,7 @@ export function usePermissions() {
   // Use the authority_tier from the database profile directly.
   // Fall back to 'top' for permanent co-founders even if profile hasn't loaded yet.
   const isPermanentCofounder = username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n))
-  const tier = isPermanentCofounder ? 'top' : (authorityTier || 'teammate')
+  const tier = isPermanentCofounder ? 'top' : (authorityTier || 'guest')
   console.log('[Permissions]', username, '→ authorityTier:', authorityTier, '→ computed tier:', tier)
 
   const isGuest = tier === 'guest'

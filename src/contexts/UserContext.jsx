@@ -14,7 +14,7 @@ export function UserProvider({ children }) {
       return cached ? JSON.parse(cached) : []
     } catch (e) { return [] }
   })
-  const [authorityTier, setAuthorityTier] = useState(() => localStorage.getItem('scrum-authority-tier') || 'teammate')
+  const [authorityTier, setAuthorityTier] = useState('guest')
   const [isAuthorityAdmin, setIsAuthorityAdmin] = useState(() => localStorage.getItem('scrum-is-authority-admin') === 'true')
   const [primaryRoleLabel, setPrimaryRoleLabel] = useState(() => localStorage.getItem('scrum-primary-role-label') || '')
   const [functionTags, setFunctionTags] = useState(() => {
@@ -68,7 +68,7 @@ export function UserProvider({ children }) {
       setSecondaryRoles(profileSecondaryRoles)
       setMustChangePassword(!!profile.must_change_password)
       // Authority fields
-      const tier = profile.authority_tier || 'teammate'
+      const tier = profile.authority_tier || 'guest'
       const admin = !!profile.is_authority_admin
       const roleLabel = profile.primary_role_label || ''
       const tags = profile.function_tags || []
@@ -102,7 +102,7 @@ export function UserProvider({ children }) {
     setIsLead(false)
     setRole('member')
     setSecondaryRoles([])
-    setAuthorityTier('teammate')
+    setAuthorityTier('guest')
     setIsAuthorityAdmin(false)
     setPrimaryRoleLabel('')
     setFunctionTags([])
@@ -152,42 +152,19 @@ export function UserProvider({ children }) {
             return
           }
           setUser(session.user)
-          // Use cached profile to unblock faster, refresh in background
-          const cachedName = localStorage.getItem('scrum-username')
-          const cachedRole = localStorage.getItem('scrum-role')
-          const cachedSecondary = localStorage.getItem('scrum-secondary-roles')
-          if (cachedName) {
-            setUsername(cachedName)
-            setIsLead(cachedRole === 'lead')
-            if (cachedRole) setRole(cachedRole)
-            if (cachedSecondary) {
-              try { setSecondaryRoles(JSON.parse(cachedSecondary)) } catch (e) {}
-            }
-            // Restore authority fields from cache
-            const cachedTier = localStorage.getItem('scrum-authority-tier')
-            if (cachedTier) setAuthorityTier(cachedTier)
-            setIsAuthorityAdmin(localStorage.getItem('scrum-is-authority-admin') === 'true')
-            const cachedLabel = localStorage.getItem('scrum-primary-role-label')
-            if (cachedLabel) setPrimaryRoleLabel(cachedLabel)
-            const cachedTags = localStorage.getItem('scrum-function-tags')
-            if (cachedTags) { try { setFunctionTags(JSON.parse(cachedTags)) } catch (e) {} }
-            const cachedBio = localStorage.getItem('scrum-short-bio')
-            if (cachedBio) setShortBio(cachedBio)
-            if (mounted) setLoading(false)
-          }
+          // Always fetch profile from DB — don't trust cached permissions
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
             if (profile) {
               applyProfile(profile)
-              localStorage.setItem('scrum-role', profile.role)
-            } else if (!cachedName) {
-              // Profile fetch failed and no cache — session is likely invalid, force re-login
-              console.warn('[Auth] No profile and no cache — forcing re-login')
+            } else {
+              // Profile fetch failed — session is likely invalid, force re-login
+              console.warn('[Auth] No profile found — forcing re-login')
               await expireSession()
               setLoading(false)
               return
             }
-            if (!cachedName) setLoading(false)
+            setLoading(false)
           }
           return
         }
@@ -206,11 +183,23 @@ export function UserProvider({ children }) {
           setPasswordRecovery(true)
           if (session?.user) setUser(session.user)
         } else if (event === 'SIGNED_IN' && session?.user) {
+          // Clear stale cache from previous account before loading new profile
+          setAuthorityTier('guest')
+          setFunctionTags([])
+          setUsername('')
+          localStorage.removeItem('scrum-authority-tier')
+          localStorage.removeItem('scrum-function-tags')
           localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
           const profile = await fetchProfile(session.user.id)
-          if (mounted) applyProfile(profile)
+          if (mounted) {
+            if (profile) {
+              applyProfile(profile)
+            } else {
+              console.error('[Auth] No profile found for user:', session.user.id)
+            }
+          }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Keep user state fresh when token auto-refreshes (e.g. after page idle/refresh)
           setUser(session.user)
