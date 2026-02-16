@@ -62,7 +62,7 @@ export function usePushNotifications() {
 
       const reg = await navigator.serviceWorker.ready
       console.log('[Push] Service worker ready')
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || 'BGByfsLmei18omZgqOqim_4J9-6XX2XtEGdlCRrEvh7qrtCprRfiIkTWN_2mRVk5qiuJWV9Zvb9efcHzwGYYblc'
       if (!vapidPublicKey) {
         console.error('[Push] VITE_VAPID_PUBLIC_KEY not set')
         return false
