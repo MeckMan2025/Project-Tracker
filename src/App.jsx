@@ -866,6 +866,11 @@ function App() {
       {/* Role change celebration modal */}
       <RoleChangeModal alert={roleChangeAlert} onDismiss={dismissRoleChangeAlert} />
 
+      {/* Global notification bell — always visible top-right */}
+      <div className="fixed top-3 right-3 z-50">
+        <NotificationBell />
+      </div>
+
       <div className="flex flex-1 min-h-0">
       {/* Sidebar */}
       <Sidebar
@@ -968,7 +973,6 @@ function App() {
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              <NotificationBell />
               {canReviewRequests && <RequestsBadge type="task" boardId={activeTab} />}
               {canImport && (
                 <label className="flex items-center gap-2 px-3 md:px-4 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg cursor-pointer transition-colors">
