@@ -83,6 +83,9 @@ DROP POLICY IF EXISTS "Allow all access to calendar_events" ON calendar_events;
 CREATE POLICY "Allow all access to calendar_events" ON calendar_events
   FOR ALL USING (true) WITH CHECK (true);
 
+-- 5b. EVENT TYPE COLUMN
+ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS event_type text DEFAULT 'other';
+
 -- 6. SCOUTING RECORDS TABLE (new)
 CREATE TABLE IF NOT EXISTS scouting_records (
   id text PRIMARY KEY,

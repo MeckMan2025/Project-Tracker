@@ -162,6 +162,9 @@ function RequestsView({ tabs = [] }) {
                               {r.data?.description && (
                                 <p className="text-xs text-gray-500 mt-0.5">{r.data.description}</p>
                               )}
+                              {r.type === 'calendar_event' && r.data?.event_type && r.data.event_type !== 'other' && (
+                                <p className="text-xs text-gray-400 mt-0.5 capitalize">Type: {r.data.event_type}</p>
+                              )}
                               <p className="text-xs text-gray-400 mt-1">
                                 Requested by <span className="font-medium text-pastel-pink-dark">{r.requested_by}</span>
                               </p>

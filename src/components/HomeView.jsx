@@ -91,11 +91,17 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
-        {/* 1. Next Competition Card */}
+        {/* 1. Next Event Card */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
             <Calendar size={18} className="text-pastel-pink-dark" />
-            <h2 className="font-semibold text-gray-700">Next Competition</h2>
+            <h2 className="font-semibold text-gray-700">
+              {nextEvent
+                ? nextEvent.event_type === 'meeting' ? 'Next Meeting'
+                : nextEvent.event_type === 'competition' ? 'Next Competition'
+                : 'Next Event'
+                : 'Next Event'}
+            </h2>
           </div>
           {eventLoading ? (
             <p className="text-sm text-gray-400 animate-pulse">Loading...</p>
@@ -124,7 +130,7 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">No upcoming competitions scheduled</p>
+            <p className="text-sm text-gray-500">No upcoming events scheduled</p>
           )}
         </div>
 

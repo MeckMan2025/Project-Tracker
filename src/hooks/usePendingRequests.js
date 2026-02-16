@@ -89,6 +89,7 @@ export function usePendingRequests({ type, boardId } = {}) {
           name: d.name,
           description: d.description || '',
           added_by: request.requested_by,
+          event_type: d.event_type || 'other',
         }
         await fetch(`${supabaseUrl}/rest/v1/calendar_events`, {
           method: 'POST', headers, body: JSON.stringify(event),

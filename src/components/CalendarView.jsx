@@ -7,6 +7,12 @@ import { useToast } from './ToastProvider'
 import RequestsBadge from './RequestsBadge'
 import RestrictedAccess from './RestrictedAccess'
 
+const EVENT_TYPES = {
+  meeting:     { label: 'Meeting',     bg: 'bg-pastel-blue/20',  dot: 'bg-pastel-blue-dark',  ring: 'ring-pastel-blue' },
+  competition: { label: 'Competition', bg: 'bg-pastel-pink/20',  dot: 'bg-pastel-pink-dark',  ring: 'ring-pastel-pink' },
+  other:       { label: 'Other',       bg: 'bg-pastel-orange/20', dot: 'bg-pastel-orange-dark', ring: 'ring-pastel-orange' },
+}
+
 function CalendarView() {
   const { username, user } = useUser()
   const { canEditContent, canRequestContent, canReviewRequests, isGuest } = usePermissions()
@@ -17,6 +23,7 @@ function CalendarView() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [eventName, setEventName] = useState('')
   const [eventDesc, setEventDesc] = useState('')
+  const [eventType, setEventType] = useState('other')
 
   // Load events via direct REST (bypasses Supabase client auth lock)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -47,6 +54,7 @@ function CalendarView() {
             name: ev.name,
             description: ev.description,
             addedBy: ev.added_by,
+            eventType: ev.event_type || 'other',
           })
         })
         setEvents(grouped)
@@ -102,7 +110,7 @@ function CalendarView() {
           if (existing.some(e => e.id === ev.id)) return prev
           return {
             ...prev,
-            [key]: [...existing, { id: ev.id, name: ev.name, description: ev.description, addedBy: ev.added_by }],
+            [key]: [...existing, { id: ev.id, name: ev.name, description: ev.description, addedBy: ev.added_by, eventType: ev.event_type || 'other' }],
           }
         })
       })
@@ -187,7 +195,7 @@ function CalendarView() {
       const request = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         type: 'calendar_event',
-        data: { date_key: key, name, description: desc },
+        data: { date_key: key, name, description: desc, event_type: eventType },
         requested_by: username,
         requested_by_user_id: user?.id,
         status: 'pending',
@@ -213,13 +221,14 @@ function CalendarView() {
       name,
       description: desc,
       added_by: username,
+      event_type: eventType,
     }
 
     // Optimistic update
     setEvents(prev => {
       const updated = { ...prev }
       if (!updated[key]) updated[key] = []
-      updated[key].push({ id: newEvent.id, name: newEvent.name, description: newEvent.description, addedBy: newEvent.added_by })
+      updated[key].push({ id: newEvent.id, name: newEvent.name, description: newEvent.description, addedBy: newEvent.added_by, eventType })
       return updated
     })
     setEventName('')
@@ -277,9 +286,9 @@ function CalendarView() {
         <div className="px-4 py-4 flex items-center justify-between ml-10">
           <div>
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Competition Calendar
+              Team Calendar
             </h1>
-            <p className="text-sm text-gray-500">View upcoming competition days</p>
+            <p className="text-sm text-gray-500">Meetings, competitions & more</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors">
@@ -357,16 +366,19 @@ function CalendarView() {
                 </div>
                 {/* Event dots/names */}
                 <div className="mt-1 space-y-0.5">
-                  {dayEvents.map(ev => (
-                    <div
-                      key={ev.id}
-                      className="flex items-center gap-1 group"
-                      title={ev.description || ev.name}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-pastel-orange-dark shrink-0" />
-                      <span className="text-xs text-gray-600 truncate">{ev.name}</span>
-                    </div>
-                  ))}
+                  {dayEvents.map(ev => {
+                    const t = EVENT_TYPES[ev.eventType] || EVENT_TYPES.other
+                    return (
+                      <div
+                        key={ev.id}
+                        className="flex items-center gap-1 group"
+                        title={ev.description || ev.name}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dot} shrink-0`} />
+                        <span className="text-xs text-gray-600 truncate">{ev.name}</span>
+                      </div>
+                    )
+                  })}
                   {dayTasks.map(task => (
                     <div
                       key={task.id}
@@ -398,9 +410,11 @@ function CalendarView() {
             {/* Events list */}
             {(events[dateKey(selectedDay)] || []).length > 0 && (
               <div className="space-y-2 mb-3">
-                {(events[dateKey(selectedDay)] || []).map(ev => (
-                  <div key={ev.id} className="flex items-start gap-2 bg-pastel-orange/20 rounded-lg px-3 py-2">
-                    <span className="w-2 h-2 rounded-full bg-pastel-orange-dark mt-1.5 shrink-0" />
+                {(events[dateKey(selectedDay)] || []).map(ev => {
+                  const t = EVENT_TYPES[ev.eventType] || EVENT_TYPES.other
+                  return (
+                  <div key={ev.id} className={`flex items-start gap-2 ${t.bg} rounded-lg px-3 py-2`}>
+                    <span className={`w-2 h-2 rounded-full ${t.dot} mt-1.5 shrink-0`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-700">{ev.name}</p>
                       {ev.description && (
@@ -417,7 +431,8 @@ function CalendarView() {
                       </button>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -460,6 +475,22 @@ function CalendarView() {
                 placeholder="Description (optional)"
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
               />
+              <div className="flex gap-1">
+                {Object.entries(EVENT_TYPES).map(([key, t]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setEventType(key)}
+                    className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      eventType === key
+                        ? `${t.bg} ring-2 ${t.ring} text-gray-700`
+                        : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <button
                 type="submit"
                 disabled={!eventName.trim()}
