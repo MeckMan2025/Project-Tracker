@@ -490,31 +490,29 @@ function App() {
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
-    // Delete from Supabase FIRST — use .select() to verify rows were actually deleted
-    // (RLS can silently block deletes without returning an error)
-    console.log('[DELETE BOARD] Deleting tasks for board_id:', tabId)
-    const { data: deletedTasks, error: tasksError } = await supabase.from('tasks').delete().eq('board_id', tabId).select()
-    console.log('[DELETE BOARD] Tasks delete response:', { deletedTasks, tasksError })
-    if (tasksError) {
-      console.error('[DELETE BOARD] Failed to delete tasks:', tasksError)
-      addToast('Failed to delete board tasks: ' + tasksError.message, 'error')
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const restHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+    // Delete tasks for this board via REST
+    const tasksRes = await fetch(`${supabaseUrl}/rest/v1/tasks?board_id=eq.${tabId}`, {
+      method: 'DELETE',
+      headers: restHeaders,
+    })
+    if (!tasksRes.ok) {
+      addToast('Failed to delete board tasks.', 'error')
       return
     }
 
-    console.log('[DELETE BOARD] Deleting board id:', tabId)
-    const { data: deletedBoard, error: boardError } = await supabase.from('boards').delete().eq('id', tabId).select()
-    console.log('[DELETE BOARD] Board delete response:', { deletedBoard, boardError })
-    if (boardError) {
-      console.error('[DELETE BOARD] Failed to delete board:', boardError)
-      addToast('Failed to delete board: ' + boardError.message, 'error')
+    // Delete the board itself via REST
+    const boardRes = await fetch(`${supabaseUrl}/rest/v1/boards?id=eq.${tabId}`, {
+      method: 'DELETE',
+      headers: restHeaders,
+    })
+    if (!boardRes.ok) {
+      addToast('Failed to delete board.', 'error')
       return
     }
-    if (!deletedBoard || deletedBoard.length === 0) {
-      console.error('[DELETE BOARD] RLS blocked delete — no rows were removed for id:', tabId)
-      addToast('Delete was blocked by database permissions. Ask a lead to check RLS policies.', 'error')
-      return
-    }
-    console.log('[DELETE BOARD] Board deleted successfully:', tabId)
 
     // Supabase confirmed — now update UI
     setTabs(prev => prev.filter(t => t.id !== tabId))
