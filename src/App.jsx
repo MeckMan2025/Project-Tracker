@@ -33,6 +33,36 @@ import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
 import { supabase } from './supabase'
 
+// REST API helpers (avoids Supabase JS client auth token issues)
+const REST_URL = import.meta.env.VITE_SUPABASE_URL
+const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
+const REST_JSON = { ...REST_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+
+async function restGet(table, query = '') {
+  const res = await fetch(`${REST_URL}/rest/v1/${table}?${query}`, { headers: REST_HEADERS })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+async function restInsert(table, data) {
+  const res = await fetch(`${REST_URL}/rest/v1/${table}`, {
+    method: 'POST', headers: REST_JSON, body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+async function restUpdate(table, filter, data) {
+  const res = await fetch(`${REST_URL}/rest/v1/${table}?${filter}`, {
+    method: 'PATCH', headers: REST_JSON, body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+async function restDelete(table, filter) {
+  const res = await fetch(`${REST_URL}/rest/v1/${table}?${filter}`, {
+    method: 'DELETE', headers: REST_HEADERS,
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
 // Tab access requirements: which minimum tier is needed
 const TAB_ACCESS = {
   // All tiers (including guest)
@@ -309,36 +339,22 @@ function App() {
     setLoadError(null)
 
     try {
-      // Load boards and tasks in parallel for speed
-      const [boardsResult, tasksResult] = await Promise.all([
-        supabase.from('boards').select('*').order('created_at'),
-        supabase.from('tasks').select('*'),
+      // Load boards and tasks in parallel via REST
+      const [boards, tasks] = await Promise.all([
+        restGet('boards', 'select=*&order=created_at'),
+        restGet('tasks', 'select=*'),
       ])
-
-      if (boardsResult.error) {
-        console.error('Failed to load boards:', boardsResult.error.message)
-        setLoadError('Failed to load boards: ' + boardsResult.error.message)
-        return
-      }
-
-      if (tasksResult.error) {
-        console.error('Failed to load tasks:', tasksResult.error.message)
-        setLoadError('Failed to load tasks: ' + tasksResult.error.message)
-        return
-      }
-
-      const boards = boardsResult.data || []
-      const tasks = tasksResult.data || []
 
       // Seed default boards if missing
       const existingIds = boards.map(b => b.id)
       const missing = DEFAULT_BOARDS.filter(b => !existingIds.includes(b.id))
       if (missing.length > 0) {
-        const { error: seedError } = await supabase
-          .from('boards')
-          .upsert(missing.map(b => ({ id: b.id, name: b.name, permanent: true })))
-        if (seedError) {
-          console.error('Failed to seed default boards:', seedError.message)
+        try {
+          for (const b of missing) {
+            await restInsert('boards', { id: b.id, name: b.name, permanent: true })
+          }
+        } catch (e) {
+          console.error('Failed to seed default boards:', e.message)
         }
       }
 
@@ -465,15 +481,11 @@ function App() {
     setTabs(prev => [...prev, { id: newId, name, permanent: false }])
     setTasksByTab(prev => ({ ...prev, [newId]: [] }))
     setActiveTab(newId)
-    // Persist to Supabase
-    const { error } = await supabase.from('boards').insert({
-      id: newId,
-      name,
-      permanent: false,
-    })
-    if (error) {
-      console.error('Failed to save board:', error.message)
-      // Rollback on failure
+    // Persist via REST
+    try {
+      await restInsert('boards', { id: newId, name, permanent: false })
+    } catch (err) {
+      console.error('Failed to save board:', err.message)
       setTabs(prev => prev.filter(t => t.id !== newId))
       setTasksByTab(prev => {
         const updated = { ...prev }
@@ -545,10 +557,11 @@ function App() {
       return updated
     })
 
-    // Update in Supabase
-    const { error } = await supabase.from('tasks').update({ status: destination.droppableId }).eq('id', draggableId)
-    if (error) {
-      console.error('Failed to update task status:', error.message)
+    // Update via REST
+    try {
+      await restUpdate('tasks', `id=eq.${draggableId}`, { status: destination.droppableId })
+    } catch (err) {
+      console.error('Failed to update task status:', err.message)
       addToast('Failed to move task.', 'error')
     }
   }
@@ -582,11 +595,12 @@ function App() {
     })
     setIsModalOpen(false)
 
-    // Persist to Supabase
-    const { error } = await supabase.from('tasks').insert(task)
-    if (error) {
-      console.error('Failed to save task:', error.message)
-      // Rollback on failure
+    // Persist via REST
+    try {
+      await restInsert('tasks', task)
+      if (task.assignee) notifyAssignee(task.assignee, task.title)
+    } catch (err) {
+      console.error('Failed to save task:', err.message)
       setTasksByTab(prev => {
         const updated = {
           ...prev,
@@ -596,8 +610,6 @@ function App() {
         return updated
       })
       addToast('Failed to save task. Please try again.', 'error')
-    } else if (task.assignee) {
-      notifyAssignee(task.assignee, task.title)
     }
   }
 
@@ -616,23 +628,30 @@ function App() {
     })
 
     // Race-condition guard: only claim if still up for grabs
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({ assignee: username })
-      .eq('id', taskId)
-      .eq('assignee', '__up_for_grabs__')
-      .select()
-
-    if (error || !data || data.length === 0) {
-      // Rollback — someone else claimed it or update failed
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/tasks?id=eq.${taskId}&assignee=eq.__up_for_grabs__`, {
+        method: 'PATCH',
+        headers: { ...REST_JSON, 'Prefer': 'return=representation' },
+        body: JSON.stringify({ assignee: username }),
+      })
+      const data = res.ok ? await res.json() : []
+      if (!res.ok || !data || data.length === 0) {
+        setTasksByTab(prev => {
+          const updated = { ...prev, [activeTab]: prevTasks }
+          syncCache(updated)
+          return updated
+        })
+        addToast(!res.ok ? 'Failed to claim task.' : 'Someone else already claimed this task.', 'error')
+      } else {
+        addToast('Task claimed!', 'success')
+      }
+    } catch (err) {
       setTasksByTab(prev => {
         const updated = { ...prev, [activeTab]: prevTasks }
         syncCache(updated)
         return updated
       })
-      addToast(error ? 'Failed to claim task.' : 'Someone else already claimed this task.', 'error')
-    } else {
-      addToast('Task claimed!', 'success')
+      addToast('Failed to claim task.', 'error')
     }
   }
 
@@ -722,30 +741,28 @@ function App() {
     })
     setEditingTask(null)
 
-    const { error } = await supabase.from('tasks').update({
-      title: updatedTask.title,
-      description: updatedTask.description || '',
-      assignee: updatedTask.assignee || '',
-      due_date: updatedTask.dueDate || '',
-      status: updatedTask.status || 'todo',
-      skills: updatedTask.skills || [],
-    }).eq('id', updatedTask.id)
-    if (error) {
-      console.error('Failed to update task:', error.message)
-      // Rollback on failure
+    try {
+      await restUpdate('tasks', `id=eq.${updatedTask.id}`, {
+        title: updatedTask.title,
+        description: updatedTask.description || '',
+        assignee: updatedTask.assignee || '',
+        due_date: updatedTask.dueDate || '',
+        status: updatedTask.status || 'todo',
+        skills: updatedTask.skills || [],
+      })
+      const newAssignee = updatedTask.assignee || ''
+      const oldAssignee = oldTask?.assignee || ''
+      if (newAssignee && newAssignee !== oldAssignee) {
+        notifyAssignee(newAssignee, updatedTask.title)
+      }
+    } catch (err) {
+      console.error('Failed to update task:', err.message)
       setTasksByTab(prev => {
         const updated = { ...prev, [activeTab]: prevTasks }
         syncCache(updated)
         return updated
       })
       addToast('Failed to update task.', 'error')
-    } else {
-      // Notify if assignee changed to a new person
-      const newAssignee = updatedTask.assignee || ''
-      const oldAssignee = oldTask?.assignee || ''
-      if (newAssignee && newAssignee !== oldAssignee) {
-        notifyAssignee(newAssignee, updatedTask.title)
-      }
     }
   }
 
@@ -765,11 +782,10 @@ function App() {
       return updated
     })
 
-    // Delete from Supabase using JS client (respects auth + RLS)
-    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
-    if (error) {
-      console.error('Failed to delete task:', error.message)
-      // Rollback on failure
+    try {
+      await restDelete('tasks', `id=eq.${taskId}`)
+    } catch (err) {
+      console.error('Failed to delete task:', err.message)
       setTasksByTab(prev => {
         const updated = { ...prev, [activeTab]: prevTasks }
         syncCache(updated)
@@ -809,7 +825,7 @@ function App() {
       }))
 
       if (importedTasks.length > 0) {
-        await supabase.from('tasks').insert(importedTasks)
+        await restInsert('tasks', importedTasks)
         // Update local state directly - realtime handler deduplicates
         setTasksByTab(prev => ({
           ...prev,
