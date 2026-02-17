@@ -110,7 +110,7 @@ function SuggestionsView() {
     if (suggestion?.author) {
       try {
         const profileRes = await fetch(
-          `${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(suggestion.author)}&select=id`,
+          `${supabaseUrl}/rest/v1/profiles?display_name=eq.${encodeURIComponent(suggestion.author)}&select=id`,
           { headers }
         )
         if (profileRes.ok) {
