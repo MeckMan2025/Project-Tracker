@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Send, Trash2, Check, Clock, XCircle } from 'lucide-react'
+import { Send, Trash2, Check, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -141,37 +141,33 @@ function SuggestionsView() {
               <div className="space-y-3">
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author || s.username}</span>
-                          <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
-                          {s.status && s.status !== 'pending' && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status] || ''}`}>
-                              {s.status === 'approved' ? 'Approved' : 'Dismissed'}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {(!s.status || s.status === 'pending') && (
-                          <button
-                            onClick={() => handleSetStatus(s.id, 'approved')}
-                            className="p-2 rounded-lg hover:bg-green-50 transition-colors"
-                            title="Approve"
-                          >
-                            <Check size={16} className="text-green-500" />
-                          </button>
-                        )}
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
+                      <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
+                      {s.status && s.status !== 'pending' && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status] || ''}`}>
+                          Approved
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-3">{s.text}</p>
+                    <div className="flex items-center gap-2">
+                      {(!s.status || s.status === 'pending') && (
                         <button
-                          onClick={() => handleDelete(s.id)}
-                          className="p-2 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Delete"
+                          onClick={() => handleSetStatus(s.id, 'approved')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600 text-xs font-medium"
                         >
-                          <Trash2 size={16} className="text-red-400" />
+                          <Check size={14} />
+                          Approve
                         </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => handleDelete(s.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-red-500 text-xs font-medium"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
