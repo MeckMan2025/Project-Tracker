@@ -156,29 +156,20 @@ function SuggestionsView() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {(!s.status || s.status === 'pending') && (
-                          <>
-                            <button
-                              onClick={() => handleSetStatus(s.id, 'approved')}
-                              className="p-2 rounded-lg hover:bg-green-50 transition-colors"
-                              title="Approve"
-                            >
-                              <Check size={16} className="text-gray-400 hover:text-green-500" />
-                            </button>
-                            <button
-                              onClick={() => handleSetStatus(s.id, 'dismissed')}
-                              className="p-2 rounded-lg hover:bg-red-50 transition-colors"
-                              title="Dismiss"
-                            >
-                              <XCircle size={16} className="text-gray-400 hover:text-red-400" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleSetStatus(s.id, 'approved')}
+                            className="p-2 rounded-lg hover:bg-green-50 transition-colors"
+                            title="Approve"
+                          >
+                            <Check size={16} className="text-green-500" />
+                          </button>
                         )}
                         <button
                           onClick={() => handleDelete(s.id)}
                           className="p-2 rounded-lg hover:bg-red-50 transition-colors"
                           title="Delete"
                         >
-                          <Trash2 size={16} className="text-gray-400 hover:text-red-400" />
+                          <Trash2 size={16} className="text-red-400" />
                         </button>
                       </div>
                     </div>
