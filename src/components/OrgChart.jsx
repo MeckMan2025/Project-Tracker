@@ -175,22 +175,23 @@ function OrgChart() {
   const [loading, setLoading] = useState(true)
   const [selectedProfile, setSelectedProfile] = useState(null)
 
-  // Fetch all profiles with retry for sleeping DB
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+  // Fetch all profiles via REST API
   useEffect(() => {
     async function fetchProfiles() {
-      for (let i = 0; i < 3; i++) {
-        try {
-          const { data, error } = await Promise.race([
-            supabase.from('profiles').select('id, display_name, primary_role_label, function_tags, short_bio, authority_tier, role'),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
-          ])
-          if (data && !error) {
-            setProfiles(data)
-            break
-          }
-        } catch (e) {
-          if (i < 2) await new Promise(r => setTimeout(r, 2000))
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?select=id,display_name,primary_role_label,function_tags,short_bio,authority_tier,role`,
+          { headers }
+        )
+        if (res.ok) {
+          setProfiles(await res.json())
         }
+      } catch (e) {
+        console.error('Failed to load org chart:', e)
       }
       setLoading(false)
     }
