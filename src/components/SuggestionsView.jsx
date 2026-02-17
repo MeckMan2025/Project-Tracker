@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Send, Trash2, Check, Clock } from 'lucide-react'
+import { Send, Trash2, Check, Clock, XCircle } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -95,6 +95,15 @@ function SuggestionsView() {
     })
   }
 
+  const handleSetStatus = (id, status) => {
+    setSuggestions(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+    fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status }),
+    }).catch(err => console.error('Failed to update suggestion:', err))
+  }
+
   const handleDelete = (id) => {
     setSuggestions(prev => prev.filter(s => s.id !== id))
     fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
@@ -137,16 +146,41 @@ function SuggestionsView() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-semibold text-pastel-pink-dark">{s.author || s.username}</span>
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
+                          {s.status && s.status !== 'pending' && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status] || ''}`}>
+                              {s.status === 'approved' ? 'Approved' : 'Dismissed'}
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
                       </div>
-                      <button
-                        onClick={() => handleDelete(s.id)}
-                        className="p-2 rounded-lg hover:bg-red-50 transition-colors shrink-0"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} className="text-gray-400 hover:text-red-400" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {(!s.status || s.status === 'pending') && (
+                          <>
+                            <button
+                              onClick={() => handleSetStatus(s.id, 'approved')}
+                              className="p-2 rounded-lg hover:bg-green-50 transition-colors"
+                              title="Approve"
+                            >
+                              <Check size={16} className="text-gray-400 hover:text-green-500" />
+                            </button>
+                            <button
+                              onClick={() => handleSetStatus(s.id, 'dismissed')}
+                              className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Dismiss"
+                            >
+                              <XCircle size={16} className="text-gray-400 hover:text-red-400" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} className="text-gray-400 hover:text-red-400" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -192,7 +226,12 @@ function SuggestionsView() {
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Suggestions</h3>
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status || 'pending']}`}>
+                        {s.status === 'approved' ? 'Approved' : s.status === 'dismissed' ? 'Dismissed' : 'Pending'}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mt-1">{s.text}</p>
                   </div>
                 ))}
