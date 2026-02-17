@@ -29,7 +29,7 @@ function SuggestionsView() {
       try {
         let url = `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc`
         if (!isReviewer && username) {
-          url += `&username=eq.${encodeURIComponent(username)}`
+          url += `&author=eq.${encodeURIComponent(username)}`
         }
         const res = await fetch(url, { headers })
         if (res.ok) setSuggestions(await res.json())
@@ -47,7 +47,7 @@ function SuggestionsView() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, (payload) => {
         setSuggestions(prev => {
           if (prev.some(s => s.id === payload.new.id)) return prev
-          if (isReviewer || payload.new.username === username) {
+          if (isReviewer || payload.new.author === username) {
             return [payload.new, ...prev]
           }
           return prev
@@ -69,10 +69,10 @@ function SuggestionsView() {
     if (!newSuggestion.trim()) return
     setSubmitError('')
 
+    const authorName = username || user?.email || 'Anonymous'
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
-      username,
-      author: username,
+      author: authorName,
       text: newSuggestion.trim(),
       created_at: new Date().toISOString(),
     }
