@@ -72,6 +72,7 @@ function SuggestionsView() {
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
       username,
+      author: username,
       text: newSuggestion.trim(),
       created_at: new Date().toISOString(),
     }
@@ -134,7 +135,7 @@ function SuggestionsView() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.username}</span>
+                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author || s.username}</span>
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                         </div>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
