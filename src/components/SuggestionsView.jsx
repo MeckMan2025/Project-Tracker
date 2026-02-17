@@ -3,12 +3,13 @@ import { Send, Trash2, Check, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { triggerPush } from '../utils/pushHelper'
 import NotificationBell from './NotificationBell'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
   approved: 'bg-green-100 text-green-700',
-  dismissed: 'bg-red-100 text-red-600',
+  denied: 'bg-red-100 text-red-600',
 }
 
 function SuggestionsView() {
@@ -95,21 +96,45 @@ function SuggestionsView() {
     })
   }
 
-  const handleSetStatus = (id, status) => {
+  const handleSetStatus = async (id, status) => {
+    const suggestion = suggestions.find(s => s.id === id)
     setSuggestions(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+
     fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
       method: 'PATCH',
       headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status }),
     }).catch(err => console.error('Failed to update suggestion:', err))
-  }
 
-  const handleDelete = (id) => {
-    setSuggestions(prev => prev.filter(s => s.id !== id))
-    fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
-      method: 'DELETE',
-      headers,
-    }).catch(err => console.error('Failed to delete suggestion:', err))
+    // Notify the suggestion author
+    if (suggestion?.author) {
+      try {
+        const profileRes = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(suggestion.author)}&select=id`,
+          { headers }
+        )
+        if (profileRes.ok) {
+          const profiles = await profileRes.json()
+          if (profiles.length > 0) {
+            const notif = {
+              id: String(Date.now()) + Math.random().toString(36).slice(2),
+              user_id: profiles[0].id,
+              type: status === 'approved' ? 'suggestion_approved' : 'suggestion_denied',
+              title: status === 'approved' ? 'Suggestion Approved' : 'Suggestion Denied',
+              body: `Your suggestion "${suggestion.text.slice(0, 50)}${suggestion.text.length > 50 ? '...' : ''}" was ${status} by ${username}.`,
+            }
+            await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify(notif),
+            })
+            triggerPush(notif)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to notify suggestion author:', err)
+      }
+    }
   }
 
   const formatDate = (timestamp) => {
@@ -146,28 +171,30 @@ function SuggestionsView() {
                       <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                       {s.status && s.status !== 'pending' && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status] || ''}`}>
-                          Approved
+                          {s.status === 'approved' ? 'Approved' : 'Denied'}
                         </span>
                       )}
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-3">{s.text}</p>
                     <div className="flex items-center gap-2">
                       {(!s.status || s.status === 'pending') && (
-                        <button
-                          onClick={() => handleSetStatus(s.id, 'approved')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600 text-xs font-medium"
-                        >
-                          <Check size={14} />
-                          Approve
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleSetStatus(s.id, 'approved')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600 text-xs font-medium"
+                          >
+                            <Check size={14} />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleSetStatus(s.id, 'denied')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-red-500 text-xs font-medium"
+                          >
+                            <Trash2 size={14} />
+                            Deny
+                          </button>
+                        </>
                       )}
-                      <button
-                        onClick={() => handleDelete(s.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-red-500 text-xs font-medium"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -214,10 +241,12 @@ function SuggestionsView() {
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                        s.status === 'approved' ? 'bg-green-500' :
+                        s.status === 'denied' ? 'bg-red-500' :
+                        'bg-yellow-400'
+                      }`} title={s.status === 'approved' ? 'Approved' : s.status === 'denied' ? 'Denied' : 'Pending'} />
                       <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status || 'pending']}`}>
-                        {s.status === 'approved' ? 'Approved' : s.status === 'dismissed' ? 'Dismissed' : 'Pending'}
-                      </span>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mt-1">{s.text}</p>
                   </div>
