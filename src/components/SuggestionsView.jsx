@@ -110,26 +110,31 @@ function SuggestionsView() {
     if (suggestion?.author) {
       try {
         const profileRes = await fetch(
-          `${supabaseUrl}/rest/v1/profiles?display_name=eq.${encodeURIComponent(suggestion.author)}&select=id`,
+          `${supabaseUrl}/rest/v1/profiles?display_name=ilike.${encodeURIComponent(suggestion.author)}&select=id`,
           { headers }
         )
-        if (profileRes.ok) {
-          const profiles = await profileRes.json()
-          if (profiles.length > 0) {
-            const notif = {
-              id: String(Date.now()) + Math.random().toString(36).slice(2),
-              user_id: profiles[0].id,
-              type: status === 'approved' ? 'suggestion_approved' : 'suggestion_denied',
-              title: status === 'approved' ? 'Suggestion Approved' : 'Suggestion Denied',
-              body: `Your suggestion "${suggestion.text.slice(0, 50)}${suggestion.text.length > 50 ? '...' : ''}" was ${status} by ${username}.`,
-            }
-            await fetch(`${supabaseUrl}/rest/v1/notifications`, {
-              method: 'POST',
-              headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-              body: JSON.stringify(notif),
-            })
-            triggerPush(notif)
+        if (!profileRes.ok) {
+          console.error('Profile lookup failed:', await profileRes.text())
+          return
+        }
+        const profiles = await profileRes.json()
+        if (profiles.length > 0) {
+          const notif = {
+            id: String(Date.now()) + Math.random().toString(36).slice(2),
+            user_id: profiles[0].id,
+            type: status === 'approved' ? 'suggestion_approved' : 'suggestion_denied',
+            title: status === 'approved' ? 'Suggestion Approved' : 'Suggestion Denied',
+            body: `Your suggestion "${suggestion.text.slice(0, 50)}${suggestion.text.length > 50 ? '...' : ''}" was ${status} by ${username}.`,
           }
+          const notifRes = await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify(notif),
+          })
+          if (!notifRes.ok) {
+            console.error('Notification insert failed:', await notifRes.text())
+          }
+          triggerPush(notif)
         }
       } catch (err) {
         console.error('Failed to notify suggestion author:', err)
