@@ -137,6 +137,14 @@ function SuggestionsView() {
     }
   }
 
+  const handleDelete = (id) => {
+    setSuggestions(prev => prev.filter(s => s.id !== id))
+    fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
+      method: 'DELETE',
+      headers,
+    }).catch(err => console.error('Failed to delete suggestion:', err))
+  }
+
   const formatDate = (timestamp) => {
     const date = new Date(timestamp)
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -194,6 +202,15 @@ function SuggestionsView() {
                             Deny
                           </button>
                         </>
+                      )}
+                      {s.status && s.status !== 'pending' && (
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-gray-500 text-xs font-medium"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
                       )}
                     </div>
                   </div>
