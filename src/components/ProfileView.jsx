@@ -149,7 +149,10 @@ function ProfileView() {
         }
         if (data.music_preference) {
           setMusicPref(data.music_preference)
-          localStorage.setItem('scrum-music-pref', data.music_preference)
+          // Only sync from DB if user hasn't set a local preference
+          if (!localStorage.getItem('scrum-music-pref')) {
+            localStorage.setItem('scrum-music-pref', data.music_preference)
+          }
         }
       } catch (err) {
         console.error('Failed to load profile:', err)
