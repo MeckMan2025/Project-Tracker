@@ -72,7 +72,7 @@ function SuggestionsView() {
     const suggestion = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
       username,
-      content: newSuggestion.trim(),
+      text: newSuggestion.trim(),
       created_at: new Date().toISOString(),
     }
 
@@ -137,7 +137,7 @@ function SuggestionsView() {
                           <span className="text-sm font-semibold text-pastel-pink-dark">{s.username}</span>
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.content}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{s.text}</p>
                       </div>
                       <button
                         onClick={() => handleDelete(s.id)}
@@ -192,7 +192,7 @@ function SuggestionsView() {
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mt-1">{s.content}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mt-1">{s.text}</p>
                   </div>
                 ))}
               </div>
