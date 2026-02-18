@@ -10,7 +10,7 @@ import LoadingScreen from './components/LoadingScreen'
 import LoginScreen from './components/LoginScreen'
 import ScoutingForm from './components/ScoutingForm'
 import TasksView from './components/TasksView'
-import QuickChat from './components/QuickChat'
+
 import OrgChart from './components/OrgChart'
 import SuggestionsView from './components/SuggestionsView'
 import CalendarView from './components/CalendarView'
@@ -22,9 +22,8 @@ import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
-import AnnouncementsView from './components/AnnouncementsView'
-import AnnouncementModal from './components/AnnouncementModal'
-import AnnouncementPopup from './components/AnnouncementPopup'
+
+
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
@@ -70,9 +69,8 @@ const TAB_ACCESS = {
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
-  'quick-chat': 'teammate', 'notebook': 'teammate', 'workshops': 'teammate',
+  'notebook': 'teammate', 'workshops': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
-  'announcements': 'guest',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
@@ -156,7 +154,6 @@ const SCOUTING_TAB = { id: 'scouting', name: 'Scouting', type: 'scouting' }
 const BOARDS_TAB = { id: 'boards', name: 'Boards', type: 'boards' }
 const DATA_TAB = { id: 'data', name: 'Data', type: 'data' }
 const AI_TAB = { id: 'ai-manual', name: 'AI Manual', type: 'ai-manual' }
-const CHAT_TAB = { id: 'quick-chat', name: 'Quick Chat', type: 'quick-chat' }
 const TASKS_TAB = { id: 'tasks', name: 'Tasks', type: 'tasks' }
 const NOTEBOOK_TAB = { id: 'notebook', name: 'Engineering Notebook', type: 'notebook' }
 const ORG_TAB = { id: 'org-chart', name: 'Org Chart', type: 'org-chart' }
@@ -166,7 +163,7 @@ const SCHEDULE_TAB = { id: 'schedule', name: 'Schedule', type: 'schedule' }
 const WORKSHOPS_TAB = { id: 'workshops', name: 'Workshops', type: 'workshops' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
-const ANNOUNCEMENTS_TAB = { id: 'announcements', name: 'Announcements', type: 'announcements' }
+
 
 const DEFAULT_BOARDS = [
   { id: 'business', name: 'Business', permanent: true },
@@ -174,7 +171,7 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
-const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, CHAT_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, ANNOUNCEMENTS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
+const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -279,8 +276,8 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
-  const [announcementModalOpen, setAnnouncementModalOpen] = useState(false)
-  const [announcementPopup, setAnnouncementPopup] = useState(null)
+
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -453,21 +450,6 @@ function App() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // Real-time: pop up new announcements on everyone's screen
-  useEffect(() => {
-    if (!user) return
-    const channel = supabase
-      .channel('announcements-popup')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, (payload) => {
-        // Don't show popup to the author
-        if (payload.new.author_id === user.id) return
-        setAnnouncementPopup(payload.new)
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [user?.id])
-
   // Save activeTab locally (each user picks their own view)
   useEffect(() => {
     localStorage.setItem('scrum-active-tab', activeTab)
@@ -498,7 +480,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'quick-chat' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule' || tabId === 'announcements') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -916,7 +898,8 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
-        onCreateAnnouncement={() => setAnnouncementModalOpen(true)}
+
+
       />
 
 
@@ -950,8 +933,6 @@ function App() {
             </p>
           </div>
         </div>
-      ) : activeTab === 'quick-chat' ? (
-        <QuickChat />
       ) : activeTab === 'ai-manual' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -988,8 +969,6 @@ function App() {
         <OrgChart />
       ) : activeTab === 'suggestions' ? (
         <SuggestionsView />
-      ) : activeTab === 'announcements' ? (
-        <AnnouncementsView />
       ) : activeTab === 'calendar' ? (
         <CalendarView />
       ) : activeTab === 'user-management' ? (
@@ -1163,16 +1142,8 @@ function App() {
         />
       )}
 
-      {/* Announcement Modal */}
-      {announcementModalOpen && (
-        <AnnouncementModal onClose={() => setAnnouncementModalOpen(false)} />
-      )}
 
-      {/* Announcement Popup (real-time, shows on everyone's screen) */}
-      <AnnouncementPopup
-        announcement={announcementPopup}
-        onDismiss={() => setAnnouncementPopup(null)}
-      />
+
       </div>
     </div>
     </>

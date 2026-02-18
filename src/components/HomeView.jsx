@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Calendar, ClipboardList, FolderKanban, MessageCircle, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users } from 'lucide-react'
+import { Calendar, ClipboardList, FolderKanban, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
@@ -244,7 +244,6 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
               <>
                 <QuickAction icon={ClipboardList} label="Submit Scouting" onClick={() => onTabChange('scouting')} />
                 <QuickAction icon={BookOpen} label="Notebook" onClick={() => onTabChange('notebook')} />
-                <QuickAction icon={MessageCircle} label="Quick Chat" onClick={() => onTabChange('quick-chat')} />
               </>
             )}
             {isLead && (

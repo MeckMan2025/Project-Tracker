@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, MessageCircle, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home, Megaphone } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, onCreateAnnouncement }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers }) {
   const { logout, username, user } = useUser()
   const { isGuest, canEditContent, canRequestContent, hasLeadTag } = usePermissions()
   const { addToast } = useToast()
@@ -52,8 +52,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   }
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
-  const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'quick-chat' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'announcements')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'quick-chat' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'announcements'
+  const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops')
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops'
 
   return (
     <>
@@ -113,7 +113,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     { icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' },
                     ...(!isGuest ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
                     ...(!isGuest ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
-                    ...(hasLeadTag ? [{ icon: Megaphone, label: 'New Announcement', color: 'text-pastel-pink-dark', action: 'announcement' }] : []),
                     { icon: HelpCircle, label: 'Help', color: 'text-pastel-orange-dark' },
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab, action }) => (
@@ -122,11 +121,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                       onClick={() => {
                         if (label === 'Logout') {
                           logout()
-                          return
-                        }
-                        if (action === 'announcement') {
-                          setMenuOpen(false)
-                          onCreateAnnouncement?.()
                           return
                         }
                         setMenuOpen(false)
@@ -294,28 +288,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </div>
 
           <hr className="my-2 border-gray-200" />
-
-          {/* Quick Chat Tab — hidden for guests */}
-          {!isGuest && (
-            <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'quick-chat'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('quick-chat')
-                  onToggle()
-                }}
-              >
-                <MessageCircle size={16} className="text-pastel-pink-dark" />
-                <span className="truncate">Quick Chat</span>
-              </div>
-
-              <hr className="my-2 border-gray-200" />
-            </>
-          )}
 
           {/* Boards Tab */}
           <div
@@ -516,24 +488,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               <hr className="my-2 border-gray-200" />
             </>
           )}
-
-          {/* Announcements — visible to everyone */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'announcements'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('announcements')
-              onToggle()
-            }}
-          >
-            <Megaphone size={16} className="text-pastel-pink-dark" />
-            <span className="truncate">Announcements</span>
-          </div>
-
-          <hr className="my-2 border-gray-200" />
 
           {/* Calendar Tab */}
           <div
