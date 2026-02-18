@@ -76,7 +76,7 @@ export default function EngineeringNotebook() {
   const [showQuoteModal, setShowQuoteModal] = useState(false)
   const [quoteToast, setQuoteToast] = useState(null)
   const [submitFeedback, setSubmitFeedback] = useState(null)
-  const [showTeamEntries, setShowTeamEntries] = useState(true)
+  const [showTeamEntries, setShowTeamEntries] = useState(false)
   const [filterStudent, setFilterStudent] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterProject, setFilterProject] = useState('')
@@ -317,7 +317,7 @@ export default function EngineeringNotebook() {
   // Filtered entries
   const filteredEntries = useMemo(() => {
     let result = entries
-    if (!showTeamEntries && !isLead) result = result.filter(e => e.username === username)
+    if (!isLead) result = result.filter(e => e.username === username)
     if (filterStudent) result = result.filter(e => e.username === filterStudent)
     if (filterCategory) result = result.filter(e => e.category === filterCategory)
     if (filterProject) result = result.filter(e => e.project_id === filterProject)
@@ -419,14 +419,6 @@ export default function EngineeringNotebook() {
             <>
               {/* Filter toggle & team toggle */}
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                {!isLead && (
-                  <button
-                    onClick={() => setShowTeamEntries(!showTeamEntries)}
-                    className="text-sm px-3 py-1 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50 transition-colors"
-                  >
-                    {showTeamEntries ? 'Show My Entries' : 'Show Team Entries'}
-                  </button>
-                )}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className="flex items-center gap-1 text-sm px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
@@ -447,10 +439,12 @@ export default function EngineeringNotebook() {
               {/* Filters */}
               {showFilters && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white rounded-lg p-3 shadow-sm">
-                  <select value={filterStudent} onChange={e => setFilterStudent(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
-                    <option value="">All Students</option>
-                    {studentNames.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  {isLead && (
+                    <select value={filterStudent} onChange={e => setFilterStudent(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
+                      <option value="">All Students</option>
+                      {studentNames.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  )}
                   <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
                     <option value="">All Categories</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
