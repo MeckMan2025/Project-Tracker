@@ -27,20 +27,11 @@ export default function WorkshopIdeas() {
 
   const loadIdeas = async () => {
     try {
-      if (canReview) {
-        const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
-        if (res.ok) setIdeas(await res.json())
-      } else if (username) {
-        const [ownRes, approvedRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/workshop_ideas?author=eq.${encodeURIComponent(username)}&select=*&order=created_at.desc`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/workshop_ideas?status=eq.approved&select=*&order=created_at.desc`, { headers }),
-        ])
-        const own = ownRes.ok ? await ownRes.json() : []
-        const approved = approvedRes.ok ? await approvedRes.json() : []
-        const map = new Map()
-        own.forEach(i => map.set(i.id, i))
-        approved.forEach(i => { if (!map.has(i.id)) map.set(i.id, i) })
-        setIdeas([...map.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
+      if (res.ok) {
+        setIdeas(await res.json())
+      } else {
+        console.error('Failed to fetch workshop ideas:', res.status, await res.text())
       }
     } catch (err) {
       console.error('Failed to load workshop ideas:', err)
@@ -58,26 +49,13 @@ export default function WorkshopIdeas() {
     const channel = supabase
       .channel('workshop-ideas-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshop_ideas' }, (payload) => {
-        setIdeas(prev => {
-          if (prev.some(i => i.id === payload.new.id)) return prev
-          if (canReview || payload.new.author === username || payload.new.status === 'approved') {
-            return [payload.new, ...prev]
-          }
-          return prev
-        })
+        setIdeas(prev => prev.some(i => i.id === payload.new.id) ? prev : [payload.new, ...prev])
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'workshop_ideas' }, (payload) => {
-        setIdeas(prev => {
-          const exists = prev.some(i => i.id === payload.new.id)
-          if (exists) {
-            return prev.map(i => i.id === payload.new.id ? payload.new : i)
-          }
-          // Newly approved idea should appear for everyone
-          if (payload.new.status === 'approved') {
-            return [payload.new, ...prev]
-          }
-          return prev
-        })
+        setIdeas(prev => prev.some(i => i.id === payload.new.id)
+          ? prev.map(i => i.id === payload.new.id ? payload.new : i)
+          : [payload.new, ...prev]
+        )
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshop_ideas' }, (payload) => {
         setIdeas(prev => prev.filter(i => i.id !== payload.old.id))
