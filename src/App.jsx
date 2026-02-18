@@ -270,6 +270,12 @@ function App() {
   const [tabs, setTabs] = useState(() => cachedData.current?.tabs || [...SYSTEM_TABS, ...DEFAULT_BOARDS])
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
+    // Clear removed tabs so users don't land on a dead page
+    const removed = ['quick-chat', 'announcements']
+    if (saved && removed.includes(saved)) {
+      localStorage.removeItem('scrum-active-tab')
+      return 'home'
+    }
     return saved || 'home'
   })
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
