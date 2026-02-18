@@ -69,7 +69,7 @@ const TAB_ACCESS = {
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
-  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate',
+  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'top',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
 
@@ -1014,15 +1014,22 @@ function App() {
                 <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
                   Special Controls
                 </h1>
-                <p className="text-sm text-gray-500">Coming soon</p>
               </div>
               <NotificationBell />
             </div>
           </header>
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-xl font-semibold text-gray-500 text-center px-4">
-              KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
-            </p>
+          <div className="flex-1 p-6">
+            <div className="max-w-md mx-auto grid gap-4">
+              {['Attendance', 'SWAT Mode', 'Meeting Stats', 'Scouting'].map(label => (
+                <button
+                  key={label}
+                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                >
+                  <span className="text-lg font-semibold text-gray-700">{label}</span>
+                  <p className="text-sm text-gray-400 mt-1">Coming soon</p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : (

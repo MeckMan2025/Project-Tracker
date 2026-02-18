@@ -255,15 +255,20 @@ function RequestsView({ tabs = [] }) {
                 const items = groups[section.key] || []
                 const color = sectionColors[idx % sectionColors.length]
                 return (
-                  <div key={section.key} className="space-y-2">
-                    <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                      {section.label}
-                    </h2>
-                    {items.length === 0 ? (
-                      <p className="text-sm text-gray-400 pb-2">No pending requests</p>
-                    ) : (
-                      items.map(r => renderRequestCard(r, { showActions: true }))
+                  <div key={section.key}>
+                    {idx > 0 && (
+                      <hr className="my-4 border-t border-gray-200" />
                     )}
+                    <div className="space-y-2">
+                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                        {section.label}
+                      </h2>
+                      {items.length === 0 ? (
+                        <p className="text-sm text-gray-400 pb-2">No pending requests</p>
+                      ) : (
+                        items.map(r => renderRequestCard(r, { showActions: true }))
+                      )}
+                    </div>
                   </div>
                 )
               })
@@ -275,15 +280,20 @@ function RequestsView({ tabs = [] }) {
                 const items = groups[section.key] || []
                 const color = sectionColors[idx % sectionColors.length]
                 return (
-                  <div key={section.key} className="space-y-2">
-                    <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                      {section.label}
-                    </h2>
-                    {items.length === 0 ? (
-                      <p className="text-sm text-gray-400 pb-2">No history</p>
-                    ) : (
-                      items.map(r => renderRequestCard(r, { showStatus: true }))
+                  <div key={section.key}>
+                    {idx > 0 && (
+                      <hr className="my-4 border-t border-gray-200" />
                     )}
+                    <div className="space-y-2">
+                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                        {section.label}
+                      </h2>
+                      {items.length === 0 ? (
+                        <p className="text-sm text-gray-400 pb-2">No history</p>
+                      ) : (
+                        items.map(r => renderRequestCard(r, { showStatus: true }))
+                      )}
+                    </div>
                   </div>
                 )
               })
