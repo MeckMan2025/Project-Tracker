@@ -203,7 +203,7 @@ const ROLE_EMOJIS = {
   'Build': { emoji: '🔧', label: 'Builder' },
   'CAD': { emoji: '📐', label: 'CAD Designer' },
   'Scouting': { emoji: '🔍', label: 'Scout' },
-  'Outreach': { emoji: '🤝', label: 'Outreach Specialist' },
+  'Business': { emoji: '🤝', label: 'Business Specialist' },
   'Communications': { emoji: '📣', label: 'Communications Lead' },
   'Programming': { emoji: '⌨️', label: 'Programmer' },
   'Co-Founder': { emoji: '👑', label: 'Co-Founder' },

@@ -228,7 +228,7 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
                 <StatCard icon={CheckCircle2} label="My Done Tasks" value={stats.myDone.length} color="text-green-500" bg="bg-green-50" />
                 <StatCard icon={AlertCircle} label="My Open Tasks" value={stats.myOpen.length} color="text-pastel-blue-dark" bg="bg-pastel-blue/20" />
                 <StatCard icon={Clock} label="Attendance" value="--" color="text-pastel-orange-dark" bg="bg-pastel-orange/20" />
-                <StatCard icon={Zap} label="Outreach Hrs" value="--" color="text-pastel-pink-dark" bg="bg-pastel-pink/20" />
+                <StatCard icon={Zap} label="Business Hrs" value="--" color="text-pastel-pink-dark" bg="bg-pastel-pink/20" />
               </>
             )}
           </div>

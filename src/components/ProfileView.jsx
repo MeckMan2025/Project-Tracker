@@ -16,7 +16,7 @@ const STATUS_OPTIONS = [
 
 const DISCIPLINE_OPTIONS = [
   'Mechanical', 'Electrical', 'Programming', 'CAD', 'Autonomy',
-  'Design', 'Testing', 'Business', 'Outreach', 'Strategy',
+  'Design', 'Testing', 'Business', 'Strategy',
 ]
 
 const SKILL_LEVELS = ['beginner', 'working', 'strong', 'expert']
@@ -26,7 +26,7 @@ const SKILL_OPTIONS = [
   '3D Printing', 'Wiring', 'Soldering', 'Mechanical Assembly',
   'Autonomous Programming', 'TeleOp Programming', 'Vision/OpenCV',
   'Sensors', 'PID Control', 'Documentation', 'Presentation',
-  'Outreach', 'Fundraising', 'Project Management',
+  'Business', 'Fundraising', 'Project Management',
 ]
 
 const TOOL_OPTIONS = [

@@ -8,7 +8,7 @@ import { triggerPush } from '../utils/pushHelper'
 
 const ALL_ROLES = [
   'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
-  'Website', 'Build', 'CAD', 'Scouting', 'Outreach', 'Communications', 'Programming', 'Guest',
+  'Website', 'Build', 'CAD', 'Scouting', 'Business', 'Communications', 'Programming', 'Guest',
 ]
 
 const PERMANENT_COFOUNDER_NAMES = ['yukti', 'kayden']
@@ -24,7 +24,7 @@ const ROLE_DESCRIPTIONS = {
   'Build': 'Builds and assembles the physical robot',
   'CAD': 'Creates 3D models and technical drawings',
   'Scouting': 'Collects and analyzes match data at competitions',
-  'Outreach': 'Manages community outreach and partnerships',
+  'Business': 'Manages outreach, partnerships, and business operations',
   'Communications': 'Handles social media and team communications',
   'Programming': 'Writes and maintains robot control software',
   'Guest': 'Limited access — can view boards, tasks, and calendar only',

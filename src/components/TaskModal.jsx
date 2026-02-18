@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 
 const SKILL_OPTIONS = [
   'Programming', 'CAD', 'Mechanical', 'Electronics', 'Design',
-  'Presentation', 'Testing', 'Documentation', 'Outreach', 'Strategy'
+  'Presentation', 'Testing', 'Documentation', 'Business', 'Strategy'
 ]
 
 function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
