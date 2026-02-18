@@ -55,13 +55,13 @@ function SectionHeader({ title }) {
 }
 
 export default function EngineeringNotebook() {
-  const { username } = useUser()
+  const { username, user } = useUser()
   const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest } = usePermissions()
   const isLead = canOrganizeNotebook
   const canReviewQuotes = canApproveQuotes
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const [view, setView] = useState('timeline')
+  const [view, setView] = useState('projects')
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])
   const [approvedQuotes, setApprovedQuotes] = useState([])
@@ -82,6 +82,9 @@ export default function EngineeringNotebook() {
   const [filterProject, setFilterProject] = useState('')
   const [filterEngagement, setFilterEngagement] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [expandedProject, setExpandedProject] = useState(null)
+  const [showRequestProjectModal, setShowRequestProjectModal] = useState(false)
+  const [requestProjectName, setRequestProjectName] = useState('')
 
   // Load data via direct fetch
   useEffect(() => {
@@ -208,7 +211,7 @@ export default function EngineeringNotebook() {
       setTimeout(() => setQuoteToast(null), 5000)
     }
 
-    setView('timeline')
+    setView('projects')
   }
 
   // Delete entry (co-founders only)
@@ -349,10 +352,86 @@ export default function EngineeringNotebook() {
     } catch { return dateStr }
   }
 
+  const PERMANENT_PROJECTS = [
+    { id: '_technical', name: 'Technical', permanent: true },
+    { id: '_business', name: 'Business', permanent: true },
+    { id: '_programming', name: 'Programming', permanent: true },
+  ]
+
+  const allDisplayProjects = [
+    ...PERMANENT_PROJECTS,
+    ...projects.filter(p => p.status === 'Active').map(p => ({ ...p, permanent: false })),
+  ]
+
+  const getProjectEntries = (projectId) => {
+    let result
+    if (projectId === '_technical') {
+      result = entries.filter(e => e.category === 'Technical' && !e.project_id)
+    } else if (projectId === '_business') {
+      result = entries.filter(e => e.category === 'Business' && !e.project_id)
+    } else if (projectId === '_programming') {
+      result = entries.filter(e => e.category === 'Programming' && !e.project_id)
+    } else {
+      result = entries.filter(e => e.project_id === projectId)
+    }
+    if (!isLead) {
+      result = result.filter(e => e.username === username)
+    }
+    return result
+  }
+
+  const groupByDate = (entryList) => {
+    const groups = {}
+    entryList.forEach(e => {
+      const key = e.meeting_date || 'Unknown'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(e)
+    })
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))
+  }
+
+  const handleNewEntryFromProject = (projectId) => {
+    const newForm = { ...INITIAL_ENTRY }
+    if (projectId === '_technical') {
+      newForm.category = 'Technical'
+    } else if (projectId === '_business') {
+      newForm.category = 'Business'
+    } else if (projectId === '_programming') {
+      newForm.category = 'Programming'
+    } else {
+      const proj = projects.find(p => p.id === projectId)
+      newForm.projectId = projectId
+      newForm.category = proj?.category || 'Technical'
+    }
+    setFormData(newForm)
+    setEditingEntryId(null)
+    setView('entry')
+  }
+
+  const handleRequestProject = () => {
+    if (!requestProjectName.trim()) return
+    const request = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      type: 'notebook_project',
+      data: { name: requestProjectName.trim() },
+      requested_by: username,
+      requested_by_user_id: user?.id,
+      status: 'pending',
+    }
+    setRequestProjectName('')
+    setShowRequestProjectModal(false)
+    setSubmitFeedback('Project request submitted for approval!')
+    setTimeout(() => setSubmitFeedback(null), 3000)
+    fetch(`${supabaseUrl}/rest/v1/requests`, {
+      method: 'POST',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(request),
+    }).catch(err => console.error('Failed to request project:', err))
+  }
+
   const views = [
-    { id: 'timeline', label: 'Timeline', icon: BookOpen },
+    { id: 'projects', label: 'Projects', icon: FolderOpen },
     { id: 'entry', label: 'New Entry', icon: Plus },
-    ...(isLead ? [{ id: 'projects', label: 'Projects', icon: FolderOpen }] : []),
     { id: 'quotes', label: 'Quotes', icon: MessageSquareQuote },
   ]
 
@@ -414,133 +493,144 @@ export default function EngineeringNotebook() {
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto space-y-3">
 
-          {/* ========== TIMELINE VIEW ========== */}
-          {view === 'timeline' && (
+          {/* ========== PROJECTS VIEW ========== */}
+          {view === 'projects' && (
             <>
-              {/* Filter toggle & team toggle */}
               <div className="flex items-center justify-between gap-2 flex-wrap">
+                {isLead ? (
+                  <button
+                    onClick={() => { setProjectForm({ ...INITIAL_PROJECT }); setEditingProjectId(null); setShowProjectModal(true) }}
+                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50 transition-colors font-medium"
+                  >
+                    <Plus size={14} /> New Project
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowRequestProjectModal(true)}
+                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50 transition-colors font-medium"
+                  >
+                    <Plus size={14} /> Request Project
+                  </button>
+                )}
                 <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-1 text-sm px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                >
-                  <Filter size={14} />
-                  Filters
-                  {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </button>
-                <button
-                  onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); localStorage.removeItem('notebook-entry-draft'); setView('entry') }}
+                  onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setView('entry') }}
                   className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
                 >
-                  <Plus size={14} />
-                  New Entry
+                  <Plus size={14} /> New Entry
                 </button>
               </div>
 
-              {/* Filters */}
-              {showFilters && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white rounded-lg p-3 shadow-sm">
-                  {isLead && (
-                    <select value={filterStudent} onChange={e => setFilterStudent(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
-                      <option value="">All Students</option>
-                      {studentNames.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  )}
-                  <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
-                    <option value="">All Categories</option>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <select value={filterProject} onChange={e => setFilterProject(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
-                    <option value="">All Projects</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <select value={filterEngagement} onChange={e => setFilterEngagement(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent">
-                    <option value="">All Engagement</option>
-                    {ENGAGEMENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {(filterStudent || filterCategory || filterProject || filterEngagement) && (
-                    <button
-                      onClick={() => { setFilterStudent(''); setFilterCategory(''); setFilterProject(''); setFilterEngagement('') }}
-                      className="col-span-2 md:col-span-4 text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1"
-                    >
-                      <X size={12} /> Clear filters
-                    </button>
-                  )}
-                </div>
-              )}
+              <div className="space-y-2">
+                {allDisplayProjects.map(project => {
+                  const projectEntries = getProjectEntries(project.id)
+                  const isExpanded = expandedProject === project.id
+                  const dateGroups = groupByDate(projectEntries)
 
-              {/* Timeline */}
-              {groupedEntries.length === 0 ? (
-                <div className="text-center text-gray-400 py-12">
-                  <BookOpen size={40} className="mx-auto mb-2 opacity-50" />
-                  <p>No notebook entries yet.</p>
-                  <p className="text-sm mt-1">Tap "New Entry" to log your first meeting!</p>
-                </div>
-              ) : (
-                groupedEntries.map(([date, dateEntries]) => (
-                  <div key={date}>
-                    <div className="flex items-center gap-2 mb-2 mt-4">
-                      <h3 className="text-sm font-semibold text-gray-500">{formatDate(date)}</h3>
-                      <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {dateEntries.map(entry => {
-                        const catColor = CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.Custom
-                        const engDot = ENGAGEMENT_OPTIONS.find(o => o.value === entry.engagement)?.dot || 'bg-gray-400'
-                        const project = projectMap[entry.project_id]
-                        const canDelete = isLead
-                        return (
-                          <div key={entry.id} className="bg-white rounded-lg p-3 shadow-sm">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${catColor}`}>
-                                  {entry.category === 'Custom' ? (entry.custom_category || 'Custom') : entry.category}
-                                </span>
-                                <span className="flex items-center gap-1 text-xs text-gray-400">
-                                  <span className={`w-2 h-2 rounded-full inline-block ${engDot}`} />
-                                  {entry.engagement}
-                                </span>
+                  return (
+                    <div key={project.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                      <div
+                        onClick={() => setExpandedProject(isExpanded ? null : project.id)}
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FolderOpen size={18} className="text-pastel-blue-dark" />
+                          <span className="font-semibold text-gray-800">{project.name}</span>
+                          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+                            {projectEntries.length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!project.permanent && isLead && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setProjectForm({ name: project.name, category: project.category || 'Technical', goal: project.goal || '', reason: project.reason || '', status: project.status || 'Active' })
+                                  setEditingProjectId(project.id)
+                                  setShowProjectModal(true)
+                                }}
+                                className="text-gray-300 hover:text-pastel-blue-dark transition-colors"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id) }}
+                                className="text-gray-300 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+                          {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="border-t px-4 py-3 space-y-3 bg-gray-50/30">
+                          <button
+                            onClick={() => handleNewEntryFromProject(project.id)}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-pastel-pink/30 hover:bg-pastel-pink/50 transition-colors text-gray-600"
+                          >
+                            <Plus size={12} /> Add Entry
+                          </button>
+
+                          {dateGroups.length === 0 ? (
+                            <p className="text-sm text-gray-400 text-center py-6">No entries yet.</p>
+                          ) : (
+                            dateGroups.map(([date, dateEntries]) => (
+                              <div key={date}>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <h4 className="text-xs font-semibold text-gray-500">{formatDate(date)}</h4>
+                                  <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">{dateEntries.length}</span>
+                                </div>
+                                <div className="space-y-2">
+                                  {dateEntries.map(entry => {
+                                    const engDot = ENGAGEMENT_OPTIONS.find(o => o.value === entry.engagement)?.dot || 'bg-gray-400'
+                                    return (
+                                      <div key={entry.id} className="bg-white rounded-lg p-3 shadow-sm">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <span className="flex items-center gap-1 text-xs text-gray-400">
+                                            <span className={`w-2 h-2 rounded-full inline-block ${engDot}`} />
+                                            {entry.engagement}
+                                          </span>
+                                          {isLead && (
+                                            <button onClick={() => handleDeleteEntry(entry.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+                                              <Trash2 size={14} />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <p className="text-sm text-gray-800 mt-1 font-medium">{entry.what_did}</p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          <span className="font-medium">Why:</span> {entry.why_option}
+                                          {entry.why_note && <span className="italic"> - {entry.why_note}</span>}
+                                        </p>
+                                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                          {entry.project_link && (
+                                            <a href={entry.project_link} target="_blank" rel="noopener noreferrer" className="text-xs text-pastel-blue-dark hover:underline flex items-center gap-0.5">
+                                              <ExternalLink size={10} /> Link
+                                            </a>
+                                          )}
+                                          {entry.photo_url && (
+                                            <a href={entry.photo_url} target="_blank" rel="noopener noreferrer" className="text-xs text-pastel-blue-dark hover:underline">Photo</a>
+                                          )}
+                                        </div>
+                                        <div className="mt-2 pt-1.5 border-t border-gray-100">
+                                          <span className="text-xs text-gray-400 font-medium">{entry.username}</span>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
                               </div>
-                              {canDelete && (
-                                <button onClick={() => handleDeleteEntry(entry.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-800 mt-1.5 font-medium">{entry.what_did}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              <span className="font-medium">Why:</span> {entry.why_option}
-                              {entry.why_note && <span className="italic"> - {entry.why_note}</span>}
-                            </p>
-                            {project && (
-                              <p className="text-xs text-gray-400 mt-1">
-                                <FolderOpen size={10} className="inline mr-1" />
-                                {project.name}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-3 mt-2 flex-wrap">
-                              {entry.project_link && (
-                                <a href={entry.project_link} target="_blank" rel="noopener noreferrer" className="text-xs text-pastel-blue-dark hover:underline flex items-center gap-0.5">
-                                  <ExternalLink size={10} /> Link
-                                </a>
-                              )}
-                              {entry.photo_url && (
-                                <a href={entry.photo_url} target="_blank" rel="noopener noreferrer" className="text-xs text-pastel-blue-dark hover:underline">
-                                  Photo
-                                </a>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-gray-100">
-                              <span className="text-xs text-gray-400 font-medium">{entry.username}</span>
-                            </div>
-                          </div>
-                        )
-                      })}
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
-              )}
+                  )
+                })}
+              </div>
 
-              {/* Submit quote link */}
               <div className="text-center pt-4">
                 <button
                   onClick={() => setShowQuoteModal(true)}
@@ -572,31 +662,33 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
-              {/* Category */}
+              {/* Project */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Category</label>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Project</label>
                 <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(cat => (
+                  {['Technical', 'Business', 'Programming'].map(name => (
                     <button
-                      key={cat}
-                      onClick={() => updateField('category', cat)}
+                      key={name}
+                      onClick={() => { updateField('category', name); updateField('projectId', '') }}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        formData.category === cat ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        formData.category === name && !formData.projectId ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
                     >
-                      {cat}
+                      {name}
+                    </button>
+                  ))}
+                  {activeProjects.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { updateField('projectId', p.id); updateField('category', p.category || 'Technical') }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        formData.projectId === p.id ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {p.name}
                     </button>
                   ))}
                 </div>
-                {formData.category === 'Custom' && (
-                  <input
-                    type="text"
-                    value={formData.customCategory}
-                    onChange={e => updateField('customCategory', e.target.value)}
-                    placeholder="Category name (e.g. Strategy)"
-                    className="w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                  />
-                )}
               </div>
 
               {/* What did you do */}
@@ -652,21 +744,6 @@ export default function EngineeringNotebook() {
                 </div>
               </div>
 
-              {/* Project (optional) */}
-              {activeProjects.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-gray-600 block mb-1">Project (optional)</label>
-                  <select
-                    value={formData.projectId}
-                    onChange={e => updateField('projectId', e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                  >
-                    <option value="">No project</option>
-                    {activeProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              )}
-
               {/* Project link (optional) */}
               <div>
                 <label className="text-sm font-medium text-gray-600 block mb-1">Project link (optional)</label>
@@ -708,69 +785,6 @@ export default function EngineeringNotebook() {
                 <Send size={18} />
                 {editingEntryId ? 'Update Entry' : 'Submit Entry'}
               </button>
-            </div>
-          )}
-
-          {/* ========== PROJECTS VIEW (lead-only) ========== */}
-          {view === 'projects' && isLead && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <SectionHeader title="Projects" />
-                <button
-                  onClick={() => { setProjectForm({ ...INITIAL_PROJECT }); setEditingProjectId(null); setShowProjectModal(true) }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark transition-colors"
-                >
-                  <Plus size={14} /> New Project
-                </button>
-              </div>
-
-              {projects.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">
-                  <FolderOpen size={40} className="mx-auto mb-2 opacity-50" />
-                  <p>No projects yet.</p>
-                  <p className="text-sm mt-1">Create a project to group related notebook entries.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {projects.map(project => {
-                    const linkedCount = entries.filter(e => e.project_id === project.id).length
-                    const catColor = CATEGORY_COLORS[project.category] || CATEGORY_COLORS.Custom
-                    return (
-                      <div key={project.id} className="bg-white rounded-lg p-3 shadow-sm">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-gray-800">{project.name}</h4>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${catColor}`}>{project.category}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${project.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                {project.status}
-                              </span>
-                            </div>
-                            {project.goal && <p className="text-sm text-gray-600 mt-1">{project.goal}</p>}
-                            {project.reason && <p className="text-xs text-gray-400 mt-0.5">Why: {project.reason}</p>}
-                            <p className="text-xs text-gray-400 mt-1">{linkedCount} linked {linkedCount === 1 ? 'entry' : 'entries'} | Created by {project.created_by}</p>
-                          </div>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => {
-                                setProjectForm({ name: project.name, category: project.category, goal: project.goal || '', reason: project.reason || '', status: project.status })
-                                setEditingProjectId(project.id)
-                                setShowProjectModal(true)
-                              }}
-                              className="text-gray-300 hover:text-pastel-blue-dark transition-colors"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button onClick={() => handleDeleteProject(project.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
             </div>
           )}
 
@@ -926,6 +940,34 @@ export default function EngineeringNotebook() {
               className="w-full py-2 rounded-lg font-medium bg-pastel-orange hover:bg-pastel-orange-dark transition-colors disabled:opacity-40"
             >
               Submit Quote
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Request project modal (teammates) */}
+      {showRequestProjectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRequestProjectModal(false)}>
+          <div className="bg-white rounded-xl p-5 w-full max-w-md space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">Request a Project</h3>
+              <button onClick={() => setShowRequestProjectModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <p className="text-xs text-gray-400">Your request will be reviewed by a team lead.</p>
+            <input
+              type="text"
+              value={requestProjectName}
+              onChange={e => setRequestProjectName(e.target.value)}
+              placeholder="Project name"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              autoFocus
+            />
+            <button
+              onClick={handleRequestProject}
+              disabled={!requestProjectName.trim()}
+              className="w-full py-2 rounded-lg font-medium bg-pastel-pink hover:bg-pastel-pink-dark transition-colors disabled:opacity-40"
+            >
+              Submit Request
             </button>
           </div>
         </div>
