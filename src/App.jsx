@@ -69,7 +69,7 @@ const TAB_ACCESS = {
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
-  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'top',
+  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
 
