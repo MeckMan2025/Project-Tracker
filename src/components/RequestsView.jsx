@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, X, Clock, Bell, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Check, X, Bell, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -12,17 +12,8 @@ function RequestsView({ tabs = [] }) {
   const { canReviewRequests, hasLeadTag } = usePermissions()
   const { requests, handleApprove, handleDeny, handleRemind } = usePendingRequests()
   const { addToast } = useToast()
-  const [tab, setTab] = useState('pending')
   const [history, setHistory] = useState([])
   const [remindingId, setRemindingId] = useState(null)
-
-  const sectionColors = [
-    { border: 'border-pastel-blue', text: 'text-pastel-blue-dark' },
-    { border: 'border-pastel-pink', text: 'text-pastel-pink-dark' },
-    { border: 'border-pastel-orange', text: 'text-pastel-orange-dark' },
-    { border: 'border-purple-300', text: 'text-purple-600' },
-    { border: 'border-amber-300', text: 'text-amber-600' },
-  ]
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -185,25 +176,14 @@ function RequestsView({ tabs = [] }) {
     )
   }
 
-  const sections = [
-    { key: 'tasks', label: 'Tasks' },
-    { key: 'boards', label: 'Boards' },
-    { key: 'calendar', label: 'Calendar' },
-    { key: 'roles', label: 'Role Requests' },
-    { key: 'leave_tasks', label: 'Leave Task Requests' },
-  ]
+  const approvedRequests = history.filter(r => r.status === 'approved')
+  const deniedRequests = history.filter(r => r.status === 'denied')
 
-  const groupRequests = (items) => {
-    const groups = { tasks: [], boards: [], calendar: [], roles: [], leave_tasks: [] }
-    items.forEach(r => {
-      if (r.type === 'task') groups.tasks.push(r)
-      else if (r.type === 'board') groups.boards.push(r)
-      else if (r.type === 'role_request') groups.roles.push(r)
-      else if (r.type === 'leave_task') groups.leave_tasks.push(r)
-      else groups.calendar.push(r)
-    })
-    return groups
-  }
+  const statusSections = [
+    { key: 'pending', label: 'Pending', color: 'bg-amber-200', items: visibleRequests, showActions: true, showStatus: false },
+    { key: 'approved', label: 'Approved', color: 'bg-green-200', items: approvedRequests, showActions: false, showStatus: true },
+    { key: 'denied', label: 'Denied', color: 'bg-red-200', items: deniedRequests, showActions: false, showStatus: true },
+  ]
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -220,78 +200,30 @@ function RequestsView({ tabs = [] }) {
           </div>
           <NotificationBell />
         </div>
-        <div className="flex border-t">
-          <button
-            onClick={() => setTab('pending')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-              tab === 'pending'
-                ? 'text-amber-600 border-b-2 border-amber-400'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Clock size={14} />
-            Pending ({visibleRequests.length})
-          </button>
-          <button
-            onClick={() => setTab('approved')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-              tab === 'approved'
-                ? 'text-green-600 border-b-2 border-green-400'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <CheckCircle size={14} />
-            Approved ({history.filter(r => r.status === 'approved').length})
-          </button>
-          <button
-            onClick={() => setTab('denied')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-              tab === 'denied'
-                ? 'text-red-600 border-b-2 border-red-400'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <XCircle size={14} />
-            Denied ({history.filter(r => r.status === 'denied').length})
-          </button>
-        </div>
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
-        <div className="max-w-2xl mx-auto space-y-3">
-          {(() => {
-            const isHistory = tab === 'approved' || tab === 'denied'
-            const sourceItems = tab === 'pending'
-              ? visibleRequests
-              : history.filter(r => r.status === tab)
-            const groups = groupRequests(sourceItems)
-            const emptyLabel = tab === 'pending' ? 'No pending requests' : tab === 'approved' ? 'No approved requests' : 'No denied requests'
-
-            return sections.map((section, idx) => {
-              const items = groups[section.key] || []
-              const color = sectionColors[idx % sectionColors.length]
-              return (
-                <div key={section.key}>
-                  {idx > 0 && (
-                    <div className="my-6 border-t-2 border-gray-300" />
-                  )}
-                  <div className="space-y-2">
-                    <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                      {section.label}
-                    </h2>
-                    {items.length === 0 ? (
-                      <p className="text-sm text-gray-400 pb-2">{emptyLabel}</p>
-                    ) : (
-                      items.map(r => renderRequestCard(r, {
-                        showActions: tab === 'pending',
-                        showStatus: isHistory,
-                      }))
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          })()}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {statusSections.map(section => (
+            <div key={section.key} className="flex flex-col">
+              <div className={`${section.color} rounded-t-lg px-4 py-2 font-semibold text-gray-700`}>
+                {section.label}
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({section.items.length})
+                </span>
+              </div>
+              <div className="bg-gray-50 rounded-b-lg p-3 min-h-[60px] space-y-2">
+                {section.items.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2 text-center">No {section.label.toLowerCase()} requests</p>
+                ) : (
+                  section.items.map(r => renderRequestCard(r, {
+                    showActions: section.showActions,
+                    showStatus: section.showStatus,
+                  }))
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </main>
     </div>
