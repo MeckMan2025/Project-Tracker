@@ -175,55 +175,64 @@ function SuggestionsView() {
       {isReviewer ? (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
-            {suggestions.length > 0 ? (
-              <div className="space-y-3">
-                {suggestions.map((s) => (
-                  <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
-                      <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
-                      {s.status && s.status !== 'pending' && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status] || ''}`}>
-                          {s.status === 'approved' ? 'Approved' : 'Denied'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-3">{s.text}</p>
-                    <div className="flex items-center gap-2">
-                      {(!s.status || s.status === 'pending') && (
-                        <>
-                          <button
-                            onClick={() => handleSetStatus(s.id, 'approved')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600 text-xs font-medium"
-                          >
-                            <Check size={14} />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleSetStatus(s.id, 'denied')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-red-500 text-xs font-medium"
-                          >
-                            <Trash2 size={14} />
-                            Deny
-                          </button>
-                        </>
-                      )}
-                      {s.status && s.status !== 'pending' && (
-                        <button
-                          onClick={() => handleDelete(s.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-gray-500 text-xs font-medium"
-                        >
-                          <Trash2 size={14} />
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            {[
+              { key: 'pending', label: 'Pending', color: 'bg-amber-200', items: suggestions.filter(s => !s.status || s.status === 'pending') },
+              { key: 'approved', label: 'Approved', color: 'bg-green-200', items: suggestions.filter(s => s.status === 'approved') },
+              { key: 'denied', label: 'Denied', color: 'bg-red-200', items: suggestions.filter(s => s.status === 'denied') },
+            ].map(section => (
+              <div key={section.key} className="flex flex-col">
+                <div className={`${section.color} rounded-t-lg px-4 py-2 font-semibold text-gray-700`}>
+                  {section.label}
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({section.items.length})
+                  </span>
+                </div>
+                <div className="bg-gray-50 rounded-b-lg p-3 min-h-[60px] space-y-2">
+                  {section.items.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-2 text-center">No {section.label.toLowerCase()} suggestions</p>
+                  ) : (
+                    section.items.map((s) => (
+                      <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
+                          <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-3">{s.text}</p>
+                        <div className="flex items-center gap-2">
+                          {(!s.status || s.status === 'pending') && (
+                            <>
+                              <button
+                                onClick={() => handleSetStatus(s.id, 'approved')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600 text-xs font-medium"
+                              >
+                                <Check size={14} />
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleSetStatus(s.id, 'denied')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-red-500 text-xs font-medium"
+                              >
+                                <Trash2 size={14} />
+                                Deny
+                              </button>
+                            </>
+                          )}
+                          {s.status && s.status !== 'pending' && (
+                            <button
+                              onClick={() => handleDelete(s.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-gray-500 text-xs font-medium"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            ) : (
-              <p className="text-center text-gray-400 mt-20">No suggestions yet.</p>
-            )}
+            ))}
           </div>
         </main>
       ) : isGuest ? (
