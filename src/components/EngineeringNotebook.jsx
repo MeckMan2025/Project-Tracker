@@ -365,12 +365,16 @@ export default function EngineeringNotebook() {
 
   const getProjectEntries = (projectId) => {
     let result
+    // Entries with a project_id matching an active custom project belong to that project.
+    // All other entries fall back to their category's permanent project.
+    const activeProjectIds = new Set(projects.filter(p => p.status === 'Active').map(p => p.id))
+
     if (projectId === '_technical') {
-      result = entries.filter(e => e.category === 'Technical' && !e.project_id)
+      result = entries.filter(e => e.category === 'Technical' && !(e.project_id && activeProjectIds.has(e.project_id)))
     } else if (projectId === '_business') {
-      result = entries.filter(e => e.category === 'Business' && !e.project_id)
+      result = entries.filter(e => e.category === 'Business' && !(e.project_id && activeProjectIds.has(e.project_id)))
     } else if (projectId === '_programming') {
-      result = entries.filter(e => e.category === 'Programming' && !e.project_id)
+      result = entries.filter(e => e.category === 'Programming' && !(e.project_id && activeProjectIds.has(e.project_id)))
     } else {
       result = entries.filter(e => e.project_id === projectId)
     }
