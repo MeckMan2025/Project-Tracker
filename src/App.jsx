@@ -1032,7 +1032,7 @@ function App() {
                   <span className="text-lg font-semibold text-gray-700">Quotes</span>
                   <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
                 </button>
-                {hasLeadTag && ['Attendance', 'SWAT Mode', 'Meeting Stats', 'Scouting'].map(label => (
+                {hasLeadTag && ['Attendance', 'SWAT Mode', 'Meeting Stats', 'Scouting Mode'].map(label => (
                   <button
                     key={label}
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
