@@ -130,10 +130,13 @@ export default function WorkshopIdeas() {
   }
 
   const handleDelete = (id) => {
+    if (!window.confirm('Delete this workshop idea?')) return
     setIdeas(prev => prev.filter(i => i.id !== id))
     fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
       method: 'DELETE',
       headers,
+    }).then(res => {
+      if (!res.ok) res.text().then(t => console.error('DELETE failed:', res.status, t))
     }).catch(err => console.error('Failed to delete workshop idea:', err))
   }
 
