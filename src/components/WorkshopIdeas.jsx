@@ -25,32 +25,33 @@ export default function WorkshopIdeas() {
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
-  useEffect(() => {
-    async function load() {
-      try {
-        // Leads get all ideas; everyone else gets their own + approved
-        if (canReview) {
-          const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
-          if (res.ok) setIdeas(await res.json())
-        } else if (username) {
-          // Fetch own ideas + all approved ideas
-          const [ownRes, approvedRes] = await Promise.all([
-            fetch(`${supabaseUrl}/rest/v1/workshop_ideas?author=eq.${encodeURIComponent(username)}&select=*&order=created_at.desc`, { headers }),
-            fetch(`${supabaseUrl}/rest/v1/workshop_ideas?status=eq.approved&select=*&order=created_at.desc`, { headers }),
-          ])
-          const own = ownRes.ok ? await ownRes.json() : []
-          const approved = approvedRes.ok ? await approvedRes.json() : []
-          // Merge, deduplicate
-          const map = new Map()
-          own.forEach(i => map.set(i.id, i))
-          approved.forEach(i => { if (!map.has(i.id)) map.set(i.id, i) })
-          setIdeas([...map.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)))
-        }
-      } catch (err) {
-        console.error('Failed to load workshop ideas:', err)
+  const loadIdeas = async () => {
+    try {
+      if (canReview) {
+        const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
+        if (res.ok) setIdeas(await res.json())
+      } else if (username) {
+        const [ownRes, approvedRes] = await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/workshop_ideas?author=eq.${encodeURIComponent(username)}&select=*&order=created_at.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/workshop_ideas?status=eq.approved&select=*&order=created_at.desc`, { headers }),
+        ])
+        const own = ownRes.ok ? await ownRes.json() : []
+        const approved = approvedRes.ok ? await approvedRes.json() : []
+        const map = new Map()
+        own.forEach(i => map.set(i.id, i))
+        approved.forEach(i => { if (!map.has(i.id)) map.set(i.id, i) })
+        setIdeas([...map.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)))
       }
+    } catch (err) {
+      console.error('Failed to load workshop ideas:', err)
     }
-    load()
+  }
+
+  useEffect(() => {
+    loadIdeas()
+    const onFocus = () => loadIdeas()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [username, canReview])
 
   useEffect(() => {
@@ -123,6 +124,8 @@ export default function WorkshopIdeas() {
       method: 'PATCH',
       headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status }),
+    }).then(res => {
+      if (!res.ok) res.text().then(t => console.error('PATCH failed:', res.status, t))
     }).catch(err => console.error('Failed to update workshop idea:', err))
   }
 
