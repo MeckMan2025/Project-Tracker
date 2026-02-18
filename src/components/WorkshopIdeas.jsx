@@ -13,10 +13,13 @@ const STATUS_STYLES = {
 
 export default function WorkshopIdeas() {
   const { username, user } = useUser()
-  const { hasLeadTag, isGuest } = usePermissions()
+  const { hasLeadTag, isCofounder, isGuest } = usePermissions()
   const [ideas, setIdeas] = useState([])
   const [newIdea, setNewIdea] = useState('')
   const [submitError, setSubmitError] = useState('')
+
+  const canReview = hasLeadTag
+  const canSubmit = !isGuest && !isCofounder
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -25,18 +28,30 @@ export default function WorkshopIdeas() {
   useEffect(() => {
     async function load() {
       try {
-        let url = `${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`
-        if (!hasLeadTag && username) {
-          url += `&author=eq.${encodeURIComponent(username)}`
+        // Leads get all ideas; everyone else gets their own + approved
+        if (canReview) {
+          const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
+          if (res.ok) setIdeas(await res.json())
+        } else if (username) {
+          // Fetch own ideas + all approved ideas
+          const [ownRes, approvedRes] = await Promise.all([
+            fetch(`${supabaseUrl}/rest/v1/workshop_ideas?author=eq.${encodeURIComponent(username)}&select=*&order=created_at.desc`, { headers }),
+            fetch(`${supabaseUrl}/rest/v1/workshop_ideas?status=eq.approved&select=*&order=created_at.desc`, { headers }),
+          ])
+          const own = ownRes.ok ? await ownRes.json() : []
+          const approved = approvedRes.ok ? await approvedRes.json() : []
+          // Merge, deduplicate
+          const map = new Map()
+          own.forEach(i => map.set(i.id, i))
+          approved.forEach(i => { if (!map.has(i.id)) map.set(i.id, i) })
+          setIdeas([...map.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)))
         }
-        const res = await fetch(url, { headers })
-        if (res.ok) setIdeas(await res.json())
       } catch (err) {
         console.error('Failed to load workshop ideas:', err)
       }
     }
-    if (username) load()
-  }, [username, hasLeadTag])
+    load()
+  }, [username, canReview])
 
   useEffect(() => {
     const channel = supabase
@@ -44,14 +59,24 @@ export default function WorkshopIdeas() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshop_ideas' }, (payload) => {
         setIdeas(prev => {
           if (prev.some(i => i.id === payload.new.id)) return prev
-          if (hasLeadTag || payload.new.author === username) {
+          if (canReview || payload.new.author === username || payload.new.status === 'approved') {
             return [payload.new, ...prev]
           }
           return prev
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'workshop_ideas' }, (payload) => {
-        setIdeas(prev => prev.map(i => i.id === payload.new.id ? payload.new : i))
+        setIdeas(prev => {
+          const exists = prev.some(i => i.id === payload.new.id)
+          if (exists) {
+            return prev.map(i => i.id === payload.new.id ? payload.new : i)
+          }
+          // Newly approved idea should appear for everyone
+          if (payload.new.status === 'approved') {
+            return [payload.new, ...prev]
+          }
+          return prev
+        })
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshop_ideas' }, (payload) => {
         setIdeas(prev => prev.filter(i => i.id !== payload.old.id))
@@ -59,7 +84,7 @@ export default function WorkshopIdeas() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [hasLeadTag, username])
+  }, [canReview, username])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -114,6 +139,10 @@ export default function WorkshopIdeas() {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
+  // Split ideas for non-reviewers
+  const myIdeas = ideas.filter(i => i.author === username)
+  const approvedIdeas = ideas.filter(i => i.status === 'approved' && i.author !== username)
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -123,14 +152,14 @@ export default function WorkshopIdeas() {
               Workshops
             </h1>
             <p className="text-sm text-gray-500">
-              {hasLeadTag ? 'Review workshop ideas from the team' : 'What workshops do you want to see?'}
+              {canReview ? 'Review workshop ideas from the team' : 'What workshops do you want to see?'}
             </p>
           </div>
           <NotificationBell />
         </div>
       </header>
 
-      {hasLeadTag ? (
+      {canReview ? (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
             {ideas.length > 0 ? (
@@ -186,36 +215,40 @@ export default function WorkshopIdeas() {
       ) : (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="text-center">
-                <Lightbulb size={32} className="mx-auto text-pastel-orange-dark mb-2" />
-                <h2 className="text-xl font-semibold text-gray-700">
-                  Submit a Workshop Idea
-                </h2>
-                <p className="text-sm text-gray-400 mt-1">What topic would you like a workshop on?</p>
-              </div>
-              <textarea
-                value={newIdea}
-                onChange={(e) => setNewIdea(e.target.value)}
-                placeholder="e.g. How to use Git, Intro to CAD, Fundraising strategies..."
-                rows={4}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none text-sm"
-              />
-              {submitError && <p className="text-sm text-red-500 text-center">{submitError}</p>}
-              <button
-                type="submit"
-                disabled={!newIdea.trim()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-gray-700"
-              >
-                <Send size={16} />
-                Submit Idea
-              </button>
-            </form>
+            {/* Submit form (everyone except co-founders) */}
+            {canSubmit && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="text-center">
+                  <Lightbulb size={32} className="mx-auto text-pastel-orange-dark mb-2" />
+                  <h2 className="text-xl font-semibold text-gray-700">
+                    Submit a Workshop Idea
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">What topic would you like a workshop on?</p>
+                </div>
+                <textarea
+                  value={newIdea}
+                  onChange={(e) => setNewIdea(e.target.value)}
+                  placeholder="e.g. How to use Git, Intro to CAD, Fundraising strategies..."
+                  rows={4}
+                  className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none text-sm"
+                />
+                {submitError && <p className="text-sm text-red-500 text-center">{submitError}</p>}
+                <button
+                  type="submit"
+                  disabled={!newIdea.trim()}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-gray-700"
+                >
+                  <Send size={16} />
+                  Submit Idea
+                </button>
+              </form>
+            )}
 
-            {ideas.length > 0 && (
+            {/* Your ideas */}
+            {myIdeas.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Ideas</h3>
-                {ideas.map(idea => (
+                {myIdeas.map(idea => (
                   <div key={idea.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
@@ -229,6 +262,27 @@ export default function WorkshopIdeas() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Approved ideas from others */}
+            {approvedIdeas.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Approved Workshop Ideas</h3>
+                {approvedIdeas.map(idea => (
+                  <div key={idea.id} className="bg-green-50/50 rounded-xl shadow-sm border border-green-100 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Lightbulb size={14} className="text-green-500" />
+                      <span className="text-sm font-semibold text-gray-600">{idea.author}</span>
+                      <span className="text-xs text-gray-400">{formatDate(idea.created_at)}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{idea.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {myIdeas.length === 0 && approvedIdeas.length === 0 && !canSubmit && (
+              <p className="text-center text-gray-400 mt-20">No approved workshop ideas yet.</p>
             )}
           </div>
         </main>
