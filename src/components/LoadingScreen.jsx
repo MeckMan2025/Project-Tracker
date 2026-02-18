@@ -6,7 +6,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
   const tappedRef = useRef(false)
 
   const startMusic = () => {
-    const pref = localStorage.getItem('scrum-music-pref') || 'random'
+    const pref = localStorage.getItem('scrum-music-pref') || 'off'
     if (pref === 'off') return
 
     const SONG_MAP = {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, X, Clock, Bell, History, Trash2 } from 'lucide-react'
+import { Check, X, Clock, Bell, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -225,7 +225,7 @@ function RequestsView({ tabs = [] }) {
             onClick={() => setTab('pending')}
             className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
               tab === 'pending'
-                ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
+                ? 'text-amber-600 border-b-2 border-amber-400'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -233,72 +233,65 @@ function RequestsView({ tabs = [] }) {
             Pending ({visibleRequests.length})
           </button>
           <button
-            onClick={() => setTab('history')}
+            onClick={() => setTab('approved')}
             className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-              tab === 'history'
-                ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
+              tab === 'approved'
+                ? 'text-green-600 border-b-2 border-green-400'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            <History size={14} />
-            History
+            <CheckCircle size={14} />
+            Approved ({history.filter(r => r.status === 'approved').length})
+          </button>
+          <button
+            onClick={() => setTab('denied')}
+            className={`flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+              tab === 'denied'
+                ? 'text-red-600 border-b-2 border-red-400'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <XCircle size={14} />
+            Denied ({history.filter(r => r.status === 'denied').length})
           </button>
         </div>
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto space-y-3">
-          {tab === 'pending' ? (
-            (() => {
-              const groups = groupRequests(visibleRequests)
-              return sections.map((section, idx) => {
-                const items = groups[section.key] || []
-                const color = sectionColors[idx % sectionColors.length]
-                return (
-                  <div key={section.key}>
-                    {idx > 0 && (
-                      <hr className="my-4 border-t border-gray-200" />
+          {(() => {
+            const isHistory = tab === 'approved' || tab === 'denied'
+            const sourceItems = tab === 'pending'
+              ? visibleRequests
+              : history.filter(r => r.status === tab)
+            const groups = groupRequests(sourceItems)
+            const emptyLabel = tab === 'pending' ? 'No pending requests' : tab === 'approved' ? 'No approved requests' : 'No denied requests'
+
+            return sections.map((section, idx) => {
+              const items = groups[section.key] || []
+              const color = sectionColors[idx % sectionColors.length]
+              return (
+                <div key={section.key}>
+                  {idx > 0 && (
+                    <hr className="my-4 border-t border-gray-200" />
+                  )}
+                  <div className="space-y-2">
+                    <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
+                      {section.label}
+                    </h2>
+                    {items.length === 0 ? (
+                      <p className="text-sm text-gray-400 pb-2">{emptyLabel}</p>
+                    ) : (
+                      items.map(r => renderRequestCard(r, {
+                        showActions: tab === 'pending',
+                        showStatus: isHistory,
+                      }))
                     )}
-                    <div className="space-y-2">
-                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                        {section.label}
-                      </h2>
-                      {items.length === 0 ? (
-                        <p className="text-sm text-gray-400 pb-2">No pending requests</p>
-                      ) : (
-                        items.map(r => renderRequestCard(r, { showActions: true }))
-                      )}
-                    </div>
                   </div>
-                )
-              })
-            })()
-          ) : (
-            (() => {
-              const groups = groupRequests(history)
-              return sections.map((section, idx) => {
-                const items = groups[section.key] || []
-                const color = sectionColors[idx % sectionColors.length]
-                return (
-                  <div key={section.key}>
-                    {idx > 0 && (
-                      <hr className="my-4 border-t border-gray-200" />
-                    )}
-                    <div className="space-y-2">
-                      <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
-                        {section.label}
-                      </h2>
-                      {items.length === 0 ? (
-                        <p className="text-sm text-gray-400 pb-2">No history</p>
-                      ) : (
-                        items.map(r => renderRequestCard(r, { showStatus: true }))
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            })()
-          )}
+                </div>
+              )
+            })
+          })()}
         </div>
       </main>
     </div>

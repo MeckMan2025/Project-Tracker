@@ -107,7 +107,7 @@ function ProfileView() {
   const [pwSuccess, setPwSuccess] = useState(false)
   const [pwSubmitting, setPwSubmitting] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
-  const [musicPref, setMusicPref] = useState(() => localStorage.getItem('scrum-music-pref') || 'random')
+  const [musicPref, setMusicPref] = useState(() => localStorage.getItem('scrum-music-pref') || 'off')
   const [taskStats, setTaskStats] = useState({ active: 0, blocked: 0, total: 0 })
   const [assignedTasks, setAssignedTasks] = useState([])
 
