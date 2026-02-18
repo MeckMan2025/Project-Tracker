@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home, Gamepad2 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -562,7 +562,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   onToggle()
                 }}
               >
-                <Settings size={16} className="text-pastel-pink-dark" />
+                <Gamepad2 size={16} className="text-pastel-pink-dark" />
                 <span className="truncate">Special Controls</span>
               </div>
             </>
