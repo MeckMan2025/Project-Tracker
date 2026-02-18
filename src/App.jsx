@@ -69,7 +69,7 @@ const TAB_ACCESS = {
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
-  'notebook': 'teammate', 'workshops': 'teammate',
+  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
 
@@ -163,7 +163,7 @@ const SCHEDULE_TAB = { id: 'schedule', name: 'Schedule', type: 'schedule' }
 const WORKSHOPS_TAB = { id: 'workshops', name: 'Workshops', type: 'workshops' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
-
+const SPECIAL_TAB = { id: 'special-controls', name: 'Special Controls', type: 'special-controls' }
 
 const DEFAULT_BOARDS = [
   { id: 'business', name: 'Business', permanent: true },
@@ -171,7 +171,7 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
-const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB]
+const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB, SPECIAL_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -486,7 +486,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -994,6 +994,25 @@ function App() {
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
                   Attendance
+                </h1>
+                <p className="text-sm text-gray-500">Coming soon</p>
+              </div>
+              <NotificationBell />
+            </div>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-xl font-semibold text-gray-500 text-center px-4">
+              KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
+            </p>
+          </div>
+        </div>
+      ) : activeTab === 'special-controls' ? (
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+            <div className="px-4 py-3 ml-14 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                  Special Controls
                 </h1>
                 <p className="text-sm text-gray-500">Coming soon</p>
               </div>

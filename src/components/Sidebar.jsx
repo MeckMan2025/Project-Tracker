@@ -52,8 +52,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   }
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
-  const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops'
+  const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls')
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls'
 
   return (
     <>
@@ -543,6 +543,27 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               >
                 <Shield size={16} className="text-pastel-orange-dark" />
                 <span className="truncate">User Management</span>
+              </div>
+            </>
+          )}
+
+          {!isGuest && (
+            <>
+              <hr className="my-2 border-gray-200" />
+
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'special-controls'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('special-controls')
+                  onToggle()
+                }}
+              >
+                <Settings size={16} className="text-pastel-pink-dark" />
+                <span className="truncate">Special Controls</span>
               </div>
             </>
           )}
