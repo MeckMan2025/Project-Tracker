@@ -273,7 +273,7 @@ function RequestsView({ tabs = [] }) {
               return (
                 <div key={section.key}>
                   {idx > 0 && (
-                    <hr className="my-4 border-t border-gray-200" />
+                    <div className="my-6 border-t-2 border-gray-300" />
                   )}
                   <div className="space-y-2">
                     <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
