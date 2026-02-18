@@ -262,7 +262,7 @@ function RoleChangeModal({ alert, onDismiss }) {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert } = useUser()
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
@@ -910,7 +910,9 @@ function App() {
 
 
       {/* Main Content */}
-      {!hasAccess(activeTab, tier) ? (
+      {activeTab === 'special-controls' && !hasLeadTag ? (
+        <RestrictedAccess feature="Special Controls" />
+      ) : !hasAccess(activeTab, tier) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         <HomeView tasksByTab={tasksByTab} tabs={tabs} onTabChange={setActiveTab} />
