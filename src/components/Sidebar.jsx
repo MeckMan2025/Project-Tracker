@@ -547,7 +547,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
-          {hasLeadTag && (
+          {!isGuest && (
             <>
               <hr className="my-2 border-gray-200" />
 

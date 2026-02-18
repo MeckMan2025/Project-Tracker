@@ -22,7 +22,7 @@ import ScoutingData from './components/ScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
-
+import QuotesManager from './components/QuotesManager'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -285,6 +285,7 @@ function App() {
 
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [specialView, setSpecialView] = useState(null)
   const [loadError, setLoadError] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
@@ -459,6 +460,7 @@ function App() {
   // Save activeTab locally (each user picks their own view)
   useEffect(() => {
     localStorage.setItem('scrum-active-tab', activeTab)
+    if (activeTab !== 'special-controls') setSpecialView(null)
   }, [activeTab])
 
   const tasks = tasksByTab[activeTab] || []
@@ -910,9 +912,7 @@ function App() {
 
 
       {/* Main Content */}
-      {activeTab === 'special-controls' && !hasLeadTag ? (
-        <RestrictedAccess feature="Special Controls" />
-      ) : !hasAccess(activeTab, tier) ? (
+      {!hasAccess(activeTab, tier) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         <HomeView tasksByTab={tasksByTab} tabs={tabs} onTabChange={setActiveTab} />
@@ -1020,19 +1020,30 @@ function App() {
               <NotificationBell />
             </div>
           </header>
-          <div className="flex-1 p-6">
-            <div className="max-w-md mx-auto grid gap-4">
-              {['Attendance', 'SWAT Mode', 'Meeting Stats', 'Scouting'].map(label => (
+          {specialView === 'quotes' ? (
+            <QuotesManager onBack={() => setSpecialView(null)} />
+          ) : (
+            <div className="flex-1 p-6">
+              <div className="max-w-md mx-auto grid gap-4">
                 <button
-                  key={label}
+                  onClick={() => setSpecialView('quotes')}
                   className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
                 >
-                  <span className="text-lg font-semibold text-gray-700">{label}</span>
-                  <p className="text-sm text-gray-400 mt-1">Coming soon</p>
+                  <span className="text-lg font-semibold text-gray-700">Quotes</span>
+                  <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
                 </button>
-              ))}
+                {hasLeadTag && ['Attendance', 'SWAT Mode', 'Meeting Stats', 'Scouting'].map(label => (
+                  <button
+                    key={label}
+                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                  >
+                    <span className="text-lg font-semibold text-gray-700">{label}</span>
+                    <p className="text-sm text-gray-400 mt-1">Coming soon</p>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
       <div className="flex-1 flex flex-col min-w-0">

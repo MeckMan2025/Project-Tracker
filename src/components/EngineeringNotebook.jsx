@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Send, Plus, X, Trash2, Check, BookOpen, FolderOpen, MessageSquareQuote, Filter, ExternalLink, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
+import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
@@ -56,25 +56,19 @@ function SectionHeader({ title }) {
 
 export default function EngineeringNotebook() {
   const { username, user } = useUser()
-  const { canOrganizeNotebook, canApproveQuotes, canSubmitNotebook, isGuest } = usePermissions()
+  const { canOrganizeNotebook, canSubmitNotebook, isGuest } = usePermissions()
   const isLead = canOrganizeNotebook
-  const canReviewQuotes = canApproveQuotes
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const [view, setView] = useState('projects')
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])
-  const [approvedQuotes, setApprovedQuotes] = useState([])
-  const [pendingQuotes, setPendingQuotes] = useState([])
   const [formData, setFormData] = useState({ ...INITIAL_ENTRY })
   const [meetingDate, setMeetingDate] = useState(() => new Date().toISOString().split('T')[0])
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [projectForm, setProjectForm] = useState({ ...INITIAL_PROJECT })
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
-  const [quoteText, setQuoteText] = useState('')
-  const [showQuoteModal, setShowQuoteModal] = useState(false)
-  const [quoteToast, setQuoteToast] = useState(null)
   const [submitFeedback, setSubmitFeedback] = useState(null)
   const [showTeamEntries, setShowTeamEntries] = useState(false)
   const [filterStudent, setFilterStudent] = useState('')
@@ -91,18 +85,12 @@ export default function EngineeringNotebook() {
     const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
     async function load() {
       try {
-        const [eRes, pRes, qRes] = await Promise.all([
+        const [eRes, pRes] = await Promise.all([
           fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=*&order=created_at.desc`, { headers }),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&order=created_at.desc`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/fun_quotes?select=*&order=created_at.desc`, { headers }),
         ])
         if (eRes.ok) setEntries(await eRes.json())
         if (pRes.ok) setProjects(await pRes.json())
-        if (qRes.ok) {
-          const quotes = await qRes.json()
-          setApprovedQuotes(quotes.filter(q => q.approved))
-          setPendingQuotes(quotes.filter(q => !q.approved))
-        }
       } catch (err) {
         console.error('Failed to load notebook data:', err)
       }
@@ -131,23 +119,6 @@ export default function EngineeringNotebook() {
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_projects' }, (payload) => {
         setProjects(prev => prev.filter(p => p.id !== payload.old.id))
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fun_quotes' }, (payload) => {
-        if (payload.new.approved) {
-          setApprovedQuotes(prev => prev.some(q => q.id === payload.new.id) ? prev : [payload.new, ...prev])
-        } else {
-          setPendingQuotes(prev => prev.some(q => q.id === payload.new.id) ? prev : [payload.new, ...prev])
-        }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fun_quotes' }, (payload) => {
-        if (payload.new.approved) {
-          setPendingQuotes(prev => prev.filter(q => q.id !== payload.new.id))
-          setApprovedQuotes(prev => prev.some(q => q.id === payload.new.id) ? prev : [payload.new, ...prev])
-        }
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'fun_quotes' }, (payload) => {
-        setPendingQuotes(prev => prev.filter(q => q.id !== payload.old.id))
-        setApprovedQuotes(prev => prev.filter(q => q.id !== payload.old.id))
       })
       .subscribe()
     return () => supabase.removeChannel(channel)
@@ -203,13 +174,6 @@ export default function EngineeringNotebook() {
     setEditingEntryId(null)
 
     setTimeout(() => setSubmitFeedback(null), 3000)
-
-    // Show fun quote
-    if (approvedQuotes.length > 0) {
-      const random = approvedQuotes[Math.floor(Math.random() * approvedQuotes.length)]
-      setQuoteToast(random)
-      setTimeout(() => setQuoteToast(null), 5000)
-    }
 
     setView('projects')
   }
@@ -270,51 +234,6 @@ export default function EngineeringNotebook() {
       method: 'DELETE',
       headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
     }).catch(err => console.error('Failed to delete project:', err))
-  }
-
-  // Submit fun quote
-  const handleSubmitQuote = () => {
-    if (!quoteText.trim()) return
-    const newQuote = {
-      id: String(Date.now()) + Math.random().toString(36).slice(2),
-      content: quoteText.trim(),
-      submitted_by: username,
-      approved: false,
-      approved_by: '',
-      created_at: new Date().toISOString(),
-    }
-    setPendingQuotes(prev => [newQuote, ...prev])
-    setQuoteText('')
-    setShowQuoteModal(false)
-    setSubmitFeedback('Quote submitted for approval!')
-    setTimeout(() => setSubmitFeedback(null), 3000)
-    fetch(`${supabaseUrl}/rest/v1/fun_quotes`, {
-      method: 'POST',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify(newQuote),
-    }).catch(err => console.error('Failed to submit quote:', err))
-  }
-
-  // Approve quote (top only)
-  const handleApproveQuote = (id) => {
-    const quote = pendingQuotes.find(q => q.id === id)
-    setPendingQuotes(prev => prev.filter(q => q.id !== id))
-    if (quote) setApprovedQuotes(prev => [{ ...quote, approved: true, approved_by: username }, ...prev])
-    fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ approved: true, approved_by: username }),
-    }).catch(err => console.error('Failed to approve quote:', err))
-  }
-
-  // Delete quote (top only)
-  const handleDeleteQuote = (id) => {
-    setPendingQuotes(prev => prev.filter(q => q.id !== id))
-    setApprovedQuotes(prev => prev.filter(q => q.id !== id))
-    fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-    }).catch(err => console.error('Failed to delete quote:', err))
   }
 
   // Filtered entries
@@ -436,7 +355,6 @@ export default function EngineeringNotebook() {
   const views = [
     { id: 'projects', label: 'Projects', icon: FolderOpen },
     { id: 'entry', label: 'New Entry', icon: Plus },
-    { id: 'quotes', label: 'Quotes', icon: MessageSquareQuote },
   ]
 
   return (
@@ -482,15 +400,6 @@ export default function EngineeringNotebook() {
       {submitFeedback && (
         <div className="mx-4 mt-2 text-center text-green-600 font-medium animate-pulse text-sm">
           {submitFeedback}
-        </div>
-      )}
-
-      {/* Fun quote toast */}
-      {quoteToast && (
-        <div className="mx-4 mt-2 bg-pastel-orange/20 rounded-xl p-3 text-center relative" onClick={() => setQuoteToast(null)}>
-          <MessageSquareQuote size={14} className="inline mr-1 text-pastel-orange-dark" />
-          <span className="text-sm text-gray-700 italic">"{quoteToast.content}"</span>
-          <span className="text-xs text-gray-400 ml-2">- {quoteToast.submitted_by}</span>
         </div>
       )}
 
@@ -635,14 +544,6 @@ export default function EngineeringNotebook() {
                 })}
               </div>
 
-              <div className="text-center pt-4">
-                <button
-                  onClick={() => setShowQuoteModal(true)}
-                  className="text-xs text-gray-400 hover:text-pastel-pink-dark transition-colors"
-                >
-                  Submit a fun team quote
-                </button>
-              </div>
             </>
           )}
 
@@ -792,73 +693,6 @@ export default function EngineeringNotebook() {
             </div>
           )}
 
-          {/* ========== QUOTES VIEW (visible to all, manage by top) ========== */}
-          {view === 'quotes' && (
-            <div className="space-y-4">
-              <SectionHeader title="Fun Quotes" />
-
-              {/* Pending quotes (top can approve/delete) */}
-              {canReviewQuotes && pendingQuotes.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">Pending Approval ({pendingQuotes.length})</h3>
-                  <div className="space-y-2">
-                    {pendingQuotes.map(q => (
-                      <div key={q.id} className="bg-yellow-50 rounded-lg p-3 flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm text-gray-700 italic">"{q.content}"</p>
-                          <p className="text-xs text-gray-400 mt-1">- {q.submitted_by}</p>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button onClick={() => handleApproveQuote(q.id)} className="p-1 text-green-500 hover:text-green-700 transition-colors">
-                            <Check size={16} />
-                          </button>
-                          <button onClick={() => handleDeleteQuote(q.id)} className="p-1 text-red-400 hover:text-red-600 transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Approved quotes */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2">Approved ({approvedQuotes.length})</h3>
-                {approvedQuotes.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">No approved quotes yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {approvedQuotes.map(q => (
-                      <div key={q.id} className="bg-white rounded-lg p-3 shadow-sm flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm text-gray-700 italic">"{q.content}"</p>
-                          <p className="text-xs text-gray-400 mt-1">- {q.submitted_by}</p>
-                        </div>
-                        {canReviewQuotes && (
-                          <button onClick={() => handleDeleteQuote(q.id)} className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Submit quote link */}
-              {!isGuest && (
-                <div className="text-center pt-2">
-                  <button
-                    onClick={() => setShowQuoteModal(true)}
-                    className="text-sm px-4 py-2 rounded-lg bg-pastel-orange/30 hover:bg-pastel-orange/50 transition-colors font-medium text-gray-700"
-                  >
-                    Submit a Fun Quote
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
         </div>
       </main>
@@ -917,33 +751,6 @@ export default function EngineeringNotebook() {
               className="w-full py-2 rounded-lg font-medium bg-pastel-pink hover:bg-pastel-pink-dark transition-colors disabled:opacity-40"
             >
               {editingProjectId ? 'Update Project' : 'Create Project'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Quote submit modal */}
-      {showQuoteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowQuoteModal(false)}>
-          <div className="bg-white rounded-xl p-5 w-full max-w-md space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">Submit a Fun Quote</h3>
-              <button onClick={() => setShowQuoteModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
-            </div>
-            <p className="text-xs text-gray-400">Quotes are reviewed by team leads before appearing. Keep it fun and team-friendly!</p>
-            <textarea
-              value={quoteText}
-              onChange={e => setQuoteText(e.target.value)}
-              placeholder="Type your quote, joke, or fun message..."
-              rows={3}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
-            />
-            <button
-              onClick={handleSubmitQuote}
-              disabled={!quoteText.trim()}
-              className="w-full py-2 rounded-lg font-medium bg-pastel-orange hover:bg-pastel-orange-dark transition-colors disabled:opacity-40"
-            >
-              Submit Quote
             </button>
           </div>
         </div>
