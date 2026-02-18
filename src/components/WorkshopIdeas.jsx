@@ -141,7 +141,7 @@ export default function WorkshopIdeas() {
 
   // Split ideas for non-reviewers
   const myIdeas = ideas.filter(i => i.author === username)
-  const approvedIdeas = ideas.filter(i => i.status === 'approved' && i.author !== username)
+  const approvedIdeas = ideas.filter(i => i.status === 'approved')
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -244,10 +244,29 @@ export default function WorkshopIdeas() {
               </form>
             )}
 
-            {/* Your ideas */}
+            {/* Approved ideas */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Approved Workshop Ideas</h3>
+              {approvedIdeas.length > 0 ? (
+                approvedIdeas.map(idea => (
+                  <div key={idea.id} className="bg-green-50/50 rounded-xl shadow-sm border border-green-100 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Lightbulb size={14} className="text-green-500" />
+                      <span className="text-sm font-semibold text-gray-600">{idea.author}</span>
+                      <span className="text-xs text-gray-400">{formatDate(idea.created_at)}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{idea.text}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-4">No approved ideas yet.</p>
+              )}
+            </div>
+
+            {/* Your submitted ideas */}
             {myIdeas.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Ideas</h3>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Submissions</h3>
                 {myIdeas.map(idea => (
                   <div key={idea.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-center gap-2">
@@ -262,27 +281,6 @@ export default function WorkshopIdeas() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {/* Approved ideas from others */}
-            {approvedIdeas.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Approved Workshop Ideas</h3>
-                {approvedIdeas.map(idea => (
-                  <div key={idea.id} className="bg-green-50/50 rounded-xl shadow-sm border border-green-100 p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Lightbulb size={14} className="text-green-500" />
-                      <span className="text-sm font-semibold text-gray-600">{idea.author}</span>
-                      <span className="text-xs text-gray-400">{formatDate(idea.created_at)}</span>
-                    </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{idea.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {myIdeas.length === 0 && approvedIdeas.length === 0 && !canSubmit && (
-              <p className="text-center text-gray-400 mt-20">No approved workshop ideas yet.</p>
             )}
           </div>
         </main>
