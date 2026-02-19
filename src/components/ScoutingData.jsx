@@ -379,6 +379,66 @@ function ScoutingData() {
   }
 
   return (
+    <>
+    {/* Add Team Modal — rendered outside scroll container */}
+    {showAddModal && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => { setShowAddModal(false); setAddForm({ name: '', number: '', rank: '' }) }}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6" onClick={e => e.stopPropagation()}>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Add Team to Considered</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600">Team Name</label>
+              <input
+                type="text"
+                value={addForm.name}
+                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
+                placeholder="e.g. Pioneer Robotics"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600">Team Number</label>
+              <input
+                type="text"
+                value={addForm.number}
+                onChange={e => setAddForm(f => ({ ...f, number: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
+                placeholder="e.g. 25656"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600">Rank <span className="text-gray-400">(optional)</span></label>
+              <input
+                type="number"
+                min="1"
+                value={addForm.rank}
+                onChange={e => setAddForm(f => ({ ...f, rank: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
+                placeholder="e.g. 5"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">If this rank is taken, existing teams will shift down</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-5">
+            <button
+              onClick={() => { setShowAddModal(false); setAddForm({ name: '', number: '', rank: '' }) }}
+              className="flex-1 px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddConsidered}
+              disabled={!addForm.name.trim() || !addForm.number.trim()}
+              className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Add Team
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-4 ml-10 flex items-center justify-between">
@@ -396,64 +456,6 @@ function ScoutingData() {
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
-
-          {/* Add Team Modal */}
-          {showAddModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Add Team to Considered</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-600">Team Name</label>
-                    <input
-                      type="text"
-                      value={addForm.name}
-                      onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
-                      placeholder="e.g. Pioneer Robotics"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-600">Team Number</label>
-                    <input
-                      type="text"
-                      value={addForm.number}
-                      onChange={e => setAddForm(f => ({ ...f, number: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
-                      placeholder="e.g. 25656"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-600">Rank <span className="text-gray-400">(optional)</span></label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={addForm.rank}
-                      onChange={e => setAddForm(f => ({ ...f, rank: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
-                      placeholder="e.g. 5"
-                    />
-                    <p className="text-[10px] text-gray-400 mt-1">If this rank is taken, existing teams will shift down</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-5">
-                  <button
-                    onClick={() => { setShowAddModal(false); setAddForm({ name: '', number: '', rank: '' }) }}
-                    className="flex-1 px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddConsidered}
-                    disabled={!addForm.name.trim() || !addForm.number.trim()}
-                    className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Add Team
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Teams Being Considered */}
           <div className="border-b-2 border-pastel-pink pb-2 mb-1">
@@ -908,6 +910,7 @@ function ScoutingData() {
         </div>
       </main>
     </div>
+    </>
   )
 }
 
