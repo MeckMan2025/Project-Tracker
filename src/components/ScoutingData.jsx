@@ -203,6 +203,7 @@ function ScoutingData() {
   const [records, setRecords] = useState([])
   const [expandedTeams, setExpandedTeams] = useState({})
   const [consideredNumbers, setConsideredNumbers] = useState(DEFAULT_CONSIDERED)
+  const [showAddPicker, setShowAddPicker] = useState(false)
 
   // Load from Supabase
   useEffect(() => {
@@ -336,8 +337,41 @@ function ScoutingData() {
 
           {/* Teams Being Considered */}
           <div className="border-b-2 border-pastel-pink pb-2 mb-1">
-            <h2 className="text-lg font-bold text-gray-800">Teams Being Considered</h2>
-            <p className="text-xs text-gray-500">Alliance partner candidates</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Teams Being Considered</h2>
+                <p className="text-xs text-gray-500">Alliance partner candidates</p>
+              </div>
+              {hasLeadTag && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAddPicker(!showAddPicker)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-pastel-pink/40 hover:bg-pastel-pink transition-colors text-gray-700"
+                    title="Add team to considered"
+                  >
+                    <Plus size={18} />
+                  </button>
+                  {showAddPicker && (
+                    <div className="absolute right-0 top-10 z-20 bg-white rounded-xl shadow-lg border border-gray-200 w-64 max-h-72 overflow-y-auto">
+                      {ALL_TEAMS
+                        .filter(t => !consideredNumbers.includes(t.number))
+                        .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+                        .map(t => (
+                          <button
+                            key={t.number}
+                            onClick={() => { handleAddConsidered(t.number); setShowAddPicker(false) }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-pastel-pink/10 transition-colors border-b border-gray-50 last:border-0"
+                          >
+                            <span className="text-sm font-semibold text-gray-700">{t.name}</span>
+                            <span className="text-xs text-gray-400 ml-1">#{t.number}</span>
+                            {t.rank && <span className="text-xs text-gray-400 float-right">Rank {t.rank}</span>}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {consideredTeams.map(t => (
@@ -621,21 +655,9 @@ function ScoutingData() {
                       <span className="text-sm text-gray-500">Rank {t.rank}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    {hasLeadTag && (
-                      <button
-                        onClick={() => handleAddConsidered(t.number)}
-                        className="flex items-center gap-1 text-xs text-pastel-pink-dark hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-pastel-pink/20"
-                        title="Add to considered teams"
-                      >
-                        <Plus size={14} />
-                        Consider
-                      </button>
-                    )}
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-gray-700">{t.record}</span>
-                      <p className="text-xs text-gray-400">{t.played} matches</p>
-                    </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-gray-700">{t.record}</span>
+                    <p className="text-xs text-gray-400">{t.played} matches</p>
                   </div>
                 </div>
               </div>
