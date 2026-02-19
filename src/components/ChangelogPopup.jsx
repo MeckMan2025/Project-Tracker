@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 2,
     date: '2026-02-18',
     items: [
+      '✅ Scouting is now fully functional — go scout some teams!',
       '🔭 Considered teams are now dynamic — add, remove, and re-rank from the Data tab',
       '⚠️ Error alerts when adding a considered team fails',
     ],
