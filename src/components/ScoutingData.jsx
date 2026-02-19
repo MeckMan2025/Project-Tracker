@@ -262,35 +262,38 @@ function ScoutingData() {
   }, [])
 
   const handleAddConsidered = async () => {
-    const number = addForm.number.trim()
-    const name = addForm.name.trim()
-    const rank = addForm.rank ? parseInt(addForm.rank) : null
-    if (!number || !name) return
+    try {
+      const number = addForm.number.trim()
+      const name = addForm.name.trim()
+      const rank = addForm.rank ? parseInt(addForm.rank) : null
+      if (!number || !name) return
 
-    // If a rank is specified, shift existing teams at that rank and below
-    if (rank) {
-      const toShift = consideredList.filter(c => c.rank && c.rank >= rank)
-      for (const c of toShift) {
-        await supabase.from('considered_teams').update({ rank: c.rank + 1 }).eq('team_number', c.team_number)
+      // If a rank is specified, shift existing teams at that rank and below
+      if (rank) {
+        const toShift = consideredList.filter(c => c.rank && c.rank >= rank)
+        for (const c of toShift) {
+          await supabase.from('considered_teams').update({ rank: c.rank + 1 }).eq('team_number', c.team_number)
+        }
       }
-    }
 
-    const { error } = await supabase.from('considered_teams').insert({
-      team_number: number,
-      team_name: name,
-      rank: rank,
-      added_by: username
-    })
-    if (error) {
-      console.error('Failed to add considered team:', error.message)
-      alert('Failed to add team: ' + error.message)
-      return
+      const { data: insertData, error } = await supabase.from('considered_teams').insert({
+        team_number: number,
+        team_name: name,
+        rank: rank,
+        added_by: username
+      }).select()
+      if (error) {
+        alert('Failed to add team: ' + error.message)
+        return
+      }
+      // Refetch to get updated ranks
+      const { data } = await supabase.from('considered_teams').select('*')
+      if (data) setConsideredList(data)
+      setAddForm({ name: '', number: '', rank: '' })
+      setShowAddModal(false)
+    } catch (err) {
+      alert('Error: ' + err.message)
     }
-    // Refetch to get updated ranks
-    const { data } = await supabase.from('considered_teams').select('*')
-    if (data) setConsideredList(data)
-    setAddForm({ name: '', number: '', rank: '' })
-    setShowAddModal(false)
   }
 
   const handleRemoveConsidered = async (teamNumber) => {
