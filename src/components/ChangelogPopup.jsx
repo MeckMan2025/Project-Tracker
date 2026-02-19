@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 2,
+    date: '2026-02-18',
+    items: [
+      '🔭 Considered teams are now dynamic — add, remove, and re-rank from the Data tab',
+      '⚠️ Error alerts when adding a considered team fails',
+    ],
+  },
+  {
     id: 1,
     date: '2026-02-18',
     items: [
