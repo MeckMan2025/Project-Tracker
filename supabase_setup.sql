@@ -330,6 +330,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs jsonb DEFAULT '
 -- CONSIDERED TEAMS TABLE (alliance partner candidates)
 CREATE TABLE IF NOT EXISTS considered_teams (
   team_number text PRIMARY KEY,
+  team_name text,
+  rank integer,
   added_by text,
   added_at timestamptz DEFAULT now()
 );

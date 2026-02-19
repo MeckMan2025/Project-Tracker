@@ -202,8 +202,10 @@ function ScoutingData() {
   const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const [records, setRecords] = useState([])
   const [expandedTeams, setExpandedTeams] = useState({})
-  const [consideredNumbers, setConsideredNumbers] = useState(DEFAULT_CONSIDERED)
-  const [showAddPicker, setShowAddPicker] = useState(false)
+  const [consideredList, setConsideredList] = useState([])
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addForm, setAddForm] = useState({ name: '', number: '', rank: '' })
+  const [deleteMode, setDeleteMode] = useState(false)
 
   // Load from Supabase
   useEffect(() => {
@@ -239,10 +241,10 @@ function ScoutingData() {
   useEffect(() => {
     supabase
       .from('considered_teams')
-      .select('team_number')
+      .select('*')
       .then(({ data, error }) => {
         if (error) console.error('Failed to load considered teams:', error.message)
-        if (data && data.length > 0) setConsideredNumbers(data.map(r => r.team_number))
+        if (data) setConsideredList(data)
       })
   }, [])
 
@@ -250,26 +252,50 @@ function ScoutingData() {
   useEffect(() => {
     const channel = supabase
       .channel('considered-teams-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'considered_teams' }, (payload) => {
-        setConsideredNumbers(prev => prev.includes(payload.new.team_number) ? prev : [...prev, payload.new.team_number])
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'considered_teams' }, (payload) => {
-        setConsideredNumbers(prev => prev.filter(n => n !== payload.old.team_number))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'considered_teams' }, () => {
+        supabase.from('considered_teams').select('*').then(({ data }) => {
+          if (data) setConsideredList(data)
+        })
       })
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])
 
-  const handleAddConsidered = async (teamNumber) => {
-    const { error } = await supabase.from('considered_teams').insert({ team_number: teamNumber, added_by: username })
-    if (error) console.error('Failed to add considered team:', error.message)
-    else setConsideredNumbers(prev => prev.includes(teamNumber) ? prev : [...prev, teamNumber])
+  const handleAddConsidered = async () => {
+    const number = addForm.number.trim()
+    const name = addForm.name.trim()
+    const rank = addForm.rank ? parseInt(addForm.rank) : null
+    if (!number || !name) return
+
+    // If a rank is specified, shift existing teams at that rank and below
+    if (rank) {
+      const toShift = consideredList.filter(c => c.rank && c.rank >= rank)
+      for (const c of toShift) {
+        await supabase.from('considered_teams').update({ rank: c.rank + 1 }).eq('team_number', c.team_number)
+      }
+    }
+
+    const { error } = await supabase.from('considered_teams').insert({
+      team_number: number,
+      team_name: name,
+      rank: rank,
+      added_by: username
+    })
+    if (error) {
+      console.error('Failed to add considered team:', error.message)
+      return
+    }
+    // Refetch to get updated ranks
+    const { data } = await supabase.from('considered_teams').select('*')
+    if (data) setConsideredList(data)
+    setAddForm({ name: '', number: '', rank: '' })
+    setShowAddModal(false)
   }
 
   const handleRemoveConsidered = async (teamNumber) => {
     const { error } = await supabase.from('considered_teams').delete().eq('team_number', teamNumber)
     if (error) console.error('Failed to remove considered team:', error.message)
-    else setConsideredNumbers(prev => prev.filter(n => n !== teamNumber))
+    else setConsideredList(prev => prev.filter(c => c.team_number !== teamNumber))
   }
 
   const handleDelete = async (id) => {
@@ -280,6 +306,8 @@ function ScoutingData() {
     }
     setRecords(prev => prev.filter(r => r.id !== id))
   }
+
+  const consideredNumbers = consideredList.map(c => c.team_number)
 
   // Merge competition data with scouting submissions, split into considered vs rest
   const { consideredTeams, otherTeams } = useMemo(() => {
@@ -295,22 +323,52 @@ function ScoutingData() {
 
     // Build team list from ALL_TEAMS, attach scouting data
     // Use hardcoded SCOUT_STATS as base, override with dynamic data if available
+    const knownNumbers = new Set(ALL_TEAMS.map(t => t.number))
     const all = ALL_TEAMS.map(t => {
       const matches = byNumber[t.number] || []
       delete byNumber[t.number]
       const dynamicStats = computeScoutingStats(matches)
       const hardcodedStats = SCOUT_STATS[t.number]
-      // Use dynamic stats if we have Supabase records, otherwise fall back to hardcoded
       const stats = dynamicStats.scoutCount > 0 ? dynamicStats : (hardcodedStats ? { ...hardcodedStats, scoutCount: hardcodedStats.scouted, startingPositions: {} } : dynamicStats)
       return { ...t, matches, ...stats }
     })
 
-    const considered = all.filter(t => consideredNumbers.includes(t.number))
+    // Add custom teams (not in ALL_TEAMS) from considered list
+    consideredList.forEach(c => {
+      if (!knownNumbers.has(c.team_number)) {
+        const matches = byNumber[c.team_number] || []
+        delete byNumber[c.team_number]
+        const stats = computeScoutingStats(matches)
+        all.push({
+          number: c.team_number,
+          name: c.team_name || `Team ${c.team_number}`,
+          rank: c.rank || null,
+          record: '-',
+          played: 0,
+          rp: '-',
+          tbp: '-',
+          autoAvg: '-',
+          teleopAvg: '-',
+          highScore: '-',
+          matches,
+          ...stats,
+        })
+      }
+    })
+
+    // Apply rank overrides from considered_teams
+    const rankOverrides = {}
+    consideredList.forEach(c => { if (c.rank) rankOverrides[c.team_number] = c.rank })
+
+    const considered = all
+      .filter(t => consideredNumbers.includes(t.number))
+      .map(t => rankOverrides[t.number] ? { ...t, rank: rankOverrides[t.number] } : t)
+      .sort((a, b) => (a.rank || 999) - (b.rank || 999))
     const others = all.filter(t => !consideredNumbers.includes(t.number))
       .sort((a, b) => (a.rank || 999) - (b.rank || 999))
 
     return { consideredTeams: considered, otherTeams: others }
-  }, [records, consideredNumbers])
+  }, [records, consideredList, consideredNumbers])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
@@ -335,6 +393,64 @@ function ScoutingData() {
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
 
+          {/* Add Team Modal */}
+          {showAddModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Add Team to Considered</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Team Name</label>
+                    <input
+                      type="text"
+                      value={addForm.name}
+                      onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
+                      placeholder="e.g. Pioneer Robotics"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Team Number</label>
+                    <input
+                      type="text"
+                      value={addForm.number}
+                      onChange={e => setAddForm(f => ({ ...f, number: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
+                      placeholder="e.g. 25656"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Rank <span className="text-gray-400">(optional)</span></label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={addForm.rank}
+                      onChange={e => setAddForm(f => ({ ...f, rank: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pastel-pink"
+                      placeholder="e.g. 5"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">If this rank is taken, existing teams will shift down</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-5">
+                  <button
+                    onClick={() => { setShowAddModal(false); setAddForm({ name: '', number: '', rank: '' }) }}
+                    className="flex-1 px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddConsidered}
+                    disabled={!addForm.name.trim() || !addForm.number.trim()}
+                    className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Add Team
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Teams Being Considered */}
           <div className="border-b-2 border-pastel-pink pb-2 mb-1">
             <div className="flex items-center justify-between">
@@ -342,35 +458,25 @@ function ScoutingData() {
                 <h2 className="text-lg font-bold text-gray-800">Teams Being Considered</h2>
                 <p className="text-xs text-gray-500">Alliance partner candidates</p>
               </div>
-              {hasLeadTag && (
-                <div className="relative">
+              <div className="flex items-center gap-2">
+                {hasLeadTag && (
                   <button
-                    onClick={() => setShowAddPicker(!showAddPicker)}
+                    onClick={() => setDeleteMode(!deleteMode)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${deleteMode ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  >
+                    {deleteMode ? 'Done' : 'Delete Mode'}
+                  </button>
+                )}
+                {hasLeadTag && (
+                  <button
+                    onClick={() => setShowAddModal(true)}
                     className="w-8 h-8 flex items-center justify-center rounded-full bg-pastel-pink/40 hover:bg-pastel-pink transition-colors text-gray-700"
                     title="Add team to considered"
                   >
                     <Plus size={18} />
                   </button>
-                  {showAddPicker && (
-                    <div className="absolute right-0 top-10 z-20 bg-white rounded-xl shadow-lg border border-gray-200 w-64 max-h-72 overflow-y-auto">
-                      {ALL_TEAMS
-                        .filter(t => !consideredNumbers.includes(t.number))
-                        .sort((a, b) => (a.rank || 999) - (b.rank || 999))
-                        .map(t => (
-                          <button
-                            key={t.number}
-                            onClick={() => { handleAddConsidered(t.number); setShowAddPicker(false) }}
-                            className="w-full text-left px-4 py-2.5 hover:bg-pastel-pink/10 transition-colors border-b border-gray-50 last:border-0"
-                          >
-                            <span className="text-sm font-semibold text-gray-700">{t.name}</span>
-                            <span className="text-xs text-gray-400 ml-1">#{t.number}</span>
-                            {t.rank && <span className="text-xs text-gray-400 float-right">Rank {t.rank}</span>}
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -393,14 +499,13 @@ function ScoutingData() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {isCofounder && (
+                    {deleteMode && hasLeadTag && (
                       <button
                         onClick={() => handleRemoveConsidered(t.number)}
-                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
-                        title="Remove from considered"
+                        className="w-7 h-7 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-200 text-red-500 hover:text-red-700 transition-colors"
+                        title="Remove team"
                       >
-                        <X size={14} />
-                        Remove
+                        <X size={16} />
                       </button>
                     )}
                     <div className="text-right">
