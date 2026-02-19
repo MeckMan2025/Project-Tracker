@@ -327,11 +327,27 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs jsonb DEFAULT '
 
 -- 20. ENABLE REALTIME on all tables
 -- (ignore errors if a table is already in the publication)
+-- CONSIDERED TEAMS TABLE (alliance partner candidates)
+CREATE TABLE IF NOT EXISTS considered_teams (
+  team_number text PRIMARY KEY,
+  added_by text,
+  added_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE considered_teams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to considered_teams" ON considered_teams;
+CREATE POLICY "Allow all access to considered_teams" ON considered_teams
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Seed with current considered teams
+INSERT INTO considered_teams (team_number) VALUES ('6603'), ('20097'), ('22479')
+ON CONFLICT (team_number) DO NOTHING;
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

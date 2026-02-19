@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Plus, X } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 
-// Teams being considered for alliance
-const CONSIDERED_NUMBERS = ['6603', '20097', '22479']
+// Default considered teams (used as fallback before Supabase loads)
+const DEFAULT_CONSIDERED = ['6603', '20097', '22479']
 
 // Pre-computed scouting stats per team (from imported match data — 356 total records)
 const SCOUT_STATS = {
@@ -199,9 +199,10 @@ function computeScoutingStats(matches) {
 
 function ScoutingData() {
   const { username } = useUser()
-  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest } = usePermissions()
+  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const [records, setRecords] = useState([])
   const [expandedTeams, setExpandedTeams] = useState({})
+  const [consideredNumbers, setConsideredNumbers] = useState(DEFAULT_CONSIDERED)
 
   // Load from Supabase
   useEffect(() => {
@@ -232,6 +233,43 @@ function ScoutingData() {
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])
+
+  // Load considered teams from Supabase
+  useEffect(() => {
+    supabase
+      .from('considered_teams')
+      .select('team_number')
+      .then(({ data, error }) => {
+        if (error) console.error('Failed to load considered teams:', error.message)
+        if (data && data.length > 0) setConsideredNumbers(data.map(r => r.team_number))
+      })
+  }, [])
+
+  // Realtime for considered teams
+  useEffect(() => {
+    const channel = supabase
+      .channel('considered-teams-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'considered_teams' }, (payload) => {
+        setConsideredNumbers(prev => prev.includes(payload.new.team_number) ? prev : [...prev, payload.new.team_number])
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'considered_teams' }, (payload) => {
+        setConsideredNumbers(prev => prev.filter(n => n !== payload.old.team_number))
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const handleAddConsidered = async (teamNumber) => {
+    const { error } = await supabase.from('considered_teams').insert({ team_number: teamNumber, added_by: username })
+    if (error) console.error('Failed to add considered team:', error.message)
+    else setConsideredNumbers(prev => prev.includes(teamNumber) ? prev : [...prev, teamNumber])
+  }
+
+  const handleRemoveConsidered = async (teamNumber) => {
+    const { error } = await supabase.from('considered_teams').delete().eq('team_number', teamNumber)
+    if (error) console.error('Failed to remove considered team:', error.message)
+    else setConsideredNumbers(prev => prev.filter(n => n !== teamNumber))
+  }
 
   const handleDelete = async (id) => {
     const { error } = await supabase.from('scouting_records').delete().eq('id', id)
@@ -266,12 +304,12 @@ function ScoutingData() {
       return { ...t, matches, ...stats }
     })
 
-    const considered = all.filter(t => CONSIDERED_NUMBERS.includes(t.number))
-    const others = all.filter(t => !CONSIDERED_NUMBERS.includes(t.number))
+    const considered = all.filter(t => consideredNumbers.includes(t.number))
+    const others = all.filter(t => !consideredNumbers.includes(t.number))
       .sort((a, b) => (a.rank || 999) - (b.rank || 999))
 
     return { consideredTeams: considered, otherTeams: others }
-  }, [records])
+  }, [records, consideredNumbers])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
@@ -310,17 +348,31 @@ function ScoutingData() {
               {/* Team Header */}
               <div className="px-5 py-4 bg-gradient-to-r from-pastel-blue/30 to-pastel-pink/30 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-800">
-                      {t.name} <span className="text-gray-500 font-medium">#{t.number}</span>
-                    </h2>
-                    {t.rank && (
-                      <span className="text-sm text-gray-500">Rank {t.rank}</span>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-800">
+                        {t.name} <span className="text-gray-500 font-medium">#{t.number}</span>
+                      </h2>
+                      {t.rank && (
+                        <span className="text-sm text-gray-500">Rank {t.rank}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-gray-700">{t.record}</span>
-                    <p className="text-xs text-gray-400">{t.played} matches</p>
+                  <div className="flex items-center gap-3">
+                    {isCofounder && (
+                      <button
+                        onClick={() => handleRemoveConsidered(t.number)}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
+                        title="Remove from considered"
+                      >
+                        <X size={14} />
+                        Remove
+                      </button>
+                    )}
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-gray-700">{t.record}</span>
+                      <p className="text-xs text-gray-400">{t.played} matches</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -569,9 +621,21 @@ function ScoutingData() {
                       <span className="text-sm text-gray-500">Rank {t.rank}</span>
                     )}
                   </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-gray-700">{t.record}</span>
-                    <p className="text-xs text-gray-400">{t.played} matches</p>
+                  <div className="flex items-center gap-3">
+                    {hasLeadTag && (
+                      <button
+                        onClick={() => handleAddConsidered(t.number)}
+                        className="flex items-center gap-1 text-xs text-pastel-pink-dark hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-pastel-pink/20"
+                        title="Add to considered teams"
+                      >
+                        <Plus size={14} />
+                        Consider
+                      </button>
+                    )}
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-gray-700">{t.record}</span>
+                      <p className="text-xs text-gray-400">{t.played} matches</p>
+                    </div>
                   </div>
                 </div>
               </div>
