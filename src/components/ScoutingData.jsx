@@ -283,6 +283,7 @@ function ScoutingData() {
     })
     if (error) {
       console.error('Failed to add considered team:', error.message)
+      alert('Failed to add team: ' + error.message)
       return
     }
     // Refetch to get updated ranks
