@@ -24,6 +24,7 @@ import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
 import QuotesManager from './components/QuotesManager'
 import WorkshopIdeas from './components/WorkshopIdeas'
+import ChangelogPopup from './components/ChangelogPopup'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -878,6 +879,7 @@ function App() {
   return (
     <>
       {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
+      {!isLoading && <ChangelogPopup />}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col ${isLoading ? 'hidden' : ''}`}>
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
@@ -1016,7 +1018,7 @@ function App() {
                   <span className="text-lg font-semibold text-gray-700">Quotes</span>
                   <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
                 </button>
-                {hasLeadTag && ['Attendance', 'SWOT Mode', 'Meeting Stats', 'Scouting Mode'].map(label => (
+                {hasLeadTag && ['Attendance', 'SWOT Mode', 'Meeting Stats', 'Scouting Mode', 'Testing'].map(label => (
                   <button
                     key={label}
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
