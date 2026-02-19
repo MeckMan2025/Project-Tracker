@@ -19,7 +19,7 @@ export default function WorkshopIdeas() {
   const [submitError, setSubmitError] = useState('')
 
   const canReview = hasLeadTag
-  const canSubmit = !isGuest && !isCofounder
+  const canSubmit = !isGuest
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -146,6 +146,30 @@ export default function WorkshopIdeas() {
       {canReview ? (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
+            {/* Submit form for reviewers */}
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb size={16} className="text-pastel-orange-dark" />
+                <span className="text-sm font-semibold text-gray-600">Submit a Workshop Idea</span>
+              </div>
+              <textarea
+                value={newIdea}
+                onChange={(e) => setNewIdea(e.target.value)}
+                placeholder="e.g. How to use Git, Intro to CAD, Fundraising strategies..."
+                rows={2}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none text-sm"
+              />
+              {submitError && <p className="text-sm text-red-500 mt-1">{submitError}</p>}
+              <button
+                type="submit"
+                disabled={!newIdea.trim()}
+                className="mt-2 flex items-center gap-2 px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors font-semibold text-gray-700 text-sm"
+              >
+                <Send size={14} />
+                Submit Idea
+              </button>
+            </form>
+
             {ideas.length > 0 ? (
               <div className="space-y-3">
                 {ideas.map(idea => (
