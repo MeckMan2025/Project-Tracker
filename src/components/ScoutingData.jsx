@@ -428,7 +428,10 @@ function ScoutingData() {
               Cancel
             </button>
             <button
-              onClick={handleAddConsidered}
+              onClick={() => {
+                alert('Name: "' + addForm.name + '", Number: "' + addForm.number + '", Rank: "' + addForm.rank + '"')
+                handleAddConsidered()
+              }}
               disabled={!addForm.name.trim() || !addForm.number.trim()}
               className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
