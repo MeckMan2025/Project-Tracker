@@ -252,7 +252,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 }}
               >
                 <ChevronRight size={14} className={activeTab === 'data' ? 'rotate-90' : ''} />
-                <span className="truncate">Scouting</span>
+                <span className="truncate">RadRank</span>
               </div>
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
