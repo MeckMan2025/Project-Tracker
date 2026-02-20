@@ -22,21 +22,31 @@ function TeamInfoPage({ onBack }) {
           <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
             About Team 7196
           </h2>
+          <p className="text-center text-gray-500 text-xs font-medium -mt-4">
+            Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
+          </p>
+
+          <div className="border-l-4 border-pastel-orange rounded-r-xl bg-pastel-orange/10 p-4">
+            <h3 className="font-bold text-gray-800 text-sm mb-2">Who We Are</h3>
+            <p className="text-gray-700 text-sm leading-relaxed">
+              We are <span className="font-semibold">Everything That's Radical</span>, FTC Team 7196, based out of Pleasant Valley High School in Bettendorf, Iowa. Established in 2013, our team has grown through seasons of innovation, competition, and continuous improvement.
+            </p>
+          </div>
 
           <p className="text-gray-700 text-sm leading-relaxed">
-            Founded in 2013, Team 7196 has grown through seasons of innovation, competition, and continuous improvement. Over the years, we've learned that building a successful robot requires more than technical skill — it requires organization, accountability, and strong systems behind the scenes.
+            Last season, we won the <span className="font-semibold">Control Award</span> and were chosen as an alliance partner. This year, Everything That's Radical is mainly composed of members that are new to FTC, and the team is ecstatic to learn STEM-based skills with FIRST!
           </p>
 
           <p className="text-gray-700 text-sm leading-relaxed">
-            This season, we identified one of our biggest challenges: disorganization. As responsibilities expanded across build, programming, business, and scouting, relying on scattered tools and informal communication was limiting our efficiency and clarity.
+            Each student grows from the experiences within the FIRST Tech Challenge program, no matter if it is designing and building a robot, putting together a portfolio and presentation, or through outreach. Every student on our team is also able to take advantage of the many Applied Science Classes that Pleasant Valley High School provides, and many of our team members have taken one or more of these classes.
           </p>
 
           <p className="text-gray-700 text-sm leading-relaxed">
-            In response, we built <span className="font-semibold text-pastel-blue-dark">Everything That's Scrum</span>, our custom team management platform.
+            Over the years, we've learned that building a successful robot requires more than technical skill — it requires organization, accountability, and strong systems behind the scenes. This season, we identified one of our biggest challenges: disorganization. As responsibilities expanded across build, programming, business, and scouting, relying on scattered tools and informal communication was limiting our efficiency and clarity.
           </p>
 
           <p className="text-gray-700 text-sm leading-relaxed">
-            The name reflects both our team identity and our commitment to structured, agile collaboration. Inspired by professional engineering workflows, the app centralizes everything our team needs to function effectively — scouting assignments, task boards, attendance tracking, organizational structure, communication tools, and performance data.
+            In response, we built <span className="font-semibold text-pastel-blue-dark">Everything That's Scrum</span>, our custom team management platform. The name reflects both our team identity and our commitment to structured, agile collaboration. Inspired by professional engineering workflows, the app centralizes everything our team needs to function effectively — scouting assignments, task boards, attendance tracking, organizational structure, communication tools, and performance data.
           </p>
 
           <div className="border-l-4 border-pastel-pink rounded-r-xl bg-pastel-pink/10 p-4">
