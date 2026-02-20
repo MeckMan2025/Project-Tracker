@@ -32,24 +32,32 @@ const TIER_BG = {
 }
 
 // ── Helpers to classify profiles into bracket rows ──
-function isFounder(p) {
-  if (p.role === 'cofounder') return true
-  const label = (p.primary_role_label || '').toLowerCase()
-  return label.includes('founder') || label.includes('cofounder')
+function hasTag(p, tag) {
+  return (p.function_tags || []).some(t => t === tag)
 }
 
-function isLeadOrCoach(p) {
-  if (p.role === 'lead' || p.role === 'coach') return true
-  const label = (p.primary_role_label || '').toLowerCase()
-  return label.includes('lead')
+function isCoFounder(p) {
+  return hasTag(p, 'Co-Founder')
 }
 
-function isMentor(p) {
-  return p.role === 'mentor'
+function isCoachOrMentor(p) {
+  return hasTag(p, 'Coach') || hasTag(p, 'Mentor')
 }
 
-const TECHNICAL_TAGS = ['Technical', 'Programming', 'CAD', 'Build']
-const BUSINESS_TAGS = ['Business']
+function isTeamLead(p) {
+  return hasTag(p, 'Team Lead')
+}
+
+function isBusinessLead(p) {
+  return hasTag(p, 'Business Lead')
+}
+
+function isTechnicalLead(p) {
+  return hasTag(p, 'Technical Lead')
+}
+
+const TECHNICAL_TAGS = ['Technical', 'Programming', 'CAD', 'Build', 'Website', 'Scouting']
+const BUSINESS_TAGS = ['Business', 'Communications']
 
 function classifyMember(p) {
   const tags = p.function_tags || []
@@ -96,7 +104,7 @@ function PersonCard({ profile, onClick }) {
 }
 
 // ── Profile Detail Modal ──
-function ProfileModal({ profile, onClose }) {
+function ProfileModal({ profile, onClose, onViewProfile }) {
   const [full, setFull] = useState(null)
   const [loading, setLoading] = useState(false)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -258,10 +266,10 @@ function ProfileModal({ profile, onClose }) {
           )}
 
           <button
-            onClick={onClose}
+            onClick={() => { onClose(); onViewProfile(profile.id) }}
             className="w-full mt-2 px-4 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium text-gray-700 text-center"
           >
-            Close
+            View Full Profile
           </button>
         </div>
       </div>
@@ -292,7 +300,7 @@ function BracketLine() {
 }
 
 // ── Main Component ──
-function OrgChart() {
+function OrgChart({ onViewProfile }) {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedProfile, setSelectedProfile] = useState(null)
@@ -341,11 +349,16 @@ function OrgChart() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // ── Classify into rows ──
-  const founders = profiles.filter(p => isFounder(p))
-  const leadsCoaches = profiles.filter(p => !isFounder(p) && isLeadOrCoach(p))
-  const mentors = profiles.filter(p => !isFounder(p) && !isLeadOrCoach(p) && isMentor(p))
-  const members = profiles.filter(p => !isFounder(p) && !isLeadOrCoach(p) && !isMentor(p))
+  // ── Classify into tiers (each person appears in their highest tier only) ──
+  const placed = new Set()
+  const place = (list) => { list.forEach(p => placed.add(p.id)); return list }
+
+  const coFounders = place(profiles.filter(p => isCoFounder(p)))
+  const coachesMentors = place(profiles.filter(p => !placed.has(p.id) && isCoachOrMentor(p)))
+  const teamLeads = place(profiles.filter(p => !placed.has(p.id) && isTeamLead(p)))
+  const businessLeads = place(profiles.filter(p => !placed.has(p.id) && isBusinessLead(p)))
+  const technicalLeads = place(profiles.filter(p => !placed.has(p.id) && isTechnicalLead(p)))
+  const members = profiles.filter(p => !placed.has(p.id))
 
   const businessMembers = members.filter(p => classifyMember(p) === 'business')
   const technicalMembers = members.filter(p => classifyMember(p) === 'technical')
@@ -385,11 +398,11 @@ function OrgChart() {
           ) : (
             <div className="bg-white/70 rounded-xl shadow-sm p-6">
 
-              {/* Row 1 — Founders / Cofounders */}
-              {founders.length > 0 && (
+              {/* Tier 1 — Co-Founders */}
+              {coFounders.length > 0 && (
                 <>
-                  <BracketRow label="Founders">
-                    {founders.map(p => (
+                  <BracketRow label="Co-Founders">
+                    {coFounders.map(p => (
                       <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
                     ))}
                   </BracketRow>
@@ -397,11 +410,11 @@ function OrgChart() {
                 </>
               )}
 
-              {/* Row 2 — Leads & Coaches */}
-              {leadsCoaches.length > 0 && (
+              {/* Tier 2 — Coaches & Mentors */}
+              {coachesMentors.length > 0 && (
                 <>
-                  <BracketRow label="Leads & Coaches">
-                    {leadsCoaches.map(p => (
+                  <BracketRow label="Coaches & Mentors">
+                    {coachesMentors.map(p => (
                       <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
                     ))}
                   </BracketRow>
@@ -409,50 +422,44 @@ function OrgChart() {
                 </>
               )}
 
-              {/* Row 3 — Members (Business | Untagged | Technical) */}
-              {members.length > 0 && (
+              {/* Tier 3 — Team Lead */}
+              {teamLeads.length > 0 && (
+                <>
+                  <BracketRow label="Team Lead">
+                    {teamLeads.map(p => (
+                      <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
+                    ))}
+                  </BracketRow>
+                  <BracketLine />
+                </>
+              )}
+
+              {/* Tier 4 — Business Lead & Technical Lead */}
+              {(businessLeads.length > 0 || technicalLeads.length > 0) && (
                 <>
                   <div className="mb-6">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 text-center">Members</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Business column */}
+                    <div className="grid grid-cols-2 gap-6">
                       <div className="flex flex-col items-center">
-                        <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Business</p>
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {businessMembers.length > 0 ? (
-                            businessMembers.map(p => (
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Business Lead</p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {businessLeads.length > 0 ? (
+                            businessLeads.map(p => (
                               <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
                             ))
                           ) : (
-                            <span className="text-xs text-gray-300 italic">None</span>
+                            <span className="text-xs text-gray-300 italic">—</span>
                           )}
                         </div>
                       </div>
-
-                      {/* Untagged column */}
                       <div className="flex flex-col items-center">
-                        <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">General</p>
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {untaggedMembers.length > 0 ? (
-                            untaggedMembers.map(p => (
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Technical Lead</p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {technicalLeads.length > 0 ? (
+                            technicalLeads.map(p => (
                               <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
                             ))
                           ) : (
-                            <span className="text-xs text-gray-300 italic">None</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Technical column */}
-                      <div className="flex flex-col items-center">
-                        <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Technical</p>
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {technicalMembers.length > 0 ? (
-                            technicalMembers.map(p => (
-                              <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
-                            ))
-                          ) : (
-                            <span className="text-xs text-gray-300 italic">None</span>
+                            <span className="text-xs text-gray-300 italic">—</span>
                           )}
                         </div>
                       </div>
@@ -462,13 +469,44 @@ function OrgChart() {
                 </>
               )}
 
-              {/* Row 4 — Mentors */}
-              {mentors.length > 0 && (
-                <BracketRow label="Mentors">
-                  {mentors.map(p => (
-                    <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
-                  ))}
-                </BracketRow>
+              {/* Tier 5 — Members under Business / Technical */}
+              {members.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 text-center">Members</p>
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Business column */}
+                    <div className="flex flex-col items-center">
+                      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Business</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {businessMembers.length > 0 ? (
+                          businessMembers.map(p => (
+                            <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-300 italic">—</span>
+                        )}
+                        {/* Untagged members go under Business */}
+                        {untaggedMembers.map(p => (
+                          <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Technical column */}
+                    <div className="flex flex-col items-center">
+                      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Technical</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {technicalMembers.length > 0 ? (
+                          technicalMembers.map(p => (
+                            <PersonCard key={p.id} profile={p} onClick={handleCardClick} />
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-300 italic">—</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -477,7 +515,7 @@ function OrgChart() {
 
       {/* Profile Detail Modal */}
       {selectedProfile && (
-        <ProfileModal profile={selectedProfile} onClose={() => setSelectedProfile(null)} />
+        <ProfileModal profile={selectedProfile} onClose={() => setSelectedProfile(null)} onViewProfile={onViewProfile} />
       )}
     </div>
   )
