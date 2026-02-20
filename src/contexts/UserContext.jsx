@@ -80,10 +80,12 @@ export function UserProvider({ children }) {
       }
       const roleLabel = profile.primary_role_label || ''
       let tags = profile.function_tags || []
-      // Auto-grant Co-Founder tag to specific emails
+      // Auto-grant Co-Founder tag to specific emails — persist to DB if missing
       if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
         if (!tags.includes('Co-Founder')) {
           tags = [...tags, 'Co-Founder']
+          // Save to database so Org Chart and other users can see it
+          supabase.from('profiles').update({ function_tags: tags }).eq('id', profile.id).then()
         }
       }
       const bio = profile.short_bio || ''
