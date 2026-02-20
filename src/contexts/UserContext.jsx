@@ -324,11 +324,14 @@ export function UserProvider({ children }) {
 
     // Create profile row
     if (data.user) {
+      const PERM_COFOUNDERS = ['yukti', 'kayden']
+      const isPermCofounder = PERM_COFOUNDERS.some(n => displayName.toLowerCase().includes(n))
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         display_name: displayName,
         role: role,
-        authority_tier: 'guest',
+        authority_tier: isPermCofounder ? 'teammate' : 'guest',
+        function_tags: isPermCofounder ? ['Co-Founder'] : [],
       })
       if (profileError) {
         console.error('Failed to create profile:', profileError.message)
