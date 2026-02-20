@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, ShieldCheck, Users, KeyRound, Info, X, Plus, Send } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -104,7 +104,7 @@ function UserManagement() {
     }
 
     try {
-      const data = await fetchTable('profiles', 'id,display_name,function_tags,authority_tier')
+      const data = await fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin')
       msg += 'Members: ' + data.length + ' rows'
       console.log('[UserMgmt] Members loaded:', data.length, 'rows')
       setRegisteredMembers(data)
@@ -311,6 +311,56 @@ function UserManagement() {
       // Rollback
       setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: currentRoles } : m))
       alert('Failed to save role: ' + err.message)
+    }
+  }
+
+  // --- Admin toggle handler ---
+
+  const handleToggleAdmin = async (memberId) => {
+    const member = registeredMembers.find(m => m.id === memberId)
+    if (!member || memberId === user.id) return
+    const currentAdmin = member.is_authority_admin || false
+    const newAdmin = !currentAdmin
+    
+    // Optimistic update
+    setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_authority_admin: newAdmin } : m))
+    
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ is_authority_admin: newAdmin }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || res.statusText)
+      }
+      // Notify the user
+      const notif = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        user_id: memberId,
+        type: 'role_change',
+        title: newAdmin ? 'Admin Access Granted!' : 'Admin Access Removed',
+        body: newAdmin
+          ? `${username} gave you admin access!`
+          : `${username} removed your admin access.`,
+        data: JSON.stringify({ role: 'admin', action: newAdmin ? 'added' : 'removed' }),
+      }
+      fetch(`${supabaseUrl}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(notif),
+      }).catch(() => {})
+      triggerPush(notif)
+    } catch (err) {
+      // Rollback
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, is_authority_admin: currentAdmin } : m))
+      alert('Failed to save admin status: ' + err.message)
     }
   }
 
@@ -742,6 +792,20 @@ function UserManagement() {
                               className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
                             >
                               <Plus size={12} /> Add
+                            </button>
+                          )}
+                          {canManageUsers && !isSelf && (
+                            <button
+                              onClick={() => handleToggleAdmin(member.id)}
+                              className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 transition-colors ${
+                                member.is_authority_admin 
+                                  ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
+                                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+                              }`}
+                              title={member.is_authority_admin ? 'Remove admin access' : 'Grant admin access'}
+                            >
+                              <ShieldCheck size={12} />
+                              {member.is_authority_admin ? 'Admin' : 'Make Admin'}
                             </button>
                           )}
                         </div>
