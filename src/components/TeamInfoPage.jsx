@@ -22,8 +22,8 @@ function TeamInfoPage({ onBack }) {
           {/* Hero competition photo */}
           <div className="relative -mx-6 -mt-6 mb-2 overflow-hidden rounded-t-2xl">
             <img
-              src="/team-competition.jpg"
-              alt="Team 7196 competing at an FTC event"
+              src="/team-hero.jpg"
+              alt="Team 7196"
               className="w-full h-48 object-cover object-top"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
