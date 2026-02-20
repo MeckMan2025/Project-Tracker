@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
+import PasswordInput from './PasswordInput'
 
 function LoginScreen({ sessionExpired }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
@@ -99,8 +100,7 @@ function LoginScreen({ sessionExpired }) {
             <p className="text-sm text-gray-500 mt-1">Enter your new password below</p>
           </div>
 
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => { setPassword(e.target.value); setError('') }}
             placeholder="New password"
@@ -208,8 +208,7 @@ function LoginScreen({ sessionExpired }) {
             autoFocus
           />
 
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => { setPassword(e.target.value); setError('') }}
             placeholder="Password"
@@ -338,8 +337,7 @@ function LoginScreen({ sessionExpired }) {
           autoFocus
         />
 
-        <input
-          type="password"
+        <PasswordInput
           value={password}
           onChange={(e) => { setPassword(e.target.value); setError('') }}
           placeholder="Password"

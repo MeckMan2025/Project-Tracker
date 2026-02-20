@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { UserPlus, Trash2, Upload, Shield, ShieldCheck, Users, KeyRound, Info, X, Plus, Send } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import PasswordInput from './PasswordInput'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
@@ -908,8 +909,7 @@ function UserManagement() {
               className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
               autoFocus
             />
-            <input
-              type="password"
+            <PasswordInput
               value={createPassword}
               onChange={(e) => { setCreatePassword(e.target.value); setCreateError(''); setCreateSuccess('') }}
               placeholder="Temporary password (min 6 characters)"
@@ -975,8 +975,7 @@ function UserManagement() {
             <h3 className="font-semibold text-gray-700">
               Reset Password for {resetTarget.display_name}
             </h3>
-            <input
-              type="password"
+            <PasswordInput
               value={resetPassword}
               onChange={(e) => { setResetPassword(e.target.value); setResetError(''); setResetSuccess('') }}
               placeholder="New password (min 6 characters)"

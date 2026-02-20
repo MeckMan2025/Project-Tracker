@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell, Music } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import PasswordInput from './PasswordInput'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { usePushNotifications } from '../hooks/usePushNotifications'
@@ -906,8 +907,7 @@ function ProfileView() {
             }} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">New Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setPwError(''); setPwSuccess(false) }}
                   placeholder="Minimum 6 characters"
@@ -916,8 +916,7 @@ function ProfileView() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Confirm Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setPwError(''); setPwSuccess(false) }}
                   placeholder="Re-enter new password"

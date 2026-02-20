@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 4,
+    date: '2026-02-20',
+    items: [
+      '👁️ Password fields now have a show/hide toggle so you can see what you type',
+    ],
+  },
+  {
     id: 3,
     date: '2026-02-19',
     items: [

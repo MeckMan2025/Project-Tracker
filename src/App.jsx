@@ -7,6 +7,7 @@ import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
+import PasswordInput from './components/PasswordInput'
 import LoginScreen from './components/LoginScreen'
 import ScoutingForm from './components/ScoutingForm'
 import TasksView from './components/TasksView'
@@ -113,8 +114,7 @@ function ForcePasswordChange({ updatePassword }) {
           </h1>
           <p className="text-sm text-gray-500 mt-1">You must set a new password before continuing</p>
         </div>
-        <input
-          type="password"
+        <PasswordInput
           value={pw}
           onChange={(e) => { setPw(e.target.value); setError('') }}
           placeholder="New password"
@@ -122,8 +122,7 @@ function ForcePasswordChange({ updatePassword }) {
           autoFocus
           required
         />
-        <input
-          type="password"
+        <PasswordInput
           value={confirm}
           onChange={(e) => { setConfirm(e.target.value); setError('') }}
           placeholder="Confirm password"
