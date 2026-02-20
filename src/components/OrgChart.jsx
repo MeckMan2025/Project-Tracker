@@ -139,7 +139,7 @@ function ProfileModal({ profile, onClose, onViewProfile }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-50" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[51] flex items-center justify-center p-4 pointer-events-none">
         <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm pointer-events-auto relative max-h-[85vh] overflow-y-auto">
           <button
             onClick={onClose}
@@ -266,10 +266,10 @@ function ProfileModal({ profile, onClose, onViewProfile }) {
           )}
 
           <button
-            onClick={() => { onClose(); onViewProfile(profile.id) }}
+            onClick={() => alert('Button works! ID: ' + profile.id)}
             className="w-full mt-2 px-4 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium text-gray-700 text-center"
           >
-            View Full Profile
+            TEST CLICK
           </button>
         </div>
       </div>
@@ -365,6 +365,7 @@ function OrgChart({ onViewProfile }) {
   const untaggedMembers = members.filter(p => classifyMember(p) === 'untagged')
 
   const handleCardClick = (profile) => {
+    console.log('CARD CLICKED', profile.display_name, profile.id)
     setSelectedProfile(profile)
   }
 

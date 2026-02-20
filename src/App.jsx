@@ -291,6 +291,7 @@ function App() {
   const [specialView, setSpecialView] = useState(null)
   const [loadError, setLoadError] = useState(null)
   const [landingChoice, setLandingChoice] = useState(null)
+  const [viewingProfileId, setViewingProfileId] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
@@ -976,7 +977,7 @@ function App() {
           </div>
         </div>
       ) : activeTab === 'org-chart' ? (
-        <OrgChart />
+        <OrgChart onViewProfile={(profileId) => { setViewingProfileId(profileId); setActiveTab('profile') }} />
       ) : activeTab === 'suggestions' ? (
         <SuggestionsView />
       ) : activeTab === 'calendar' ? (
@@ -986,7 +987,7 @@ function App() {
       ) : activeTab === 'requests' ? (
         <RequestsView tabs={tabs} />
       ) : activeTab === 'profile' ? (
-        <ProfileView />
+        <ProfileView viewingProfileId={viewingProfileId} onClearViewing={() => setViewingProfileId(null)} />
       ) : activeTab === 'data' ? (
         <ScoutingData />
       ) : activeTab === 'notebook' ? (
