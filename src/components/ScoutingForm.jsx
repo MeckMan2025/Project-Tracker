@@ -56,42 +56,34 @@ const INITIAL_FORM_STATE = {
   observations: '',
 }
 
-function CounterWidget({ label, value, onChange }) {
+function CounterWidget({ label, value, onChange, onSet }) {
   return (
     <div className="bg-white rounded-lg p-3 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-700">{label}</span>
-        <span className="text-lg font-bold text-gray-800 min-w-[2rem] text-center">{value}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => onChange(-1)}
-          className="py-3 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700 font-bold text-sm active:scale-95 transition-transform"
-        >
-          -1
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(1)}
-          className="py-3 rounded-lg bg-pastel-blue hover:bg-pastel-blue-dark text-gray-700 font-bold text-sm active:scale-95 transition-transform"
-        >
-          +1
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(2)}
-          className="py-3 rounded-lg bg-pastel-orange hover:bg-pastel-orange-dark text-gray-700 font-bold text-sm active:scale-95 transition-transform"
-        >
-          +2
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(3)}
-          className="py-3 rounded-lg bg-pastel-pink-dark hover:bg-pastel-pink text-gray-700 font-bold text-sm active:scale-95 transition-transform"
-        >
-          +3
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onChange(-1)}
+            className="w-10 h-10 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700 font-bold text-lg active:scale-95 transition-transform flex items-center justify-center"
+          >
+            -
+          </button>
+          <input
+            type="number"
+            min="0"
+            value={value}
+            onChange={(e) => onSet(Math.max(0, parseInt(e.target.value) || 0))}
+            className="w-16 h-10 text-center text-lg font-bold text-gray-800 border-2 border-gray-200 rounded-lg focus:border-pastel-blue focus:ring-1 focus:ring-pastel-blue focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(1)}
+            className="w-10 h-10 rounded-lg bg-pastel-blue hover:bg-pastel-blue-dark text-gray-700 font-bold text-lg active:scale-95 transition-transform flex items-center justify-center"
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -277,10 +269,10 @@ function ScoutingForm() {
           <section className="space-y-3">
             <SectionHeader title="Autonomous Phase" />
             <div className="space-y-3">
-              <CounterWidget label="# Artifacts Missed" value={formData.autoArtifactsMissed} onChange={(d) => incrementCounter('autoArtifactsMissed', d)} />
-              <CounterWidget label="# Artifacts Classified" value={formData.autoClassified} onChange={(d) => incrementCounter('autoClassified', d)} />
-              <CounterWidget label="# Artifacts Overflowed" value={formData.autoOverflowed} onChange={(d) => incrementCounter('autoOverflowed', d)} />
-              <CounterWidget label="# Artifacts in MOTIF Order" value={formData.autoInMotifOrder} onChange={(d) => incrementCounter('autoInMotifOrder', d)} />
+              <CounterWidget label="# Artifacts Missed" value={formData.autoArtifactsMissed} onChange={(d) => incrementCounter('autoArtifactsMissed', d)} onSet={(v) => updateField('autoArtifactsMissed', v)} />
+              <CounterWidget label="# Artifacts Classified" value={formData.autoClassified} onChange={(d) => incrementCounter('autoClassified', d)} onSet={(v) => updateField('autoClassified', v)} />
+              <CounterWidget label="# Artifacts Overflowed" value={formData.autoOverflowed} onChange={(d) => incrementCounter('autoOverflowed', d)} onSet={(v) => updateField('autoOverflowed', v)} />
+              <CounterWidget label="# Artifacts in MOTIF Order" value={formData.autoInMotifOrder} onChange={(d) => incrementCounter('autoInMotifOrder', d)} onSet={(v) => updateField('autoInMotifOrder', v)} />
             </div>
           </section>
 
@@ -288,11 +280,11 @@ function ScoutingForm() {
           <section className="space-y-3">
             <SectionHeader title="Tele-Operated Phase" />
             <div className="space-y-3">
-              <CounterWidget label="# Artifacts Missed" value={formData.teleArtifactsMissed} onChange={(d) => incrementCounter('teleArtifactsMissed', d)} />
-              <CounterWidget label="# Artifacts Classified" value={formData.teleClassified} onChange={(d) => incrementCounter('teleClassified', d)} />
-              <CounterWidget label="# Artifacts Overflowed" value={formData.teleOverflowed} onChange={(d) => incrementCounter('teleOverflowed', d)} />
-              <CounterWidget label="# Artifacts in MOTIF Order" value={formData.teleInMotifOrder} onChange={(d) => incrementCounter('teleInMotifOrder', d)} />
-              <CounterWidget label="# Artifacts in DEPOT" value={formData.teleArtifactsInDepot} onChange={(d) => incrementCounter('teleArtifactsInDepot', d)} />
+              <CounterWidget label="# Artifacts Missed" value={formData.teleArtifactsMissed} onChange={(d) => incrementCounter('teleArtifactsMissed', d)} onSet={(v) => updateField('teleArtifactsMissed', v)} />
+              <CounterWidget label="# Artifacts Classified" value={formData.teleClassified} onChange={(d) => incrementCounter('teleClassified', d)} onSet={(v) => updateField('teleClassified', v)} />
+              <CounterWidget label="# Artifacts Overflowed" value={formData.teleOverflowed} onChange={(d) => incrementCounter('teleOverflowed', d)} onSet={(v) => updateField('teleOverflowed', v)} />
+              <CounterWidget label="# Artifacts in MOTIF Order" value={formData.teleInMotifOrder} onChange={(d) => incrementCounter('teleInMotifOrder', d)} onSet={(v) => updateField('teleInMotifOrder', v)} />
+              <CounterWidget label="# Artifacts in DEPOT" value={formData.teleArtifactsInDepot} onChange={(d) => incrementCounter('teleArtifactsInDepot', d)} onSet={(v) => updateField('teleArtifactsInDepot', v)} />
 
               <div className="bg-white rounded-lg p-3 shadow-sm">
                 <span className="text-sm font-medium text-gray-700 block mb-2">Did they leave?</span>
