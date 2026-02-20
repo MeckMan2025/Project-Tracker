@@ -154,7 +154,9 @@ export default function EngineeringNotebook() {
         method: 'PATCH',
         headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify(entryData),
-      }).catch(err => console.error('Failed to update entry:', err))
+      }).then(res => {
+        if (!res.ok) res.text().then(t => { console.error('Update failed:', t); setSubmitFeedback('Failed to save — try again') })
+      }).catch(err => { console.error('Failed to update entry:', err); setSubmitFeedback('Failed to save — try again') })
     } else {
       const newEntry = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -167,7 +169,9 @@ export default function EngineeringNotebook() {
         method: 'POST',
         headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify(newEntry),
-      }).catch(err => console.error('Failed to save entry:', err))
+      }).then(res => {
+        if (!res.ok) res.text().then(t => { console.error('Save failed:', t); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
+      }).catch(err => { console.error('Failed to save entry:', err); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
     }
 
     setFormData({ ...INITIAL_ENTRY })
@@ -702,7 +706,7 @@ export default function EngineeringNotebook() {
                         reader.onload = (ev) => {
                           img.onload = () => {
                             const canvas = document.createElement('canvas')
-                            const MAX = 800
+                            const MAX = 480
                             let w = img.width, h = img.height
                             if (w > MAX || h > MAX) {
                               if (w > h) { h = Math.round(h * MAX / w); w = MAX }
@@ -711,7 +715,7 @@ export default function EngineeringNotebook() {
                             canvas.width = w
                             canvas.height = h
                             canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-                            const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
                             updateField('photoUrl', dataUrl)
                             updateField('_uploading', false)
                           }
