@@ -58,10 +58,15 @@ export function UserProvider({ children }) {
     return data
   }
 
-  const applyProfile = (profile) => {
+  const ADMIN_EMAILS = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
+
+  // email param avoids stale-closure issues when called from useEffect callbacks
+  const applyProfile = (profile, email) => {
     if (profile) {
+      const userEmail = (email || user?.email || '')?.toLowerCase()
+      const isAdmin = userEmail && ADMIN_EMAILS.includes(userEmail)
+
       setUsername(profile.display_name)
-      // Key the cache by user ID so it doesn't leak between accounts
       localStorage.setItem('scrum-cached-user-id', profile.id)
       setIsLead(profile.role === 'lead')
       const profileRole = profile.role || 'member'
@@ -72,21 +77,16 @@ export function UserProvider({ children }) {
       // Authority fields
       let tier = profile.authority_tier || 'guest'
       let admin = !!profile.is_authority_admin
-      // Auto-grant admin and lead tags to specific emails
-      const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
-      if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
+      if (isAdmin) {
         admin = true
         tier = 'teammate'
       }
       const roleLabel = profile.primary_role_label || ''
       let tags = profile.function_tags || []
-      // Auto-grant Co-Founder tag to specific emails — persist to DB if missing
-      if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
-        if (!tags.includes('Co-Founder')) {
-          tags = [...tags, 'Co-Founder']
-          // Save to database so Org Chart and other users can see it
-          supabase.from('profiles').update({ function_tags: tags }).eq('id', profile.id).then()
-        }
+      // Auto-grant Co-Founder tag — persist to DB if missing
+      if (isAdmin && !tags.includes('Co-Founder')) {
+        tags = [...tags, 'Co-Founder']
+        supabase.from('profiles').update({ function_tags: tags }).eq('id', profile.id).then()
       }
       const bio = profile.short_bio || ''
       setAuthorityTier(tier)
@@ -180,10 +180,9 @@ export function UserProvider({ children }) {
               if (cachedTags) { try { setFunctionTags(JSON.parse(cachedTags)) } catch (e) {} }
               const cachedRole = localStorage.getItem('scrum-role')
               if (cachedRole) { setRole(cachedRole); setIsLead(cachedRole === 'lead') }
-              // Check for auto-admin emails
-              const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
+              // Check for auto-admin emails (cached instant render)
               const userEmail = session.user.email?.toLowerCase() || ''
-              if (userEmail && adminEmails.includes(userEmail)) {
+              if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
                 setIsAuthorityAdmin(true)
                 setAuthorityTier('teammate')
                 const currentTags = JSON.parse(localStorage.getItem('scrum-function-tags') || '[]')
@@ -202,7 +201,7 @@ export function UserProvider({ children }) {
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
             if (profile) {
-              applyProfile(profile)
+              applyProfile(profile, session.user.email)
             } else if (!cachedUserId || cachedUserId !== session.user.id) {
               console.warn('[Auth] No profile found — forcing re-login')
               await expireSession()
@@ -241,9 +240,8 @@ export function UserProvider({ children }) {
           setSessionExpired(false)
           setUser(session.user)
           // Auto-grant admin for specific emails
-          const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
           const userEmail = session.user.email?.toLowerCase() || ''
-          if (userEmail && adminEmails.includes(userEmail)) {
+          if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
             setIsAuthorityAdmin(true)
             setAuthorityTier('teammate')
             const currentTags = JSON.parse(localStorage.getItem('scrum-function-tags') || '[]')
@@ -258,7 +256,7 @@ export function UserProvider({ children }) {
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
             if (profile) {
-              applyProfile(profile)
+              applyProfile(profile, session.user.email)
             } else {
               console.error('[Auth] No profile found for user:', session.user.id)
             }
@@ -294,7 +292,7 @@ export function UserProvider({ children }) {
         } else if (session?.user && mounted) {
           // Re-fetch profile to pick up any tier/role changes made by leads
           const profile = await fetchProfile(session.user.id)
-          if (mounted && profile) applyProfile(profile)
+          if (mounted && profile) applyProfile(profile, session.user.email)
         }
       } catch (e) {
         // ignore network errors on wake
@@ -328,11 +326,11 @@ export function UserProvider({ children }) {
         filter: `id=eq.${user.id}`,
       }, (payload) => {
         if (payload.new) {
-          // Detect new roles added
+          // Detect new roles added — but ignore Co-Founder auto-grants
           const oldTags = functionTags || []
           const newTags = payload.new.function_tags || []
           const addedRoles = newTags.filter(t => !oldTags.includes(t))
-          const removedRoles = oldTags.filter(t => !newTags.includes(t))
+          const removedRoles = oldTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
           // Detect tier change
           const oldTier = authorityTier
           const newTier = payload.new.authority_tier
@@ -343,7 +341,7 @@ export function UserProvider({ children }) {
           } else if (newTier && newTier !== oldTier) {
             setRoleChangeAlert({ type: 'tier', tier: newTier })
           }
-          applyProfile(payload.new)
+          applyProfile(payload.new, user?.email)
         }
       })
       .subscribe()
