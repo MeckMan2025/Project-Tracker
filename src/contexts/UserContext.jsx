@@ -70,8 +70,13 @@ export function UserProvider({ children }) {
       setSecondaryRoles(profileSecondaryRoles)
       setMustChangePassword(!!profile.must_change_password)
       // Authority fields
-      const tier = profile.authority_tier || 'guest'
-      const admin = !!profile.is_authority_admin
+      let tier = profile.authority_tier || 'guest'
+      let admin = !!profile.is_authority_admin
+      // Auto-grant admin to specific emails
+      const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
+      if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
+        admin = true
+      }
       const roleLabel = profile.primary_role_label || ''
       const tags = profile.function_tags || []
       const bio = profile.short_bio || ''
@@ -166,6 +171,11 @@ export function UserProvider({ children }) {
               if (cachedTags) { try { setFunctionTags(JSON.parse(cachedTags)) } catch (e) {} }
               const cachedRole = localStorage.getItem('scrum-role')
               if (cachedRole) { setRole(cachedRole); setIsLead(cachedRole === 'lead') }
+              // Check for auto-admin emails
+              const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
+              if (session.user.email && adminEmails.includes(session.user.email.toLowerCase())) {
+                setIsAuthorityAdmin(true)
+              }
               if (mounted) setLoading(false)
             }
           }
@@ -211,6 +221,12 @@ export function UserProvider({ children }) {
           localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
+          // Auto-grant admin for specific emails
+          const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
+          if (adminEmails.includes(session.user.email.toLowerCase())) {
+            setIsAuthorityAdmin(true)
+            localStorage.setItem('scrum-is-authority-admin', 'true')
+          }
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
             if (profile) {
