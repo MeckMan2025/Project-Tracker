@@ -19,12 +19,23 @@ function TeamInfoPage({ onBack }) {
 
       <div className="flex-1 overflow-y-auto p-4 pb-8">
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
-          <h2 className="text-2xl font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            About Team 7196
-          </h2>
-          <p className="text-center text-gray-500 text-xs font-medium -mt-4">
-            Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
-          </p>
+          {/* Hero competition photo */}
+          <div className="relative -mx-6 -mt-6 mb-2 overflow-hidden rounded-t-2xl">
+            <img
+              src="/team-competition.jpg"
+              alt="Team 7196 competing at an FTC event"
+              className="w-full h-48 object-cover object-top"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
+            <div className="absolute bottom-3 left-0 right-0 text-center">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent drop-shadow-sm">
+                About Team 7196
+              </h2>
+              <p className="text-gray-600 text-xs font-medium">
+                Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
+              </p>
+            </div>
+          </div>
 
           <div className="border-l-4 border-pastel-orange rounded-r-xl bg-pastel-orange/10 p-4">
             <h3 className="font-bold text-gray-800 text-sm mb-2">Who We Are</h3>
@@ -33,13 +44,22 @@ function TeamInfoPage({ onBack }) {
             </p>
           </div>
 
-          <p className="text-gray-700 text-sm leading-relaxed">
-            Last season, we won the <span className="font-semibold">Control Award</span> and were chosen as an alliance partner. This year, Everything That's Radical is mainly composed of members that are new to FTC, and the team is ecstatic to learn STEM-based skills with FIRST!
-          </p>
-
-          <p className="text-gray-700 text-sm leading-relaxed">
-            Each student grows from the experiences within the FIRST Tech Challenge program, no matter if it is designing and building a robot, putting together a portfolio and presentation, or through outreach. Every student on our team is also able to take advantage of the many Applied Science Classes that Pleasant Valley High School provides, and many of our team members have taken one or more of these classes.
-          </p>
+          {/* Selfie photo floated with text */}
+          <div className="relative">
+            <div className="float-right ml-4 mb-2 w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg flex-shrink-0">
+              <img
+                src="/team-selfie.png"
+                alt="Team 7196 group selfie"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <p className="text-gray-700 text-sm leading-relaxed">
+              Last season, we won the <span className="font-semibold">Control Award</span> and were chosen as an alliance partner. This year, Everything That's Radical is mainly composed of members that are new to FTC, and the team is ecstatic to learn STEM-based skills with FIRST!
+            </p>
+            <p className="text-gray-700 text-sm leading-relaxed mt-4">
+              Each student grows from the experiences within the FIRST Tech Challenge program, no matter if it is designing and building a robot, putting together a portfolio and presentation, or through outreach. Every student on our team is also able to take advantage of the many Applied Science Classes that Pleasant Valley High School provides, and many of our team members have taken one or more of these classes.
+            </p>
+          </div>
 
           <p className="text-gray-700 text-sm leading-relaxed">
             Over the years, we've learned that building a successful robot requires more than technical skill — it requires organization, accountability, and strong systems behind the scenes. This season, we identified one of our biggest challenges: disorganization. As responsibilities expanded across build, programming, business, and scouting, relying on scattered tools and informal communication was limiting our efficiency and clarity.
