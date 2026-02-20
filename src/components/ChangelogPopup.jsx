@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 
@@ -35,27 +35,20 @@ const LATEST_ID = CHANGELOG[0].id
 
 function ChangelogPopup() {
   const { user } = useUser()
-  const [visible, setVisible] = useState(false)
-  const [newEntries, setNewEntries] = useState([])
+  const [dismissed, setDismissed] = useState(false)
 
-  useEffect(() => {
-    if (!user?.id) return
-    const key = `changelog-last-seen-${user.id}`
-    const lastSeen = parseInt(localStorage.getItem(key) || '0', 10)
-    if (LATEST_ID > lastSeen) {
-      setNewEntries(CHANGELOG.filter(e => e.id > lastSeen))
-      setVisible(true)
-    }
-  }, [user?.id])
+  if (!user?.id || dismissed) return null
+
+  const key = `changelog-last-seen-${user.id}`
+  const lastSeen = parseInt(localStorage.getItem(key) || '0', 10)
+  if (LATEST_ID <= lastSeen) return null
+
+  const newEntries = CHANGELOG.filter(e => e.id > lastSeen)
 
   const dismiss = () => {
-    if (user?.id) {
-      localStorage.setItem(`changelog-last-seen-${user.id}`, String(LATEST_ID))
-    }
-    setVisible(false)
+    localStorage.setItem(key, String(LATEST_ID))
+    setDismissed(true)
   }
-
-  if (!visible) return null
 
   return (
     <>
