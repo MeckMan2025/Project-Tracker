@@ -1,8 +1,23 @@
 import { useState, useEffect } from 'react'
-import { X, Users } from 'lucide-react'
+import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
+
+const STATUS_MAP = {
+  'available': { label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
+  'locked-in': { label: 'Locked In', icon: Lock, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  'dnd': { label: "Don't Talk To Me", icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+  'in-lab': { label: 'In Lab', icon: Wrench, color: 'text-blue-500', bg: 'bg-blue-50' },
+  'out': { label: 'Out', icon: Clock, color: 'text-gray-400', bg: 'bg-gray-50' },
+}
+
+const SKILL_LEVEL_COLORS = {
+  beginner: 'bg-gray-100 text-gray-600',
+  working: 'bg-blue-100 text-blue-700',
+  strong: 'bg-green-100 text-green-700',
+  expert: 'bg-purple-100 text-purple-700',
+}
 
 // ── Tier → card border color ──
 const TIER_BORDER = {
@@ -82,15 +97,42 @@ function PersonCard({ profile, onClick }) {
 
 // ── Profile Detail Modal ──
 function ProfileModal({ profile, onClose }) {
+  const [full, setFull] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  useEffect(() => {
+    if (!profile) return
+    setLoading(true)
+    fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${profile.id}&select=*`, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(rows => { if (rows[0]) setFull(rows[0]) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [profile?.id])
+
   if (!profile) return null
   const tier = deriveTier(profile)
   const tags = profile.function_tags || []
+  const data = full || profile
+  const status = STATUS_MAP[data.status] || STATUS_MAP['available']
+  const StatusIcon = status.icon
+  const skills = data.skills || {}
+  const tools = data.tools || []
+  const systemsOwned = data.systems_owned || []
+  const safetyCerts = data.safety_certs || []
+  const permissions = data.permissions || []
+  const commStyle = data.comm_style || ''
+  const commNotes = data.comm_notes || ''
 
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-50" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm pointer-events-auto relative max-h-[80vh] overflow-y-auto">
+        <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm pointer-events-auto relative max-h-[85vh] overflow-y-auto">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 p-1 rounded hover:bg-gray-100 transition-colors"
@@ -109,16 +151,21 @@ function ProfileModal({ profile, onClose }) {
             )}
           </div>
 
+          {/* Status */}
+          {full && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${status.bg}`}>
+              <StatusIcon size={16} className={status.color} />
+              <span className="text-sm font-medium text-gray-700">{status.label}</span>
+            </div>
+          )}
+
           {/* Function Tags */}
           {tags.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Function Tags</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Roles</p>
               <div className="flex flex-wrap gap-1.5">
                 {tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-blue/30 text-pastel-blue-dark"
-                  >
+                  <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-blue/30 text-pastel-blue-dark">
                     {tag}
                   </span>
                 ))}
@@ -126,20 +173,95 @@ function ProfileModal({ profile, onClose }) {
             </div>
           )}
 
-          {/* Short Bio */}
-          {profile.short_bio && (
+          {/* Bio */}
+          {data.short_bio && (
             <div className="mb-4">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Bio</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{profile.short_bio}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{data.short_bio}</p>
             </div>
           )}
 
-          {/* View Profile button — placeholder, links to profile tab */}
+          {loading && <p className="text-xs text-gray-400 text-center mb-4 animate-pulse">Loading full profile...</p>}
+
+          {full && (
+            <>
+              {/* Discipline */}
+              {data.discipline && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Discipline</p>
+                  <span className="text-sm px-2.5 py-1 rounded-full bg-pastel-orange/30 text-pastel-orange-dark font-medium">{data.discipline}</span>
+                </div>
+              )}
+
+              {/* Systems Owned */}
+              {systemsOwned.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Systems Owned</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {systemsOwned.map(s => (
+                      <span key={s} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-pink/30 text-pastel-pink-dark">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Skills */}
+              {Object.keys(skills).length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Skills</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(skills).map(([skill, level]) => (
+                      <span key={skill} className={`px-2.5 py-1 rounded-full text-xs font-medium ${SKILL_LEVEL_COLORS[level] || 'bg-gray-100 text-gray-600'}`}>
+                        {skill} · {level}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tools */}
+              {tools.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Tools</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tools.map(t => (
+                      <span key={t} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-blue/20 text-pastel-blue-dark">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Safety & Permissions */}
+              {(safetyCerts.length > 0 || permissions.length > 0) && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Safety & Permissions</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {safetyCerts.map(c => (
+                      <span key={c} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-orange/20 text-orange-700">{c}</span>
+                    ))}
+                    {permissions.map(p => (
+                      <span key={p} className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{p}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Communication */}
+              {(commStyle || commNotes) && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Communication</p>
+                  {commStyle && <p className="text-sm text-gray-700">Prefers: <span className="font-medium">{commStyle.replace('-', ' ')}</span></p>}
+                  {commNotes && <p className="text-sm text-gray-500 italic mt-1">{commNotes}</p>}
+                </div>
+              )}
+            </>
+          )}
+
           <button
             onClick={onClose}
             className="w-full mt-2 px-4 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium text-gray-700 text-center"
           >
-            View Profile
+            Close
           </button>
         </div>
       </div>

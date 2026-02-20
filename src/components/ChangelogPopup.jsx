@@ -5,6 +5,20 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 8,
+    date: '2026-02-20',
+    items: [
+      '👤 Org Chart now shows full profiles — status, skills, tools, systems, and more',
+    ],
+  },
+  {
+    id: 7,
+    date: '2026-02-20',
+    items: [
+      '🚀 New welcome screen with "Get Radical" sign-in and "The Radical Rundown" for scouts & visitors',
+    ],
+  },
+  {
     id: 6,
     date: '2026-02-20',
     items: [
