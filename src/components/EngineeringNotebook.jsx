@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
+import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2 } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
@@ -524,7 +524,9 @@ export default function EngineeringNotebook() {
                                             </a>
                                           )}
                                           {entry.photo_url && (
-                                            <a href={entry.photo_url} target="_blank" rel="noopener noreferrer" className="text-xs text-pastel-blue-dark hover:underline">Photo</a>
+                                            <a href={entry.photo_url} target="_blank" rel="noopener noreferrer">
+                                              <img src={entry.photo_url} alt="Entry photo" className="mt-1 max-h-32 rounded-lg object-cover" onError={e => { e.target.style.display = 'none' }} />
+                                            </a>
                                           )}
                                         </div>
                                         <div className="mt-2 pt-1.5 border-t border-gray-100">
@@ -661,23 +663,56 @@ export default function EngineeringNotebook() {
                 />
               </div>
 
-              {/* Photo URL (optional) */}
+              {/* Photo upload (optional) */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Photo/Screenshot URL (optional)</label>
-                <input
-                  type="url"
-                  value={formData.photoUrl}
-                  onChange={e => updateField('photoUrl', e.target.value)}
-                  placeholder="Paste image URL from Google Drive, Discord, etc."
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                />
-                {formData.photoUrl && (
-                  <img
-                    src={formData.photoUrl}
-                    alt="Preview"
-                    className="mt-2 max-h-32 rounded-lg object-cover"
-                    onError={e => { e.target.style.display = 'none' }}
-                  />
+                <label className="text-sm font-medium text-gray-600 block mb-1">Photo/Screenshot (optional)</label>
+                {formData.photoUrl ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={formData.photoUrl}
+                      alt="Preview"
+                      className="max-h-40 rounded-lg object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateField('photoUrl', '')}
+                      className="absolute -top-2 -right-2 bg-white rounded-full shadow p-0.5 text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-pastel-blue cursor-pointer transition-colors">
+                    <Camera size={18} className="text-gray-400" />
+                    <span className="text-sm text-gray-400">Tap to add a photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (file.size > 5 * 1024 * 1024) {
+                          alert('Photo must be under 5 MB')
+                          return
+                        }
+                        updateField('_uploading', true)
+                        const ext = file.name.split('.').pop() || 'jpg'
+                        const path = `${user.id}/${Date.now()}.${ext}`
+                        const { data, error } = await supabase.storage.from('notebook-photos').upload(path, file)
+                        if (error) {
+                          console.error('Upload failed:', error)
+                          alert('Photo upload failed — try again')
+                          updateField('_uploading', false)
+                          return
+                        }
+                        const { data: { publicUrl } } = supabase.storage.from('notebook-photos').getPublicUrl(data.path)
+                        updateField('photoUrl', publicUrl)
+                        updateField('_uploading', false)
+                      }}
+                    />
+                    {formData._uploading && <Loader2 size={16} className="animate-spin text-pastel-blue-dark ml-auto" />}
+                  </label>
                 )}
               </div>
 
