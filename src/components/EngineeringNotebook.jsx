@@ -689,26 +689,35 @@ export default function EngineeringNotebook() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const file = e.target.files?.[0]
                         if (!file) return
-                        if (file.size > 5 * 1024 * 1024) {
-                          alert('Photo must be under 5 MB')
+                        if (file.size > 10 * 1024 * 1024) {
+                          alert('Photo must be under 10 MB')
                           return
                         }
                         updateField('_uploading', true)
-                        const ext = file.name.split('.').pop() || 'jpg'
-                        const path = `${user.id}/${Date.now()}.${ext}`
-                        const { data, error } = await supabase.storage.from('notebook-photos').upload(path, file)
-                        if (error) {
-                          console.error('Upload failed:', error)
-                          alert('Photo upload failed — try again')
-                          updateField('_uploading', false)
-                          return
+                        const img = new Image()
+                        const reader = new FileReader()
+                        reader.onload = (ev) => {
+                          img.onload = () => {
+                            const canvas = document.createElement('canvas')
+                            const MAX = 800
+                            let w = img.width, h = img.height
+                            if (w > MAX || h > MAX) {
+                              if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+                              else { w = Math.round(w * MAX / h); h = MAX }
+                            }
+                            canvas.width = w
+                            canvas.height = h
+                            canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+                            updateField('photoUrl', dataUrl)
+                            updateField('_uploading', false)
+                          }
+                          img.src = ev.target.result
                         }
-                        const { data: { publicUrl } } = supabase.storage.from('notebook-photos').getPublicUrl(data.path)
-                        updateField('photoUrl', publicUrl)
-                        updateField('_uploading', false)
+                        reader.readAsDataURL(file)
                       }}
                     />
                     {formData._uploading && <Loader2 size={16} className="animate-spin text-pastel-blue-dark ml-auto" />}
