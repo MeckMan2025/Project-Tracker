@@ -49,12 +49,34 @@ function TeamInfoPage({ onBack }) {
             In response, we built <span className="font-semibold text-pastel-blue-dark">Everything That's Scrum</span>, our custom team management platform. The name reflects both our team identity and our commitment to structured, agile collaboration. Inspired by professional engineering workflows, the app centralizes everything our team needs to function effectively — scouting assignments, task boards, attendance tracking, organizational structure, communication tools, and performance data.
           </p>
 
-          <div className="border-l-4 border-pastel-pink rounded-r-xl bg-pastel-pink/10 p-4">
-            <h3 className="font-bold text-gray-800 text-sm mb-2">Scouting System</h3>
-            <p className="text-gray-700 text-sm leading-relaxed">
-              Our primary focus this season was improving scouting. We developed a structured scouting system that assigns alliance positions (Red 1, Blue 2, etc.), defines scouting groups, tracks submissions during active scouting periods, and ensures that data is reliable and verifiable. This system increases accountability during competition and strengthens our strategic decision-making.
-            </p>
+          <div className="border-l-4 border-pastel-pink rounded-r-xl bg-pastel-pink/10 p-4 space-y-3">
+            <h3 className="font-bold text-gray-800 text-sm">What's Inside the App</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ['🔍', 'Scouting Forms', 'Submit and track match scouting data with assigned alliance positions'],
+                ['📅', 'Scouting Schedule', 'Organized scouting groups and rotation assignments for competitions'],
+                ['📊', 'Scouting Data', 'View, analyze, and verify collected scouting submissions'],
+                ['📋', 'Task Boards', 'Kanban-style boards for managing build, programming, and business tasks'],
+                ['✅', 'To-Do Lists', 'Personal and team task tracking with assignments and priorities'],
+                ['📓', 'Engineering Notebook', 'Document build progress, decisions, and meeting notes with photo uploads'],
+                ['🏗️', 'Org Chart', 'Visual team hierarchy from Co-Founders down to members'],
+                ['📆', 'Calendar', 'Shared team calendar for meetings, competitions, and deadlines'],
+                ['📢', 'Announcements', 'Team-wide announcements and notifications'],
+                ['💬', 'Quick Chat', 'Real-time messaging for fast team communication'],
+                ['📥', 'Suggestions', 'Submit ideas and feedback for the team or the app'],
+                ['💡', 'Workshop Ideas', 'Plan and organize team workshops and skill-building sessions'],
+              ].map(([emoji, title, desc]) => (
+                <div key={title} className="bg-white/60 rounded-lg p-2">
+                  <p className="text-xs font-semibold text-gray-800">{emoji} {title}</p>
+                  <p className="text-xs text-gray-500 leading-snug">{desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
+
+          <p className="text-gray-700 text-sm leading-relaxed">
+            Our primary focus this season was improving scouting. We developed a structured scouting system that assigns alliance positions (Red 1, Blue 2, etc.), defines scouting groups, tracks submissions during active scouting periods, and ensures that data is reliable and verifiable. This system increases accountability during competition and strengthens our strategic decision-making.
+          </p>
 
           <p className="text-gray-700 text-sm leading-relaxed">
             Beyond scouting, the app brings clarity to leadership roles, creates visibility in task management, and reinforces responsibility across both business and technical teams. Instead of adapting to generic tools, we built a system tailored specifically to Team 7196's workflow.
