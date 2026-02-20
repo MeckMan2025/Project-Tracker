@@ -9,6 +9,8 @@ import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
 import PasswordInput from './components/PasswordInput'
 import LoginScreen from './components/LoginScreen'
+import LandingScreen from './components/LandingScreen'
+import TeamInfoPage from './components/TeamInfoPage'
 import ScoutingForm from './components/ScoutingForm'
 import TasksView from './components/TasksView'
 
@@ -288,6 +290,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [specialView, setSpecialView] = useState(null)
   const [loadError, setLoadError] = useState(null)
+  const [landingChoice, setLandingChoice] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
@@ -867,8 +870,22 @@ function App() {
     )
   }
 
-  if (!user || passwordRecovery) {
-    return <LoginScreen sessionExpired={sessionExpired} />
+  if (!user) {
+    if (passwordRecovery) {
+      return <LoginScreen sessionExpired={sessionExpired} />
+    }
+    if (landingChoice === 'login') {
+      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} />
+    }
+    if (landingChoice === 'team-info') {
+      return <TeamInfoPage onBack={() => setLandingChoice(null)} />
+    }
+    return (
+      <LandingScreen
+        onGetRadical={() => setLandingChoice('login')}
+        onRadicalRundown={() => setLandingChoice('team-info')}
+      />
+    )
   }
 
   if (mustChangePassword) {

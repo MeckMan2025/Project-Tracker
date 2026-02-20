@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 
-function LoginScreen({ sessionExpired }) {
+function LoginScreen({ sessionExpired, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
@@ -179,6 +179,18 @@ function LoginScreen({ sessionExpired }) {
               Sign In
             </button>
           </p>
+
+          {onBack && (
+            <p className="text-sm text-center text-gray-500">
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-pastel-blue-dark font-semibold hover:underline"
+              >
+                &larr; Back to Welcome
+              </button>
+            </p>
+          )}
         </form>
       </div>
     )
@@ -370,6 +382,18 @@ function LoginScreen({ sessionExpired }) {
             Sign Up
           </button>
         </p>
+
+        {onBack && (
+          <p className="text-sm text-center text-gray-500">
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-pastel-blue-dark font-semibold hover:underline"
+            >
+              &larr; Back to Welcome
+            </button>
+          </p>
+        )}
       </form>
     </div>
   )
