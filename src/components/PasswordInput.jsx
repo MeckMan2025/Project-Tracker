@@ -4,7 +4,7 @@ export default function PasswordInput({ className, ...props }) {
   const [show, setShow] = useState(false)
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <input
         {...props}
         type={show ? 'text' : 'password'}
@@ -14,7 +14,7 @@ export default function PasswordInput({ className, ...props }) {
       <button
         type="button"
         onClick={() => setShow(v => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none z-10"
         tabIndex={-1}
         aria-label={show ? 'Hide password' : 'Show password'}
       >
