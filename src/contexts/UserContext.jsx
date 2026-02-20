@@ -72,13 +72,20 @@ export function UserProvider({ children }) {
       // Authority fields
       let tier = profile.authority_tier || 'guest'
       let admin = !!profile.is_authority_admin
-      // Auto-grant admin to specific emails
+      // Auto-grant admin and lead tags to specific emails
       const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
       if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
         admin = true
+        tier = 'teammate'
       }
       const roleLabel = profile.primary_role_label || ''
-      const tags = profile.function_tags || []
+      let tags = profile.function_tags || []
+      // Auto-grant Co-Founder tag to specific emails
+      if (user?.email && adminEmails.includes(user.email.toLowerCase())) {
+        if (!tags.includes('Co-Founder')) {
+          tags = [...tags, 'Co-Founder']
+        }
+      }
       const bio = profile.short_bio || ''
       setAuthorityTier(tier)
       setIsAuthorityAdmin(admin)
@@ -175,6 +182,11 @@ export function UserProvider({ children }) {
               const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
               if (session.user.email && adminEmails.includes(session.user.email.toLowerCase())) {
                 setIsAuthorityAdmin(true)
+                setAuthorityTier('teammate')
+                setFunctionTags(prev => {
+                  if (!prev.includes('Co-Founder')) return [...prev, 'Co-Founder']
+                  return prev
+                })
               }
               if (mounted) setLoading(false)
             }
@@ -225,7 +237,14 @@ export function UserProvider({ children }) {
           const adminEmails = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
           if (adminEmails.includes(session.user.email.toLowerCase())) {
             setIsAuthorityAdmin(true)
+            setAuthorityTier('teammate')
+            setFunctionTags(prev => {
+              if (!prev.includes('Co-Founder')) return [...prev, 'Co-Founder']
+              return prev
+            })
             localStorage.setItem('scrum-is-authority-admin', 'true')
+            localStorage.setItem('scrum-authority-tier', 'teammate')
+            localStorage.setItem('scrum-function-tags', JSON.stringify([...(localStorage.getItem('scrum-function-tags') ? JSON.parse(localStorage.getItem('scrum-function-tags')) : []), 'Co-Founder'].filter((v, i, a) => a.indexOf(v) === i)))
           }
           const profile = await fetchProfile(session.user.id)
           if (mounted) {
