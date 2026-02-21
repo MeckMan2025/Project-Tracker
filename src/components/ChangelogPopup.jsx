@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 16,
+    date: '2026-02-20',
+    items: [
+      '📱 Leader & Founder cards now show full photos on mobile with overlapping glassmorphism bio cards',
+      '🎨 Fixed blue tint on Kayden\'s photo with color correction filter',
+    ],
+  },
+  {
     id: 15,
     date: '2026-02-20',
     items: [

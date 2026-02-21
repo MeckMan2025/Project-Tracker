@@ -59,6 +59,80 @@ function ThemeSongPlayer() {
   )
 }
 
+function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilter, bio, reverse }) {
+  const imgStyle = { ...(photoPosition && { objectPosition: photoPosition }), ...(photoFilter && { filter: photoFilter }) }
+  return (
+    <div className="rounded-2xl overflow-hidden shadow-md">
+      {/* Mobile: photo on top, bio below with overlap */}
+      <div className="md:hidden">
+        <div className="relative h-48 bg-gray-100">
+          <img
+            src={photo}
+            alt={name}
+            style={Object.keys(imgStyle).length ? imgStyle : undefined}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none'
+              e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/30', 'to-pastel-blue/30')
+              e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
+            }}
+          />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/90 to-transparent" />
+        </div>
+        <div className="relative -mt-8 mx-3 p-4 backdrop-blur-sm bg-white/80 rounded-xl shadow-sm">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-sm">{emoji}</span>
+            <h4 className="font-bold text-gray-800 text-sm">{role}</h4>
+          </div>
+          <h4 className={`font-bold text-base mb-1.5 ${color}`}>{name}</h4>
+          <p className="text-xs text-gray-700 leading-relaxed">{bio}</p>
+        </div>
+        <div className="h-3" />
+      </div>
+
+      {/* Desktop: side-by-side with glassmorphism overlap */}
+      <div className="hidden md:block relative min-h-[250px]">
+        <div className="absolute inset-0 flex" style={{ flexDirection: reverse ? 'row-reverse' : 'row' }}>
+          <div className="w-2/5 flex-shrink-0">
+            <img
+              src={photo}
+              alt={name}
+              style={Object.keys(imgStyle).length ? imgStyle : undefined}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none'
+                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/30', 'to-pastel-blue/30')
+                e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
+              }}
+            />
+          </div>
+          <div className={`flex-1 ${reverse ? 'bg-gradient-to-l' : 'bg-gradient-to-r'} from-white/70 to-white/90`} />
+        </div>
+        <div className="relative flex" style={{ flexDirection: reverse ? 'row-reverse' : 'row' }}>
+          <div className="w-2/5 flex-shrink-0" />
+          <div className={`flex-1 p-4 ${reverse ? '-mr-6 rounded-r-2xl text-right' : '-ml-6 rounded-l-2xl'} backdrop-blur-sm bg-white/60`}>
+            <div className={`flex items-center gap-1.5 mb-1.5 ${reverse ? 'justify-end' : ''}`}>
+              {reverse ? (
+                <>
+                  <h4 className="font-bold text-gray-800 text-sm">{role}</h4>
+                  <span className="text-sm">{emoji}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm">{emoji}</span>
+                  <h4 className="font-bold text-gray-800 text-sm">{role}</h4>
+                </>
+              )}
+            </div>
+            <h4 className={`font-bold text-base mb-1.5 ${color}`}>{name}</h4>
+            <p className="text-xs text-gray-700 leading-relaxed">{bio}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TeamInfoPage({ onBack }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col">
@@ -127,74 +201,34 @@ function TeamInfoPage({ onBack }) {
               Meet Our Leaders
             </h3>
 
-            {/* Leader 1 — Lily: Photo LEFT, Bio RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
-              <div className="absolute inset-0 flex">
-                <div className="w-2/5 flex-shrink-0">
-                  <img src="/leaders/lily.jpg" alt="Lily" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-orange/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">💼</span></div>' }} />
-                </div>
-                <div className="flex-1 bg-gradient-to-r from-white/70 to-white/90" />
-              </div>
-              <div className="relative flex">
-                <div className="w-2/5 flex-shrink-0" />
-                <div className="flex-1 p-4 -ml-6 backdrop-blur-sm bg-white/60 rounded-l-2xl">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-sm">💼</span>
-                    <h4 className="font-bold text-gray-800 text-sm">Business Lead</h4>
-                  </div>
-                  <h4 className="font-bold text-pastel-pink-dark text-base mb-1.5">Lily</h4>
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <LeaderCard
+              name="Lily"
+              role="Business Lead"
+              emoji="💼"
+              color="text-pastel-pink-dark"
+              photo="/leaders/lily.jpg"
+              bio="Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons."
+            />
 
-            {/* Leader 2 — Nick: Bio LEFT, Photo RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
-              <div className="absolute inset-0 flex">
-                <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
-                <div className="w-2/5 flex-shrink-0">
-                  <img src="/leaders/nick.jpg" alt="Nick" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-orange/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🔧</span></div>' }} />
-                </div>
-              </div>
-              <div className="relative flex">
-                <div className="flex-1 p-4 -mr-6 backdrop-blur-sm bg-white/60 rounded-r-2xl text-right">
-                  <div className="flex items-center justify-end gap-1.5 mb-1.5">
-                    <h4 className="font-bold text-gray-800 text-sm">Technical Lead</h4>
-                    <span className="text-sm">🔧</span>
-                  </div>
-                  <h4 className="font-bold text-pastel-blue-dark text-base mb-1.5">Nick</h4>
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it.
-                  </p>
-                </div>
-                <div className="w-2/5 flex-shrink-0" />
-              </div>
-            </div>
+            <LeaderCard
+              name="Nick"
+              role="Technical Lead"
+              emoji="🔧"
+              color="text-pastel-blue-dark"
+              photo="/leaders/nick.jpg"
+              bio="SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it."
+              reverse
+            />
 
-            {/* Leader 3 — Harshita: Photo LEFT, Bio RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
-              <div className="absolute inset-0 flex">
-                <div className="w-2/5 flex-shrink-0">
-                  <img src="/leaders/harshita.jpg" alt="Harshita" className="w-full h-full object-cover object-center" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
-                </div>
-                <div className="flex-1 bg-gradient-to-r from-white/70 to-white/90" />
-              </div>
-              <div className="relative flex">
-                <div className="w-2/5 flex-shrink-0" />
-                <div className="flex-1 p-4 -ml-6 backdrop-blur-sm bg-white/60 rounded-l-2xl">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-sm">🚀</span>
-                    <h4 className="font-bold text-gray-800 text-sm">Team Lead</h4>
-                  </div>
-                  <h4 className="font-bold text-pastel-orange-dark text-base mb-1.5">Harshita</h4>
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    Somebody has to keep all the moving parts aligned — and that's me. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <LeaderCard
+              name="Harshita"
+              role="Team Lead"
+              emoji="🚀"
+              color="text-pastel-orange-dark"
+              photo="/leaders/harshita.jpg"
+              photoPosition="center"
+              bio="Somebody has to keep all the moving parts aligned — and that's me. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together."
+            />
           </div>
 
           {/* Co-Founders */}
@@ -203,51 +237,27 @@ function TeamInfoPage({ onBack }) {
               The Founders
             </h3>
 
-            {/* Cofounder 1 — Kayden: Photo LEFT, Bio RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
-              <div className="absolute inset-0 flex">
-                <div className="w-2/5 flex-shrink-0">
-                  <img src="/leaders/kayden.jpg" alt="Kayden" className="w-full h-full object-cover object-bottom" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/40', 'to-pastel-orange/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🧠</span></div>' }} />
-                </div>
-                <div className="flex-1 bg-gradient-to-r from-white/70 to-white/90" />
-              </div>
-              <div className="relative flex">
-                <div className="w-2/5 flex-shrink-0" />
-                <div className="flex-1 p-4 -ml-6 backdrop-blur-sm bg-white/60 rounded-l-2xl">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-sm">🧠</span>
-                    <h4 className="font-bold text-gray-800 text-sm">Cofounder</h4>
-                  </div>
-                  <h4 className="font-bold text-pastel-pink-dark text-base mb-1.5">Kayden</h4>
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    If you see someone awake at 1:47 a.m. asking Claude to "just fix one more thing," that's probably me. Claude is an AI coding assistant by Anthropic — and my go-to partner for building this app. I led the development of our platform, turning our team's organization challenges into a structured, working system. The real technical challenge wasn't just building features — it was convincing Claude to properly interpret my late-night grammar mistakes. Somehow, between caffeine and debugging, we built something that actually works.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <LeaderCard
+              name="Kayden"
+              role="Cofounder"
+              emoji="🧠"
+              color="text-pastel-pink-dark"
+              photo="/leaders/kayden.jpg"
+              photoPosition="center bottom"
+              photoFilter="sepia(0.12) saturate(1.15) brightness(1.05)"
+              bio={`If you see someone awake at 1:47 a.m. asking Claude to "just fix one more thing," that's probably me. Claude is an AI coding assistant by Anthropic — and my go-to partner for building this app. I led the development of our platform, turning our team's organization challenges into a structured, working system. The real technical challenge wasn't just building features — it was convincing Claude to properly interpret my late-night grammar mistakes. Somehow, between caffeine and debugging, we built something that actually works.`}
+            />
 
-            {/* Cofounder 2 — Yukti: Bio LEFT, Photo RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
-              <div className="absolute inset-0 flex">
-                <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
-                <div className="w-2/5 flex-shrink-0">
-                  <img src="/leaders/yukti.jpg" alt="Yukti" style={{objectPosition: '50% 15%'}} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
-                </div>
-              </div>
-              <div className="relative flex">
-                <div className="flex-1 p-4 -mr-6 backdrop-blur-sm bg-white/60 rounded-r-2xl text-right">
-                  <div className="flex items-center justify-end gap-1.5 mb-1.5">
-                    <h4 className="font-bold text-gray-800 text-sm">Cofounder</h4>
-                    <span className="text-sm">🚀</span>
-                  </div>
-                  <h4 className="font-bold text-pastel-blue-dark text-base mb-1.5">Yukti</h4>
-                  <p className="text-xs text-gray-700 leading-relaxed">
-                    Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today.
-                  </p>
-                </div>
-                <div className="w-2/5 flex-shrink-0" />
-              </div>
-            </div>
+            <LeaderCard
+              name="Yukti"
+              role="Cofounder"
+              emoji="🚀"
+              color="text-pastel-blue-dark"
+              photo="/leaders/yukti.jpg"
+              photoPosition="50% 15%"
+              bio="Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today."
+              reverse
+            />
           </div>
 
           <p className="text-gray-700 text-sm leading-relaxed">
