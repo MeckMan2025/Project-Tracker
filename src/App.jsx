@@ -1013,7 +1013,7 @@ function App() {
           {specialView === 'quotes' ? (
             <QuotesManager onBack={() => setSpecialView(null)} />
           ) : specialView === 'attendance' ? (
-            <AttendanceManager onBack={() => setSpecialView(null)} onlineUsers={onlineUsers} />
+            <AttendanceManager onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">

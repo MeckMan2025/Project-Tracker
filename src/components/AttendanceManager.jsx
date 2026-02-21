@@ -23,7 +23,7 @@ const STATUS_COLORS = {
   excused: 'bg-orange-100 text-orange-700',
 }
 
-export default function AttendanceManager({ onBack, onlineUsers }) {
+export default function AttendanceManager({ onBack }) {
   const { username } = useUser()
   const { hasLeadTag } = usePermissions()
 
@@ -83,7 +83,6 @@ export default function AttendanceManager({ onBack, onlineUsers }) {
 
   // Get non-guest profiles
   const teamMembers = profiles.filter(p => p.authority_tier !== 'guest')
-  const onlineUsernames = (onlineUsers || []).filter(u => u.username && u.username !== '_anonymous').map(u => u.username)
 
   const handleTakeAttendance = async () => {
     const today = todayStr()
@@ -101,11 +100,12 @@ export default function AttendanceManager({ onBack, onlineUsers }) {
       created_at: new Date().toISOString(),
     }
 
+    // Default everyone to absent — lead taps to mark present
     const newRecords = teamMembers.map(p => ({
       id: genId(),
       session_id: sessionId,
       username: p.display_name,
-      status: onlineUsernames.includes(p.display_name) ? 'present' : 'absent',
+      status: 'absent',
       marked_by: username,
       created_at: new Date().toISOString(),
     }))
@@ -122,7 +122,9 @@ export default function AttendanceManager({ onBack, onlineUsers }) {
       await fetch(`${REST_URL}/rest/v1/attendance_records`, {
         method: 'POST', headers: REST_JSON, body: JSON.stringify(newRecords),
       })
-      showFeedback(`Attendance taken! ${newRecords.filter(r => r.status === 'present').length}/${newRecords.length} present.`)
+      showFeedback('Session created! Tap names to mark present.')
+      setSelectedSession(session)
+      setEditing(true)
     } catch (err) {
       console.error('Failed to take attendance:', err)
       showFeedback('Error saving attendance.')
@@ -345,12 +347,10 @@ export default function AttendanceManager({ onBack, onlineUsers }) {
           onClick={handleTakeAttendance}
           className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 transition-colors text-sm font-semibold text-gray-700"
         >
-          Take Attendance Now
+          Start Today's Session
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
-          Marks online users as present, offline as absent. One session per day.
-          <br />Currently online: {onlineUsernames.length > 0 ? onlineUsernames.join(', ') : 'none detected'}
-          <br />Raw prop: {JSON.stringify(onlineUsers)}
+          Creates a session with all members. Tap names to mark present. One session per day.
         </p>
 
         {sessions.length === 0 ? (
