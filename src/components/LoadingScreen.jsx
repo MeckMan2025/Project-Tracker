@@ -89,14 +89,11 @@ function LoadingScreen({ onComplete, onMusicStart }) {
       }}
     >
       {(!isFading || waiting) && (
-        <>
-          <button
-            type="button"
-            onClick={handleTap}
-            className="absolute inset-0 w-full h-full cursor-pointer bg-transparent z-0"
-          />
-
-          <div className="pointer-events-none z-10 flex flex-col items-center gap-5 px-4 w-full max-w-sm">
+        <div
+          onClick={!ready && !waiting ? handleTap : undefined}
+          className={`absolute inset-0 flex flex-col items-center justify-center ${!ready && !waiting ? 'cursor-pointer' : ''}`}
+        >
+          <div className="flex flex-col items-center gap-5 px-4 w-full max-w-sm pointer-events-none">
             {/* Logo + Title */}
             <div className="text-center">
               <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-16 h-16 mx-auto mb-2 drop-shadow-lg" />
@@ -124,7 +121,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
             </div>
           </div>
 
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
             {waiting && (
               <p className="text-sm font-bold text-gray-600 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow pointer-events-none">
                 Read up and get RADICAL
@@ -133,7 +130,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
             {ready ? (
               <button
                 onClick={finishLoading}
-                className="text-lg font-bold bg-gradient-to-r from-pastel-pink to-pastel-orange text-gray-700 px-10 py-3 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform animate-pulse"
+                className="pointer-events-auto text-lg font-bold bg-gradient-to-r from-pastel-pink to-pastel-orange text-gray-700 px-10 py-3 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform animate-pulse"
               >
                 LET'S GO!
               </button>
@@ -143,7 +140,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
               </span>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   )
