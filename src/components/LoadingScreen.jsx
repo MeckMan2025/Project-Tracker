@@ -22,6 +22,7 @@ function pickRandomGoals(arr, count) {
 function LoadingScreen({ onComplete, onMusicStart }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
+  const [waiting, setWaiting] = useState(false)
   const tappedRef = useRef(false)
   const randomGoals = useMemo(() => pickRandomGoals(TEAM_GOALS, 3), [])
 
@@ -53,11 +54,15 @@ function LoadingScreen({ onComplete, onMusicStart }) {
     if (tappedRef.current || isFading) return
     tappedRef.current = true
     startMusic()
-    setIsFading(true)
+    setWaiting(true)
     setTimeout(() => {
-      setIsVisible(false)
-      onComplete()
-    }, 500)
+      setWaiting(false)
+      setIsFading(true)
+      setTimeout(() => {
+        setIsVisible(false)
+        onComplete()
+      }, 500)
+    }, 5000)
   }
 
   if (!isVisible) return null
@@ -110,8 +115,8 @@ function LoadingScreen({ onComplete, onMusicStart }) {
             </div>
           </div>
 
-          <span className="absolute bottom-12 left-1/2 -translate-x-1/2 text-sm font-semibold animate-pulse bg-pastel-pink/80 text-gray-700 px-6 py-2.5 rounded-full shadow-lg pointer-events-none z-10">
-            Tap to start
+          <span className={`absolute bottom-12 left-1/2 -translate-x-1/2 text-sm font-semibold ${waiting ? '' : 'animate-pulse'} ${waiting ? 'bg-pastel-blue/80' : 'bg-pastel-pink/80'} text-gray-700 px-6 py-2.5 rounded-full shadow-lg pointer-events-none z-10 transition-colors`}>
+            {waiting ? 'Loading...' : 'Tap to start'}
           </span>
         </>
       )}
