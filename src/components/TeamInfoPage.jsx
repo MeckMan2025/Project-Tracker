@@ -196,6 +196,59 @@ function TeamInfoPage({ onBack }) {
             </div>
           </div>
 
+          {/* Co-Founders */}
+          <div className="space-y-5">
+            <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              The Founders
+            </h3>
+
+            {/* Cofounder 1 — Kayden: Photo LEFT, Bio RIGHT */}
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+              <div className="absolute inset-0 flex">
+                <div className="w-2/5 flex-shrink-0">
+                  <img src="/leaders/kayden.jpg" alt="Kayden" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/40', 'to-pastel-orange/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🧠</span></div>' }} />
+                </div>
+                <div className="flex-1 bg-gradient-to-r from-white/70 to-white/90" />
+              </div>
+              <div className="relative flex">
+                <div className="w-2/5 flex-shrink-0" />
+                <div className="flex-1 p-4 -ml-6 backdrop-blur-sm bg-white/60 rounded-l-2xl">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-sm">🧠</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Cofounder</h4>
+                  </div>
+                  <h4 className="font-bold text-pastel-pink-dark text-base mb-1.5">Kayden</h4>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    If you see someone awake at 1:47 a.m. asking Claude to "just fix one more thing," that's probably me. Claude is an AI coding assistant by Anthropic — and my go-to partner for building this app. I led the development of our platform, turning our team's organization challenges into a structured, working system. The real technical challenge wasn't just building features — it was convincing Claude to properly interpret my late-night grammar mistakes. Somehow, between caffeine and debugging, we built something that actually works.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Cofounder 2 — Yukti: Bio LEFT, Photo RIGHT */}
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+              <div className="absolute inset-0 flex">
+                <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
+                <div className="w-2/5 flex-shrink-0">
+                  <img src="/leaders/yukti.jpg" alt="Yukti" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
+                </div>
+              </div>
+              <div className="relative flex">
+                <div className="flex-1 p-4 -mr-6 backdrop-blur-sm bg-white/60 rounded-r-2xl text-right">
+                  <div className="flex items-center justify-end gap-1.5 mb-1.5">
+                    <h4 className="font-bold text-gray-800 text-sm">Cofounder</h4>
+                    <span className="text-sm">🚀</span>
+                  </div>
+                  <h4 className="font-bold text-pastel-blue-dark text-base mb-1.5">Yukti</h4>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today.
+                  </p>
+                </div>
+                <div className="w-2/5 flex-shrink-0" />
+              </div>
+            </div>
+          </div>
+
           <p className="text-gray-700 text-sm leading-relaxed">
             Over the years, we've learned that building a successful robot requires more than technical skill — it requires organization, accountability, and strong systems behind the scenes. This season, we identified one of our biggest challenges: disorganization. As responsibilities expanded across build, programming, business, and scouting, relying on scattered tools and informal communication was limiting our efficiency and clarity.
           </p>
