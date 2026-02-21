@@ -252,7 +252,7 @@ function TeamInfoPage({ onBack }) {
               emoji="🚀"
               color="text-pastel-blue-dark"
               photo="/leaders/yukti.jpg"
-              photoPosition="50% 25%"
+              photoPosition="50% 18%"
               bio="Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today."
               reverse
             />
