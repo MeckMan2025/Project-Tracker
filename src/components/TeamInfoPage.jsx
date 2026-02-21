@@ -65,7 +65,7 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
     <div className="shadow-md rounded-2xl overflow-hidden md:overflow-visible">
       {/* Mobile: checkerboard — photo offset to one side, bio overlaps the corner */}
       <div className="md:hidden pb-2">
-        <div className={`${reverse ? 'ml-auto' : ''} w-[62%] h-44 rounded-2xl overflow-hidden shadow-sm`}>
+        <div className={`${reverse ? 'ml-auto' : ''} w-[62%] h-52 rounded-2xl overflow-hidden shadow-sm`}>
           <img
             src={photo}
             alt={name}
@@ -155,7 +155,7 @@ function TeamInfoPage({ onBack }) {
             <img
               src="/team-hero.jpg"
               alt="Team 7196"
-              className="w-full h-48 object-cover"
+              className="w-full h-60 md:h-48 object-cover"
               style={{ objectPosition: 'center 0%' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
