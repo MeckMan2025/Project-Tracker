@@ -121,61 +121,75 @@ function TeamInfoPage({ onBack }) {
           </div>
 
           {/* Meet Our Leaders */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Meet Our Leaders
             </h3>
 
-            {/* Team Lead — Harshita */}
-            <div className="bg-white/70 rounded-xl p-4 shadow-sm">
-              <div className="flex gap-4 items-start">
-                <div className="flex-shrink-0">
-                  <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-pastel-blue/40 to-pastel-pink/40 border-2 border-white shadow-md overflow-hidden flex items-center justify-center">
-                    <img src="/leaders/harshita.jpg" alt="Harshita" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span class="text-2xl">🚀</span>' }} />
-                  </div>
+            {/* Leader 1 — Lily: Photo LEFT, Bio RIGHT */}
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+              <div className="absolute inset-0 flex">
+                <div className="w-2/5 flex-shrink-0">
+                  <img src="/leaders/lily.jpg" alt="Lily" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-orange/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">💼</span></div>' }} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-base">🚀</span>
-                    <h4 className="font-bold text-gray-800 text-sm">Team Lead — Harshita</h4>
+                <div className="flex-1 bg-gradient-to-r from-white/70 to-white/90" />
+              </div>
+              <div className="relative flex">
+                <div className="w-2/5 flex-shrink-0" />
+                <div className="flex-1 p-4 -ml-6 backdrop-blur-sm bg-white/60 rounded-l-2xl">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-sm">💼</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Business Lead</h4>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Somebody has to keep all the moving parts aligned — and that's me. I'm Harshita, the Team Lead for Team 7196. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together.
+                  <h4 className="font-bold text-pastel-pink-dark text-base mb-1.5">Lily</h4>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Business Lead & Technical Lead side by side on desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Business Lead — Lily */}
-              <div className="bg-white/70 rounded-xl p-4 shadow-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-pastel-orange/40 to-pastel-pink/40 border-2 border-white shadow-md overflow-hidden flex items-center justify-center mb-3">
-                    <img src="/leaders/lily.jpg" alt="Lily" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span class="text-2xl">💼</span>' }} />
-                  </div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-base">💼</span>
-                    <h4 className="font-bold text-gray-800 text-sm">Business Lead — Lily</h4>
-                  </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Behind every working robot is a working plan — and that's where I come in. I'm Lily, the Business Lead for Team 7196. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons.
-                  </p>
+            {/* Leader 2 — Nick: Bio LEFT, Photo RIGHT */}
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+              <div className="absolute inset-0 flex">
+                <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
+                <div className="w-2/5 flex-shrink-0">
+                  <img src="/leaders/nick.jpg" alt="Nick" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-orange/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🔧</span></div>' }} />
                 </div>
               </div>
+              <div className="relative flex">
+                <div className="flex-1 p-4 -mr-6 backdrop-blur-sm bg-white/60 rounded-r-2xl text-right">
+                  <div className="flex items-center justify-end gap-1.5 mb-1.5">
+                    <h4 className="font-bold text-gray-800 text-sm">Technical Lead</h4>
+                    <span className="text-sm">🔧</span>
+                  </div>
+                  <h4 className="font-bold text-pastel-blue-dark text-base mb-1.5">Nick</h4>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it.
+                  </p>
+                </div>
+                <div className="w-2/5 flex-shrink-0" />
+              </div>
+            </div>
 
-              {/* Technical Lead — Nick */}
-              <div className="bg-white/70 rounded-xl p-4 shadow-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-pastel-blue/40 to-pastel-orange/40 border-2 border-white shadow-md overflow-hidden flex items-center justify-center mb-3">
-                    <img src="/leaders/nick.jpg" alt="Nick" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span class="text-2xl">🔧</span>' }} />
+            {/* Leader 3 — Harshita: Photo LEFT, Bio RIGHT */}
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+              <div className="absolute inset-0 flex">
+                <div className="w-2/5 flex-shrink-0">
+                  <img src="/leaders/harshita.jpg" alt="Harshita" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
+                </div>
+                <div className="flex-1 bg-gradient-to-r from-white/70 to-white/90" />
+              </div>
+              <div className="relative flex">
+                <div className="w-2/5 flex-shrink-0" />
+                <div className="flex-1 p-4 -ml-6 backdrop-blur-sm bg-white/60 rounded-l-2xl">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-sm">🚀</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Team Lead</h4>
                   </div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-base">🔧</span>
-                    <h4 className="font-bold text-gray-800 text-sm">Technical Lead — Nick</h4>
-                  </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    SNAP! …did you hear that? Don't worry — I probably already fixed it. I'm Nick, the Technical Lead for Team 7196. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it.
+                  <h4 className="font-bold text-pastel-orange-dark text-base mb-1.5">Harshita</h4>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    Somebody has to keep all the moving parts aligned — and that's me. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together.
                   </p>
                 </div>
               </div>
