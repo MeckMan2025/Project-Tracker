@@ -40,7 +40,7 @@ export default function AttendanceManager({ onBack }) {
     Promise.all([
       fetch(`${REST_URL}/rest/v1/attendance_sessions?select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r, p]) => {
       setSessions(s)
       setRecords(r)
@@ -83,6 +83,13 @@ export default function AttendanceManager({ onBack }) {
   // All profiles with a display name (exclude explicit guests)
   const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest')
 
+  // Who's been seen in the last 2 minutes
+  const recentlySeen = (name) => {
+    const p = profiles.find(pr => pr.display_name === name)
+    if (!p?.last_seen_at) return false
+    return (Date.now() - new Date(p.last_seen_at).getTime()) < 2 * 60 * 1000
+  }
+
   const handleTakeAttendance = async () => {
     const today = todayStr()
     if (sessions.some(s => s.session_date === today)) {
@@ -99,12 +106,12 @@ export default function AttendanceManager({ onBack }) {
       created_at: new Date().toISOString(),
     }
 
-    // Everyone starts absent — lead marks present in edit mode
+    // Mark recently active users as present, rest as absent
     const newRecords = teamMembers.map(p => ({
       id: genId(),
       session_id: sessionId,
       username: p.display_name,
-      status: 'absent',
+      status: recentlySeen(p.display_name) ? 'present' : 'absent',
       marked_by: username,
       created_at: new Date().toISOString(),
     }))
@@ -133,7 +140,8 @@ export default function AttendanceManager({ onBack }) {
         showFeedback('Error saving records: ' + errText)
         return
       }
-      showFeedback(`Session created! ${newRecords.length} members added.`)
+      const presentCount = newRecords.filter(r => r.status === 'present').length
+      showFeedback(`Session created! ${presentCount}/${newRecords.length} present.`)
       setSelectedSession(session)
       setEditing(true)
     } catch (err) {
@@ -361,7 +369,13 @@ export default function AttendanceManager({ onBack }) {
           Start Today's Session
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
-          Creates a session with all members. Tap statuses to mark present.
+          {(() => {
+            const online = teamMembers.filter(p => recentlySeen(p.display_name))
+            return online.length > 0
+              ? `${online.length} online: ${online.map(p => p.display_name).join(', ')}`
+              : 'No users detected online yet'
+          })()}
+          {' — '}leads can edit after.
         </p>
 
         {sessions.length === 0 ? (

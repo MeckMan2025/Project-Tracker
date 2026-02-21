@@ -299,6 +299,17 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
 
+  // Heartbeat: update last_seen_at every 60s so attendance knows who's online
+  useEffect(() => {
+    if (!username) return
+    const ping = () => {
+      restUpdate('profiles', `display_name=eq.${encodeURIComponent(username)}`, { last_seen_at: new Date().toISOString() }).catch(() => {})
+    }
+    ping() // immediate
+    const interval = setInterval(ping, 60000)
+    return () => clearInterval(interval)
+  }, [username])
+
   // Keep localStorage cache in sync so refresh always has latest data
   const syncCache = useCallback((updatedTasks) => {
     try {

@@ -136,6 +136,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS primary_role_label text DEFAULT ''
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS function_tags jsonb DEFAULT '[]';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS short_bio text DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS must_change_password boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
 
 -- After leads sign up, run this to grant lead role:
 -- UPDATE profiles SET role = 'lead' WHERE display_name IN ('Kayden', 'Yukti', 'Nick', 'Harshita', 'Lily');
