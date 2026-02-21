@@ -8,7 +8,7 @@ const CHANGELOG = [
     id: 23,
     date: '2026-02-21',
     items: [
-      '🔊 Sound effects on Add Task and Add Board buttons — toggle on/off in Profile settings',
+      '🔊 Sound effects on Add Task, Add Board, and Notebook entry submit — toggle on/off in Profile settings',
     ],
   },
   {

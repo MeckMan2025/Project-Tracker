@@ -135,6 +135,8 @@ export default function EngineeringNotebook() {
     if (formData.whyOption === 'Other' && !formData.whyNote.trim()) return
     if (!formData.photoUrl && !formData.projectLink.trim()) return
 
+    if (localStorage.getItem('scrum-sfx-enabled') !== 'false') new Audio('/sounds/click.mp3').play().catch(() => {})
+
     const entryData = {
       username,
       meeting_date: meetingDate,
