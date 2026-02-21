@@ -122,13 +122,13 @@ function TeamInfoPage({ onBack }) {
           </div>
 
           {/* Meet Our Leaders */}
-          <div className="space-y-5">
+          <div className="space-y-5 max-w-lg mx-auto">
             <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Meet Our Leaders
             </h3>
 
             {/* Leader 1 — Lily: Photo LEFT, Bio RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
               <div className="absolute inset-0 flex">
                 <div className="w-2/5 flex-shrink-0">
                   <img src="/leaders/lily.jpg" alt="Lily" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-orange/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">💼</span></div>' }} />
@@ -151,7 +151,7 @@ function TeamInfoPage({ onBack }) {
             </div>
 
             {/* Leader 2 — Nick: Bio LEFT, Photo RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
               <div className="absolute inset-0 flex">
                 <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
                 <div className="w-2/5 flex-shrink-0">
@@ -174,7 +174,7 @@ function TeamInfoPage({ onBack }) {
             </div>
 
             {/* Leader 3 — Harshita: Photo LEFT, Bio RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
               <div className="absolute inset-0 flex">
                 <div className="w-2/5 flex-shrink-0">
                   <img src="/leaders/harshita.jpg" alt="Harshita" className="w-full h-full object-cover object-center" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
@@ -198,13 +198,13 @@ function TeamInfoPage({ onBack }) {
           </div>
 
           {/* Co-Founders */}
-          <div className="space-y-5">
+          <div className="space-y-5 max-w-lg mx-auto">
             <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               The Founders
             </h3>
 
             {/* Cofounder 1 — Kayden: Photo LEFT, Bio RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
               <div className="absolute inset-0 flex">
                 <div className="w-2/5 flex-shrink-0">
                   <img src="/leaders/kayden.jpg" alt="Kayden" className="w-full h-full object-cover object-bottom" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/40', 'to-pastel-orange/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🧠</span></div>' }} />
@@ -227,7 +227,7 @@ function TeamInfoPage({ onBack }) {
             </div>
 
             {/* Cofounder 2 — Yukti: Bio LEFT, Photo RIGHT */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[180px]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md min-h-[200px] md:min-h-[250px]">
               <div className="absolute inset-0 flex">
                 <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
                 <div className="w-2/5 flex-shrink-0">
