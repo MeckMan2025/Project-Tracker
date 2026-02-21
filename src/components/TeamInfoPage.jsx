@@ -242,7 +242,6 @@ function TeamInfoPage({ onBack }) {
               color="text-pastel-pink-dark"
               photo="/leaders/kayden.jpg"
               photoPosition="center 70%"
-              photoFilter="sepia(0.12) saturate(1.15) brightness(1.05)"
               bio={`If you see someone awake at 1:47 a.m. asking Claude to "just fix one more thing," that's probably me. Claude is an AI coding assistant by Anthropic — and my go-to partner for building this app. I led the development of our platform, turning our team's organization challenges into a structured, working system. The real technical challenge wasn't just building features — it was convincing Claude to properly interpret my late-night grammar mistakes. Somehow, between caffeine and debugging, we built something that actually works.`}
             />
 
