@@ -1,25 +1,6 @@
-import { useState, useMemo } from 'react'
-import { Sparkles, Target, X } from 'lucide-react'
+import { useState } from 'react'
+import { Sparkles, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
-
-const TEAM_GOALS = [
-  'Create 1 social media post per week to connect with our community and spread FIRST throughout the season',
-  'By January 1st, have at least 250 hours of outreach as a team by participating in at least 8 outreach events',
-  'Participate in the final tournament at the league qualifiers',
-  'Help strengthen and uplift other FIRST Teams by volunteering and collaborating with FLL teams and at least 3 other FTC teams',
-  'Have a successful intake system by the first comp — human player can load balls and cycle within 15 seconds',
-  'Keep an active engineering notebook the entire season — everyone at the meeting every night updates it with their tasks',
-  'Score over 60 points per match individually (across Auto, TeleOp, and End Game)',
-  'Have each team member rotate once a week across business, technical, and programming so everyone can confidently work in each department by end of season',
-  'By February 14th, drivers need to score 100 on a rules test and get at least 1 hour of driver practice per meeting, 2–3 times a week',
-  'Try to save money by not going below 25% of our budget by end of season',
-  'Win over 4 matches per competition',
-]
-
-function pickRandomGoals(arr, count) {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
-}
 
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
@@ -29,13 +10,6 @@ const CHANGELOG = [
     items: [
       '🔄 Spinning logo on the loading screen with transparent background',
       '🤘 Random radical loading messages — "Getting Radical...", "Revving the robots...", and more!',
-    ],
-  },
-  {
-    id: 25,
-    date: '2026-02-21',
-    items: [
-      '🎯 Team Goals Reminder now appears on the What\'s New popup — 3 random goals shown each time',
     ],
   },
   {
@@ -228,7 +202,6 @@ function ChangelogPopup() {
   if (LATEST_ID <= lastSeen) return null
 
   const newEntries = CHANGELOG.filter(e => e.id > lastSeen)
-  const randomGoals = useMemo(() => pickRandomGoals(TEAM_GOALS, 3), [])
 
   const dismiss = () => {
     localStorage.setItem(key, String(LATEST_ID))
@@ -260,24 +233,6 @@ function ChangelogPopup() {
                 </ul>
               </div>
             ))}
-          </div>
-
-          {/* Team Goals */}
-          <div className="px-5 pb-3">
-            <div className="rounded-xl bg-pastel-blue/20 p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Target size={14} className="text-pastel-blue-dark" />
-                <span className="text-xs font-semibold text-gray-600">Team Goals Reminder</span>
-              </div>
-              <ul className="space-y-1.5">
-                {randomGoals.map((goal, i) => (
-                  <li key={i} className="text-xs text-gray-600 flex gap-1.5">
-                    <span className="text-pastel-blue-dark mt-0.5 shrink-0">•</span>
-                    <span>{goal}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
 
           <div className="px-5 pb-5">
