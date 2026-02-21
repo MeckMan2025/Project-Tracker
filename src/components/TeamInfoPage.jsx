@@ -241,7 +241,7 @@ function TeamInfoPage({ onBack }) {
               emoji="🧠"
               color="text-pastel-pink-dark"
               photo="/leaders/kayden.jpg"
-              photoPosition="center bottom"
+              photoPosition="center 70%"
               photoFilter="sepia(0.12) saturate(1.15) brightness(1.05)"
               bio={`If you see someone awake at 1:47 a.m. asking Claude to "just fix one more thing," that's probably me. Claude is an AI coding assistant by Anthropic — and my go-to partner for building this app. I led the development of our platform, turning our team's organization challenges into a structured, working system. The real technical challenge wasn't just building features — it was convincing Claude to properly interpret my late-night grammar mistakes. Somehow, between caffeine and debugging, we built something that actually works.`}
             />
@@ -252,7 +252,7 @@ function TeamInfoPage({ onBack }) {
               emoji="🚀"
               color="text-pastel-blue-dark"
               photo="/leaders/yukti.jpg"
-              photoPosition="50% 15%"
+              photoPosition="50% 25%"
               bio="Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today."
               reverse
             />
