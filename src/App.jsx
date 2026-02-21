@@ -272,6 +272,10 @@ function App() {
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const [isLoading, setIsLoading] = useState(true)
+  const [radicalMsg] = useState(() => {
+    const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
+    return msgs[Math.floor(Math.random() * msgs.length)]
+  })
   const cachedData = useRef(getCachedData())
   const [tabs, setTabs] = useState(() => cachedData.current?.tabs || [...SYSTEM_TABS, ...DEFAULT_BOARDS])
   const [activeTab, setActiveTab] = useState(() => {
@@ -881,7 +885,7 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col items-center justify-center gap-4">
         <img src="/ScrumLogo-transparent.png" alt="Loading" className="w-20 h-20 animate-spin-slow" />
-        <p className="text-gray-500 text-lg animate-pulse">Loading...</p>
+        <p className="text-gray-500 text-lg animate-pulse font-semibold">{radicalMsg}</p>
       </div>
     )
   }
