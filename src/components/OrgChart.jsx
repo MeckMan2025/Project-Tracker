@@ -88,9 +88,13 @@ function PersonCard({ profile, onClick }) {
         ${TIER_BORDER[tier] || 'border-gray-200'}`}
     >
       {/* Avatar circle */}
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 mb-1.5 ${TIER_BG[tier] || 'bg-gray-100'}`}>
-        {(profile.display_name || '?').charAt(0).toUpperCase()}
-      </div>
+      {profile.avatar_url ? (
+        <img src={profile.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover mb-1.5" />
+      ) : (
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 mb-1.5 ${TIER_BG[tier] || 'bg-gray-100'}`}>
+          {(profile.display_name || '?').charAt(0).toUpperCase()}
+        </div>
+      )}
       <span className="text-sm font-semibold text-gray-800 text-center leading-tight truncate w-full">
         {profile.display_name || 'Unknown'}
       </span>
@@ -150,9 +154,13 @@ function ProfileModal({ profile, onClose, onViewProfile }) {
 
           {/* Avatar + Name */}
           <div className="flex flex-col items-center mb-4">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 mb-2 border-2 ${TIER_BORDER[tier]} ${TIER_BG[tier]}`}>
-              {(profile.display_name || '?').charAt(0).toUpperCase()}
-            </div>
+            {(data.avatar_url || profile.avatar_url) ? (
+              <img src={data.avatar_url || profile.avatar_url} alt="" className={`w-16 h-16 rounded-full object-cover mb-2 border-2 ${TIER_BORDER[tier]}`} />
+            ) : (
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 mb-2 border-2 ${TIER_BORDER[tier]} ${TIER_BG[tier]}`}>
+                {(profile.display_name || '?').charAt(0).toUpperCase()}
+              </div>
+            )}
             <h2 className="text-lg font-bold text-gray-800">{profile.display_name || 'Unknown'}</h2>
             {profile.primary_role_label && (
               <span className="text-sm text-gray-500">{profile.primary_role_label}</span>
@@ -314,7 +322,7 @@ function OrgChart({ onViewProfile }) {
     async function fetchProfiles() {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=id,display_name,primary_role_label,function_tags,short_bio,authority_tier,role`,
+          `${supabaseUrl}/rest/v1/profiles?select=id,display_name,primary_role_label,function_tags,short_bio,authority_tier,role,avatar_url`,
           { headers }
         )
         if (res.ok) {

@@ -1,13 +1,25 @@
+import { useState } from 'react'
 import { Calendar, User, Zap } from 'lucide-react'
 import { usePermissions } from '../hooks/usePermissions'
+import { useUser } from '../contexts/UserContext'
 import RequestsBadge from './RequestsBadge'
 import NotificationBell from './NotificationBell'
 
 function TasksView({ tasksByTab, tabs }) {
   const { canReviewRequests, isGuest } = usePermissions()
+  const { username } = useUser()
+  const [filter, setFilter] = useState('all') // 'all' | 'mine'
   const boardTabs = tabs.filter(t => !t.type)
 
-  const totalTasks = boardTabs.reduce((sum, tab) => sum + (tasksByTab[tab.id] || []).length, 0)
+  const filteredTasksByTab = {}
+  for (const tab of boardTabs) {
+    const tasks = tasksByTab[tab.id] || []
+    filteredTasksByTab[tab.id] = filter === 'mine'
+      ? tasks.filter(t => t.assignee && t.assignee.toLowerCase() === username?.toLowerCase())
+      : tasks
+  }
+
+  const totalTasks = boardTabs.reduce((sum, tab) => sum + (filteredTasksByTab[tab.id] || []).length, 0)
 
   const boardColors = [
     { border: 'border-pastel-blue', text: 'text-pastel-blue-dark' },
@@ -21,11 +33,29 @@ function TasksView({ tasksByTab, tabs }) {
         <div className="px-4 py-4 pl-14 md:pl-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              All Tasks
+              {filter === 'mine' ? 'My Tasks' : 'All Tasks'}
             </h1>
-            <p className="text-sm text-gray-500">{totalTasks} task{totalTasks !== 1 ? 's' : ''} across all boards</p>
+            <p className="text-sm text-gray-500">{totalTasks} task{totalTasks !== 1 ? 's' : ''} {filter === 'mine' ? 'assigned to you' : 'across all boards'}</p>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex bg-gray-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filter === 'all' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('mine')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  filter === 'mine' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                Mine
+              </button>
+            </div>
             <NotificationBell />
             {canReviewRequests && <RequestsBadge type="task" />}
           </div>
@@ -40,7 +70,7 @@ function TasksView({ tasksByTab, tabs }) {
         ) : (
           <div className="space-y-8 px-2 md:px-6">
             {boardTabs.map((tab, index) => {
-              const tasks = tasksByTab[tab.id] || []
+              const tasks = filteredTasksByTab[tab.id] || []
               const color = boardColors[index % boardColors.length]
               return (
                 <div key={tab.id}>
