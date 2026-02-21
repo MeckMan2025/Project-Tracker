@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { usePresence } from '../hooks/usePresence'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp } from 'lucide-react'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -24,10 +23,9 @@ const STATUS_COLORS = {
   excused: 'bg-orange-100 text-orange-700',
 }
 
-export default function AttendanceManager({ onBack }) {
+export default function AttendanceManager({ onBack, onlineUsers }) {
   const { username } = useUser()
   const { hasLeadTag } = usePermissions()
-  const { onlineUsers } = usePresence(username)
 
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
@@ -352,6 +350,7 @@ export default function AttendanceManager({ onBack }) {
         <p className="text-xs text-gray-400 text-center -mt-2">
           Marks online users as present, offline as absent. One session per day.
           <br />Currently online: {onlineUsernames.length > 0 ? onlineUsernames.join(', ') : 'none detected'}
+          <br />Raw prop: {JSON.stringify(onlineUsers)}
         </p>
 
         {sessions.length === 0 ? (
