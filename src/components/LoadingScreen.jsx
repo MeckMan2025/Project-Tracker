@@ -12,6 +12,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
     const SONG_MAP = {
       'intro': '/intro.mp3',
       'radical-robotics': '/radical-robotics.mp3',
+      'radical-theme': '/radical-theme.mp3',
     }
 
     let src

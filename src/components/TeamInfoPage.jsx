@@ -1,4 +1,63 @@
-import { ArrowLeft } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { ArrowLeft, Play, Pause, Music } from 'lucide-react'
+
+function ThemeSongPlayer() {
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef(null)
+
+  const toggle = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/radical-theme.mp3')
+      audioRef.current.addEventListener('ended', () => setPlaying(false))
+    }
+    if (playing) {
+      audioRef.current.pause()
+      setPlaying(false)
+    } else {
+      audioRef.current.play().catch(() => {})
+      setPlaying(true)
+    }
+  }
+
+  return (
+    <div className="border-l-4 border-pastel-pink rounded-r-xl bg-gradient-to-r from-pastel-pink/15 to-pastel-orange/10 p-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={toggle}
+          className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md transition-all ${
+            playing
+              ? 'bg-pastel-pink-dark text-white scale-105'
+              : 'bg-white text-pastel-pink-dark hover:bg-pastel-pink hover:text-gray-700'
+          }`}
+        >
+          {playing ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5">
+            <Music size={14} className="text-pastel-pink-dark" />
+            <h3 className="font-bold text-gray-800 text-sm">Our Team's Theme Song</h3>
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">Made with AI — listen to the Radical Robotics anthem!</p>
+        </div>
+      </div>
+      {playing && (
+        <div className="mt-3 flex gap-1 items-end justify-center h-4">
+          {[...Array(12)].map((_, i) => (
+            <div
+              key={i}
+              className="w-1 bg-pastel-pink-dark rounded-full animate-pulse"
+              style={{
+                height: `${8 + Math.random() * 12}px`,
+                animationDelay: `${i * 0.1}s`,
+                animationDuration: `${0.4 + Math.random() * 0.4}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function TeamInfoPage({ onBack }) {
   return (
@@ -101,6 +160,8 @@ function TeamInfoPage({ onBack }) {
           <p className="text-gray-700 text-sm leading-relaxed">
             Beyond scouting, the app brings clarity to leadership roles, creates visibility in task management, and reinforces responsibility across both business and technical teams. Instead of adapting to generic tools, we built a system tailored specifically to Team 7196's workflow.
           </p>
+
+          <ThemeSongPlayer />
 
           <div className="border-l-4 border-pastel-blue rounded-r-xl bg-pastel-blue/10 p-4">
             <p className="text-gray-700 text-sm leading-relaxed italic">

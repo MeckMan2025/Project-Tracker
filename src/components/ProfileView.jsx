@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell, Music } from 'lucide-react'
+import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell, Music, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
@@ -56,8 +56,9 @@ const PERMISSION_OPTIONS = [
 
 const MUSIC_OPTIONS = [
   { id: 'random', label: 'Random', description: 'Pick a random song each time' },
-  { id: 'intro', label: 'Intro', description: '/intro.mp3' },
-  { id: 'radical-robotics', label: 'Radical Robotics', description: '/radical-robotics.mp3' },
+  { id: 'intro', label: 'Intro', description: 'Original intro track' },
+  { id: 'radical-robotics', label: 'Radical Robotics', description: 'Radical Robotics anthem' },
+  { id: 'radical-theme', label: 'Theme Song', description: 'AI-generated team theme song' },
   { id: 'off', label: 'Off', description: 'No music on startup' },
 ]
 
@@ -74,6 +75,7 @@ const DEFAULT_PROFILE_DATA = {
   permissions: [],
   comm_style: '',
   comm_notes: '',
+  avatar_url: '',
 }
 
 function ProfileView({ viewingProfileId, onClearViewing }) {
@@ -167,6 +169,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
           permissions: data.permissions || [],
           comm_style: data.comm_style || '',
           comm_notes: data.comm_notes || '',
+          avatar_url: data.avatar_url || '',
         }))
         if (data.notification_prefs) {
           setNotifPrefs(data.notification_prefs)
@@ -229,6 +232,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       permissions: profile.permissions,
       comm_style: profile.comm_style,
       comm_notes: profile.comm_notes,
+      avatar_url: profile.avatar_url,
       notification_prefs: notifPrefs,
       music_preference: musicPref,
     }
@@ -333,6 +337,35 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     })
   }
 
+  const avatarInputRef = useRef(null)
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { alert('Photo must be under 10 MB'); return }
+    const img = new Image()
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX = 256
+        let w = img.width, h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
+        setProfile(prev => ({ ...prev, avatar_url: dataUrl }))
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
   const currentStatus = STATUS_OPTIONS.find(s => s.value === profile.status) || STATUS_OPTIONS[0]
   const CurrentStatusIcon = currentStatus.icon
 
@@ -391,9 +424,13 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             {/* Identity */}
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
-                  <span className="text-2xl font-bold text-white">{(vp.display_name || '?').charAt(0).toUpperCase()}</span>
-                </div>
+                {vp.avatar_url ? (
+                  <img src={vp.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
+                    <span className="text-2xl font-bold text-white">{(vp.display_name || '?').charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-bold text-gray-800">{vp.display_name || 'Unknown'}</h2>
                   {vp.primary_role_label && <p className="text-sm text-gray-600 font-medium">{vp.primary_role_label}</p>}
@@ -522,8 +559,18 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
           {/* ─── Header / Identity ─── */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
-                <User size={32} className="text-white" />
+              <div className="relative shrink-0 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full object-cover" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center">
+                    <User size={32} className="text-white" />
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera size={20} className="text-white" />
+                </div>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="space-y-2 mb-2">
