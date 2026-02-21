@@ -156,7 +156,7 @@ function TeamInfoPage({ onBack }) {
               src="/team-hero.jpg"
               alt="Team 7196"
               className="w-full h-48 object-cover"
-              style={{ objectPosition: 'center 10%' }}
+              style={{ objectPosition: 'center 0%' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
             <div className="absolute bottom-3 left-0 right-0 text-center">
@@ -251,7 +251,7 @@ function TeamInfoPage({ onBack }) {
               emoji="🚀"
               color="text-pastel-blue-dark"
               photo="/leaders/yukti.jpg"
-              photoPosition="50% 10%"
+              photoPosition="50% 0%"
               bio="Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today."
               reverse
             />
