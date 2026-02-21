@@ -35,6 +35,7 @@ export default function AttendanceManager({ onBack }) {
   const [feedback, setFeedback] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
   // Fetch all sessions, records, and profiles
+  // Fetch sessions, records, profiles on mount
   useEffect(() => {
     const headers = REST_HEADERS
     Promise.all([
@@ -46,6 +47,17 @@ export default function AttendanceManager({ onBack }) {
       setRecords(r)
       setProfiles(p)
     }).catch(() => {})
+  }, [])
+
+  // Refresh profiles every 30s to keep last_seen_at current
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
+        .then(r => r.ok ? r.json() : null)
+        .then(p => { if (p) setProfiles(p) })
+        .catch(() => {})
+    }, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   // Real-time subscriptions
@@ -97,6 +109,23 @@ export default function AttendanceManager({ onBack }) {
       return
     }
 
+    // Re-fetch profiles right now to get fresh last_seen_at
+    let freshProfiles = profiles
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
+      if (res.ok) {
+        freshProfiles = await res.json()
+        setProfiles(freshProfiles)
+      }
+    } catch {}
+
+    const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest')
+    const isRecentlySeen = (name) => {
+      const p = freshProfiles.find(pr => pr.display_name === name)
+      if (!p?.last_seen_at) return false
+      return (Date.now() - new Date(p.last_seen_at).getTime()) < 2 * 60 * 1000
+    }
+
     const sessionId = genId()
     const session = {
       id: sessionId,
@@ -107,11 +136,11 @@ export default function AttendanceManager({ onBack }) {
     }
 
     // Mark recently active users as present, rest as absent
-    const newRecords = teamMembers.map(p => ({
+    const newRecords = freshMembers.map(p => ({
       id: genId(),
       session_id: sessionId,
       username: p.display_name,
-      status: recentlySeen(p.display_name) ? 'present' : 'absent',
+      status: isRecentlySeen(p.display_name) ? 'present' : 'absent',
       marked_by: username,
       created_at: new Date().toISOString(),
     }))
