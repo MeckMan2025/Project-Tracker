@@ -306,8 +306,13 @@ function App() {
   // Heartbeat: update last_seen_at every 60s so attendance knows who's online
   useEffect(() => {
     if (!username) return
-    const ping = () => {
-      restUpdate('profiles', `display_name=eq.${encodeURIComponent(username)}`, { last_seen_at: new Date().toISOString() }).catch(() => {})
+    const ping = async () => {
+      try {
+        await restUpdate('profiles', `display_name=eq.${encodeURIComponent(username)}`, { last_seen_at: new Date().toISOString() })
+        console.log('[heartbeat] pinged last_seen_at for', username)
+      } catch (err) {
+        console.error('[heartbeat] FAILED for', username, err.message)
+      }
     }
     ping() // immediate
     const interval = setInterval(ping, 60000)
