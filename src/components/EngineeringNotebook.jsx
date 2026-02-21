@@ -22,6 +22,7 @@ const WHY_OPTIONS = [
   'Prepares for upcoming competition',
   'Improves team workflow/process',
   'Research & learning',
+  'Other',
 ]
 
 const ENGAGEMENT_OPTIONS = [
@@ -131,6 +132,8 @@ export default function EngineeringNotebook() {
   const handleSubmitEntry = async () => {
     if (!formData.whatDid.trim()) return
     if (!formData.whyOption) return
+    if (formData.whyOption === 'Other' && !formData.whyNote.trim()) return
+    if (!formData.photoUrl && !formData.projectLink.trim()) return
 
     const entryData = {
       username,
@@ -631,9 +634,12 @@ export default function EngineeringNotebook() {
                   type="text"
                   value={formData.whyNote}
                   onChange={e => updateField('whyNote', e.target.value)}
-                  placeholder="Optional: add a short note"
-                  className="w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                  placeholder={formData.whyOption === 'Other' ? 'Required: explain why this matters' : 'Optional: add a short note'}
+                  className={`w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${formData.whyOption === 'Other' && !formData.whyNote.trim() ? 'border-red-300' : ''}`}
                 />
+                {formData.whyOption === 'Other' && !formData.whyNote.trim() && (
+                  <p className="text-xs text-red-400 mt-0.5">A note is required when selecting "Other"</p>
+                )}
               </div>
 
               {/* Engagement */}
@@ -657,7 +663,7 @@ export default function EngineeringNotebook() {
 
               {/* Project link (optional) */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Project link (optional)</label>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Project link {formData.photoUrl ? '(optional)' : '(required if no photo)'}</label>
                 <input
                   type="url"
                   value={formData.projectLink}
@@ -669,7 +675,7 @@ export default function EngineeringNotebook() {
 
               {/* Photo upload (optional) */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Photo/Screenshot (optional)</label>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Photo/Screenshot {formData.projectLink.trim() ? '(optional)' : '(required if no link)'}</label>
                 {formData.photoUrl ? (
                   <div className="relative inline-block">
                     <img
@@ -732,7 +738,7 @@ export default function EngineeringNotebook() {
               {/* Submit */}
               <button
                 onClick={handleSubmitEntry}
-                disabled={!formData.whatDid.trim() || !formData.whyOption}
+                disabled={!formData.whatDid.trim() || !formData.whyOption || (formData.whyOption === 'Other' && !formData.whyNote.trim()) || (!formData.photoUrl && !formData.projectLink.trim())}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-colors bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Send size={18} />
