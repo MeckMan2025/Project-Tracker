@@ -5,6 +5,41 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 22,
+    date: '2026-02-21',
+    items: [
+      '🏆 WE\'RE GOING TO STATE! Confetti celebration + banner added — good luck team!',
+    ],
+  },
+  {
+    id: 21,
+    date: '2026-02-21',
+    items: [
+      '⚡ Fixed account creation being slow/failing — now shows actual error messages instead of generic "non-2xx" error',
+    ],
+  },
+  {
+    id: 20,
+    date: '2026-02-21',
+    items: [
+      '📝 Task descriptions are now required when creating or editing tasks',
+    ],
+  },
+  {
+    id: 19,
+    date: '2026-02-21',
+    items: [
+      '🔧 Fixed whitelist & account creation not working due to auth token issue',
+    ],
+  },
+  {
+    id: 18,
+    date: '2026-02-21',
+    items: [
+      '👑 Harshita (Team Lead) now appears first in Meet Our Leaders section',
+    ],
+  },
+  {
     id: 17,
     date: '2026-02-21',
     items: [

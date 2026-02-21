@@ -30,6 +30,7 @@ import AttendanceManager from './components/AttendanceManager'
 import AttendanceView from './components/AttendanceView'
 import WorkshopIdeas from './components/WorkshopIdeas'
 import ChangelogPopup from './components/ChangelogPopup'
+import StateCelebration from './components/StateCelebration'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -900,6 +901,7 @@ function App() {
       {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {!isLoading && <ChangelogPopup />}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col ${isLoading ? 'hidden' : ''}`}>
+      <StateCelebration />
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
           <span>{loadError}</span>
