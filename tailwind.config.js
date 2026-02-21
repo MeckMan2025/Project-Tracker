@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      animation: {
+        'spin-slow': 'spin 2s linear infinite',
+      },
       colors: {
         pastel: {
           blue: '#A8D8EA',

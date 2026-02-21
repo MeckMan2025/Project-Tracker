@@ -9,6 +9,7 @@ const CHANGELOG = [
     date: '2026-02-21',
     items: [
       '🔊 Sound effects on Add Task, Add Board, and Notebook entry submit — toggle on/off in Profile settings',
+      '🔄 Spinning logo on loading screen',
     ],
   },
   {

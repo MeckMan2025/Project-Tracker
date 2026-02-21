@@ -879,7 +879,8 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col items-center justify-center gap-4">
+        <img src="/ScrumLogo.png" alt="Loading" className="w-20 h-20 animate-spin-slow" />
         <p className="text-gray-500 text-lg animate-pulse">Loading...</p>
       </div>
     )
