@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell, Music, Camera } from 'lucide-react'
+import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Bell, Music, Camera, Volume2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
@@ -121,6 +121,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   const [pwSubmitting, setPwSubmitting] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [musicPref, setMusicPref] = useState(() => localStorage.getItem('scrum-music-pref') || 'off')
+  const [sfxEnabled, setSfxEnabled] = useState(() => localStorage.getItem('scrum-sfx-enabled') !== 'false')
   const [taskStats, setTaskStats] = useState({ active: 0, blocked: 0, total: 0 })
   const [assignedTasks, setAssignedTasks] = useState([])
 
@@ -1089,6 +1090,34 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                   <p className="text-xs text-gray-400">{opt.description}</p>
                 </button>
               ))}
+            </div>
+          </section>
+
+          {/* ─── Sound Effects ─── */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Volume2 size={16} className="text-pastel-blue-dark" />
+              Sound Effects
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Enable button sounds</p>
+                <p className="text-xs text-gray-400">Play a sound when adding tasks and boards</p>
+              </div>
+              <button
+                onClick={() => {
+                  const next = !sfxEnabled
+                  setSfxEnabled(next)
+                  localStorage.setItem('scrum-sfx-enabled', String(next))
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  sfxEnabled ? 'bg-pastel-blue-dark' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  sfxEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
             </div>
           </section>
 

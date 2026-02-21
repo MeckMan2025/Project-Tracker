@@ -16,6 +16,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
     skills: task?.skills || [],
   })
   const [teamMembers, setTeamMembers] = useState([])
+  const [showErrors, setShowErrors] = useState(false)
 
   // Fetch non-guest profiles for the assignee dropdown (leads only)
   useEffect(() => {
@@ -48,9 +49,18 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
     loadMembers()
   }, [isLead])
 
+  const descriptionMissing = !formData.description.trim()
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.title.trim()) return
+    if (!formData.title.trim() || descriptionMissing) {
+      setShowErrors(true)
+      return
+    }
+
+    if (!task && localStorage.getItem('scrum-sfx-enabled') !== 'false') {
+      new Audio('/sounds/click.mp3').play().catch(() => {})
+    }
 
     onSave({
       ...task,
@@ -100,15 +110,23 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              Description *
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              onChange={(e) => {
+                setFormData({ ...formData, description: e.target.value })
+                if (showErrors && e.target.value.trim()) setShowErrors(false)
+              }}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
+                showErrors && descriptionMissing ? 'border-red-500' : ''
+              }`}
               placeholder="Describe the task"
               rows={3}
             />
+            {showErrors && descriptionMissing && (
+              <p className="text-red-500 text-sm mt-1">Description is required</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -200,7 +218,12 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors font-medium"
+              disabled={descriptionMissing}
+              className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
+                descriptionMissing
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-pastel-pink hover:bg-pastel-pink-dark'
+              }`}
             >
               {task ? 'Save Changes' : requestMode ? 'Send Request' : 'Add Task'}
             </button>
