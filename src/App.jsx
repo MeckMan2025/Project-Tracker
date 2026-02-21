@@ -880,7 +880,7 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col items-center justify-center gap-4">
-        <img src="/ScrumLogo.png" alt="Loading" className="w-20 h-20 animate-spin-slow" />
+        <img src="/ScrumLogo-transparent.png" alt="Loading" className="w-20 h-20 animate-spin-slow" />
         <p className="text-gray-500 text-lg animate-pulse">Loading...</p>
       </div>
     )
@@ -1043,6 +1043,14 @@ function App() {
                   >
                     <span className="text-lg font-semibold text-gray-700">Attendance</span>
                     <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
+                  </button>
+                )}
+                {hasLeadTag && (
+                  <button
+                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                  >
+                    <span className="text-lg font-semibold text-gray-700">Comp Day</span>
+                    <p className="text-sm text-gray-400 mt-1">Coming soon</p>
                   </button>
                 )}
                 {hasLeadTag && ['SWOT Mode', 'Meeting Stats', 'Scouting Mode', 'Testing'].map(label => (
