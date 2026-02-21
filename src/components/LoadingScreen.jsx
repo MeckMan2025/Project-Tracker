@@ -82,22 +82,35 @@ function LoadingScreen({ onComplete, onMusicStart }) {
             className="absolute inset-0 w-full h-full cursor-pointer bg-transparent z-0"
           />
 
-          {/* Goals card */}
-          <div className="w-full max-w-xs mx-auto px-4 mb-6 pointer-events-none z-10">
-            <div className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg p-4">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 text-center">Team Goals</p>
-              <ul className="space-y-2">
+          <div className="pointer-events-none z-10 flex flex-col items-center gap-5 px-4 w-full max-w-sm">
+            {/* Logo + Title */}
+            <div className="text-center">
+              <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-16 h-16 mx-auto mb-2 drop-shadow-lg" />
+              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent drop-shadow-sm">
+                Everything That's Scrum
+              </h1>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Team 7196 — Radical Robotics</p>
+            </div>
+
+            {/* Goals card */}
+            <div className="w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden">
+              <div className="bg-gradient-to-r from-pastel-blue/40 via-pastel-pink/40 to-pastel-orange/40 px-4 py-2">
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-widest text-center">Today's Goals</p>
+              </div>
+              <div className="p-4 space-y-3">
                 {randomGoals.map((goal, i) => (
-                  <li key={i} className="text-sm text-gray-700 flex gap-2">
-                    <span className="text-pastel-pink-dark mt-0.5 shrink-0">&#x2022;</span>
-                    <span>{goal}</span>
-                  </li>
+                  <div key={i} className="flex gap-3 items-start">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-pastel-pink to-pastel-orange flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm text-gray-700 leading-snug pt-0.5">{goal}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
 
-          <span className="absolute bottom-16 left-1/2 -translate-x-1/2 text-sm font-semibold animate-pulse bg-pastel-pink/80 text-gray-700 px-4 py-2 rounded-full shadow-md pointer-events-none z-10">
+          <span className="absolute bottom-12 left-1/2 -translate-x-1/2 text-sm font-semibold animate-pulse bg-pastel-pink/80 text-gray-700 px-6 py-2.5 rounded-full shadow-lg pointer-events-none z-10">
             Tap to start
           </span>
         </>
