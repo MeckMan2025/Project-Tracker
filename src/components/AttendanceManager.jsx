@@ -83,7 +83,7 @@ export default function AttendanceManager({ onBack, onlineUsers }) {
 
   // Get non-guest profiles
   const teamMembers = profiles.filter(p => p.authority_tier !== 'guest')
-  const onlineUsernames = (onlineUsers || []).map(u => u.username)
+  const onlineUsernames = (onlineUsers || []).filter(u => u.username && u.username !== '_anonymous').map(u => u.username)
 
   const handleTakeAttendance = async () => {
     const today = todayStr()
@@ -349,6 +349,7 @@ export default function AttendanceManager({ onBack, onlineUsers }) {
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
           Marks online users as present, offline as absent. One session per day.
+          <br />Currently online: {onlineUsernames.length > 0 ? onlineUsernames.join(', ') : 'none detected'}
         </p>
 
         {sessions.length === 0 ? (
