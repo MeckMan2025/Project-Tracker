@@ -114,19 +114,31 @@ export default function AttendanceManager({ onBack }) {
     setRecords(prev => [...prev, ...newRecords])
 
     try {
-      await fetch(`${REST_URL}/rest/v1/attendance_sessions`, {
+      const sessRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions`, {
         method: 'POST', headers: REST_JSON, body: JSON.stringify(session),
       })
+      if (!sessRes.ok) {
+        const errText = await sessRes.text()
+        console.error('Session insert failed:', errText)
+        showFeedback('Error creating session: ' + errText)
+        return
+      }
       // Insert records in batch
-      await fetch(`${REST_URL}/rest/v1/attendance_records`, {
+      const recRes = await fetch(`${REST_URL}/rest/v1/attendance_records`, {
         method: 'POST', headers: REST_JSON, body: JSON.stringify(newRecords),
       })
-      showFeedback('Session created! Tap statuses to mark present.')
+      if (!recRes.ok) {
+        const errText = await recRes.text()
+        console.error('Records insert failed:', errText)
+        showFeedback('Error saving records: ' + errText)
+        return
+      }
+      showFeedback(`Session created! ${newRecords.length} members added.`)
       setSelectedSession(session)
       setEditing(true)
     } catch (err) {
       console.error('Failed to take attendance:', err)
-      showFeedback('Error saving attendance.')
+      showFeedback('Error: ' + err.message)
     }
   }
 
@@ -350,7 +362,6 @@ export default function AttendanceManager({ onBack }) {
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
           Creates a session with all members. Tap statuses to mark present.
-          <br />{profiles.length} profiles loaded, {teamMembers.length} non-guest
         </p>
 
         {sessions.length === 0 ? (
