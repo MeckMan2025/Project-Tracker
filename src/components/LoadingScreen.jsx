@@ -51,12 +51,11 @@ function LoadingScreen({ onComplete, onMusicStart }) {
   }
 
   const handleTap = () => {
-    if (tappedRef.current || isFading) return
+    if (tappedRef.current) return
     tappedRef.current = true
     startMusic()
     setWaiting(true)
     setTimeout(() => {
-      setWaiting(false)
       setIsFading(true)
       setTimeout(() => {
         setIsVisible(false)
@@ -79,7 +78,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {!isFading && (
+      {(!isFading || waiting) && (
         <>
           <button
             type="button"
