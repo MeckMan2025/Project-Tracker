@@ -62,10 +62,10 @@ function ThemeSongPlayer() {
 function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilter, bio, reverse }) {
   const imgStyle = { ...(photoPosition && { objectPosition: photoPosition }), ...(photoFilter && { filter: photoFilter }) }
   return (
-    <div className="rounded-2xl overflow-hidden shadow-md">
-      {/* Mobile: photo on top, bio below with overlap */}
-      <div className="md:hidden">
-        <div className="relative h-48 bg-gray-100">
+    <div className="shadow-md rounded-2xl overflow-hidden md:overflow-visible">
+      {/* Mobile: checkerboard — photo offset to one side, bio overlaps the corner */}
+      <div className="md:hidden pb-2">
+        <div className={`${reverse ? 'ml-auto' : ''} w-[62%] h-44 rounded-2xl overflow-hidden shadow-sm`}>
           <img
             src={photo}
             alt={name}
@@ -77,17 +77,15 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
               e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
             }}
           />
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/90 to-transparent" />
         </div>
-        <div className="relative -mt-8 mx-3 p-4 backdrop-blur-sm bg-white/80 rounded-xl shadow-sm">
+        <div className={`${reverse ? 'mr-auto' : 'ml-auto'} w-[80%] -mt-10 relative z-10 p-3.5 backdrop-blur-md bg-white/85 rounded-xl shadow-md`}>
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-sm">{emoji}</span>
             <h4 className="font-bold text-gray-800 text-sm">{role}</h4>
           </div>
-          <h4 className={`font-bold text-base mb-1.5 ${color}`}>{name}</h4>
+          <h4 className={`font-bold text-base mb-1 ${color}`}>{name}</h4>
           <p className="text-xs text-gray-700 leading-relaxed">{bio}</p>
         </div>
-        <div className="h-3" />
       </div>
 
       {/* Desktop: side-by-side with glassmorphism overlap */}
