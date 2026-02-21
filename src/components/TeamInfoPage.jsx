@@ -78,7 +78,7 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
             }}
           />
         </div>
-        <div className={`${reverse ? 'mr-auto' : 'ml-auto'} w-[80%] -mt-10 relative z-10 p-3.5 backdrop-blur-md bg-white/85 rounded-xl shadow-md`}>
+        <div className={`${reverse ? 'mr-auto' : 'ml-auto'} w-[80%] -mt-5 relative z-10 p-3.5 backdrop-blur-md bg-white/85 rounded-xl shadow-md`}>
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-sm">{emoji}</span>
             <h4 className="font-bold text-gray-800 text-sm">{role}</h4>
