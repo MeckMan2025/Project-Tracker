@@ -34,6 +34,29 @@ export default function AttendanceManager({ onBack }) {
   const [editing, setEditing] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
+  const [liveOnline, setLiveOnline] = useState([])
+
+  // Subscribe to presence to detect who's online
+  useEffect(() => {
+    const channel = supabase.channel('attendance-presence', {
+      config: { presence: { key: username || '_anon' } },
+    })
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState()
+        const users = Object.keys(state).filter(k => k !== '_anonymous' && k !== '_anon')
+        setLiveOnline(users)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && username) {
+          await channel.track({ online_at: new Date().toISOString() })
+        }
+      })
+    return () => {
+      channel.untrack()
+      supabase.removeChannel(channel)
+    }
+  }, [username])
 
   // Fetch all sessions, records, and profiles
   useEffect(() => {
@@ -100,12 +123,12 @@ export default function AttendanceManager({ onBack }) {
       created_at: new Date().toISOString(),
     }
 
-    // Default everyone to absent — lead taps to mark present
+    // Mark online users as present, rest as absent
     const newRecords = teamMembers.map(p => ({
       id: genId(),
       session_id: sessionId,
       username: p.display_name,
-      status: 'absent',
+      status: liveOnline.includes(p.display_name) ? 'present' : 'absent',
       marked_by: username,
       created_at: new Date().toISOString(),
     }))
@@ -122,7 +145,8 @@ export default function AttendanceManager({ onBack }) {
       await fetch(`${REST_URL}/rest/v1/attendance_records`, {
         method: 'POST', headers: REST_JSON, body: JSON.stringify(newRecords),
       })
-      showFeedback('Session created! Tap names to mark present.')
+      const presentCount = newRecords.filter(r => r.status === 'present').length
+      showFeedback(`Attendance taken! ${presentCount}/${newRecords.length} present.`)
       setSelectedSession(session)
       setEditing(true)
     } catch (err) {
@@ -347,10 +371,13 @@ export default function AttendanceManager({ onBack }) {
           onClick={handleTakeAttendance}
           className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 transition-colors text-sm font-semibold text-gray-700"
         >
-          Start Today's Session
+          Take Attendance Now
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
-          Creates a session with all members. Tap names to mark present. One session per day.
+          {liveOnline.length > 0
+            ? `${liveOnline.length} online: ${liveOnline.join(', ')}`
+            : 'Detecting online users...'
+          } — leads can edit after.
         </p>
 
         {sessions.length === 0 ? (
