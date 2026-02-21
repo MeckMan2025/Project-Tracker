@@ -26,6 +26,8 @@ import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
 import QuotesManager from './components/QuotesManager'
+import AttendanceManager from './components/AttendanceManager'
+import AttendanceView from './components/AttendanceView'
 import WorkshopIdeas from './components/WorkshopIdeas'
 import ChangelogPopup from './components/ChangelogPopup'
 
@@ -993,24 +995,7 @@ function App() {
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-            <div className="px-4 py-3 ml-14 flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-                  Attendance
-                </h1>
-                <p className="text-sm text-gray-500">Coming soon</p>
-              </div>
-              <NotificationBell />
-            </div>
-          </header>
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-xl font-semibold text-gray-500 text-center px-4">
-              KAYDEN AND YUKTI ARE WORKING ON IT &lt;3
-            </p>
-          </div>
-        </div>
+        <AttendanceView />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -1025,6 +1010,8 @@ function App() {
           </header>
           {specialView === 'quotes' ? (
             <QuotesManager onBack={() => setSpecialView(null)} />
+          ) : specialView === 'attendance' ? (
+            <AttendanceManager onBack={() => setSpecialView(null)} onlineUsers={onlineUsers} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">
@@ -1035,7 +1022,16 @@ function App() {
                   <span className="text-lg font-semibold text-gray-700">Quotes</span>
                   <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
                 </button>
-                {hasLeadTag && ['Attendance', 'SWOT Mode', 'Meeting Stats', 'Scouting Mode', 'Testing'].map(label => (
+                {hasLeadTag && (
+                  <button
+                    onClick={() => setSpecialView('attendance')}
+                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                  >
+                    <span className="text-lg font-semibold text-gray-700">Attendance</span>
+                    <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
+                  </button>
+                )}
+                {hasLeadTag && ['SWOT Mode', 'Meeting Stats', 'Scouting Mode', 'Testing'].map(label => (
                   <button
                     key={label}
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"

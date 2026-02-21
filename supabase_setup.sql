@@ -345,11 +345,40 @@ CREATE POLICY "Allow all access to considered_teams" ON considered_teams
 INSERT INTO considered_teams (team_number) VALUES ('6603'), ('20097'), ('22479')
 ON CONFLICT (team_number) DO NOTHING;
 
+-- 21. ATTENDANCE SESSIONS TABLE (one row per meeting)
+CREATE TABLE IF NOT EXISTS attendance_sessions (
+  id text PRIMARY KEY,
+  session_date text NOT NULL,
+  created_by text NOT NULL,
+  notes text DEFAULT '',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE attendance_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to attendance_sessions" ON attendance_sessions;
+CREATE POLICY "Allow all access to attendance_sessions" ON attendance_sessions
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 22. ATTENDANCE RECORDS TABLE (one row per person per session)
+CREATE TABLE IF NOT EXISTS attendance_records (
+  id text PRIMARY KEY,
+  session_id text NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
+  username text NOT NULL,
+  status text NOT NULL DEFAULT 'absent',
+  marked_by text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to attendance_records" ON attendance_records;
+CREATE POLICY "Allow all access to attendance_records" ON attendance_records
+  FOR ALL USING (true) WITH CHECK (true);
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
