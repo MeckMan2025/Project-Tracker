@@ -278,7 +278,6 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       if (res.ok) {
         const newName = editName.trim() || username
         localStorage.setItem('scrum-username', newName)
-        localStorage.setItem('chat-username', newName)
         localStorage.setItem('scrum-nickname', editNickname.trim())
         localStorage.setItem('scrum-use-nickname', String(editUseNickname))
         setSaved(true)
@@ -596,7 +595,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Show in chat as</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Display as</label>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -948,7 +947,6 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               >
                 <option value="">Select...</option>
                 <option value="in-person">In Person</option>
-                <option value="chat">Chat / Messaging</option>
                 <option value="quick-standup">Quick Standup</option>
                 <option value="async">Async (leave me a note)</option>
               </select>
@@ -1042,19 +1040,6 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                       >
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                           notifPrefs.calendar ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between pl-4 border-l-2 border-gray-100">
-                      <p className="text-sm text-gray-600">Chat messages</p>
-                      <button
-                        onClick={() => setNotifPrefs(prev => ({ ...prev, chat: !prev.chat }))}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          notifPrefs.chat ? 'bg-pastel-blue-dark' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          notifPrefs.chat ? 'translate-x-6' : 'translate-x-1'
                         }`} />
                       </button>
                     </div>
