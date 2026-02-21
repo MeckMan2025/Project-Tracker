@@ -231,7 +231,7 @@ function TeamInfoPage({ onBack }) {
               <div className="absolute inset-0 flex">
                 <div className="flex-1 bg-gradient-to-l from-white/70 to-white/90" />
                 <div className="w-2/5 flex-shrink-0">
-                  <img src="/leaders/yukti.jpg" alt="Yukti" className="w-full h-full object-cover object-top" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
+                  <img src="/leaders/yukti.jpg" alt="Yukti" style={{objectPosition: '50% 15%'}} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-blue/40', 'to-pastel-pink/40'); e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🚀</span></div>' }} />
                 </div>
               </div>
               <div className="relative flex">
