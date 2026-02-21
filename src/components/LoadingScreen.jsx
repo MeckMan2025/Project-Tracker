@@ -95,7 +95,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
             {/* Goals card */}
             <div className="w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden">
               <div className="bg-gradient-to-r from-pastel-blue/40 via-pastel-pink/40 to-pastel-orange/40 px-4 py-2">
-                <p className="text-xs font-bold text-gray-600 uppercase tracking-widest text-center">Today's Goals</p>
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-widest text-center">Team Goals</p>
               </div>
               <div className="p-4 space-y-3">
                 {randomGoals.map((goal, i) => (
