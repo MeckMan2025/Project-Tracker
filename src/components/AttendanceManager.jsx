@@ -80,8 +80,8 @@ export default function AttendanceManager({ onBack }) {
     setTimeout(() => setFeedback(null), 3000)
   }
 
-  // Get non-guest profiles
-  const teamMembers = profiles.filter(p => p.authority_tier !== 'guest')
+  // All profiles with a display name (exclude explicit guests)
+  const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest')
 
   const handleTakeAttendance = async () => {
     const today = todayStr()
@@ -350,6 +350,7 @@ export default function AttendanceManager({ onBack }) {
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
           Creates a session with all members. Tap statuses to mark present.
+          <br />{profiles.length} profiles loaded, {teamMembers.length} non-guest
         </p>
 
         {sessions.length === 0 ? (
