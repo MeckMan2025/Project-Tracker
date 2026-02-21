@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 
 const TEAM_GOALS = [
   'Create 1 social media post per week to connect with our community and spread FIRST throughout the season',
@@ -22,9 +22,10 @@ function pickRandomGoals(arr, count) {
 function LoadingScreen({ onComplete, onMusicStart }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
-  const [waiting, setWaiting] = useState(false)
+  const [countdown, setCountdown] = useState(null)
   const tappedRef = useRef(false)
   const randomGoals = useMemo(() => pickRandomGoals(TEAM_GOALS, 3), [])
+  const waiting = countdown !== null
 
   const startMusic = () => {
     const pref = localStorage.getItem('scrum-music-pref') || 'off'
@@ -50,18 +51,26 @@ function LoadingScreen({ onComplete, onMusicStart }) {
     onMusicStart(audio)
   }
 
+  const finishLoading = useCallback(() => {
+    setIsFading(true)
+    setTimeout(() => {
+      setIsVisible(false)
+      onComplete()
+    }, 500)
+  }, [onComplete])
+
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown <= 0) { finishLoading(); return }
+    const timer = setTimeout(() => setCountdown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown, finishLoading])
+
   const handleTap = () => {
     if (tappedRef.current) return
     tappedRef.current = true
     startMusic()
-    setWaiting(true)
-    setTimeout(() => {
-      setIsFading(true)
-      setTimeout(() => {
-        setIsVisible(false)
-        onComplete()
-      }, 500)
-    }, 5000)
+    setCountdown(5)
   }
 
   if (!isVisible) return null
@@ -114,9 +123,16 @@ function LoadingScreen({ onComplete, onMusicStart }) {
             </div>
           </div>
 
-          <span className={`absolute bottom-12 left-1/2 -translate-x-1/2 text-sm font-semibold ${waiting ? '' : 'animate-pulse'} ${waiting ? 'bg-pastel-blue/80' : 'bg-pastel-pink/80'} text-gray-700 px-6 py-2.5 rounded-full shadow-lg pointer-events-none z-10 transition-colors`}>
-            {waiting ? 'Loading...' : 'Tap to start'}
-          </span>
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex flex-col items-center gap-2">
+            {waiting && (
+              <p className="text-sm font-bold text-gray-600 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow">
+                Read up and get RADICAL
+              </p>
+            )}
+            <span className={`text-sm font-semibold ${waiting ? '' : 'animate-pulse'} ${waiting ? 'bg-gradient-to-r from-pastel-blue/80 to-pastel-pink/80' : 'bg-pastel-pink/80'} text-gray-700 px-6 py-2.5 rounded-full shadow-lg transition-colors`}>
+              {waiting ? `Launching in ${countdown}...` : 'Tap to start'}
+            </span>
+          </div>
         </>
       )}
     </div>
