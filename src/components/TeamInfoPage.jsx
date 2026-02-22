@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { ArrowLeft, Play, Pause, Music } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music, Sparkles } from 'lucide-react'
 
 function ThemeSongPlayer() {
   const [playing, setPlaying] = useState(false)
@@ -277,8 +277,6 @@ function TeamInfoPage({ onBack }) {
                 ['📓', 'Engineering Notebook', 'Document build progress, decisions, and meeting notes with photo uploads'],
                 ['🏗️', 'Org Chart', 'Visual team hierarchy from Co-Founders down to members'],
                 ['📆', 'Calendar', 'Shared team calendar for meetings, competitions, and deadlines'],
-                ['📢', 'Announcements', 'Team-wide announcements and notifications'],
-                ['💬', 'Quick Chat', 'Real-time messaging for fast team communication'],
                 ['📥', 'Suggestions', 'Submit ideas and feedback for the team or the app'],
                 ['💡', 'Workshop Ideas', 'Plan and organize team workshops and skill-building sessions'],
               ].map(([emoji, title, desc]) => (
@@ -304,6 +302,20 @@ function TeamInfoPage({ onBack }) {
             <p className="text-gray-700 text-sm leading-relaxed italic">
               Everything That's Scrum represents our commitment to growth — evolving from informal coordination to intentional, professional-level team management. By strengthening our internal systems, we strengthen our performance on the field.
             </p>
+          </div>
+
+          <div className="relative mt-4 rounded-2xl overflow-hidden bg-gradient-to-r from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20 p-[1px]">
+            <div className="rounded-2xl bg-white/80 backdrop-blur-sm px-5 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-blue via-pastel-pink to-pastel-orange flex items-center justify-center flex-shrink-0 shadow-md">
+                <Sparkles size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-700">Crafted with a little help from AI</p>
+                <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
+                  This page was written and designed collaboratively with Claude, an AI assistant by Anthropic — because even robots need a hand sometimes.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
