@@ -156,7 +156,7 @@ function TeamInfoPage({ onBack }) {
               src="/team-hero.jpg"
               alt="Team 7196"
               className="w-full h-60 md:h-48 object-cover"
-              style={{ objectPosition: 'center 38%' }}
+              style={{ objectPosition: 'center 55%' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
             <div className="absolute bottom-3 left-0 right-0 text-center">
