@@ -303,8 +303,8 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
 
-  // Heartbeat: update last_seen_at every 30s so attendance knows who's online
-  // Users who stop pinging for >45s are considered offline
+  // Heartbeat: update last_seen_at every 10s so attendance knows who's online
+  // Users who stop pinging for >15s are considered offline
   useEffect(() => {
     if (!username) return
     const filter = `display_name=eq.${encodeURIComponent(username)}`
@@ -312,7 +312,7 @@ function App() {
       restUpdate('profiles', filter, { last_seen_at: new Date().toISOString() }).catch(() => {})
     }
     ping() // immediate on login
-    const interval = setInterval(ping, 30000)
+    const interval = setInterval(ping, 10000)
     return () => clearInterval(interval)
   }, [username])
 

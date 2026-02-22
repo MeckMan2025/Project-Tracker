@@ -49,14 +49,14 @@ export default function AttendanceManager({ onBack }) {
     }).catch(() => {})
   }, [])
 
-  // Refresh profiles every 30s to keep last_seen_at current
+  // Refresh profiles every 10s to keep last_seen_at current
   useEffect(() => {
     const interval = setInterval(() => {
       fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
         .then(r => r.ok ? r.json() : null)
         .then(p => { if (p) setProfiles(p) })
         .catch(() => {})
-    }, 30000)
+    }, 10000)
     return () => clearInterval(interval)
   }, [])
 
@@ -95,11 +95,11 @@ export default function AttendanceManager({ onBack }) {
   // All profiles with a display name (exclude explicit guests)
   const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest')
 
-  // Who's been seen in the last 45 seconds (heartbeat pings every 30s)
+  // Who's been seen in the last 15 seconds (heartbeat pings every 10s)
   const recentlySeen = (name) => {
     const p = profiles.find(pr => pr.display_name === name)
     if (!p?.last_seen_at) return false
-    return (Date.now() - new Date(p.last_seen_at).getTime()) < 45 * 1000
+    return (Date.now() - new Date(p.last_seen_at).getTime()) < 15 * 1000
   }
 
   const handleTakeAttendance = async () => {
@@ -123,7 +123,7 @@ export default function AttendanceManager({ onBack }) {
     const isRecentlySeen = (name) => {
       const p = freshProfiles.find(pr => pr.display_name === name)
       if (!p?.last_seen_at) return false
-      return (Date.now() - new Date(p.last_seen_at).getTime()) < 45 * 1000
+      return (Date.now() - new Date(p.last_seen_at).getTime()) < 15 * 1000
     }
 
     const sessionId = genId()

@@ -326,6 +326,14 @@ export function UserProvider({ children }) {
         filter: `id=eq.${user.id}`,
       }, (payload) => {
         if (payload.new) {
+          // Skip if only last_seen_at changed (heartbeat ping)
+          const old = payload.old || {}
+          const n = payload.new
+          const onlyHeartbeat = old.last_seen_at !== n.last_seen_at &&
+            JSON.stringify(old.function_tags) === JSON.stringify(n.function_tags) &&
+            old.authority_tier === n.authority_tier
+          if (onlyHeartbeat) return
+
           // Detect new roles added — but ignore Co-Founder auto-grants
           const oldTags = functionTags || []
           const newTags = payload.new.function_tags || []
