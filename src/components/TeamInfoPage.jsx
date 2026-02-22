@@ -304,6 +304,21 @@ function TeamInfoPage({ onBack }) {
             </p>
           </div>
 
+          {/* Phone Install Tutorial */}
+          <div className="border-l-4 border-pastel-orange rounded-r-xl bg-pastel-orange/10 p-4 space-y-3">
+            <h3 className="font-bold text-gray-800 text-sm">How to Add the App to Your Phone</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Follow these steps to install Everything That's Scrum on your home screen — no app store needed!
+            </p>
+            <div className="rounded-xl overflow-hidden shadow-sm">
+              <img
+                src="/phone-tutorial.png"
+                alt="Step-by-step tutorial for adding the app to your phone home screen"
+                className="w-full object-contain"
+              />
+            </div>
+          </div>
+
           <div className="relative mt-4 rounded-2xl overflow-hidden bg-gradient-to-r from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20 p-[1px]">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm px-5 py-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-blue via-pastel-pink to-pastel-orange flex items-center justify-center flex-shrink-0 shadow-md">
