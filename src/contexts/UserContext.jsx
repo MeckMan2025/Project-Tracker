@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 const UserContext = createContext(null)
@@ -25,6 +25,11 @@ export function UserProvider({ children }) {
     } catch (e) { return [] }
   })
   const [shortBio, setShortBio] = useState(() => localStorage.getItem('scrum-short-bio') || '')
+  // Refs to track latest values for realtime listener (avoids stale closures)
+  const functionTagsRef = useRef(functionTags)
+  const authorityTierRef = useRef(authorityTier)
+  useEffect(() => { functionTagsRef.current = functionTags }, [functionTags])
+  useEffect(() => { authorityTierRef.current = authorityTier }, [authorityTier])
   const [nickname, setNickname] = useState(() => localStorage.getItem('scrum-nickname') || '')
   const [useNickname, setUseNickname] = useState(() => localStorage.getItem('scrum-use-nickname') === 'true')
   const [user, setUser] = useState(null)
@@ -326,17 +331,18 @@ export function UserProvider({ children }) {
         filter: `id=eq.${user.id}`,
       }, (payload) => {
         if (payload.new) {
-          // Check if roles/tier actually changed compared to current React state
+          // Use refs for current values (avoids stale closure)
+          const currentTags = functionTagsRef.current || []
+          const currentTier = authorityTierRef.current
           const newTags = payload.new.function_tags || []
           const newTier = payload.new.authority_tier
-          const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(functionTags || [])
-          const tierChanged = newTier && newTier !== authorityTier
+          const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(currentTags)
+          const tierChanged = newTier && newTier !== currentTier
 
           // Only show alert if roles or tier actually changed
           if (tagsChanged || tierChanged) {
-            const oldTags = functionTags || []
-            const addedRoles = newTags.filter(t => !oldTags.includes(t))
-            const removedRoles = oldTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
+            const addedRoles = newTags.filter(t => !currentTags.includes(t))
+            const removedRoles = currentTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
             if (addedRoles.length > 0) {
               setRoleChangeAlert({ type: 'added', roles: addedRoles })
             } else if (removedRoles.length > 0) {
