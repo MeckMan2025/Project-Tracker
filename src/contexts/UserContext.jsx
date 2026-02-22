@@ -326,28 +326,24 @@ export function UserProvider({ children }) {
         filter: `id=eq.${user.id}`,
       }, (payload) => {
         if (payload.new) {
-          // Skip if only last_seen_at changed (heartbeat ping)
-          const old = payload.old || {}
-          const n = payload.new
-          const onlyHeartbeat = old.last_seen_at !== n.last_seen_at &&
-            JSON.stringify(old.function_tags) === JSON.stringify(n.function_tags) &&
-            old.authority_tier === n.authority_tier
-          if (onlyHeartbeat) return
-
-          // Detect new roles added — but ignore Co-Founder auto-grants
-          const oldTags = functionTags || []
+          // Check if roles/tier actually changed compared to current React state
           const newTags = payload.new.function_tags || []
-          const addedRoles = newTags.filter(t => !oldTags.includes(t))
-          const removedRoles = oldTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
-          // Detect tier change
-          const oldTier = authorityTier
           const newTier = payload.new.authority_tier
-          if (addedRoles.length > 0) {
-            setRoleChangeAlert({ type: 'added', roles: addedRoles })
-          } else if (removedRoles.length > 0) {
-            setRoleChangeAlert({ type: 'removed', roles: removedRoles })
-          } else if (newTier && newTier !== oldTier) {
-            setRoleChangeAlert({ type: 'tier', tier: newTier })
+          const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(functionTags || [])
+          const tierChanged = newTier && newTier !== authorityTier
+
+          // Only show alert if roles or tier actually changed
+          if (tagsChanged || tierChanged) {
+            const oldTags = functionTags || []
+            const addedRoles = newTags.filter(t => !oldTags.includes(t))
+            const removedRoles = oldTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
+            if (addedRoles.length > 0) {
+              setRoleChangeAlert({ type: 'added', roles: addedRoles })
+            } else if (removedRoles.length > 0) {
+              setRoleChangeAlert({ type: 'removed', roles: removedRoles })
+            } else if (tierChanged) {
+              setRoleChangeAlert({ type: 'tier', tier: newTier })
+            }
           }
           applyProfile(payload.new, user?.email)
         }
