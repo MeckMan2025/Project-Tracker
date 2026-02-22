@@ -319,43 +319,43 @@ export function UserProvider({ children }) {
     }
   }, [])
 
-  // Realtime subscription on own profile — picks up tier/role changes made by leads instantly
+  // Realtime subscription on own profile — picks up tier/role changes made by leads
+  // Only listens for function_tags and authority_tier columns to avoid heartbeat noise
   useEffect(() => {
     if (!user) return
-    const channel = supabase
-      .channel(`profile-sync-${user.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${user.id}`,
-      }, (payload) => {
-        if (payload.new) {
-          // Check if roles/tier actually changed (not just heartbeat)
-          const currentTags = functionTagsRef.current || []
-          const currentTier = authorityTierRef.current
-          const newTags = payload.new.function_tags || []
-          const newTier = payload.new.authority_tier
-          const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(currentTags)
-          const tierChanged = newTier && newTier !== currentTier
-
-          // Only apply profile + show alert if something meaningful changed
-          if (!tagsChanged && !tierChanged) return
-
-          const addedRoles = newTags.filter(t => !currentTags.includes(t))
-          const removedRoles = currentTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
-          if (addedRoles.length > 0) {
-            setRoleChangeAlert({ type: 'added', roles: addedRoles })
-          } else if (removedRoles.length > 0) {
-            setRoleChangeAlert({ type: 'removed', roles: removedRoles })
-          } else if (tierChanged) {
-            setRoleChangeAlert({ type: 'tier', tier: newTier })
-          }
-          applyProfile(payload.new, user?.email)
+    // Poll every 30s instead of realtime to avoid heartbeat conflicts
+    const checkForRoleChanges = async () => {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+        const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=function_tags,authority_tier`, { headers })
+        if (!res.ok) return
+        const [profile] = await res.json()
+        if (!profile) return
+        const currentTags = functionTagsRef.current || []
+        const currentTier = authorityTierRef.current
+        const newTags = profile.function_tags || []
+        const newTier = profile.authority_tier
+        const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(currentTags)
+        const tierChanged = newTier && newTier !== currentTier
+        if (!tagsChanged && !tierChanged) return
+        const addedRoles = newTags.filter(t => !currentTags.includes(t))
+        const removedRoles = currentTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
+        if (addedRoles.length > 0) {
+          setRoleChangeAlert({ type: 'added', roles: addedRoles })
+        } else if (removedRoles.length > 0) {
+          setRoleChangeAlert({ type: 'removed', roles: removedRoles })
+        } else if (tierChanged) {
+          setRoleChangeAlert({ type: 'tier', tier: newTier })
         }
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+        // Update refs so we don't alert again
+        functionTagsRef.current = newTags
+        authorityTierRef.current = newTier
+      } catch {}
+    }
+    const interval = setInterval(checkForRoleChanges, 30000)
+    return () => clearInterval(interval)
   }, [user?.id])
 
   const login = async (email, password) => {
