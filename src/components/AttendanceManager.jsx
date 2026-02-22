@@ -95,11 +95,11 @@ export default function AttendanceManager({ onBack }) {
   // All profiles with a display name (exclude explicit guests)
   const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest')
 
-  // Who's been seen in the last 2 minutes
+  // Who's been seen in the last 45 seconds (heartbeat pings every 30s)
   const recentlySeen = (name) => {
     const p = profiles.find(pr => pr.display_name === name)
     if (!p?.last_seen_at) return false
-    return (Date.now() - new Date(p.last_seen_at).getTime()) < 2 * 60 * 1000
+    return (Date.now() - new Date(p.last_seen_at).getTime()) < 45 * 1000
   }
 
   const handleTakeAttendance = async () => {
@@ -123,7 +123,7 @@ export default function AttendanceManager({ onBack }) {
     const isRecentlySeen = (name) => {
       const p = freshProfiles.find(pr => pr.display_name === name)
       if (!p?.last_seen_at) return false
-      return (Date.now() - new Date(p.last_seen_at).getTime()) < 2 * 60 * 1000
+      return (Date.now() - new Date(p.last_seen_at).getTime()) < 45 * 1000
     }
 
     const sessionId = genId()
