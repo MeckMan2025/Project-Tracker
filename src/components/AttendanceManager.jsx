@@ -99,7 +99,7 @@ export default function AttendanceManager({ onBack }) {
   const recentlySeen = (name) => {
     const p = profiles.find(pr => pr.display_name === name)
     if (!p?.last_seen_at) return false
-    return (Date.now() - new Date(p.last_seen_at).getTime()) < 15 * 1000
+    return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
   }
 
   const handleTakeAttendance = async () => {
@@ -123,7 +123,7 @@ export default function AttendanceManager({ onBack }) {
     const isRecentlySeen = (name) => {
       const p = freshProfiles.find(pr => pr.display_name === name)
       if (!p?.last_seen_at) return false
-      return (Date.now() - new Date(p.last_seen_at).getTime()) < 15 * 1000
+      return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
     }
 
     const sessionId = genId()
