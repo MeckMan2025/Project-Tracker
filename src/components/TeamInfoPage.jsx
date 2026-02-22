@@ -156,7 +156,7 @@ function TeamInfoPage({ onBack }) {
               src="/team-hero.jpg"
               alt="Team 7196"
               className="w-full h-60 md:h-48 object-cover"
-              style={{ objectPosition: 'center 0%' }}
+              style={{ objectPosition: 'center 38%' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
             <div className="absolute bottom-3 left-0 right-0 text-center">
@@ -200,12 +200,23 @@ function TeamInfoPage({ onBack }) {
             </h3>
 
             <LeaderCard
+              name="Harshita"
+              role="Team Lead"
+              emoji="🚀"
+              color="text-pastel-orange-dark"
+              photo="/leaders/harshita.jpg"
+              photoPosition="center"
+              bio="Somebody has to keep all the moving parts aligned — and that's me. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together."
+            />
+
+            <LeaderCard
               name="Lily"
               role="Business Lead"
               emoji="💼"
               color="text-pastel-pink-dark"
               photo="/leaders/lily.jpg"
               bio="Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons."
+              reverse
             />
 
             <LeaderCard
@@ -215,17 +226,6 @@ function TeamInfoPage({ onBack }) {
               color="text-pastel-blue-dark"
               photo="/leaders/nick.jpg"
               bio="SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it."
-              reverse
-            />
-
-            <LeaderCard
-              name="Harshita"
-              role="Team Lead"
-              emoji="🚀"
-              color="text-pastel-orange-dark"
-              photo="/leaders/harshita.jpg"
-              photoPosition="center"
-              bio="Somebody has to keep all the moving parts aligned — and that's me. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together."
             />
           </div>
 
