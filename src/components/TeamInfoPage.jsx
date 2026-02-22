@@ -319,6 +319,39 @@ function TeamInfoPage({ onBack }) {
             </div>
           </div>
 
+          {/* Coach Quote on AI */}
+          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20 p-[1px]">
+            <div className="rounded-2xl bg-white/80 backdrop-blur-sm p-5">
+              <h3 className="text-sm font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent mb-4">
+                What Our Coach Thinks of AI
+              </h3>
+              <div className="flex flex-col sm:flex-row items-center gap-5">
+                {/* Coach photo placeholder */}
+                <div className="w-28 h-28 rounded-xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 bg-gradient-to-br from-pastel-blue/30 to-pastel-pink/30">
+                  <img
+                    src="/leaders/coach.jpg"
+                    alt="Our Coach"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none'
+                      e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🧑‍🏫</span></div>'
+                    }}
+                  />
+                </div>
+                {/* Quote */}
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute -top-3 -left-2 text-4xl text-pastel-pink/40 font-serif leading-none">&ldquo;</span>
+                    <p className="text-gray-700 text-sm leading-relaxed italic pl-4">
+                      It's not leaving — it's here to stay, so we might as well use it to our advantage. We need to learn how to work with it and let it help us, but not to cheat — just to help.
+                    </p>
+                    <span className="text-4xl text-pastel-pink/40 font-serif leading-none">&rdquo;</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="relative mt-4 rounded-2xl overflow-hidden bg-gradient-to-r from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20 p-[1px]">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm px-5 py-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-blue via-pastel-pink to-pastel-orange flex items-center justify-center flex-shrink-0 shadow-md">
