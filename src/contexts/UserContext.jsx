@@ -331,7 +331,7 @@ export function UserProvider({ children }) {
         filter: `id=eq.${user.id}`,
       }, (payload) => {
         if (payload.new) {
-          // Use refs for current values (avoids stale closure)
+          // Check if roles/tier actually changed (not just heartbeat)
           const currentTags = functionTagsRef.current || []
           const currentTier = authorityTierRef.current
           const newTags = payload.new.function_tags || []
@@ -339,17 +339,17 @@ export function UserProvider({ children }) {
           const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(currentTags)
           const tierChanged = newTier && newTier !== currentTier
 
-          // Only show alert if roles or tier actually changed
-          if (tagsChanged || tierChanged) {
-            const addedRoles = newTags.filter(t => !currentTags.includes(t))
-            const removedRoles = currentTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
-            if (addedRoles.length > 0) {
-              setRoleChangeAlert({ type: 'added', roles: addedRoles })
-            } else if (removedRoles.length > 0) {
-              setRoleChangeAlert({ type: 'removed', roles: removedRoles })
-            } else if (tierChanged) {
-              setRoleChangeAlert({ type: 'tier', tier: newTier })
-            }
+          // Only apply profile + show alert if something meaningful changed
+          if (!tagsChanged && !tierChanged) return
+
+          const addedRoles = newTags.filter(t => !currentTags.includes(t))
+          const removedRoles = currentTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
+          if (addedRoles.length > 0) {
+            setRoleChangeAlert({ type: 'added', roles: addedRoles })
+          } else if (removedRoles.length > 0) {
+            setRoleChangeAlert({ type: 'removed', roles: removedRoles })
+          } else if (tierChanged) {
+            setRoleChangeAlert({ type: 'tier', tier: newTier })
           }
           applyProfile(payload.new, user?.email)
         }
