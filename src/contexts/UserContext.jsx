@@ -349,6 +349,15 @@ export function UserProvider({ children }) {
         } else if (tierChanged) {
           setRoleChangeAlert({ type: 'tier', tier: newTier })
         }
+        // Apply the new values so permissions update immediately
+        if (tagsChanged) {
+          setFunctionTags(newTags)
+          localStorage.setItem('scrum-function-tags', JSON.stringify(newTags))
+        }
+        if (tierChanged) {
+          setAuthorityTier(newTier)
+          localStorage.setItem('scrum-authority-tier', newTier)
+        }
         // Update refs so we don't alert again
         functionTagsRef.current = newTags
         authorityTierRef.current = newTier

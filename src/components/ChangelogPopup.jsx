@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 28,
+    date: '2026-02-22',
+    items: [
+      '🔒 Role changes now take effect immediately — no refresh needed',
+    ],
+  },
+  {
     id: 27,
     date: '2026-02-22',
     items: [
