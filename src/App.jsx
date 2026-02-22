@@ -303,20 +303,35 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
 
-  // Heartbeat: update last_seen_at every 60s so attendance knows who's online
+  // Heartbeat: update last_seen_at every 30s so attendance knows who's online
   useEffect(() => {
     if (!username) return
-    const ping = async () => {
-      try {
-        await restUpdate('profiles', `display_name=eq.${encodeURIComponent(username)}`, { last_seen_at: new Date().toISOString() })
-        console.log('[heartbeat] pinged last_seen_at for', username)
-      } catch (err) {
-        console.error('[heartbeat] FAILED for', username, err.message)
+    const filter = `display_name=eq.${encodeURIComponent(username)}`
+    const ping = () => {
+      restUpdate('profiles', filter, { last_seen_at: new Date().toISOString() }).catch(() => {})
+    }
+    const clearSeen = () => {
+      // Use sendBeacon for reliable delivery on tab close
+      const url = `${REST_URL}/rest/v1/profiles?${filter}`
+      const blob = new Blob([JSON.stringify({ last_seen_at: null })], { type: 'application/json' })
+      if (navigator.sendBeacon) {
+        // sendBeacon can't set custom headers, so use fetch with keepalive
+        fetch(url, { method: 'PATCH', headers: REST_JSON, body: JSON.stringify({ last_seen_at: null }), keepalive: true }).catch(() => {})
+      } else {
+        fetch(url, { method: 'PATCH', headers: REST_JSON, body: JSON.stringify({ last_seen_at: null }), keepalive: true }).catch(() => {})
       }
     }
-    ping() // immediate
-    const interval = setInterval(ping, 60000)
-    return () => clearInterval(interval)
+    ping() // immediate on login
+    const interval = setInterval(ping, 30000)
+    window.addEventListener('beforeunload', clearSeen)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') clearSeen()
+      else ping()
+    })
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('beforeunload', clearSeen)
+    }
   }, [username])
 
   // Keep localStorage cache in sync so refresh always has latest data
