@@ -156,7 +156,7 @@ function TeamInfoPage({ onBack }) {
               src="/team-hero.jpg"
               alt="Team 7196"
               className="w-full h-80 md:h-64 object-cover"
-              style={{ objectPosition: 'center 20%' }}
+              style={{ objectPosition: 'center 35%' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
             <div className="absolute bottom-3 left-0 right-0 text-center">
@@ -312,7 +312,7 @@ function TeamInfoPage({ onBack }) {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-gray-700">Crafted with a little help from AI</p>
                 <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
-                  This page was written and designed collaboratively with Claude, an AI assistant by Anthropic — because even robots need a hand sometimes.
+                  This page was written and designed collaboratively with Claude, an AI assistant by Anthropic, guided by the ideas and input of our students — because even robots need a hand sometimes.
                 </p>
               </div>
             </div>
