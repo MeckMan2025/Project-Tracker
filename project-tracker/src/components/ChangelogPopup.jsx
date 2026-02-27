@@ -5,6 +5,28 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 31,
+    date: '2026-02-27',
+    items: [
+      '📝 Interested Teams — other FTC teams can now submit interest in using the app from the Radical Rundown page',
+      '👀 All teammates can view interested teams in Special Controls; co-founders can manage them',
+    ],
+  },
+  {
+    id: 30,
+    date: '2026-02-27',
+    items: [
+      '🧹 Clean Up Chart — track and assign cleanup duties from Special Controls',
+    ],
+  },
+  {
+    id: 29,
+    date: '2026-02-27',
+    items: [
+      '⚡ Notebook Flash — leads can trigger a flash requiring present members to submit a notebook entry on the spot',
+    ],
+  },
+  {
     id: 28,
     date: '2026-02-22',
     items: [
