@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Calendar, ClipboardList, FolderKanban, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Calendar, ClipboardList, FolderKanban, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users, Camera, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
@@ -14,6 +14,9 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
   const [eventLoading, setEventLoading] = useState(true)
   const [pendingRequestCount, setPendingRequestCount] = useState(0)
   const [quote, setQuote] = useState(null)
+  const [galleryPhotos, setGalleryPhotos] = useState([])
+  const [lightboxIdx, setLightboxIdx] = useState(null)
+  const scrollRef = useRef(null)
 
   // Fetch next event, pending requests, and random quote
   useEffect(() => {
@@ -43,6 +46,11 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
           setQuote(data[Math.floor(Math.random() * data.length)])
         }
       })
+      .catch(() => {})
+
+    fetch(`${supabaseUrl}/rest/v1/notebook_entries?photo_url=neq.&photo_url=not.is.null&select=photo_url,username,what_did,created_at&order=created_at.desc&limit=20`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setGalleryPhotos(data.filter(e => e.photo_url)))
       .catch(() => {})
   }, [])
 
@@ -260,7 +268,102 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
           </div>
         </div>
 
-        {/* 5. Team Pulse (hidden for guest) */}
+        {/* 5. Notebook Photo Gallery */}
+        {galleryPhotos.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Camera size={18} className="text-pastel-pink-dark" />
+              <h2 className="font-semibold text-gray-700">Notebook Photos</h2>
+              <span className="text-xs text-gray-400 ml-auto">{galleryPhotos.length} photo{galleryPhotos.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="relative">
+              <div
+                ref={scrollRef}
+                className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+              >
+                {galleryPhotos.map((photo, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setLightboxIdx(i)}
+                    className="flex-shrink-0 snap-start rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
+                  >
+                    <div className="w-36 h-36 relative">
+                      <img
+                        src={photo.photo_url}
+                        alt={photo.what_did || 'Notebook photo'}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-white text-[10px] font-medium truncate">{photo.username}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {galleryPhotos.length > 3 && (
+                <>
+                  <button
+                    onClick={() => scrollRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -ml-1 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => scrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 -mr-1 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Lightbox */}
+        {lightboxIdx !== null && (
+          <>
+            <div className="fixed inset-0 bg-black/80 z-[200]" onClick={() => setLightboxIdx(null)} />
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
+              <div className="relative max-w-lg w-full pointer-events-auto">
+                <button
+                  onClick={() => setLightboxIdx(null)}
+                  className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+                {lightboxIdx > 0 && (
+                  <button
+                    onClick={() => setLightboxIdx(lightboxIdx - 1)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white/80 hover:text-white transition-colors z-10"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                )}
+                {lightboxIdx < galleryPhotos.length - 1 && (
+                  <button
+                    onClick={() => setLightboxIdx(lightboxIdx + 1)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white/80 hover:text-white transition-colors z-10"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                )}
+                <img
+                  src={galleryPhotos[lightboxIdx].photo_url}
+                  alt={galleryPhotos[lightboxIdx].what_did || 'Notebook photo'}
+                  className="w-full rounded-xl shadow-2xl"
+                />
+                <div className="mt-3 text-center">
+                  <p className="text-white text-sm font-medium">{galleryPhotos[lightboxIdx].what_did}</p>
+                  <p className="text-white/60 text-xs mt-1">by {galleryPhotos[lightboxIdx].username}</p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 6. Team Pulse (hidden for guest) */}
         {!isGuest && (
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
             <h2 className="font-semibold text-gray-700 mb-2">Team Pulse</h2>
