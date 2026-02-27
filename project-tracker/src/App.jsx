@@ -1053,7 +1053,7 @@ function App() {
           ) : specialView === 'flash' ? (
             <NotebookFlashDashboard onBack={() => setSpecialView(null)} />
           ) : specialView === 'interested-teams' ? (
-            <InterestedTeams onBack={() => setSpecialView(null)} />
+            <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">
@@ -1082,15 +1082,13 @@ function App() {
                     <p className="text-sm text-gray-400 mt-1">Force notebook entries from present members</p>
                   </button>
                 )}
-                {isCofounder && (
-                  <button
-                    onClick={() => setSpecialView('interested-teams')}
-                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                  >
-                    <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
-                    <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
-                  </button>
-                )}
+                <button
+                  onClick={() => setSpecialView('interested-teams')}
+                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                >
+                  <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
+                  <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
+                </button>
                 {hasLeadTag && (
                   <button
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"

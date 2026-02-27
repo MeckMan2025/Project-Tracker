@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Users, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 
-function InterestedTeams({ onBack }) {
+function InterestedTeams({ onBack, canDelete }) {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -99,13 +99,15 @@ function InterestedTeams({ onBack }) {
                     })}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDelete(s.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
-                  title="Remove"
-                >
-                  <Trash2 size={15} />
-                </button>
+                {canDelete && (
+                  <button
+                    onClick={() => handleDelete(s.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
+                    title="Remove"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
