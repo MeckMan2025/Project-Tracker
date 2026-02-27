@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
-import { Sparkles, Check, X, ShieldAlert, Trophy, UserMinus } from 'lucide-react'
+import { Sparkles, Check, X, Trophy, UserMinus } from 'lucide-react'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -36,11 +36,9 @@ export default function CleanUpChart() {
   const [cleanupSessions, setCleanupSessions] = useState([])
   const [assignments, setAssignments] = useState([])
   const [exemptions, setExemptions] = useState([])
-  const [attendanceSessions, setAttendanceSessions] = useState([])
-  const [attendanceRecords, setAttendanceRecords] = useState([])
   const [profiles, setProfiles] = useState([])
 
-  const [selectedAttendanceSession, setSelectedAttendanceSession] = useState('')
+  const [selectedUsers, setSelectedUsers] = useState([])
   const [feedback, setFeedback] = useState(null)
   const [generating, setGenerating] = useState(false)
 
@@ -51,16 +49,12 @@ export default function CleanUpChart() {
       fetch(`${REST_URL}/rest/v1/cleanup_sessions?select=*&order=created_at.desc`, { headers: REST_HEADERS }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/cleanup_assignments?select=*`, { headers: REST_HEADERS }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/cleanup_exemptions?select=*`, { headers: REST_HEADERS }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/attendance_sessions?select=*&order=session_date.desc`, { headers: REST_HEADERS }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers: REST_HEADERS }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags`, { headers: REST_HEADERS }).then(r => r.ok ? r.json() : []),
-    ]).then(([j, cs, a, ex, as_, ar, p]) => {
+    ]).then(([j, cs, a, ex, p]) => {
       setJobs(j)
       setCleanupSessions(cs)
       setAssignments(a)
       setExemptions(ex)
-      setAttendanceSessions(as_)
-      setAttendanceRecords(ar)
       setProfiles(p)
     }).catch(err => console.error('CleanUpChart fetch error:', err))
   }, [])
@@ -114,6 +108,22 @@ export default function CleanUpChart() {
     setTimeout(() => setFeedback(null), 3000)
   }
 
+  // All non-guest team members
+  const teamMembers = profiles
+    .filter(p => p.display_name && p.authority_tier !== 'guest')
+    .map(p => p.display_name)
+    .sort()
+
+  // Toggle user selection
+  const toggleUser = (name) => {
+    setSelectedUsers(prev =>
+      prev.includes(name) ? prev.filter(u => u !== name) : [...prev, name]
+    )
+  }
+
+  const selectAll = () => setSelectedUsers([...teamMembers])
+  const selectNone = () => setSelectedUsers([])
+
   // Find the most recent cleanup session
   const latestCleanupSession = cleanupSessions[0] || null
   const latestAssignments = latestCleanupSession
@@ -126,7 +136,7 @@ export default function CleanUpChart() {
   // Get job name by id
   const jobName = (jobId) => jobs.find(j => j.id === jobId)?.name || jobId
 
-  // Build rotation counts from ALL past confirmed assignments (for fair rotation)
+  // Build rotation counts from ALL past assignments (for fair rotation)
   const rotationCounts = useMemo(() => {
     const counts = {}
     assignments.forEach(a => {
@@ -139,45 +149,21 @@ export default function CleanUpChart() {
   // Generate cleanup assignments
   const handleGenerateCleanup = async () => {
     if (!hasLeadTag) return
-    if (!selectedAttendanceSession) {
-      showFeedback('Please select an attendance session first.')
-      return
-    }
-
-    // Check if cleanup already exists for this attendance session
-    const existing = cleanupSessions.find(cs => cs.attendance_session_id === selectedAttendanceSession)
-    if (existing) {
-      showFeedback('Cleanup already generated for this session.')
+    if (selectedUsers.length === 0) {
+      showFeedback('Please select at least one person.')
       return
     }
 
     setGenerating(true)
     try {
-      // Get present non-guest users from attendance
-      const sessionRecords = attendanceRecords.filter(
-        r => r.session_id === selectedAttendanceSession && r.status === 'present'
-      )
-      const presentUsers = sessionRecords
-        .map(r => r.username)
-        .filter(u => {
-          const profile = profiles.find(p => p.display_name === u)
-          return profile && profile.authority_tier !== 'guest'
-        })
-
-      if (presentUsers.length === 0) {
-        showFeedback('No present non-guest users found for this session.')
-        setGenerating(false)
-        return
-      }
-
       // Sort users by least-cleaned-first for fair rotation
-      const sorted = [...presentUsers].sort((a, b) => (rotationCounts[a] || 0) - (rotationCounts[b] || 0))
+      const sorted = [...selectedUsers].sort((a, b) => (rotationCounts[a] || 0) - (rotationCounts[b] || 0))
 
-      // Create cleanup session
+      // Create cleanup session (no attendance_session_id needed)
       const cleanupSessionId = genId()
       const cleanupSession = {
         id: cleanupSessionId,
-        attendance_session_id: selectedAttendanceSession,
+        attendance_session_id: null,
         generated_by: username,
         created_at: new Date().toISOString(),
       }
@@ -198,6 +184,7 @@ export default function CleanUpChart() {
       // Optimistic update
       setCleanupSessions(prev => [cleanupSession, ...prev])
       setAssignments(prev => [...prev, ...newAssignments])
+      setSelectedUsers([])
 
       // Persist
       await fetch(`${REST_URL}/rest/v1/cleanup_sessions`, {
@@ -287,7 +274,6 @@ export default function CleanUpChart() {
       await fetch(`${REST_URL}/rest/v1/cleanup_exemptions`, {
         method: 'POST', headers: REST_JSON, body: JSON.stringify(exemption),
       })
-      // Delete their assignments
       for (const a of toRemove) {
         await fetch(`${REST_URL}/rest/v1/cleanup_assignments?id=eq.${a.id}`, {
           method: 'DELETE', headers: REST_HEADERS,
@@ -314,18 +300,11 @@ export default function CleanUpChart() {
       .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
   }, [assignments])
 
-  // Users in latest session who can be exempted (assigned, not already exempted)
+  // Users in latest session who can be exempted
   const exemptableUsers = latestCleanupSession
     ? [...new Set(latestAssignments.map(a => a.assigned_username))]
         .filter(u => !latestExemptions.some(e => e.username === u))
     : []
-
-  // Attendance session label
-  const attendanceLabel = (sessionId) => {
-    const s = attendanceSessions.find(as_ => as_.id === sessionId)
-    if (!s) return sessionId
-    return new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  }
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -355,22 +334,32 @@ export default function CleanUpChart() {
                 <Sparkles size={16} className="text-pastel-orange-dark" />
                 Generate Cleanup
               </h3>
-              <select
-                value={selectedAttendanceSession}
-                onChange={(e) => setSelectedAttendanceSession(e.target.value)}
-                className="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              >
-                <option value="">Select attendance session...</option>
-                {attendanceSessions.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {' '}— by {s.created_by}
-                  </option>
+              <p className="text-xs text-gray-400">Select who's here for cleanup:</p>
+              <div className="flex gap-2 mb-1">
+                <button onClick={selectAll} className="text-xs text-pastel-blue-dark hover:underline">Select All</button>
+                <button onClick={selectNone} className="text-xs text-gray-400 hover:underline">Clear</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {teamMembers.map(name => (
+                  <button
+                    key={name}
+                    onClick={() => toggleUser(name)}
+                    className={`px-2.5 py-1.5 text-xs rounded-lg transition-colors ${
+                      selectedUsers.includes(name)
+                        ? 'bg-pastel-blue text-gray-800 font-semibold'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {name}
+                  </button>
                 ))}
-              </select>
+              </div>
+              {selectedUsers.length > 0 && (
+                <p className="text-xs text-gray-500">{selectedUsers.length} selected</p>
+              )}
               <button
                 onClick={handleGenerateCleanup}
-                disabled={generating || !selectedAttendanceSession}
+                disabled={generating || selectedUsers.length === 0}
                 className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 transition-colors text-sm font-semibold text-gray-700"
               >
                 {generating ? 'Generating...' : 'Generate Cleanup'}
@@ -378,16 +367,14 @@ export default function CleanUpChart() {
             </div>
           )}
 
-          {/* Current Meeting Assignments */}
+          {/* Current Assignments */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-gray-500">
-              {latestCleanupSession
-                ? `Current Assignments — ${attendanceLabel(latestCleanupSession.attendance_session_id)}`
-                : 'No cleanup sessions yet'}
+              {latestCleanupSession ? 'Current Assignments' : 'No cleanup sessions yet'}
             </h3>
             {latestAssignments.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">
-                {latestCleanupSession ? 'No assignments for this session.' : 'Generate cleanup from an attendance session to get started.'}
+                {latestCleanupSession ? 'No assignments for this session.' : 'Generate cleanup to get started.'}
               </p>
             ) : (
               latestAssignments.map(a => (
