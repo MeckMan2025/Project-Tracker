@@ -7,12 +7,18 @@ import NotificationBell from './NotificationBell'
 import { usePendingRequests } from '../hooks/usePendingRequests'
 import { useToast } from './ToastProvider'
 
+const categoryColors = [
+  { border: 'border-pastel-blue', text: 'text-pastel-blue-dark' },
+  { border: 'border-pastel-pink', text: 'text-pastel-pink-dark' },
+  { border: 'border-pastel-orange', text: 'text-pastel-orange-dark' },
+]
+
 const typeCategories = [
-  { key: 'task', label: 'Task Requests', border: 'border-pastel-pink', text: 'text-pastel-pink-dark' },
-  { key: 'board', label: 'Board Requests', border: 'border-pastel-blue', text: 'text-pastel-blue-dark' },
-  { key: 'calendar_event', label: 'Calendar Events', border: 'border-pastel-orange', text: 'text-pastel-orange-dark' },
-  { key: 'role_request', label: 'Role Requests', border: 'border-purple-300', text: 'text-purple-600' },
-  { key: 'leave_task', label: 'Leave Task Requests', border: 'border-amber-300', text: 'text-amber-600' },
+  { key: 'task', label: 'Task Requests' },
+  { key: 'board', label: 'Board Requests' },
+  { key: 'calendar_event', label: 'Calendar Events' },
+  { key: 'role_request', label: 'Role Requests' },
+  { key: 'leave_task', label: 'Leave Task Requests' },
 ]
 
 function RequestsView({ tabs = [] }) {
@@ -227,11 +233,12 @@ function RequestsView({ tabs = [] }) {
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-8 px-2 md:px-6">
-            {typeCategories.map(cat => {
+            {typeCategories.map((cat, index) => {
               const catRequests = filteredRequests.filter(r => r.type === cat.key)
+              const color = categoryColors[index % categoryColors.length]
               return (
                 <div key={cat.key}>
-                  <h2 className={`text-lg font-bold ${cat.text} mb-3 border-b-2 ${cat.border} pb-2`}>
+                  <h2 className={`text-lg font-bold ${color.text} mb-3 border-b-2 ${color.border} pb-2`}>
                     {cat.label}
                     <span className="ml-2 text-sm font-normal text-gray-400">({catRequests.length})</span>
                   </h2>
