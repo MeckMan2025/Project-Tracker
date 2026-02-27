@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Everything That's Scrum</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/ScrumLogo.png" />
+
+    <!-- iOS Home Screen Icon -->
+    <link rel="apple-touch-icon" href="/ScrumLogo.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Scrum" />
+
+    <!-- Web App Manifest for Android -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#3b82f6" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Auto-refresh when a new deploy is detected
+      fetch('/?_t=' + Date.now(), { cache: 'no-store' })
+        .then(function(r) { return r.text() })
+        .then(function(html) {
+          var match = html.match(/index-([^.]+)\.js/)
+          if (match) {
+            var current = document.querySelector('script[src*="index-"]')
+            if (current && !current.src.includes(match[1])) {
+              location.reload()
+            }
+          }
+        })
+        .catch(function() {})
+    </script>
+  </body>
+</html>
