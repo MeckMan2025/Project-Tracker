@@ -319,6 +319,7 @@ function TeamInfoPage({ onBack }) {
               emoji="🔧"
               color="text-pastel-blue-dark"
               photo="/leaders/nick.jpg"
+              photoPosition="center 30%"
               bio="SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it."
             />
           </div>
