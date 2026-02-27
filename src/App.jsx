@@ -1054,7 +1054,7 @@ function App() {
                     <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
                   </button>
                 )}
-                {isCofounder && (
+                {hasLeadTag && (
                   <button
                     onClick={() => setSpecialView('interested-teams')}
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"

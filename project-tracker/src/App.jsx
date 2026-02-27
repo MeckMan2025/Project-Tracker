@@ -28,6 +28,7 @@ import HomeView from './components/HomeView'
 import QuotesManager from './components/QuotesManager'
 import AttendanceManager from './components/AttendanceManager'
 import AttendanceView from './components/AttendanceView'
+import InterestedTeams from './components/InterestedTeams'
 import WorkshopIdeas from './components/WorkshopIdeas'
 import CleanUpChart from './components/CleanUpChart'
 import ChangelogPopup from './components/ChangelogPopup'
@@ -273,7 +274,7 @@ function RoleChangeModal({ alert, onDismiss }) {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert } = useUser()
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
@@ -1051,6 +1052,8 @@ function App() {
             <AttendanceManager onBack={() => setSpecialView(null)} />
           ) : specialView === 'flash' ? (
             <NotebookFlashDashboard onBack={() => setSpecialView(null)} />
+          ) : specialView === 'interested-teams' ? (
+            <InterestedTeams onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">
@@ -1077,6 +1080,15 @@ function App() {
                   >
                     <span className="text-lg font-semibold text-gray-700">Notebook Flash</span>
                     <p className="text-sm text-gray-400 mt-1">Force notebook entries from present members</p>
+                  </button>
+                )}
+                {isCofounder && (
+                  <button
+                    onClick={() => setSpecialView('interested-teams')}
+                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                  >
+                    <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
+                    <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
                   </button>
                 )}
                 {hasLeadTag && (
