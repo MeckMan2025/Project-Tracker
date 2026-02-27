@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { ArrowLeft, Play, Pause, Music, Sparkles } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle } from 'lucide-react'
 
 function ThemeSongPlayer() {
   const [playing, setPlaying] = useState(false)
@@ -127,6 +127,100 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function InterestForm() {
+  const [teamName, setTeamName] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!teamName.trim() || !contactName.trim()) return
+    setSubmitting(true)
+    setError('')
+
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/interested_teams`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          team_name: teamName.trim(),
+          contact_name: contactName.trim(),
+        }),
+      })
+      if (!res.ok) throw new Error('Submit failed')
+      setSubmitted(true)
+      setTeamName('')
+      setContactName('')
+    } catch (err) {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="border-l-4 border-green-400 rounded-r-xl bg-green-50 p-5 text-center space-y-2">
+        <CheckCircle size={28} className="mx-auto text-green-500" />
+        <p className="font-semibold text-gray-800 text-sm">Thanks for your interest!</p>
+        <p className="text-xs text-gray-500">Our co-founders will see your submission.</p>
+        <button
+          onClick={() => setSubmitted(false)}
+          className="text-xs text-pastel-blue-dark underline mt-1"
+        >
+          Submit another team
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-l-4 border-pastel-blue rounded-r-xl bg-gradient-to-r from-pastel-blue/10 to-pastel-pink/5 p-4 space-y-3">
+      <h3 className="font-bold text-gray-800 text-sm">Interested in Using This App for Your Team?</h3>
+      <p className="text-xs text-gray-600 leading-relaxed">
+        If your FTC team would like to use Everything That's Scrum, let us know! Drop your team name and your name below.
+      </p>
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <input
+          type="text"
+          value={teamName}
+          onChange={(e) => setTeamName(e.target.value)}
+          placeholder="Team name (e.g. Team 12345 — Cool Bots)"
+          maxLength={100}
+          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-pastel-blue/50"
+        />
+        <input
+          type="text"
+          value={contactName}
+          onChange={(e) => setContactName(e.target.value)}
+          placeholder="Your name"
+          maxLength={80}
+          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-pastel-blue/50"
+        />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <button
+          type="submit"
+          disabled={submitting || !teamName.trim() || !contactName.trim()}
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pastel-blue-dark to-pastel-pink-dark text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Send size={14} />
+          {submitting ? 'Submitting...' : "I'm Interested!"}
+        </button>
+      </form>
     </div>
   )
 }
@@ -295,6 +389,8 @@ function TeamInfoPage({ onBack }) {
           <p className="text-gray-700 text-sm leading-relaxed">
             Beyond scouting, the app brings clarity to leadership roles, creates visibility in task management, and reinforces responsibility across both business and technical teams. Instead of adapting to generic tools, we built a system tailored specifically to Team 7196's workflow.
           </p>
+
+          <InterestForm />
 
           <ThemeSongPlayer />
 

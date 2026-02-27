@@ -327,6 +327,19 @@ CREATE POLICY "Allow all access to request_reminders" ON request_reminders
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs jsonb DEFAULT '{"enabled": true, "calendar": true, "chat": true}';
 
 -- 20. ENABLE REALTIME on all tables
+-- 22. INTERESTED TEAMS TABLE (other teams interested in using the app)
+CREATE TABLE IF NOT EXISTS interested_teams (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_name text NOT NULL,
+  contact_name text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE interested_teams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to interested_teams" ON interested_teams;
+CREATE POLICY "Allow all access to interested_teams" ON interested_teams
+  FOR ALL USING (true) WITH CHECK (true);
+
 -- (ignore errors if a table is already in the publication)
 -- CONSIDERED TEAMS TABLE (alliance partner candidates)
 CREATE TABLE IF NOT EXISTS considered_teams (
@@ -379,7 +392,7 @@ DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
