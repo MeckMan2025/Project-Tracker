@@ -98,6 +98,8 @@ export function UserProvider({ children }) {
       setIsAuthorityAdmin(admin)
       setPrimaryRoleLabel(roleLabel)
       setFunctionTags(tags)
+      functionTagsRef.current = tags          // keep poll ref in sync immediately
+      authorityTierRef.current = tier         // keep poll ref in sync immediately
       setShortBio(bio)
       const nick = profile.nickname || ''
       const useNick = !!profile.use_nickname
