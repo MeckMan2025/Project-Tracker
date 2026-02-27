@@ -226,29 +226,26 @@ function RequestsView({ tabs = [] }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
-        {totalRequests === 0 ? (
-          <div className="flex items-center justify-center h-[60vh]">
-            <p className="text-gray-400">No {filter === 'pending' ? 'pending ' : filter === 'history' ? 'past ' : ''}requests</p>
-          </div>
-        ) : (
-          <div className="space-y-8 px-2 md:px-6">
+        <div className="space-y-8 px-2 md:px-6">
             {typeCategories.map(cat => {
               const catRequests = filteredRequests.filter(r => r.type === cat.key)
-              if (catRequests.length === 0) return null
               return (
                 <div key={cat.key}>
                   <h2 className={`text-lg font-bold ${cat.text} mb-3 border-b-2 ${cat.border} pb-2`}>
                     {cat.label}
                     <span className="ml-2 text-sm font-normal text-gray-400">({catRequests.length})</span>
                   </h2>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:snap-none">
-                    {catRequests.map(r => renderRequestCard(r))}
-                  </div>
+                  {catRequests.length === 0 ? (
+                    <p className="text-sm text-gray-400 ml-2">No requests</p>
+                  ) : (
+                    <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:snap-none">
+                      {catRequests.map(r => renderRequestCard(r))}
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
-        )}
       </main>
     </div>
   )
