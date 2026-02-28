@@ -29,8 +29,7 @@ function CalendarView() {
   const [notifyEnabled, setNotifyEnabled] = useState(false)
   const [notifyMessage, setNotifyMessage] = useState('')
   const [forceNotify, setForceNotify] = useState(false)
-  const [scheduleNotify, setScheduleNotify] = useState(false)
-  const [notifyDateTime, setNotifyDateTime] = useState('')
+  const [notifyTime, setNotifyTime] = useState('')
   const [pendingScheduled, setPendingScheduled] = useState({}) // { event_id: true }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -268,13 +267,11 @@ function CalendarView() {
     const shouldNotify = notifyEnabled
     const customMessage = notifyMessage
     const shouldForce = forceNotify
-    const shouldSchedule = scheduleNotify
-    const scheduledTime = notifyDateTime
+    const scheduledTime = notifyTime
     setNotifyEnabled(false)
     setNotifyMessage('')
     setForceNotify(false)
-    setScheduleNotify(false)
-    setNotifyDateTime('')
+    setNotifyTime('')
 
     const { error } = await supabase.from('calendar_events').insert(newEvent)
     if (error) {
@@ -287,13 +284,14 @@ function CalendarView() {
         return updated
       })
     } else if (shouldNotify) {
-      if (shouldSchedule && scheduledTime) {
-        // Insert a scheduled notification for later delivery
+      if (scheduledTime) {
+        // Schedule notification for the event's date at the picked time
         try {
+          const sendAt = new Date(`${key}T${scheduledTime}:00`)
           const scheduledNotif = {
             id: String(Date.now()) + Math.random().toString(36).slice(2),
             event_id: newEvent.id,
-            send_at: new Date(scheduledTime).toISOString(),
+            send_at: sendAt.toISOString(),
             title: `Calendar: ${name}`,
             body: customMessage || `New event: ${name} on ${key}`,
             type: 'calendar_event',
@@ -307,13 +305,13 @@ function CalendarView() {
             console.error('Failed to schedule notification:', schedErr)
             addToast('Event saved but failed to schedule notification', 'error')
           } else {
-            addToast(`Notification scheduled for ${new Date(scheduledTime).toLocaleString()}`, 'success')
+            addToast(`Notification scheduled for ${sendAt.toLocaleString()}`, 'success')
           }
         } catch (err) {
           console.error('Failed to schedule notification:', err)
         }
       } else {
-        // Notify all team members immediately (existing behavior)
+        // No time picked — send immediately
         try {
           const { data: profiles } = await supabase.from('profiles').select('id')
           if (profiles) {
@@ -617,24 +615,17 @@ function CalendarView() {
                         />
                         <span className="text-xs text-gray-500">Force-notify (sends even if turned off)</span>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={scheduleNotify}
-                          onChange={(e) => setScheduleNotify(e.target.checked)}
-                          className="rounded border-gray-300 text-pastel-blue-dark focus:ring-pastel-blue"
-                        />
+                      <div className="flex items-center gap-2">
                         <Clock size={14} className="text-gray-500" />
-                        <span className="text-xs text-gray-600">Schedule notification for later</span>
-                      </label>
-                      {scheduleNotify && (
+                        <span className="text-xs text-gray-600">Notify at:</span>
                         <input
-                          type="datetime-local"
-                          value={notifyDateTime}
-                          onChange={(e) => setNotifyDateTime(e.target.value)}
-                          className="w-full px-2.5 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                          type="time"
+                          value={notifyTime}
+                          onChange={(e) => setNotifyTime(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                         />
-                      )}
+                      </div>
+                      <p className="text-xs text-gray-400">Pick a time to notify, or leave blank to send immediately</p>
                     </>
                   )}
                 </div>
