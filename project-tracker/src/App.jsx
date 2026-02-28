@@ -323,6 +323,21 @@ function App() {
     return () => clearInterval(interval)
   }, [username])
 
+  // Scheduled-notification processor: leads poll every 60s to fire due notifications
+  useEffect(() => {
+    if (!canEditContent) return
+    const processScheduled = () => {
+      fetch(`${REST_URL}/functions/v1/process-scheduled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` },
+        body: '{}',
+      }).catch(() => {})
+    }
+    processScheduled()
+    const interval = setInterval(processScheduled, 60000)
+    return () => clearInterval(interval)
+  }, [canEditContent])
+
   // Keep localStorage cache in sync so refresh always has latest data
   const syncCache = useCallback((updatedTasks) => {
     try {

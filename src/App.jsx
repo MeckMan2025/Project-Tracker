@@ -30,12 +30,16 @@ import AttendanceManager from './components/AttendanceManager'
 import AttendanceView from './components/AttendanceView'
 import InterestedTeams from './components/InterestedTeams'
 import WorkshopIdeas from './components/WorkshopIdeas'
+import CleanUpChart from './components/CleanUpChart'
 import ChangelogPopup from './components/ChangelogPopup'
 import StateCelebration from './components/StateCelebration'
+import NotebookFlashRequired from './components/NotebookFlashRequired'
+import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
+import { useNotebookFlash } from './hooks/useNotebookFlash'
 import RestrictedAccess from './components/RestrictedAccess'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
@@ -272,6 +276,8 @@ function App() {
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
+  const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
+  const flashRequired = activeFlash && username && presentUsers.includes(username) && !completedUsers.includes(username) && !(activeFlash.exempt_users || []).includes(username)
   const [isLoading, setIsLoading] = useState(true)
   const [radicalMsg] = useState(() => {
     const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
@@ -316,6 +322,21 @@ function App() {
     const interval = setInterval(ping, 10000)
     return () => clearInterval(interval)
   }, [username])
+
+  // Scheduled-notification processor: leads poll every 60s to fire due notifications
+  useEffect(() => {
+    if (!canEditContent) return
+    const processScheduled = () => {
+      fetch(`${REST_URL}/functions/v1/process-scheduled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` },
+        body: '{}',
+      }).catch(() => {})
+    }
+    processScheduled()
+    const interval = setInterval(processScheduled, 60000)
+    return () => clearInterval(interval)
+  }, [canEditContent])
 
   // Keep localStorage cache in sync so refresh always has latest data
   const syncCache = useCallback((updatedTasks) => {
@@ -939,6 +960,14 @@ function App() {
     <>
       {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {!isLoading && <ChangelogPopup />}
+      {!isLoading && flashRequired && !hasLeadTag && (
+        <NotebookFlashRequired
+          username={username}
+          activeFlash={activeFlash}
+          presentUsers={presentUsers}
+          completedUsers={completedUsers}
+        />
+      )}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading ? 'hidden' : ''}`}>
       <StateCelebration />
       {loadError && (
@@ -1053,11 +1082,22 @@ function App() {
             <QuotesManager onBack={() => setSpecialView(null)} />
           ) : specialView === 'attendance' ? (
             <AttendanceManager onBack={() => setSpecialView(null)} />
+          ) : specialView === 'flash' ? (
+            <NotebookFlashDashboard onBack={() => setSpecialView(null)} />
           ) : specialView === 'interested-teams' ? (
             <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
+          ) : specialView === 'cleanup' ? (
+            <CleanUpChart onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">
+                <button
+                  onClick={() => setSpecialView('cleanup')}
+                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                >
+                  <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
+                  <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
+                </button>
                 <button
                   onClick={() => setSpecialView('quotes')}
                   className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
@@ -1072,6 +1112,15 @@ function App() {
                   >
                     <span className="text-lg font-semibold text-gray-700">Attendance</span>
                     <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
+                  </button>
+                )}
+                {hasLeadTag && (
+                  <button
+                    onClick={() => setSpecialView('flash')}
+                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                  >
+                    <span className="text-lg font-semibold text-gray-700">Notebook Flash</span>
+                    <p className="text-sm text-gray-400 mt-1">Force notebook entries from present members</p>
                   </button>
                 )}
                 <button

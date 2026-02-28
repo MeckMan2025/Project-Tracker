@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -29,6 +29,9 @@ function CalendarView() {
   const [notifyEnabled, setNotifyEnabled] = useState(false)
   const [notifyMessage, setNotifyMessage] = useState('')
   const [forceNotify, setForceNotify] = useState(false)
+  const [scheduleNotify, setScheduleNotify] = useState(false)
+  const [notifyDateTime, setNotifyDateTime] = useState('')
+  const [pendingScheduled, setPendingScheduled] = useState({}) // { event_id: true }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -175,6 +178,37 @@ function CalendarView() {
     }
   }, [])
 
+  // Load pending scheduled notifications for visual indicator (leads only)
+  useEffect(() => {
+    if (!canEditContent) return
+    async function loadPending() {
+      try {
+        const { data } = await supabase
+          .from('scheduled_notifications')
+          .select('event_id')
+          .eq('status', 'pending')
+        if (data) {
+          const map = {}
+          data.forEach(r => { map[r.event_id] = true })
+          setPendingScheduled(map)
+        }
+      } catch (err) {
+        console.error('Failed to load pending scheduled notifications:', err)
+      }
+    }
+    loadPending()
+
+    // Refresh when scheduled_notifications changes
+    const channel = supabase
+      .channel('scheduled-notif-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_notifications' }, () => {
+        loadPending()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [canEditContent])
+
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const monthName = currentDate.toLocaleString('default', { month: 'long' })
@@ -234,9 +268,13 @@ function CalendarView() {
     const shouldNotify = notifyEnabled
     const customMessage = notifyMessage
     const shouldForce = forceNotify
+    const shouldSchedule = scheduleNotify
+    const scheduledTime = notifyDateTime
     setNotifyEnabled(false)
     setNotifyMessage('')
     setForceNotify(false)
+    setScheduleNotify(false)
+    setNotifyDateTime('')
 
     const { error } = await supabase.from('calendar_events').insert(newEvent)
     if (error) {
@@ -249,27 +287,54 @@ function CalendarView() {
         return updated
       })
     } else if (shouldNotify) {
-      // Notify all team members about this event
-      try {
-        const { data: profiles } = await supabase.from('profiles').select('id')
-        if (profiles) {
-          const body = customMessage || `New event: ${name} on ${key}`
-          for (const p of profiles) {
-            if (p.id === user?.id) continue
-            const notifRecord = {
-              id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
-              user_id: p.id,
-              type: 'calendar_event',
-              title: `Calendar: ${name}`,
-              body,
-              force: shouldForce,
-            }
-            await supabase.from('notifications').insert(notifRecord)
-            triggerPush(notifRecord)
+      if (shouldSchedule && scheduledTime) {
+        // Insert a scheduled notification for later delivery
+        try {
+          const scheduledNotif = {
+            id: String(Date.now()) + Math.random().toString(36).slice(2),
+            event_id: newEvent.id,
+            send_at: new Date(scheduledTime).toISOString(),
+            title: `Calendar: ${name}`,
+            body: customMessage || `New event: ${name} on ${key}`,
+            type: 'calendar_event',
+            force: shouldForce,
+            created_by: username,
+            created_by_user_id: user?.id,
+            status: 'pending',
           }
+          const { error: schedErr } = await supabase.from('scheduled_notifications').insert(scheduledNotif)
+          if (schedErr) {
+            console.error('Failed to schedule notification:', schedErr)
+            addToast('Event saved but failed to schedule notification', 'error')
+          } else {
+            addToast(`Notification scheduled for ${new Date(scheduledTime).toLocaleString()}`, 'success')
+          }
+        } catch (err) {
+          console.error('Failed to schedule notification:', err)
         }
-      } catch (err) {
-        console.error('Failed to send event notifications:', err)
+      } else {
+        // Notify all team members immediately (existing behavior)
+        try {
+          const { data: profiles } = await supabase.from('profiles').select('id')
+          if (profiles) {
+            const body = customMessage || `New event: ${name} on ${key}`
+            for (const p of profiles) {
+              if (p.id === user?.id) continue
+              const notifRecord = {
+                id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
+                user_id: p.id,
+                type: 'calendar_event',
+                title: `Calendar: ${name}`,
+                body,
+                force: shouldForce,
+              }
+              await supabase.from('notifications').insert(notifRecord)
+              triggerPush(notifRecord)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to send event notifications:', err)
+        }
       }
     }
   }
@@ -286,6 +351,13 @@ function CalendarView() {
 
     const { error } = await supabase.from('calendar_events').delete().eq('id', eventId)
     if (error) console.error('Failed to delete calendar event:', error)
+
+    // Cancel any pending scheduled notifications for this event
+    await supabase
+      .from('scheduled_notifications')
+      .update({ status: 'cancelled' })
+      .eq('event_id', eventId)
+      .eq('status', 'pending')
   }
 
   const today = new Date()
@@ -391,6 +463,9 @@ function CalendarView() {
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${t.dot} shrink-0`} />
                         <span className="text-xs text-gray-600 truncate">{ev.name}</span>
+                        {pendingScheduled[ev.id] && (
+                          <Clock size={10} className="text-pastel-orange-dark shrink-0" title="Scheduled notification pending" />
+                        )}
                       </div>
                     )
                   })}
@@ -436,6 +511,11 @@ function CalendarView() {
                         <p className="text-xs text-gray-500">{ev.description}</p>
                       )}
                       <p className="text-xs text-gray-400 mt-0.5">Added by {ev.addedBy}</p>
+                      {pendingScheduled[ev.id] && (
+                        <p className="text-xs text-pastel-orange-dark mt-0.5 flex items-center gap-1">
+                          <Clock size={10} /> Scheduled notification pending
+                        </p>
+                      )}
                     </div>
                     {canEditContent && (
                       <button
@@ -537,6 +617,24 @@ function CalendarView() {
                         />
                         <span className="text-xs text-gray-500">Force-notify (sends even if turned off)</span>
                       </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={scheduleNotify}
+                          onChange={(e) => setScheduleNotify(e.target.checked)}
+                          className="rounded border-gray-300 text-pastel-blue-dark focus:ring-pastel-blue"
+                        />
+                        <Clock size={14} className="text-gray-500" />
+                        <span className="text-xs text-gray-600">Schedule notification for later</span>
+                      </label>
+                      {scheduleNotify && (
+                        <input
+                          type="datetime-local"
+                          value={notifyDateTime}
+                          onChange={(e) => setNotifyDateTime(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                        />
+                      )}
                     </>
                   )}
                 </div>

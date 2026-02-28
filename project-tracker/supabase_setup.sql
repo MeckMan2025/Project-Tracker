@@ -477,11 +477,36 @@ DROP POLICY IF EXISTS "Allow all access to cleanup_exemptions" ON cleanup_exempt
 CREATE POLICY "Allow all access to cleanup_exemptions" ON cleanup_exemptions
   FOR ALL USING (true) WITH CHECK (true);
 
+-- 30. SCHEDULED NOTIFICATIONS TABLE (deferred calendar event notifications)
+CREATE TABLE IF NOT EXISTS scheduled_notifications (
+  id text PRIMARY KEY,
+  event_id text NOT NULL,
+  send_at timestamptz NOT NULL,
+  title text NOT NULL,
+  body text DEFAULT '',
+  type text NOT NULL DEFAULT 'calendar_event',
+  force boolean DEFAULT false,
+  created_by text NOT NULL,
+  created_by_user_id uuid NOT NULL REFERENCES auth.users(id),
+  status text NOT NULL DEFAULT 'pending',
+  sent_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_notif_pending
+  ON scheduled_notifications (send_at)
+  WHERE status = 'pending';
+
+ALTER TABLE scheduled_notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to scheduled_notifications" ON scheduled_notifications;
+CREATE POLICY "Allow all access to scheduled_notifications" ON scheduled_notifications
+  FOR ALL USING (true) WITH CHECK (true);
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','notebook_flash','notebook_entry_participants','cleanup_jobs','cleanup_sessions','cleanup_assignments','cleanup_exemptions']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','notebook_flash','notebook_entry_participants','cleanup_jobs','cleanup_sessions','cleanup_assignments','cleanup_exemptions','scheduled_notifications']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
