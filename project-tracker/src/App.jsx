@@ -1089,6 +1089,18 @@ function App() {
                   <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
                   <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
                 </button>
+                <button
+                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                >
+                  <span className="text-lg font-semibold text-gray-700">Portfolio</span>
+                  <p className="text-sm text-gray-400 mt-1">Coming soon</p>
+                </button>
+                <button
+                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                >
+                  <span className="text-lg font-semibold text-gray-700">Outreach</span>
+                  <p className="text-sm text-gray-400 mt-1">Coming soon</p>
+                </button>
                 {hasLeadTag && (
                   <button
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
