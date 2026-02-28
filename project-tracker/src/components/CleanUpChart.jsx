@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
-import { Sparkles, Check, X, Trophy, UserMinus } from 'lucide-react'
+import { Sparkles, Check, X, Trophy, UserMinus, ArrowLeft } from 'lucide-react'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -28,7 +28,7 @@ const STATUS_LABELS = {
   denied: 'Denied',
 }
 
-export default function CleanUpChart() {
+export default function CleanUpChart({ onBack }) {
   const { username } = useUser()
   const { hasLeadTag, isGuest } = usePermissions()
 
@@ -306,6 +306,204 @@ export default function CleanUpChart() {
         .filter(u => !latestExemptions.some(e => e.username === u))
     : []
 
+  const content = (
+    <>
+      {/* Generate Cleanup — Lead Only */}
+      {hasLeadTag && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+          <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
+            <Sparkles size={16} className="text-pastel-orange-dark" />
+            Generate Cleanup
+          </h3>
+          <p className="text-xs text-gray-400">Select who's here for cleanup:</p>
+          <div className="flex gap-2 mb-1">
+            <button onClick={selectAll} className="text-xs text-pastel-blue-dark hover:underline">Select All</button>
+            <button onClick={selectNone} className="text-xs text-gray-400 hover:underline">Clear</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {teamMembers.map(name => (
+              <button
+                key={name}
+                onClick={() => toggleUser(name)}
+                className={`px-2.5 py-1.5 text-xs rounded-lg transition-colors ${
+                  selectedUsers.includes(name)
+                    ? 'bg-pastel-blue text-gray-800 font-semibold'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {selectedUsers.length > 0 && (
+            <p className="text-xs text-gray-500">{selectedUsers.length} selected</p>
+          )}
+          <button
+            onClick={handleGenerateCleanup}
+            disabled={generating || selectedUsers.length === 0}
+            className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 transition-colors text-sm font-semibold text-gray-700"
+          >
+            {generating ? 'Generating...' : 'Generate Cleanup'}
+          </button>
+        </div>
+      )}
+
+      {/* Current Assignments */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-gray-500">
+          {latestCleanupSession ? 'Current Assignments' : 'No cleanup sessions yet'}
+        </h3>
+        {latestAssignments.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">
+            {latestCleanupSession ? 'No assignments for this session.' : 'Generate cleanup to get started.'}
+          </p>
+        ) : (
+          latestAssignments.map(a => (
+            <div key={a.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700 truncate">{jobName(a.job_id)}</p>
+                <p className="text-xs text-gray-400">{a.assigned_username}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[a.status] || 'bg-gray-100 text-gray-500'}`}>
+                  {STATUS_LABELS[a.status] || a.status}
+                </span>
+
+                {/* Own assignment: Mark Complete */}
+                {a.status === 'assigned' && a.assigned_username === username && (
+                  <button
+                    onClick={() => handleMarkComplete(a.id)}
+                    className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                    title="Mark Complete"
+                  >
+                    <Check size={14} />
+                  </button>
+                )}
+
+                {/* Lead: Confirm / Deny */}
+                {a.status === 'pending_confirmation' && hasLeadTag && (
+                  <>
+                    <button
+                      onClick={() => handleConfirm(a.id)}
+                      className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                      title="Confirm"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeny(a.id)}
+                      className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                      title="Deny"
+                    >
+                      <X size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Leaderboard */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
+          <Trophy size={16} className="text-pastel-pink-dark" />
+          Leaderboard
+        </h3>
+        {leaderboard.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">No cleanup data yet.</p>
+        ) : (
+          leaderboard.map((entry, idx) => (
+            <div key={entry.name} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  idx === 0 ? 'bg-yellow-100 text-yellow-700' :
+                  idx === 1 ? 'bg-gray-100 text-gray-600' :
+                  idx === 2 ? 'bg-orange-100 text-orange-700' :
+                  'bg-gray-50 text-gray-400'
+                }`}>
+                  {idx + 1}
+                </span>
+                <span className="text-sm font-medium text-gray-700">{entry.name}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-bold text-gray-800">{entry.points} pts</span>
+                <p className="text-xs text-gray-400">{entry.total} jobs</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Exemptions — Lead Only */}
+      {hasLeadTag && latestCleanupSession && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+          <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
+            <UserMinus size={16} className="text-pastel-orange-dark" />
+            Exemptions
+          </h3>
+
+          {latestExemptions.length > 0 && (
+            <div className="space-y-1">
+              {latestExemptions.map(e => (
+                <div key={e.id} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{e.username}</span>
+                  <span className="text-xs text-gray-400">by {e.exempted_by}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {exemptableUsers.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {exemptableUsers.map(u => (
+                <button
+                  key={u}
+                  onClick={() => handleExemptUser(u)}
+                  className="px-2 py-1 text-xs rounded-lg bg-pastel-orange/30 hover:bg-pastel-orange/50 text-gray-700 transition-colors"
+                >
+                  Exempt {u}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">No users to exempt.</p>
+          )}
+        </div>
+      )}
+    </>
+  )
+
+  if (onBack) {
+    return (
+      <div className="flex-1 p-4 overflow-y-auto">
+        <div className="max-w-lg mx-auto space-y-6">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+
+          <div className="flex items-center gap-2">
+            <Sparkles size={20} className="text-pastel-orange-dark" />
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Clean Up Chart</h2>
+              <p className="text-sm text-gray-500">Cleanup job assignments & leaderboard</p>
+            </div>
+          </div>
+
+          {feedback && (
+            <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
+          )}
+
+          {content}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -322,175 +520,10 @@ export default function CleanUpChart() {
 
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-lg mx-auto space-y-6">
-
           {feedback && (
             <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
           )}
-
-          {/* Generate Cleanup — Lead Only */}
-          {hasLeadTag && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
-              <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
-                <Sparkles size={16} className="text-pastel-orange-dark" />
-                Generate Cleanup
-              </h3>
-              <p className="text-xs text-gray-400">Select who's here for cleanup:</p>
-              <div className="flex gap-2 mb-1">
-                <button onClick={selectAll} className="text-xs text-pastel-blue-dark hover:underline">Select All</button>
-                <button onClick={selectNone} className="text-xs text-gray-400 hover:underline">Clear</button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {teamMembers.map(name => (
-                  <button
-                    key={name}
-                    onClick={() => toggleUser(name)}
-                    className={`px-2.5 py-1.5 text-xs rounded-lg transition-colors ${
-                      selectedUsers.includes(name)
-                        ? 'bg-pastel-blue text-gray-800 font-semibold'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-              {selectedUsers.length > 0 && (
-                <p className="text-xs text-gray-500">{selectedUsers.length} selected</p>
-              )}
-              <button
-                onClick={handleGenerateCleanup}
-                disabled={generating || selectedUsers.length === 0}
-                className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 transition-colors text-sm font-semibold text-gray-700"
-              >
-                {generating ? 'Generating...' : 'Generate Cleanup'}
-              </button>
-            </div>
-          )}
-
-          {/* Current Assignments */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500">
-              {latestCleanupSession ? 'Current Assignments' : 'No cleanup sessions yet'}
-            </h3>
-            {latestAssignments.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">
-                {latestCleanupSession ? 'No assignments for this session.' : 'Generate cleanup to get started.'}
-              </p>
-            ) : (
-              latestAssignments.map(a => (
-                <div key={a.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-700 truncate">{jobName(a.job_id)}</p>
-                    <p className="text-xs text-gray-400">{a.assigned_username}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[a.status] || 'bg-gray-100 text-gray-500'}`}>
-                      {STATUS_LABELS[a.status] || a.status}
-                    </span>
-
-                    {/* Own assignment: Mark Complete */}
-                    {a.status === 'assigned' && a.assigned_username === username && (
-                      <button
-                        onClick={() => handleMarkComplete(a.id)}
-                        className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
-                        title="Mark Complete"
-                      >
-                        <Check size={14} />
-                      </button>
-                    )}
-
-                    {/* Lead: Confirm / Deny */}
-                    {a.status === 'pending_confirmation' && hasLeadTag && (
-                      <>
-                        <button
-                          onClick={() => handleConfirm(a.id)}
-                          className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
-                          title="Confirm"
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeny(a.id)}
-                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
-                          title="Deny"
-                        >
-                          <X size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Leaderboard */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
-              <Trophy size={16} className="text-pastel-pink-dark" />
-              Leaderboard
-            </h3>
-            {leaderboard.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">No cleanup data yet.</p>
-            ) : (
-              leaderboard.map((entry, idx) => (
-                <div key={entry.name} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                      idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      idx === 1 ? 'bg-gray-100 text-gray-600' :
-                      idx === 2 ? 'bg-orange-100 text-orange-700' :
-                      'bg-gray-50 text-gray-400'
-                    }`}>
-                      {idx + 1}
-                    </span>
-                    <span className="text-sm font-medium text-gray-700">{entry.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-gray-800">{entry.points} pts</span>
-                    <p className="text-xs text-gray-400">{entry.total} jobs</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Exemptions — Lead Only */}
-          {hasLeadTag && latestCleanupSession && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
-              <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-2">
-                <UserMinus size={16} className="text-pastel-orange-dark" />
-                Exemptions
-              </h3>
-
-              {latestExemptions.length > 0 && (
-                <div className="space-y-1">
-                  {latestExemptions.map(e => (
-                    <div key={e.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{e.username}</span>
-                      <span className="text-xs text-gray-400">by {e.exempted_by}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {exemptableUsers.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {exemptableUsers.map(u => (
-                    <button
-                      key={u}
-                      onClick={() => handleExemptUser(u)}
-                      className="px-2 py-1 text-xs rounded-lg bg-pastel-orange/30 hover:bg-pastel-orange/50 text-gray-700 transition-colors"
-                    >
-                      Exempt {u}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">No users to exempt.</p>
-              )}
-            </div>
-          )}
+          {content}
         </div>
       </div>
     </div>

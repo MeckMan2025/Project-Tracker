@@ -83,7 +83,7 @@ const TAB_ACCESS = {
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate',
-  'attendance': 'teammate', 'cleanup': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
+  'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
@@ -174,7 +174,6 @@ const SCHEDULE_TAB = { id: 'schedule', name: 'Schedule', type: 'schedule' }
 const WORKSHOPS_TAB = { id: 'workshops', name: 'Workshops', type: 'workshops' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
-const CLEANUP_TAB = { id: 'cleanup', name: 'Clean Up Chart', type: 'cleanup' }
 const SPECIAL_TAB = { id: 'special-controls', name: 'Special Controls', type: 'special-controls' }
 
 const DEFAULT_BOARDS = [
@@ -183,7 +182,7 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
-const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, CLEANUP_TAB, USER_MGMT_TAB, SPECIAL_TAB]
+const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB, SPECIAL_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -1052,8 +1051,6 @@ function App() {
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
         <AttendanceView />
-      ) : activeTab === 'cleanup' ? (
-        <CleanUpChart />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -1074,9 +1071,18 @@ function App() {
             <NotebookFlashDashboard onBack={() => setSpecialView(null)} />
           ) : specialView === 'interested-teams' ? (
             <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
+          ) : specialView === 'cleanup' ? (
+            <CleanUpChart onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">
+                <button
+                  onClick={() => setSpecialView('cleanup')}
+                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                >
+                  <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
+                  <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
+                </button>
                 <button
                   onClick={() => setSpecialView('quotes')}
                   className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
