@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronUp, Trash2, Plus, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -207,6 +207,25 @@ function ScoutingData() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [addForm, setAddForm] = useState({ name: '', number: '', rank: '' })
   const [deleteMode, setDeleteMode] = useState(false)
+  const [selectedDate, setSelectedDate] = useState('') // '' = all dates
+
+  // Get unique submission dates from records
+  const availableDates = useMemo(() => {
+    const dateSet = new Set()
+    records.forEach(r => {
+      if (r.submitted_at) {
+        const date = r.submitted_at.split('T')[0] // YYYY-MM-DD
+        dateSet.add(date)
+      }
+    })
+    return [...dateSet].sort((a, b) => b.localeCompare(a)) // newest first
+  }, [records])
+
+  // Filter records by selected date
+  const filteredRecords = useMemo(() => {
+    if (!selectedDate) return records
+    return records.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
+  }, [records, selectedDate])
 
   // Load from Supabase
   useEffect(() => {
@@ -316,9 +335,9 @@ function ScoutingData() {
 
   // Merge competition data with scouting submissions, split into considered vs rest
   const { consideredTeams, otherTeams } = useMemo(() => {
-    // Group scouting records by team number
+    // Group scouting records by team number (using filtered records)
     const byNumber = {}
-    records.forEach(r => {
+    filteredRecords.forEach(r => {
       const d = r.data || {}
       const num = String(d.teamNumber || '').trim()
       if (!num) return
@@ -334,7 +353,8 @@ function ScoutingData() {
       delete byNumber[t.number]
       const dynamicStats = computeScoutingStats(matches)
       const hardcodedStats = SCOUT_STATS[t.number]
-      const stats = dynamicStats.scoutCount > 0 ? dynamicStats : (hardcodedStats ? { ...hardcodedStats, scoutCount: hardcodedStats.scouted, startingPositions: {} } : dynamicStats)
+      // When filtering by date, only use dynamic stats (hardcoded stats are all-time and can't be date-filtered)
+      const stats = dynamicStats.scoutCount > 0 ? dynamicStats : (!selectedDate && hardcodedStats ? { ...hardcodedStats, scoutCount: hardcodedStats.scouted, startingPositions: {} } : dynamicStats)
       return { ...t, matches, ...stats }
     })
 
@@ -373,7 +393,7 @@ function ScoutingData() {
       .sort((a, b) => (a.rank || 999) - (b.rank || 999))
 
     return { consideredTeams: considered, otherTeams: others }
-  }, [records, consideredList, consideredNumbers])
+  }, [filteredRecords, consideredList, consideredNumbers, selectedDate])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
@@ -449,10 +469,39 @@ function ScoutingData() {
               Scouting Data
             </h1>
             <p className="text-sm text-gray-500">
-              {ALL_TEAMS.length} teams &middot; {records.length} scouting response{records.length !== 1 ? 's' : ''}
+              {ALL_TEAMS.length} teams &middot; {filteredRecords.length} scouting response{filteredRecords.length !== 1 ? 's' : ''}
+              {selectedDate && ` on ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
             </p>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="flex items-center gap-1.5">
+                <Calendar size={14} className="text-gray-400" />
+                <select
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 pr-6 text-gray-700 focus:outline-none focus:ring-2 focus:ring-pastel-pink appearance-none cursor-pointer"
+                >
+                  <option value="">All Dates</option>
+                  {availableDates.map(d => (
+                    <option key={d} value={d}>
+                      {new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate('')}
+                  className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-pastel-pink text-white text-[10px]"
+                  title="Clear date filter"
+                >
+                  <X size={10} />
+                </button>
+              )}
+            </div>
+            <NotificationBell />
+          </div>
         </div>
       </header>
 
