@@ -50,10 +50,11 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
   }, [isLead])
 
   const descriptionMissing = !formData.description.trim()
+  const dueDateMissing = !formData.dueDate
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.title.trim() || descriptionMissing) {
+    if (!formData.title.trim() || descriptionMissing || dueDateMissing) {
       setShowErrors(true)
       return
     }
@@ -158,14 +159,23 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Date
+                Due Date *
               </label>
               <input
                 type="date"
                 value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                onChange={(e) => {
+                  setFormData({ ...formData, dueDate: e.target.value })
+                  if (showErrors && e.target.value) setShowErrors(false)
+                }}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
+                  showErrors && dueDateMissing ? 'border-red-500' : ''
+                }`}
+                required
               />
+              {showErrors && dueDateMissing && (
+                <p className="text-red-500 text-sm mt-1">Due date is required</p>
+              )}
             </div>
           </div>
 
@@ -218,9 +228,9 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
             </button>
             <button
               type="submit"
-              disabled={descriptionMissing}
+              disabled={descriptionMissing || dueDateMissing}
               className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
-                descriptionMissing
+                descriptionMissing || dueDateMissing
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-pastel-pink hover:bg-pastel-pink-dark'
               }`}
