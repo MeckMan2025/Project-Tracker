@@ -2,10 +2,10 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 const UserContext = createContext(null)
-const SESSION_MAX_AGE = 12 * 60 * 60 * 1000 // 12 hours
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
 
 export function UserProvider({ children }) {
-  const [roleChangeAlert, setRoleChangeAlert] = useState(null)
+  const [roleChangeAlert, setRoleChangeAlert] = useState(null) // kept for context API compat
   const [username, setUsername] = useState('')
   const [isLead, setIsLead] = useState(false)
   const [role, setRole] = useState(() => localStorage.getItem('scrum-role') || 'member')
@@ -25,11 +25,6 @@ export function UserProvider({ children }) {
     } catch (e) { return [] }
   })
   const [shortBio, setShortBio] = useState(() => localStorage.getItem('scrum-short-bio') || '')
-  // Refs to track latest values for realtime listener (avoids stale closures)
-  const functionTagsRef = useRef(functionTags)
-  const authorityTierRef = useRef(authorityTier)
-  useEffect(() => { functionTagsRef.current = functionTags }, [functionTags])
-  useEffect(() => { authorityTierRef.current = authorityTier }, [authorityTier])
   const [nickname, setNickname] = useState(() => localStorage.getItem('scrum-nickname') || '')
   const [useNickname, setUseNickname] = useState(() => localStorage.getItem('scrum-use-nickname') === 'true')
   const [user, setUser] = useState(null)
@@ -93,13 +88,12 @@ export function UserProvider({ children }) {
         tags = [...tags, 'Co-Founder']
         supabase.from('profiles').update({ function_tags: tags }).eq('id', profile.id).then()
       }
+
       const bio = profile.short_bio || ''
       setAuthorityTier(tier)
       setIsAuthorityAdmin(admin)
       setPrimaryRoleLabel(roleLabel)
       setFunctionTags(tags)
-      functionTagsRef.current = tags          // keep poll ref in sync immediately
-      authorityTierRef.current = tier         // keep poll ref in sync immediately
       setShortBio(bio)
       const nick = profile.nickname || ''
       const useNick = !!profile.use_nickname
@@ -321,53 +315,8 @@ export function UserProvider({ children }) {
     }
   }, [])
 
-  // Realtime subscription on own profile — picks up tier/role changes made by leads
-  // Only listens for function_tags and authority_tier columns to avoid heartbeat noise
-  useEffect(() => {
-    if (!user) return
-    // Poll every 30s instead of realtime to avoid heartbeat conflicts
-    const checkForRoleChanges = async () => {
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-        const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-        const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=function_tags,authority_tier`, { headers })
-        if (!res.ok) return
-        const [profile] = await res.json()
-        if (!profile) return
-        const currentTags = functionTagsRef.current || []
-        const currentTier = authorityTierRef.current
-        const newTags = profile.function_tags || []
-        const newTier = profile.authority_tier
-        const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(currentTags)
-        const tierChanged = newTier && newTier !== currentTier
-        if (!tagsChanged && !tierChanged) return
-        const addedRoles = newTags.filter(t => !currentTags.includes(t))
-        const removedRoles = currentTags.filter(t => !newTags.includes(t) && t !== 'Co-Founder')
-        if (addedRoles.length > 0) {
-          setRoleChangeAlert({ type: 'added', roles: addedRoles })
-        } else if (removedRoles.length > 0) {
-          setRoleChangeAlert({ type: 'removed', roles: removedRoles })
-        } else if (tierChanged) {
-          setRoleChangeAlert({ type: 'tier', tier: newTier })
-        }
-        // Apply the new values so permissions update immediately
-        if (tagsChanged) {
-          setFunctionTags(newTags)
-          localStorage.setItem('scrum-function-tags', JSON.stringify(newTags))
-        }
-        if (tierChanged) {
-          setAuthorityTier(newTier)
-          localStorage.setItem('scrum-authority-tier', newTier)
-        }
-        // Update refs so we don't alert again
-        functionTagsRef.current = newTags
-        authorityTierRef.current = newTier
-      } catch {}
-    }
-    const interval = setInterval(checkForRoleChanges, 30000)
-    return () => clearInterval(interval)
-  }, [user?.id])
+  // Role-change detection now lives inside applyProfile (which runs on
+  // initial load, sign-in, and tab-wake), so no separate poll is needed.
 
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({
