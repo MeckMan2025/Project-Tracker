@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home, Gamepad2 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -15,6 +15,19 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [dataOpen, setDataOpen] = useState(false)
   const [scoutingOpen, setScoutingOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
+
+  // Reset all dropdowns when sidebar closes
+  useEffect(() => {
+    if (!isOpen) {
+      setMenuOpen(false)
+      setBoardsOpen(false)
+      setDataOpen(false)
+      setScoutingOpen(false)
+      setTasksOpen(false)
+      setIsAdding(false)
+      setNewTabName('')
+    }
+  }, [isOpen])
 
   const handleAddTab = (e) => {
     e.preventDefault()

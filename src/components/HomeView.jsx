@@ -50,10 +50,11 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
   const stats = useMemo(() => {
     const allTasks = Object.values(tasksByTab).flat()
     const myTasks = allTasks.filter(t => t.assignee && t.assignee.toLowerCase() === (username || '').toLowerCase())
-    const myOpen = myTasks.filter(t => t.status !== 'done')
-    const myDone = myTasks.filter(t => t.status === 'done')
-    const allOpen = allTasks.filter(t => t.status !== 'done')
-    const allDone = allTasks.filter(t => t.status === 'done')
+    const isDone = (t) => t.status === 'done' || t.status === 'completed'
+    const myOpen = myTasks.filter(t => !isDone(t))
+    const myDone = myTasks.filter(isDone)
+    const allOpen = allTasks.filter(t => !isDone(t))
+    const allDone = allTasks.filter(isDone)
 
     // Find nearest deadline task
     const now = new Date()
@@ -192,7 +193,7 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
                             )}
                             <span className={`text-xs px-2 py-0.5 rounded-full ${
                               task.status === 'todo' ? 'bg-pastel-blue/40' :
-                              task.status === 'done' ? 'bg-green-100 text-green-700' :
+                              (task.status === 'done' || task.status === 'completed') ? 'bg-green-100 text-green-700' :
                               'bg-pastel-orange/40'
                             }`}>
                               {task.status}

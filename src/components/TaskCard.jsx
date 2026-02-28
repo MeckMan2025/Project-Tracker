@@ -78,8 +78,8 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeav
         </div>
       </div>
 
-      {/* Mark Done button */}
-      {task.status !== 'done' && !isGuest && onMarkDone && (
+      {/* Mark Done button — only in Done column */}
+      {task.status === 'done' && !isGuest && onMarkDone && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}

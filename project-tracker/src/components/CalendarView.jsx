@@ -400,8 +400,8 @@ function CalendarView() {
                       className="flex items-center gap-1"
                       title={`Task: ${task.title}${task.assignee ? ' (' + task.assignee + ')' : ''}`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${task.status === 'done' ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
-                      <span className={`text-xs truncate ${task.status === 'done' ? 'text-green-600 line-through' : 'text-pastel-blue-dark'}`}>{task.title}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${(task.status === 'done' || task.status === 'completed') ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
+                      <span className={`text-xs truncate ${(task.status === 'done' || task.status === 'completed') ? 'text-green-600 line-through' : 'text-pastel-blue-dark'}`}>{task.title}</span>
                     </div>
                   ))}
                 </div>
@@ -456,14 +456,14 @@ function CalendarView() {
               <div className="space-y-2 mb-3">
                 <p className="text-xs font-semibold text-pastel-blue-dark uppercase tracking-wide">Tasks Due</p>
                 {(tasksDue[dateKey(selectedDay)] || []).map(task => (
-                  <div key={task.id} className={`flex items-start gap-2 rounded-lg px-3 py-2 ${task.status === 'done' ? 'bg-green-50' : 'bg-pastel-blue/20'}`}>
-                    <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${task.status === 'done' ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
+                  <div key={task.id} className={`flex items-start gap-2 rounded-lg px-3 py-2 ${(task.status === 'done' || task.status === 'completed') ? 'bg-green-50' : 'bg-pastel-blue/20'}`}>
+                    <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${(task.status === 'done' || task.status === 'completed') ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${task.status === 'done' ? 'text-green-700 line-through' : 'text-gray-700'}`}>{task.title}</p>
+                      <p className={`text-sm font-medium ${(task.status === 'done' || task.status === 'completed') ? 'text-green-700 line-through' : 'text-gray-700'}`}>{task.title}</p>
                       {task.assignee && (
                         <p className="text-xs text-gray-400 mt-0.5">Assigned to {task.assignee}</p>
                       )}
-                      <p className="text-xs text-gray-400">{task.status === 'done' ? 'Completed' : task.status === 'todo' ? 'To Do' : task.status}</p>
+                      <p className="text-xs text-gray-400">{(task.status === 'done' || task.status === 'completed') ? 'Completed' : task.status === 'todo' ? 'To Do' : task.status}</p>
                     </div>
                   </div>
                 ))}

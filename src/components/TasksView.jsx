@@ -83,7 +83,7 @@ function TasksView({ tasksByTab, tabs }) {
                   ) : (
                     <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:snap-none">
                       {tasks.map(task => {
-                        const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
+                        const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' && task.status !== 'completed'
                         const isUpForGrabs = task.assignee === '__up_for_grabs__'
                         return (
                           <div
@@ -95,7 +95,7 @@ function TasksView({ tasksByTab, tabs }) {
                             <div className="flex items-center justify-between mb-1">
                               <h3 className="font-medium text-gray-800 text-sm truncate">{task.title}</h3>
                             </div>
-                            <span className="text-[10px] text-gray-400 capitalize">{task.status === 'todo' ? 'To Do' : task.status === 'done' ? 'Done' : task.status + '%'}</span>
+                            <span className="text-[10px] text-gray-400 capitalize">{task.status === 'todo' ? 'To Do' : (task.status === 'done' || task.status === 'completed') ? 'Done' : task.status + '%'}</span>
 
                             {task.description && (
                               <p className="text-xs text-gray-500 mb-1 line-clamp-3 mt-1">{task.description}</p>
