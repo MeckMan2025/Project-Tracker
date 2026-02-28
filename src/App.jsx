@@ -582,6 +582,26 @@ function App() {
     }
   }
 
+  const handleMarkDone = async (taskId) => {
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(task =>
+          task.id === taskId ? { ...task, status: 'done' } : task
+        ),
+      }
+      syncCache(updated)
+      return updated
+    })
+    try {
+      await restUpdate('tasks', `id=eq.${taskId}`, { status: 'done' })
+      addToast('Task marked as done!', 'success')
+    } catch (err) {
+      console.error('Failed to mark task done:', err.message)
+      addToast('Failed to mark task done.', 'error')
+    }
+  }
+
   const getTasksByStatus = (status) => {
     return tasks.filter(task => task.status === status)
   }
@@ -1153,8 +1173,8 @@ function App() {
         {/* Board */}
         <main className="flex-1 p-4 overflow-x-auto">
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 min-w-[300px]">
-              {COLUMNS.map(column => (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 min-w-[300px]">
+              {COLUMNS.filter(c => c.id !== 'done').map(column => (
                 <div key={column.id} className="flex flex-col">
                   <div className={`${column.color} rounded-t-lg px-4 py-2 font-semibold text-gray-700`}>
                     {column.title}
@@ -1194,6 +1214,7 @@ function App() {
                                   canEdit={canEditContent}
                                   onClaim={handleClaimTask}
                                   onLeaveTask={handleLeaveTaskRequest}
+                                  onMarkDone={handleMarkDone}
                                   currentUser={username}
                                   isGuest={isGuest}
                                 />

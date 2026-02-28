@@ -1,8 +1,8 @@
-import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand } from 'lucide-react'
+import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle } from 'lucide-react'
 
 const UP_FOR_GRABS = '__up_for_grabs__'
 
-function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeaveTask, currentUser, isGuest }) {
+function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeaveTask, onMarkDone, currentUser, isGuest }) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
   const isUpForGrabs = task.assignee === UP_FOR_GRABS
   const isAssignedToMe = currentUser && task.assignee && task.assignee.toLowerCase() === currentUser.toLowerCase()
@@ -77,6 +77,19 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeav
           )}
         </div>
       </div>
+
+      {/* Mark Done button */}
+      {task.status !== 'done' && !isGuest && onMarkDone && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onMarkDone(task.id) }}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-600 text-xs font-medium rounded-lg transition-colors"
+        >
+          <CheckCircle size={12} />
+          Mark Done
+        </button>
+      )}
 
       {/* Claim button for non-guests on Up for Grabs tasks */}
       {isUpForGrabs && !isGuest && onClaim && (
