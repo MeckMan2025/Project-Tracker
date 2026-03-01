@@ -69,7 +69,7 @@ function CalendarView() {
         const { data: tasks, error } = await supabase
           .from('tasks')
           .select('id,title,assignee,status,due_date,board_id')
-          .not('due_date', 'is', null)
+          .neq('due_date', '')
         if (error) {
           console.error('Failed to load task due dates:', error)
           return
