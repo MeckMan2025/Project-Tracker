@@ -32,28 +32,19 @@ function CalendarView() {
   const [notifyTime, setNotifyTime] = useState('')
   const [pendingScheduled, setPendingScheduled] = useState({}) // { event_id: true }
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
   useEffect(() => {
     async function load() {
       try {
-        let token = supabaseKey
-        try {
-          const { data } = await supabase.auth.getSession()
-          if (data?.session?.access_token) token = data.session.access_token
-        } catch (e) { /* fall back to anon key */ }
-
-        const res = await fetch(`${supabaseUrl}/rest/v1/calendar_events?select=*&order=date_key.asc`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-        if (!res.ok) return
-        const data = await res.json()
+        const { data: rows, error } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .order('date_key', { ascending: true })
+        if (error) {
+          console.error('Failed to fetch calendar events:', error)
+          return
+        }
         const grouped = {}
-        data.forEach(ev => {
+        rows.forEach(ev => {
           if (!grouped[ev.date_key]) grouped[ev.date_key] = []
           grouped[ev.date_key].push({
             id: ev.id,
@@ -75,16 +66,16 @@ function CalendarView() {
   useEffect(() => {
     async function loadTaskDueDates() {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?due_date=neq.&select=id,title,assignee,status,due_date,board_id`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
-        })
-        if (!res.ok) return
-        const data = await res.json()
+        const { data: tasks, error } = await supabase
+          .from('tasks')
+          .select('id,title,assignee,status,due_date,board_id')
+          .not('due_date', 'is', null)
+        if (error) {
+          console.error('Failed to load task due dates:', error)
+          return
+        }
         const grouped = {}
-        data.forEach(task => {
+        tasks.forEach(task => {
           if (!task.due_date) return
           const key = task.due_date
           if (!grouped[key]) grouped[key] = []
