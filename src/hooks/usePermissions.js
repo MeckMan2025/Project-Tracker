@@ -5,7 +5,7 @@ const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
 
 export function usePermissions() {
-  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags } = useUser()
+  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam } = useUser()
 
   // Tier is auto-derived from roles (set by UserManagement on role change).
   // Permanent co-founders always get teammate tier at minimum.
@@ -33,8 +33,8 @@ export function usePermissions() {
     canViewScoutingData: true,
 
     // Teammate (non-guest, non-lead) — request-based workflow
-    canRequestContent: !isGuest && !hasLeadTag,
-    canRequestRoles: !isGuest && !hasLeadTag,
+    canRequestContent: !isGuest && !hasLeadTag && !isTeam,
+    canRequestRoles: !isGuest && !hasLeadTag && !isTeam,
 
     // Teammate + Lead tags (non-guest)
     canSubmitScouting: !isGuest,
@@ -48,7 +48,8 @@ export function usePermissions() {
     canImport: !isGuest,
 
     // Lead tags (Co-Founder, Mentor, Coach, Team Lead, Business Lead, Technical Lead)
-    canEditContent: hasLeadTag,
+    // Team accounts can also edit their own boards directly
+    canEditContent: hasLeadTag || isTeam,
     canReviewRequests: hasLeadTag,
     canDeleteScouting: hasLeadTag,
     canReorderScoutingRanks: hasLeadTag,
@@ -56,7 +57,7 @@ export function usePermissions() {
     canOrganizeNotebook: hasLeadTag,
     canApproveQuotes: hasLeadTag,
     canManageUsers: hasLeadTag,
-    canDragAnyTask: hasLeadTag,
+    canDragAnyTask: hasLeadTag || isTeam,
     canDeleteAnyMessage: hasLeadTag,
     canChangeRoles: hasLeadTag,
     canViewAllAttendance: hasLeadTag,
