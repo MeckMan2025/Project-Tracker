@@ -123,16 +123,14 @@ function UserManagement() {
     console.log('[UserMgmt] loadData started')
 
     try {
-      if (canManageUsers) {
-        try {
-          const data = await fetchTable('approved_emails', 'id,email,role,created_at')
-          msg += 'Whitelist: ' + data.length + ' rows | '
-          console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
-          setWhitelistedEmails(data)
-        } catch (e) {
-          msg += 'Whitelist error: ' + e.message + ' | '
-          console.error('[UserMgmt] Whitelist exception:', e)
-        }
+      try {
+        const data = await fetchTable('approved_emails', 'id,email,role,created_at')
+        msg += 'Whitelist: ' + data.length + ' rows | '
+        console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
+        setWhitelistedEmails(data)
+      } catch (e) {
+        msg += 'Whitelist error: ' + e.message + ' | '
+        console.error('[UserMgmt] Whitelist exception:', e)
       }
 
       try {
@@ -145,16 +143,14 @@ function UserManagement() {
         console.error('[UserMgmt] Members exception:', e)
       }
 
-      if (canManageUsers) {
-        try {
-          const data = await fetchTable('team_accounts', 'team_number,team_name,user_id,created_at')
-          msg += ' | Teams: ' + data.length + ' rows'
-          console.log('[UserMgmt] Teams loaded:', data.length, 'rows')
-          setTeams(data)
-        } catch (e) {
-          msg += ' | Teams error: ' + e.message
-          console.error('[UserMgmt] Teams exception:', e)
-        }
+      try {
+        const data = await fetchTable('team_accounts', 'team_number,team_name,user_id,created_at')
+        msg += ' | Teams: ' + data.length + ' rows'
+        console.log('[UserMgmt] Teams loaded:', data.length, 'rows')
+        setTeams(data)
+      } catch (e) {
+        msg += ' | Teams error: ' + e.message
+        console.error('[UserMgmt] Teams exception:', e)
       }
 
       console.log('[UserMgmt] loadData finished:', msg)
@@ -164,10 +160,10 @@ function UserManagement() {
     }
   }
 
-  // Fetch data — re-run when canManageUsers changes (profile may load after mount)
+  // Fetch data once on mount
   useEffect(() => {
     loadData()
-  }, [canManageUsers])
+  }, [])
 
   // Realtime: listen for whitelist changes
   useEffect(() => {
