@@ -40,6 +40,7 @@ import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
 import { useNotebookFlash } from './hooks/useNotebookFlash'
+import { useBackButton } from './hooks/useBackButton'
 import RestrictedAccess from './components/RestrictedAccess'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
@@ -272,12 +273,13 @@ function RoleChangeModal({ alert, onDismiss }) {
 }
 
 function App() {
-  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber } = useUser()
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashRequired = activeFlash && username && presentUsers.includes(username) && !completedUsers.includes(username) && !(activeFlash.exempt_users || []).includes(username)
+  useBackButton()
   const [isLoading, setIsLoading] = useState(true)
   const [radicalMsg] = useState(() => {
     const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
@@ -295,6 +297,17 @@ function App() {
     }
     return saved || 'home'
   })
+
+  // When a team logs in, force them to boards view
+  useEffect(() => {
+    if (isTeam && activeTab === 'home') {
+      // Find first board tab, or stay on a placeholder
+      const boardTabs = tabs.filter(t => !t.type)
+      if (boardTabs.length > 0) {
+        setActiveTab(boardTabs[0].id)
+      }
+    }
+  }, [isTeam, tabs])
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
@@ -390,53 +403,72 @@ function App() {
     setLoadError(null)
 
     try {
+      // Filter boards by owner_team: teams see their boards, members see Radical boards
+      const boardQuery = isTeam && teamNumber
+        ? `select=*&order=created_at&owner_team=eq.${teamNumber}`
+        : 'select=*&order=created_at&owner_team=is.null'
+
       // Load boards and tasks in parallel via REST
       const [boards, tasks] = await Promise.all([
-        restGet('boards', 'select=*&order=created_at'),
+        restGet('boards', boardQuery),
         restGet('tasks', 'select=*'),
       ])
 
-      // Seed default boards if missing
-      const existingIds = boards.map(b => b.id)
-      const missing = DEFAULT_BOARDS.filter(b => !existingIds.includes(b.id))
-      if (missing.length > 0) {
-        try {
-          for (const b of missing) {
-            await restInsert('boards', { id: b.id, name: b.name, permanent: true })
+      if (!isTeam) {
+        // Seed default boards if missing (only for Radical members)
+        const existingIds = boards.map(b => b.id)
+        const missing = DEFAULT_BOARDS.filter(b => !existingIds.includes(b.id))
+        if (missing.length > 0) {
+          try {
+            for (const b of missing) {
+              await restInsert('boards', { id: b.id, name: b.name, permanent: true })
+            }
+          } catch (e) {
+            console.error('Failed to seed default boards:', e.message)
           }
-        } catch (e) {
-          console.error('Failed to seed default boards:', e.message)
         }
+
+        const allBoards = missing.length > 0
+          ? [...boards, ...missing.map(b => ({ id: b.id, name: b.name, permanent: true }))]
+          : boards
+
+        const defaultIds = DEFAULT_BOARDS.map(b => b.id)
+        const extra = allBoards
+          .filter(b => !defaultIds.includes(b.id))
+          .map(b => ({ id: b.id, name: b.name, permanent: b.permanent }))
+        const boardTabs = [...DEFAULT_BOARDS, ...extra]
+        setTabs([...SYSTEM_TABS, ...boardTabs])
+
+        const grouped = {}
+        allBoards.forEach(b => { grouped[b.id] = [] })
+        tasks.forEach(t => {
+          if (!grouped[t.board_id]) grouped[t.board_id] = []
+          grouped[t.board_id].push(mapTask(t))
+        })
+        setTasksByTab(grouped)
+
+        try {
+          localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
+        } catch (e) { /* ignore quota errors */ }
+      } else {
+        // Team view: only their boards, no system tabs needed
+        const boardTabs = boards.map(b => ({ id: b.id, name: b.name, permanent: false }))
+        setTabs([...SYSTEM_TABS, ...boardTabs])
+
+        const grouped = {}
+        boards.forEach(b => { grouped[b.id] = [] })
+        tasks.forEach(t => {
+          if (grouped[t.board_id] !== undefined) {
+            grouped[t.board_id].push(mapTask(t))
+          }
+        })
+        setTasksByTab(grouped)
       }
-
-      const allBoards = missing.length > 0
-        ? [...boards, ...missing.map(b => ({ id: b.id, name: b.name, permanent: true }))]
-        : boards
-
-      const defaultIds = DEFAULT_BOARDS.map(b => b.id)
-      const extra = allBoards
-        .filter(b => !defaultIds.includes(b.id))
-        .map(b => ({ id: b.id, name: b.name, permanent: b.permanent }))
-      const boardTabs = [...DEFAULT_BOARDS, ...extra]
-      setTabs([...SYSTEM_TABS, ...boardTabs])
-
-      const grouped = {}
-      allBoards.forEach(b => { grouped[b.id] = [] })
-      tasks.forEach(t => {
-        if (!grouped[t.board_id]) grouped[t.board_id] = []
-        grouped[t.board_id].push(mapTask(t))
-      })
-      setTasksByTab(grouped)
-
-      // Cache for instant load next time
-      try {
-        localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
-      } catch (e) { /* ignore quota errors */ }
     } catch (err) {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
     }
-  }, [user?.id])
+  }, [user?.id, isTeam, teamNumber])
 
   useEffect(() => {
     loadData()
@@ -518,9 +550,11 @@ function App() {
     setTabs(prev => [...prev, { id: newId, name, permanent: false }])
     setTasksByTab(prev => ({ ...prev, [newId]: [] }))
     setActiveTab(newId)
-    // Persist via REST
+    // Persist via REST — tag with owner_team for team accounts
+    const boardData = { id: newId, name, permanent: false }
+    if (isTeam && teamNumber) boardData.owner_team = teamNumber
     try {
-      await restInsert('boards', { id: newId, name, permanent: false })
+      await restInsert('boards', boardData)
     } catch (err) {
       console.error('Failed to save board:', err.message)
       setTabs(prev => prev.filter(t => t.id !== newId))
@@ -529,7 +563,7 @@ function App() {
         delete updated[newId]
         return updated
       })
-      setActiveTab('business')
+      setActiveTab(isTeam ? 'home' : 'business')
       addToast('Failed to create board. Please try again.', 'error')
     }
   }
@@ -958,8 +992,8 @@ function App() {
 
   return (
     <>
-      {isLoading && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-      {!isLoading && <ChangelogPopup />}
+      {isLoading && !isTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
+      {!isLoading && !isTeam && <ChangelogPopup />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
           username={username}
@@ -968,7 +1002,7 @@ function App() {
           completedUsers={completedUsers}
         />
       )}
-    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading ? 'hidden' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !isTeam ? 'hidden' : ''}`}>
       <StateCelebration />
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
@@ -998,8 +1032,7 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
-
-
+        isTeamAccount={isTeam}
       />
 
 

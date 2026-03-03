@@ -32,6 +32,8 @@ export function UserProvider({ children }) {
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [mustChangePassword, setMustChangePassword] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
+  const [isTeam, setIsTeam] = useState(false)
+  const [teamNumber, setTeamNumber] = useState('')
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
@@ -60,11 +62,18 @@ export function UserProvider({ children }) {
 
   const ADMIN_EMAILS = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
 
+  const TEAM_EMAIL_REGEX = /^team(\d+)@teams\.radical$/
+
   // email param avoids stale-closure issues when called from useEffect callbacks
   const applyProfile = (profile, email) => {
     if (profile) {
       const userEmail = (email || user?.email || '')?.toLowerCase()
       const isAdmin = userEmail && ADMIN_EMAILS.includes(userEmail)
+
+      // Detect team accounts by email pattern
+      const teamMatch = userEmail && userEmail.match(TEAM_EMAIL_REGEX)
+      setIsTeam(!!teamMatch)
+      setTeamNumber(teamMatch ? teamMatch[1] : '')
 
       setUsername(profile.display_name)
       localStorage.setItem('scrum-cached-user-id', profile.id)
@@ -73,7 +82,7 @@ export function UserProvider({ children }) {
       const profileSecondaryRoles = profile.secondary_roles || []
       setRole(profileRole)
       setSecondaryRoles(profileSecondaryRoles)
-      setMustChangePassword(!!profile.must_change_password)
+      setMustChangePassword(!!profile.must_change_password && !teamMatch)
       // Authority fields
       let tier = profile.authority_tier || 'guest'
       let admin = !!profile.is_authority_admin
@@ -126,6 +135,8 @@ export function UserProvider({ children }) {
     setShortBio('')
     setNickname('')
     setUseNickname(false)
+    setIsTeam(false)
+    setTeamNumber('')
     localStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
@@ -389,7 +400,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null) }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, teamNumber }}
     >
       {children}
     </UserContext.Provider>

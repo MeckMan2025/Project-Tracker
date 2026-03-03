@@ -327,6 +327,19 @@ CREATE POLICY "Allow all access to request_reminders" ON request_reminders
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs jsonb DEFAULT '{"enabled": true, "calendar": true, "chat": true}';
 
 -- 20. ENABLE REALTIME on all tables
+-- 22. INTERESTED TEAMS TABLE (other teams interested in using the app)
+CREATE TABLE IF NOT EXISTS interested_teams (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_name text NOT NULL,
+  contact_name text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE interested_teams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to interested_teams" ON interested_teams;
+CREATE POLICY "Allow all access to interested_teams" ON interested_teams
+  FOR ALL USING (true) WITH CHECK (true);
+
 -- (ignore errors if a table is already in the publication)
 -- CONSIDERED TEAMS TABLE (alliance partner candidates)
 CREATE TABLE IF NOT EXISTS considered_teams (
@@ -375,138 +388,27 @@ DROP POLICY IF EXISTS "Allow all access to attendance_records" ON attendance_rec
 CREATE POLICY "Allow all access to attendance_records" ON attendance_records
   FOR ALL USING (true) WITH CHECK (true);
 
--- 23. NOTEBOOK FLASH TABLE (forced notebook entry sessions)
-CREATE TABLE IF NOT EXISTS notebook_flash (
-  id text PRIMARY KEY,
-  session_id text NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
-  started_by text NOT NULL,
-  started_at timestamptz DEFAULT now(),
-  ended_at timestamptz,
-  is_active boolean NOT NULL DEFAULT true,
-  exempt_users jsonb DEFAULT '[]'
-);
-
-ALTER TABLE notebook_flash ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to notebook_flash" ON notebook_flash;
-CREATE POLICY "Allow all access to notebook_flash" ON notebook_flash
-  FOR ALL USING (true) WITH CHECK (true);
-
--- 24. NOTEBOOK ENTRY PARTICIPANTS TABLE (group entries for flash)
-CREATE TABLE IF NOT EXISTS notebook_entry_participants (
-  id text PRIMARY KEY,
-  entry_id text NOT NULL REFERENCES notebook_entries(id) ON DELETE CASCADE,
-  username text NOT NULL,
+-- TEAM ACCOUNTS TABLE (external FRC teams that can log in)
+CREATE TABLE IF NOT EXISTS team_accounts (
+  team_number text PRIMARY KEY,
+  team_name text NOT NULL,
+  user_id uuid,
   created_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_nep_username ON notebook_entry_participants(username);
-CREATE INDEX IF NOT EXISTS idx_nep_entry_id ON notebook_entry_participants(entry_id);
-
-ALTER TABLE notebook_entry_participants ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to notebook_entry_participants" ON notebook_entry_participants;
-CREATE POLICY "Allow all access to notebook_entry_participants" ON notebook_entry_participants
+ALTER TABLE team_accounts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to team_accounts" ON team_accounts;
+CREATE POLICY "Allow all access to team_accounts" ON team_accounts
   FOR ALL USING (true) WITH CHECK (true);
 
--- 25. ADD flash_id COLUMN to notebook_entries
-ALTER TABLE notebook_entries ADD COLUMN IF NOT EXISTS flash_id text DEFAULT '';
-
--- 26. CLEANUP JOBS TABLE (list of cleanup tasks)
-CREATE TABLE IF NOT EXISTS cleanup_jobs (
-  id text PRIMARY KEY,
-  name text NOT NULL,
-  active boolean DEFAULT true
-);
-
-ALTER TABLE cleanup_jobs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to cleanup_jobs" ON cleanup_jobs;
-CREATE POLICY "Allow all access to cleanup_jobs" ON cleanup_jobs
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Seed default cleanup jobs
-INSERT INTO cleanup_jobs (id, name, active) VALUES
-  ('sweep-floor', 'Sweep Floor', true),
-  ('wipe-tables', 'Wipe Tables', true),
-  ('empty-trash', 'Empty Trash', true),
-  ('organize-tools', 'Organize Tools', true),
-  ('clean-whiteboard', 'Clean Whiteboard', true),
-  ('tidy-parts', 'Tidy Parts Station', true),
-  ('vacuum', 'Vacuum', true)
-ON CONFLICT (id) DO NOTHING;
-
--- 27. CLEANUP SESSIONS TABLE (one per meeting cleanup round)
-CREATE TABLE IF NOT EXISTS cleanup_sessions (
-  id text PRIMARY KEY,
-  attendance_session_id text REFERENCES attendance_sessions(id) ON DELETE CASCADE,
-  generated_by text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE cleanup_sessions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to cleanup_sessions" ON cleanup_sessions;
-CREATE POLICY "Allow all access to cleanup_sessions" ON cleanup_sessions
-  FOR ALL USING (true) WITH CHECK (true);
-
--- 28. CLEANUP ASSIGNMENTS TABLE (who does what)
-CREATE TABLE IF NOT EXISTS cleanup_assignments (
-  id text PRIMARY KEY,
-  cleanup_session_id text NOT NULL REFERENCES cleanup_sessions(id) ON DELETE CASCADE,
-  job_id text NOT NULL REFERENCES cleanup_jobs(id),
-  assigned_username text NOT NULL,
-  status text NOT NULL DEFAULT 'assigned',
-  confirmed_by text,
-  confirmed_at timestamptz,
-  points_awarded integer DEFAULT 0
-);
-
-ALTER TABLE cleanup_assignments ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to cleanup_assignments" ON cleanup_assignments;
-CREATE POLICY "Allow all access to cleanup_assignments" ON cleanup_assignments
-  FOR ALL USING (true) WITH CHECK (true);
-
--- 29. CLEANUP EXEMPTIONS TABLE (users exempt from cleanup)
-CREATE TABLE IF NOT EXISTS cleanup_exemptions (
-  id text PRIMARY KEY,
-  cleanup_session_id text NOT NULL REFERENCES cleanup_sessions(id) ON DELETE CASCADE,
-  username text NOT NULL,
-  exempted_by text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE cleanup_exemptions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to cleanup_exemptions" ON cleanup_exemptions;
-CREATE POLICY "Allow all access to cleanup_exemptions" ON cleanup_exemptions
-  FOR ALL USING (true) WITH CHECK (true);
-
--- 30. SCHEDULED NOTIFICATIONS TABLE (deferred calendar event notifications)
-CREATE TABLE IF NOT EXISTS scheduled_notifications (
-  id text PRIMARY KEY,
-  event_id text NOT NULL,
-  send_at timestamptz NOT NULL,
-  title text NOT NULL,
-  body text DEFAULT '',
-  type text NOT NULL DEFAULT 'calendar_event',
-  force boolean DEFAULT false,
-  created_by text NOT NULL,
-  created_by_user_id uuid NOT NULL REFERENCES auth.users(id),
-  status text NOT NULL DEFAULT 'pending',
-  sent_at timestamptz,
-  created_at timestamptz DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_scheduled_notif_pending
-  ON scheduled_notifications (send_at)
-  WHERE status = 'pending';
-
-ALTER TABLE scheduled_notifications ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all access to scheduled_notifications" ON scheduled_notifications;
-CREATE POLICY "Allow all access to scheduled_notifications" ON scheduled_notifications
-  FOR ALL USING (true) WITH CHECK (true);
+-- Add owner_team column to boards (null = Radical board, team_number = team-specific board)
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS owner_team text;
 
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','notebook_flash','notebook_entry_participants','cleanup_jobs','cleanup_sessions','cleanup_assignments','cleanup_exemptions','scheduled_notifications']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
