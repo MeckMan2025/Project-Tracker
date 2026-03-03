@@ -256,7 +256,7 @@ function QuickChat({ channel = 'all' }) {
           </div>
         </header>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-400 text-lg">Kayden and Yukti's Screen</p>
+          <p className="text-gray-400 text-lg">Kayden and Yukti are working on it &lt;3</p>
         </div>
       </div>
     )
