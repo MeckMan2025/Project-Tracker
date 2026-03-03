@@ -6,7 +6,7 @@ export function useBackButton(onBack) {
     if (!isNative) return
 
     let App
-    import('@capacitor/app').then(mod => {
+    import(/* @vite-ignore */ '@capacitor/app').then(mod => {
       App = mod.App
       App.addListener('backButton', ({ canGoBack }) => {
         if (canGoBack) {
@@ -17,7 +17,7 @@ export function useBackButton(onBack) {
           App.minimizeApp()
         }
       })
-    })
+    }).catch(() => {})
 
     return () => {
       if (App) App.removeAllListeners()
