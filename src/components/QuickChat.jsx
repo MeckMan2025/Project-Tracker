@@ -20,12 +20,19 @@ function getSenderColor(sender) {
   return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length]
 }
 
+const CHANNELS = [
+  { value: 'all', label: 'All' },
+  { value: 'alliances', label: 'Alliances' },
+  { value: 'leagues', label: 'Leagues' },
+]
+
 function QuickChat() {
   const { username, chatName, nickname, user } = useUser()
   const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sendError, setSendError] = useState(null)
+  const [channel, setChannel] = useState('all')
   const messagesEndRef = useRef(null)
   const lastPushTimestamp = useRef(0)
 
@@ -65,7 +72,7 @@ function QuickChat() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by`,
+        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel`,
         { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
       )
       if (!res.ok) return
@@ -88,7 +95,7 @@ function QuickChat() {
       method: 'DELETE',
       headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
     }).catch(err => console.error('Failed to clean up old messages:', err))
-  }, [username])
+  }, [username, channel])
 
   // Re-fetch on tab wake + poll every 15s as safety net for dropped realtime
   useEffect(() => {
@@ -101,13 +108,14 @@ function QuickChat() {
       document.removeEventListener('visibilitychange', handleVisibility)
       clearInterval(interval)
     }
-  }, [username])
+  }, [username, channel])
 
-  // Real-time subscription
+  // Real-time subscription — filter client-side by channel
   useEffect(() => {
-    const channel = supabase
-      .channel('messages-changes')
+    const sub = supabase
+      .channel('messages-changes-' + channel)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if ((payload.new.channel || 'all') !== channel) return
         const age = Date.now() - new Date(payload.new.created_at).getTime()
         if (age > 24 * 60 * 60 * 1000) return // ignore messages older than 24h
         setMessages(prev => {
@@ -117,6 +125,7 @@ function QuickChat() {
         markMessagesAsSeen([payload.new])
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+        if ((payload.new.channel || 'all') !== channel) return
         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
@@ -124,8 +133,8 @@ function QuickChat() {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    return () => { supabase.removeChannel(sub) }
+  }, [channel])
 
   // Auto-scroll when new messages arrive
   useEffect(() => {
@@ -141,6 +150,7 @@ function QuickChat() {
       sender: chatName || username,
       content: newMessage.trim(),
       created_at: new Date().toISOString(),
+      channel,
     }
 
     setNewMessage('')
@@ -168,6 +178,7 @@ function QuickChat() {
         if (now - lastPushTimestamp.current > 30000) {
           lastPushTimestamp.current = now
           const senderName = chatName || username
+          const channelLabel = CHANNELS.find(c => c.value === channel)?.label || 'All'
           const truncatedMsg = message.content.length > 80 ? message.content.slice(0, 80) + '...' : message.content
           supabase.from('profiles').select('id').then(({ data: profiles }) => {
             if (!profiles) return
@@ -176,7 +187,7 @@ function QuickChat() {
               triggerPush({
                 user_id: p.id,
                 type: 'chat_message',
-                title: `${senderName} in Quick Chat`,
+                title: `${senderName} in Chat (${channelLabel})`,
                 body: truncatedMsg,
               })
             }
@@ -250,6 +261,24 @@ function QuickChat() {
             <p className="text-sm text-gray-500">Chatting as {chatName || username}</p>
           </div>
           <NotificationBell />
+        </div>
+        {/* Channel selector */}
+        <div className="px-4 pb-3 flex justify-center">
+          <div className="inline-flex rounded-lg bg-gray-100 p-0.5">
+            {CHANNELS.map((ch) => (
+              <button
+                key={ch.value}
+                onClick={() => setChannel(ch.value)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  channel === ch.value
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {ch.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 

@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS messages (
   seen_by jsonb DEFAULT '[]'
 );
 
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS channel text DEFAULT 'all';
+
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to messages" ON messages;
 CREATE POLICY "Allow all access to messages" ON messages

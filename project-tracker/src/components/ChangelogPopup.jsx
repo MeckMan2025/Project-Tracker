@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 31,
+    date: '2026-03-03',
+    items: [
+      '💬 Chat is back! Quick Chat restored for all members and team accounts',
+      '📢 Channel selector — switch between All, Alliances, and Leagues channels',
+    ],
+  },
+  {
     id: 30,
     date: '2026-03-02',
     items: [
