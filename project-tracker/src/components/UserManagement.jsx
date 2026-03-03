@@ -100,12 +100,20 @@ function UserManagement() {
   const fetchTable = async (table, columns) => {
     const url = `${supabaseUrl}/rest/v1/${table}?select=${encodeURIComponent(columns)}`
     const headers = await getAuthHeaders()
-    const res = await fetch(url, { headers })
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(`${res.status}: ${text}`)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+    try {
+      const res = await fetch(url, { headers, signal: controller.signal })
+      clearTimeout(timeout)
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`${res.status}: ${text}`)
+      }
+      return res.json()
+    } catch (e) {
+      clearTimeout(timeout)
+      throw e
     }
-    return res.json()
   }
 
   const loadData = async () => {
@@ -114,49 +122,52 @@ function UserManagement() {
     let msg = ''
     console.log('[UserMgmt] loadData started')
 
-    if (canManageUsers) {
-      try {
-        const data = await fetchTable('approved_emails', 'id,email,role,created_at')
-        msg += 'Whitelist: ' + data.length + ' rows | '
-        console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
-        setWhitelistedEmails(data)
-      } catch (e) {
-        msg += 'Whitelist error: ' + e.message + ' | '
-        console.error('[UserMgmt] Whitelist exception:', e)
-      }
-    }
-
     try {
-      const data = await fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin')
-      msg += 'Members: ' + data.length + ' rows'
-      console.log('[UserMgmt] Members loaded:', data.length, 'rows')
-      setRegisteredMembers(data)
-    } catch (e) {
-      msg += 'Members error: ' + e.message
-      console.error('[UserMgmt] Members exception:', e)
-    }
-
-    if (canManageUsers) {
-      try {
-        const data = await fetchTable('team_accounts', 'team_number,team_name,user_id,created_at')
-        msg += ' | Teams: ' + data.length + ' rows'
-        console.log('[UserMgmt] Teams loaded:', data.length, 'rows')
-        setTeams(data)
-      } catch (e) {
-        msg += ' | Teams error: ' + e.message
-        console.error('[UserMgmt] Teams exception:', e)
+      if (canManageUsers) {
+        try {
+          const data = await fetchTable('approved_emails', 'id,email,role,created_at')
+          msg += 'Whitelist: ' + data.length + ' rows | '
+          console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
+          setWhitelistedEmails(data)
+        } catch (e) {
+          msg += 'Whitelist error: ' + e.message + ' | '
+          console.error('[UserMgmt] Whitelist exception:', e)
+        }
       }
-    }
 
-    console.log('[UserMgmt] loadData finished:', msg)
-    setLoadStatus(msg)
-    setLoadingData(false)
+      try {
+        const data = await fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin')
+        msg += 'Members: ' + data.length + ' rows'
+        console.log('[UserMgmt] Members loaded:', data.length, 'rows')
+        setRegisteredMembers(data)
+      } catch (e) {
+        msg += 'Members error: ' + e.message
+        console.error('[UserMgmt] Members exception:', e)
+      }
+
+      if (canManageUsers) {
+        try {
+          const data = await fetchTable('team_accounts', 'team_number,team_name,user_id,created_at')
+          msg += ' | Teams: ' + data.length + ' rows'
+          console.log('[UserMgmt] Teams loaded:', data.length, 'rows')
+          setTeams(data)
+        } catch (e) {
+          msg += ' | Teams error: ' + e.message
+          console.error('[UserMgmt] Teams exception:', e)
+        }
+      }
+
+      console.log('[UserMgmt] loadData finished:', msg)
+      setLoadStatus(msg)
+    } finally {
+      setLoadingData(false)
+    }
   }
 
-  // Fetch data — try multiple strategies until one works
+  // Fetch data — re-run when canManageUsers changes (profile may load after mount)
   useEffect(() => {
     loadData()
-  }, [])
+  }, [canManageUsers])
 
   // Realtime: listen for whitelist changes
   useEffect(() => {
