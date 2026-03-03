@@ -241,6 +241,27 @@ function QuickChat({ channel = 'all' }) {
     )
   }
 
+  if (channel === 'alliances' || channel === 'leagues') {
+    return (
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+          <div className="py-4 px-4 flex items-center">
+            <div className="w-10 shrink-0" />
+            <div className="flex-1 text-center">
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                {channel === 'alliances' ? 'Alliances' : 'Leagues'}
+              </h1>
+            </div>
+            <NotificationBell />
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400 text-lg">Kayden and Yukti's Screen</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
@@ -253,7 +274,6 @@ function QuickChat({ channel = 'all' }) {
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Chat
             </h1>
-            <p className="text-sm text-gray-500">Chatting as {isTeam ? `${teamNumber} ${username}` : '7196 Everything That\'s Radical'}</p>
           </div>
           <NotificationBell />
         </div>
