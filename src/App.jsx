@@ -1326,6 +1326,7 @@ function App() {
             setEditingTask(null)
           }}
           isLead={canEditContent}
+          isTeam={isTeam}
         />
       )}
 

@@ -6,7 +6,7 @@ const SKILL_OPTIONS = [
   'Presentation', 'Testing', 'Documentation', 'Business', 'Strategy'
 ]
 
-function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
+function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
@@ -18,9 +18,9 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
   const [teamMembers, setTeamMembers] = useState([])
   const [showErrors, setShowErrors] = useState(false)
 
-  // Fetch non-guest profiles for the assignee dropdown (leads only)
+  // Fetch non-guest profiles for the assignee dropdown (leads only, not team accounts)
   useEffect(() => {
-    if (!isLead) return
+    if (!isLead || isTeam) return
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     async function loadMembers() {
@@ -47,7 +47,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
       }
     }
     loadMembers()
-  }, [isLead])
+  }, [isLead, isTeam])
 
   const descriptionMissing = !formData.description.trim()
 
@@ -134,7 +134,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Assignee
               </label>
-              {isLead && !requestMode ? (
+              {isLead && !requestMode && !isTeam ? (
                 <select
                   value={formData.assignee}
                   onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}

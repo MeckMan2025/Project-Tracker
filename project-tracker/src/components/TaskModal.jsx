@@ -6,7 +6,7 @@ const SKILL_OPTIONS = [
   'Presentation', 'Testing', 'Documentation', 'Business', 'Strategy'
 ]
 
-function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
+function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
@@ -18,9 +18,9 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
   const [teamMembers, setTeamMembers] = useState([])
   const [showErrors, setShowErrors] = useState(false)
 
-  // Fetch non-guest profiles for the assignee dropdown (leads only)
+  // Fetch non-guest profiles for the assignee dropdown (leads only, not team accounts)
   useEffect(() => {
-    if (!isLead) return
+    if (!isLead || isTeam) return
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     async function loadMembers() {
@@ -47,14 +47,13 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
       }
     }
     loadMembers()
-  }, [isLead])
+  }, [isLead, isTeam])
 
   const descriptionMissing = !formData.description.trim()
-  const dueDateMissing = !formData.dueDate
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.title.trim() || descriptionMissing || dueDateMissing) {
+    if (!formData.title.trim() || descriptionMissing) {
       setShowErrors(true)
       return
     }
@@ -135,7 +134,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Assignee
               </label>
-              {isLead && !requestMode ? (
+              {isLead && !requestMode && !isTeam ? (
                 <select
                   value={formData.assignee}
                   onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
@@ -159,23 +158,14 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Date *
+                Due Date
               </label>
               <input
                 type="date"
                 value={formData.dueDate}
-                onChange={(e) => {
-                  setFormData({ ...formData, dueDate: e.target.value })
-                  if (showErrors && e.target.value) setShowErrors(false)
-                }}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
-                  showErrors && dueDateMissing ? 'border-red-500' : ''
-                }`}
-                required
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
               />
-              {showErrors && dueDateMissing && (
-                <p className="text-red-500 text-sm mt-1">Due date is required</p>
-              )}
             </div>
           </div>
 
@@ -228,9 +218,9 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead }) {
             </button>
             <button
               type="submit"
-              disabled={descriptionMissing || dueDateMissing}
+              disabled={descriptionMissing}
               className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
-                descriptionMissing || dueDateMissing
+                descriptionMissing
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-pastel-pink hover:bg-pastel-pink-dark'
               }`}
