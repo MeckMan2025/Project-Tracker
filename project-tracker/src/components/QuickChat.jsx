@@ -23,7 +23,7 @@ function getSenderColor(sender) {
 const CHANNEL_LABELS = { all: 'All', alliances: 'Alliances', leagues: 'Leagues' }
 
 function QuickChat({ channel = 'all' }) {
-  const { username, chatName, nickname, user } = useUser()
+  const { username, chatName, nickname, user, isTeam, teamNumber } = useUser()
   const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
@@ -98,7 +98,7 @@ function QuickChat({ channel = 'all' }) {
       if (document.visibilityState === 'visible') fetchMessages()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-    const interval = setInterval(fetchMessages, 15000)
+    const interval = setInterval(fetchMessages, 5000)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
       clearInterval(interval)
@@ -142,7 +142,7 @@ function QuickChat({ channel = 'all' }) {
 
     const message = {
       id: (user?.id || 'anon') + ':' + Date.now() + Math.random().toString(36).slice(2),
-      sender: chatName || username,
+      sender: isTeam ? `${teamNumber} ${username}` : (chatName || username),
       content: newMessage.trim(),
       created_at: new Date().toISOString(),
       channel,
@@ -172,7 +172,7 @@ function QuickChat({ channel = 'all' }) {
         const now = Date.now()
         if (now - lastPushTimestamp.current > 30000) {
           lastPushTimestamp.current = now
-          const senderName = chatName || username
+          const senderName = isTeam ? `${teamNumber} ${username}` : (chatName || username)
           const channelLabel = CHANNEL_LABELS[channel] || 'All'
           const truncatedMsg = message.content.length > 80 ? message.content.slice(0, 80) + '...' : message.content
           supabase.from('profiles').select('id').then(({ data: profiles }) => {
@@ -253,7 +253,7 @@ function QuickChat({ channel = 'all' }) {
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Chat
             </h1>
-            <p className="text-sm text-gray-500">Chatting as {chatName || username}</p>
+            <p className="text-sm text-gray-500">Chatting as {isTeam ? `${teamNumber} ${username}` : (chatName || username)}</p>
           </div>
           <NotificationBell />
         </div>
@@ -274,7 +274,7 @@ function QuickChat({ channel = 'all' }) {
                 </span>
               </div>
               {msgs.map((msg) => {
-                const isOwn = (user && msg.id.startsWith(user.id + ':')) || msg.sender === username || msg.sender === chatName || (nickname && msg.sender === nickname)
+                const isOwn = (user && msg.id.startsWith(user.id + ':')) || msg.sender === username || msg.sender === chatName || (nickname && msg.sender === nickname) || (isTeam && msg.sender === `${teamNumber} ${username}`)
                 const senderColor = !isOwn ? getSenderColor(msg.sender) : null
                 return (
                   <div
