@@ -65,20 +65,42 @@ function UserManagement() {
   const [roleRequestSuccess, setRoleRequestSuccess] = useState('')
   const [loadStatus, setLoadStatus] = useState('')
   const [loadingData, setLoadingData] = useState(true)
+  // Teams state
+  const [teams, setTeams] = useState([])
+  const [showAddTeam, setShowAddTeam] = useState(false)
+  const [newTeamNumber, setNewTeamNumber] = useState('')
+  const [newTeamName, setNewTeamName] = useState('')
+  const [newTeamPassword, setNewTeamPassword] = useState('')
+  const [teamError, setTeamError] = useState('')
+  const [teamSubmitting, setTeamSubmitting] = useState(false)
+  const [whitelistSubSection, setWhitelistSubSection] = useState('members')
+  // Team password edit
+  const [editTeamPw, setEditTeamPw] = useState(null)
+  const [editTeamPwValue, setEditTeamPwValue] = useState('')
+  const [editTeamPwError, setEditTeamPwError] = useState('')
+  const [editTeamPwSuccess, setEditTeamPwSuccess] = useState('')
+  const [editTeamPwSubmitting, setEditTeamPwSubmitting] = useState(false)
 
   // Direct REST fetch bypasses the Supabase client's auth token lock,
   // which can hang after a hard refresh (Cmd+Shift+R).
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+  // Use the user's JWT so RLS policies (auth.uid()) are satisfied
+  const getAuthHeaders = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || supabaseKey
+      return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+    } catch {
+      return { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    }
+  }
+
   const fetchTable = async (table, columns) => {
     const url = `${supabaseUrl}/rest/v1/${table}?select=${encodeURIComponent(columns)}`
-    const res = await fetch(url, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-      },
-    })
+    const headers = await getAuthHeaders()
+    const res = await fetch(url, { headers })
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`${res.status}: ${text}`)
@@ -112,6 +134,18 @@ function UserManagement() {
     } catch (e) {
       msg += 'Members error: ' + e.message
       console.error('[UserMgmt] Members exception:', e)
+    }
+
+    if (canManageUsers) {
+      try {
+        const data = await fetchTable('team_accounts', 'team_number,team_name,user_id,created_at')
+        msg += ' | Teams: ' + data.length + ' rows'
+        console.log('[UserMgmt] Teams loaded:', data.length, 'rows')
+        setTeams(data)
+      } catch (e) {
+        msg += ' | Teams error: ' + e.message
+        console.error('[UserMgmt] Teams exception:', e)
+      }
     }
 
     console.log('[UserMgmt] loadData finished:', msg)
@@ -156,11 +190,11 @@ function UserManagement() {
         role: newTier,
         added_by: user.id,
       }
+      const headers = await getAuthHeaders()
       const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails`, {
         method: 'POST',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...headers,
           'Content-Type': 'application/json',
           'Prefer': 'return=representation',
         },
@@ -190,12 +224,10 @@ function UserManagement() {
 
   const handleRemoveEmail = async (id) => {
     try {
+      const headers = await getAuthHeaders()
       const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails?id=eq.${id}`, {
         method: 'DELETE',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
+        headers,
       })
       if (res.ok) {
         setWhitelistedEmails(prev => prev.filter(e => e.id !== id))
@@ -218,13 +250,13 @@ function UserManagement() {
 
     let added = []
     let failed = 0
+    const headers = await getAuthHeaders()
     for (const email of lines) {
       try {
         const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails`, {
           method: 'POST',
           headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
+            ...headers,
             'Content-Type': 'application/json',
             'Prefer': 'return=representation',
           },
@@ -255,6 +287,134 @@ function UserManagement() {
     }
   }
 
+  // --- Team handlers ---
+
+  const handleAddTeam = async (e) => {
+    e.preventDefault()
+    if (!newTeamNumber.trim() || !newTeamName.trim() || !newTeamPassword.trim()) return
+    if (newTeamPassword.length < 6) {
+      setTeamError('Password must be at least 6 characters')
+      return
+    }
+    setTeamError('')
+    setTeamSubmitting(true)
+
+    try {
+      const email = `team${newTeamNumber.trim()}@teams.radical`
+      const headers = await getAuthHeaders()
+
+      // Create Supabase auth account via admin function
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password: newTeamPassword,
+          displayName: `Team ${newTeamNumber.trim()} - ${newTeamName.trim()}`,
+          role: 'member',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.statusText)
+      if (data?.error) throw new Error(data.error)
+
+      // Update profile: set function_tags to ['Team'], must_change_password = false
+      // Use teammate tier so they can add/edit tasks on their boards
+      await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ function_tags: ['Team'], must_change_password: false, authority_tier: 'teammate' }),
+      })
+
+      // Insert into team_accounts
+      const teamRes = await fetch(`${supabaseUrl}/rest/v1/team_accounts`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify({
+          team_number: newTeamNumber.trim(),
+          team_name: newTeamName.trim(),
+          user_id: data.userId,
+        }),
+      })
+      if (!teamRes.ok) {
+        const text = await teamRes.text()
+        if (text.includes('duplicate') || text.includes('23505')) {
+          throw new Error('A team with this number already exists')
+        }
+        throw new Error(text || teamRes.statusText)
+      }
+      const rows = await teamRes.json()
+      if (rows[0]) {
+        setTeams(prev => [rows[0], ...prev])
+      }
+
+      setNewTeamNumber('')
+      setNewTeamName('')
+      setNewTeamPassword('')
+      setShowAddTeam(false)
+    } catch (err) {
+      setTeamError(err.message)
+    } finally {
+      setTeamSubmitting(false)
+    }
+  }
+
+  const handleEditTeamPassword = async () => {
+    setEditTeamPwError('')
+    setEditTeamPwSuccess('')
+    if (editTeamPwValue.length < 6) {
+      setEditTeamPwError('Password must be at least 6 characters')
+      return
+    }
+    setEditTeamPwSubmitting(true)
+    try {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-reset-password`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: editTeamPw.user_id, newPassword: editTeamPwValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.statusText)
+      if (data?.error) throw new Error(data.error)
+      // Keep must_change_password false for teams
+      await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${editTeamPw.user_id}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ must_change_password: false }),
+      })
+      setEditTeamPwSuccess('Password updated!')
+      setEditTeamPwValue('')
+    } catch (err) {
+      setEditTeamPwError(err.message)
+    } finally {
+      setEditTeamPwSubmitting(false)
+    }
+  }
+
+  const handleDeleteTeam = async (team) => {
+    if (!confirm(`Remove Team ${team.team_number} (${team.team_name})?`)) return
+    try {
+      const headers = await getAuthHeaders()
+      // Delete auth user if exists
+      if (team.user_id) {
+        await fetch(`${supabaseUrl}/functions/v1/admin-delete-user`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: team.user_id }),
+        })
+      }
+      // Delete from team_accounts
+      await fetch(`${supabaseUrl}/rest/v1/team_accounts?team_number=eq.${team.team_number}`, {
+        method: 'DELETE',
+        headers,
+      })
+      setTeams(prev => prev.filter(t => t.team_number !== team.team_number))
+    } catch (err) {
+      console.error('Failed to delete team:', err)
+    }
+  }
+
   // --- Member role toggle (leads only, not on self) ---
 
   const handleToggleRole = async (memberId, role) => {
@@ -277,11 +437,11 @@ function UserManagement() {
     // Optimistic update
     setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: updated, authority_tier: newTier } : m))
     try {
+      const headers = await getAuthHeaders()
       const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${memberId}`, {
         method: 'PATCH',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...headers,
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
@@ -302,11 +462,13 @@ function UserManagement() {
           : `${username} removed your "${role}" role.`,
         data: JSON.stringify({ role, action: wasAdded ? 'added' : 'removed' }),
       }
-      fetch(`${supabaseUrl}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(notif),
-      }).catch(() => {})
+      getAuthHeaders().then(h =>
+        fetch(`${supabaseUrl}/rest/v1/notifications`, {
+          method: 'POST',
+          headers: { ...h, 'Content-Type': 'application/json' },
+          body: JSON.stringify(notif),
+        })
+      ).catch(() => {})
       triggerPush(notif)
     } catch (err) {
       // Rollback
@@ -351,10 +513,14 @@ function UserManagement() {
     }
     setResetSubmitting(true)
     try {
-      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
-        body: { userId: resetTarget.id, newPassword: resetPassword },
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-reset-password`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: resetTarget.id, newPassword: resetPassword }),
       })
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
       setResetSuccess(`Password reset successfully. Tell ${resetTarget.display_name} their temporary password.`)
       setResetPassword('')
@@ -369,10 +535,14 @@ function UserManagement() {
     setDeleteError('')
     setDeleteSubmitting(true)
     try {
-      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
-        body: { userId: deleteTarget.id },
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-delete-user`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteTarget.id }),
       })
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
       setRegisteredMembers(prev => prev.filter(m => m.id !== deleteTarget.id))
       setDeleteTarget(null)
@@ -396,15 +566,19 @@ function UserManagement() {
     }
     setCreateSubmitting(true)
     try {
-      const { data, error } = await supabase.functions.invoke('admin-create-user', {
-        body: {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           email: createTarget.email,
           password: createPassword,
           displayName: createDisplayName.trim(),
           role: createTarget.role,
-        },
+        }),
       })
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
       setCreateSuccess(`Account created for ${createDisplayName.trim()}. Tell them their temporary password.`)
       setRegisteredMembers(prev => [{
@@ -476,7 +650,7 @@ function UserManagement() {
               }`}
             >
               <Shield size={14} className="inline mr-1" />
-              Whitelist ({whitelistedEmails.length})
+              Whitelist ({whitelistedEmails.length + teams.length})
             </button>
             <button
               onClick={() => setActiveSection('members')}
@@ -543,126 +717,240 @@ function UserManagement() {
 
           {activeSection === 'whitelist' && canManageUsers ? (
             <>
-              <div className="flex gap-2 mb-4">
+              {/* Sub-section toggle */}
+              <div className="flex rounded-lg bg-gray-100 p-0.5 mb-4">
                 <button
-                  onClick={() => { setShowAddForm(true); setShowBulkImport(false); setError('') }}
-                  className="flex items-center gap-2 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm text-gray-700"
+                  onClick={() => setWhitelistSubSection('members')}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    whitelistSubSection === 'members' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <UserPlus size={16} />
-                  Add Email
+                  Radical Members ({whitelistedEmails.length})
                 </button>
                 <button
-                  onClick={() => { setShowBulkImport(true); setShowAddForm(false); setError('') }}
-                  className="flex items-center gap-2 px-3 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg transition-colors text-sm text-gray-700"
+                  onClick={() => setWhitelistSubSection('teams')}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    whitelistSubSection === 'teams' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <Upload size={16} />
-                  Bulk Import
+                  Teams ({teams.length})
                 </button>
               </div>
 
-              {showAddForm && (
-                <form onSubmit={handleAddEmail} className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-3">
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="Email address"
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
-                    autoFocus
-                    required
-                  />
-                  <select
-                    value={newTier}
-                    onChange={(e) => setNewTier(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
-                  >
-                    <option value="teammate">Member</option>
-                    <option value="guest">Guest</option>
-                  </select>
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <div className="flex gap-2">
+              {whitelistSubSection === 'members' ? (
+                <>
+                  <div className="flex gap-2 mb-4">
                     <button
-                      type="button"
-                      onClick={() => { setShowAddForm(false); setError('') }}
-                      className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                      onClick={() => { setShowAddForm(true); setShowBulkImport(false); setError('') }}
+                      className="flex items-center gap-2 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm text-gray-700"
                     >
-                      Cancel
+                      <UserPlus size={16} />
+                      Add Email
                     </button>
                     <button
-                      type="submit"
-                      className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
+                      onClick={() => { setShowBulkImport(true); setShowAddForm(false); setError('') }}
+                      className="flex items-center gap-2 px-3 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg transition-colors text-sm text-gray-700"
                     >
-                      Add
+                      <Upload size={16} />
+                      Bulk Import
                     </button>
                   </div>
-                </form>
-              )}
 
-              {showBulkImport && (
-                <div className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-3">
-                  <p className="text-sm text-gray-500">Paste email addresses, one per line. All will be added as &quot;teammate&quot; tier.</p>
-                  <textarea
-                    value={bulkText}
-                    onChange={(e) => setBulkText(e.target.value)}
-                    placeholder={"student1@school.edu\nstudent2@school.edu\nstudent3@school.edu"}
-                    rows={6}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm font-mono"
-                    autoFocus
-                  />
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setShowBulkImport(false); setBulkText(''); setError('') }}
-                      className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleBulkImport}
-                      className="flex-1 px-3 py-2 text-sm bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg"
-                    >
-                      Import {bulkCount} email{bulkCount !== 1 ? 's' : ''}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                {loadingData ? (
-                  <p className="text-center text-gray-400 mt-10 animate-pulse">Loading emails...</p>
-                ) : whitelistedEmails.length === 0 ? (
-                  <p className="text-center text-gray-400 mt-10">No whitelisted emails yet. Add emails to allow team members to sign up.</p>
-                ) : (
-                  whitelistedEmails.map((entry) => (
-                    <div key={entry.id} className="group flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-gray-700 block truncate">{entry.email}</span>
-                      </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full mr-3 ${
-                        entry.role === 'guest' ? 'bg-yellow-100 text-yellow-700' : 'bg-pastel-blue/50 text-blue-700'
-                      }`}>
-                        {entry.role === 'guest' ? 'Guest' : 'Member'}
-                      </span>
-                      <div className="flex items-center gap-1">
+                  {showAddForm && (
+                    <form onSubmit={handleAddEmail} className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-3">
+                      <input
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="Email address"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+                        autoFocus
+                        required
+                      />
+                      <select
+                        value={newTier}
+                        onChange={(e) => setNewTier(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+                      >
+                        <option value="teammate">Member</option>
+                        <option value="guest">Guest</option>
+                      </select>
+                      {error && <p className="text-sm text-red-500">{error}</p>}
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => { setCreateTarget(entry); setCreateDisplayName(''); setCreatePassword(''); setCreateError(''); setCreateSuccess('') }}
-                          title="Create account"
-                          className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                          type="button"
+                          onClick={() => { setShowAddForm(false); setError('') }}
+                          className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
                         >
-                          <UserPlus size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                          Cancel
                         </button>
                         <button
-                          onClick={() => handleRemoveEmail(entry.id)}
-                          className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-opacity"
+                          type="submit"
+                          className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
                         >
-                          <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                          Add
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {showBulkImport && (
+                    <div className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-3">
+                      <p className="text-sm text-gray-500">Paste email addresses, one per line. All will be added as &quot;teammate&quot; tier.</p>
+                      <textarea
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                        placeholder={"student1@school.edu\nstudent2@school.edu\nstudent3@school.edu"}
+                        rows={6}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm font-mono"
+                        autoFocus
+                      />
+                      {error && <p className="text-sm text-red-500">{error}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setShowBulkImport(false); setBulkText(''); setError('') }}
+                          className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleBulkImport}
+                          className="flex-1 px-3 py-2 text-sm bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg"
+                        >
+                          Import {bulkCount} email{bulkCount !== 1 ? 's' : ''}
                         </button>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {loadingData ? (
+                      <p className="text-center text-gray-400 mt-10 animate-pulse">Loading emails...</p>
+                    ) : whitelistedEmails.length === 0 ? (
+                      <p className="text-center text-gray-400 mt-10">No whitelisted emails yet. Add emails to allow team members to sign up.</p>
+                    ) : (
+                      whitelistedEmails.map((entry) => (
+                        <div key={entry.id} className="group flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-gray-700 block truncate">{entry.email}</span>
+                          </div>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full mr-3 ${
+                            entry.role === 'guest' ? 'bg-yellow-100 text-yellow-700' : 'bg-pastel-blue/50 text-blue-700'
+                          }`}>
+                            {entry.role === 'guest' ? 'Guest' : 'Member'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => { setCreateTarget(entry); setCreateDisplayName(''); setCreatePassword(''); setCreateError(''); setCreateSuccess('') }}
+                              title="Create account"
+                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                            >
+                              <UserPlus size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveEmail(entry.id)}
+                              className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-opacity"
+                            >
+                              <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Teams sub-section */
+                <>
+                  <div className="mb-4">
+                    <button
+                      onClick={() => { setShowAddTeam(true); setTeamError('') }}
+                      className="flex items-center gap-2 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm text-gray-700"
+                    >
+                      <Plus size={16} />
+                      Add Team
+                    </button>
+                  </div>
+
+                  {showAddTeam && (
+                    <form onSubmit={handleAddTeam} className="bg-white rounded-xl shadow-sm border p-4 mb-4 space-y-3">
+                      <input
+                        type="text"
+                        value={newTeamNumber}
+                        onChange={(e) => setNewTeamNumber(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Team number (e.g. 254)"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+                        autoFocus
+                        required
+                      />
+                      <input
+                        type="text"
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        placeholder="Team name (e.g. The Cheesy Poofs)"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+                        required
+                      />
+                      <PasswordInput
+                        value={newTeamPassword}
+                        onChange={(e) => setNewTeamPassword(e.target.value)}
+                        placeholder="Password (min 6 characters)"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+                      />
+                      {teamError && <p className="text-sm text-red-500">{teamError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setShowAddTeam(false); setTeamError(''); setNewTeamNumber(''); setNewTeamName(''); setNewTeamPassword('') }}
+                          className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={teamSubmitting || !newTeamNumber || !newTeamName || !newTeamPassword}
+                          className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
+                        >
+                          {teamSubmitting ? 'Creating...' : 'Add Team'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  <div className="space-y-2">
+                    {loadingData ? (
+                      <p className="text-center text-gray-400 mt-10 animate-pulse">Loading teams...</p>
+                    ) : teams.length === 0 ? (
+                      <p className="text-center text-gray-400 mt-10">No teams added yet. Add teams so they can log in with their team number.</p>
+                    ) : (
+                      teams.map((team) => (
+                        <div key={team.team_number} className="group flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-gray-700 block">Team {team.team_number}</span>
+                            <span className="text-xs text-gray-500 block truncate">{team.team_name}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => { setEditTeamPw(team); setEditTeamPwValue(''); setEditTeamPwError(''); setEditTeamPwSuccess('') }}
+                              title="Edit password"
+                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                            >
+                              <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTeam(team)}
+                              className="opacity-60 md:opacity-0 md:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 transition-opacity"
+                            >
+                              <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <div className="space-y-2">
@@ -934,6 +1222,44 @@ function UserManagement() {
                   className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
                 >
                   {resetSubmitting ? 'Resetting...' : 'Reset'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Password Edit Modal */}
+      {editTeamPw && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-700">
+              Edit Password for Team {editTeamPw.team_number}
+            </h3>
+            <p className="text-sm text-gray-500">{editTeamPw.team_name}</p>
+            <PasswordInput
+              value={editTeamPwValue}
+              onChange={(e) => { setEditTeamPwValue(e.target.value); setEditTeamPwError(''); setEditTeamPwSuccess('') }}
+              placeholder="New password (min 6 characters)"
+              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              autoFocus
+            />
+            {editTeamPwError && <p className="text-sm text-red-500">{editTeamPwError}</p>}
+            {editTeamPwSuccess && <p className="text-sm text-green-600">{editTeamPwSuccess}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditTeamPw(null)}
+                className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                {editTeamPwSuccess ? 'Close' : 'Cancel'}
+              </button>
+              {!editTeamPwSuccess && (
+                <button
+                  onClick={handleEditTeamPassword}
+                  disabled={editTeamPwSubmitting || !editTeamPwValue}
+                  className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
+                >
+                  {editTeamPwSubmitting ? 'Saving...' : 'Save'}
                 </button>
               )}
             </div>

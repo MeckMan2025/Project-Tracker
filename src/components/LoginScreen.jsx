@@ -5,8 +5,10 @@ import PasswordInput from './PasswordInput'
 function LoginScreen({ sessionExpired, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
+  const [loginMode, setLoginMode] = useState('member') // 'member' or 'team'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [teamNumber, setTeamNumber] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -41,6 +43,25 @@ function LoginScreen({ sessionExpired, onBack }) {
       }
     } catch (err) {
       setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleTeamLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!teamNumber.trim() || !password.trim()) return
+    setSubmitting(true)
+    try {
+      const teamEmail = `team${teamNumber.trim()}@teams.radical`
+      await login(teamEmail, password)
+    } catch (err) {
+      if (err.message?.includes('Invalid login')) {
+        setError('Invalid team number or password')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -328,73 +349,143 @@ function LoginScreen({ sessionExpired, onBack }) {
   // Sign-in form
   return (
     <div className={wrapper}>
-      <form onSubmit={handleSubmit} className={card}>
-        <div className="text-center">
-          <h1 className={heading}>Sign In</h1>
-          <p className="text-sm text-gray-500 mt-1">Welcome back</p>
-        </div>
-
-        {sessionExpired && (
-          <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">
-            Your session has expired. Please log in again.
+      {loginMode === 'team' ? (
+        <form onSubmit={handleTeamLogin} className={card}>
+          <div className="text-center">
+            <h1 className={heading}>Team Login</h1>
+            <p className="text-sm text-gray-500 mt-1">Log in with your team number</p>
           </div>
-        )}
 
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => { setEmail(e.target.value); setError('') }}
-          placeholder="Email"
-          className={input}
-          autoFocus
-        />
+          {sessionExpired && (
+            <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">
+              Your session has expired. Please log in again.
+            </div>
+          )}
 
-        <PasswordInput
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); setError('') }}
-          placeholder="Password"
-          className={input}
-        />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={teamNumber}
+            onChange={(e) => { setTeamNumber(e.target.value.replace(/\D/g, '')); setError('') }}
+            placeholder="Team number"
+            className={input}
+            autoFocus
+          />
 
-        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+          <PasswordInput
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError('') }}
+            placeholder="Password"
+            className={input}
+          />
 
-        <button type="submit" disabled={submitting} className={btn}>
-          {submitting ? 'Signing in...' : 'Sign In'}
-        </button>
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
-        <p className="text-sm text-center text-gray-500">
-          <button
-            type="button"
-            onClick={() => { setForgotPassword(true); setError('') }}
-            className="text-pastel-pink-dark font-semibold hover:underline"
-          >
-            Forgot password?
+          <button type="submit" disabled={submitting} className={btn}>
+            {submitting ? 'Signing in...' : 'Sign In'}
           </button>
-        </p>
 
-        <p className="text-sm text-center text-gray-500">
-          No account?{' '}
-          <button
-            type="button"
-            onClick={() => { setMode('signup'); resetSignupState() }}
-            className="text-pastel-pink-dark font-semibold hover:underline"
-          >
-            Sign Up
-          </button>
-        </p>
-
-        {onBack && (
           <p className="text-sm text-center text-gray-500">
             <button
               type="button"
-              onClick={onBack}
-              className="text-pastel-blue-dark font-semibold hover:underline"
+              onClick={() => { setLoginMode('member'); setError(''); setPassword('') }}
+              className="text-pastel-pink-dark font-semibold hover:underline"
             >
-              &larr; Back to Welcome
+              Radical member? Sign in here
             </button>
           </p>
-        )}
-      </form>
+
+          {onBack && (
+            <p className="text-sm text-center text-gray-500">
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-pastel-blue-dark font-semibold hover:underline"
+              >
+                &larr; Back to Welcome
+              </button>
+            </p>
+          )}
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit} className={card}>
+          <div className="text-center">
+            <h1 className={heading}>Sign In</h1>
+            <p className="text-sm text-gray-500 mt-1">Welcome back</p>
+          </div>
+
+          {sessionExpired && (
+            <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">
+              Your session has expired. Please log in again.
+            </div>
+          )}
+
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError('') }}
+            placeholder="Email"
+            className={input}
+            autoFocus
+          />
+
+          <PasswordInput
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError('') }}
+            placeholder="Password"
+            className={input}
+          />
+
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+
+          <button type="submit" disabled={submitting} className={btn}>
+            {submitting ? 'Signing in...' : 'Sign In'}
+          </button>
+
+          <p className="text-sm text-center text-gray-500">
+            <button
+              type="button"
+              onClick={() => { setForgotPassword(true); setError('') }}
+              className="text-pastel-pink-dark font-semibold hover:underline"
+            >
+              Forgot password?
+            </button>
+          </p>
+
+          <p className="text-sm text-center text-gray-500">
+            No account?{' '}
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); resetSignupState() }}
+              className="text-pastel-pink-dark font-semibold hover:underline"
+            >
+              Sign Up
+            </button>
+          </p>
+
+          <p className="text-sm text-center text-gray-500">
+            <button
+              type="button"
+              onClick={() => { setLoginMode('team'); setError(''); setPassword('') }}
+              className="text-pastel-blue-dark font-semibold hover:underline"
+            >
+              Team login
+            </button>
+          </p>
+
+          {onBack && (
+            <p className="text-sm text-center text-gray-500">
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-pastel-blue-dark font-semibold hover:underline"
+              >
+                &larr; Back to Welcome
+              </button>
+            </p>
+          )}
+        </form>
+      )}
     </div>
   )
 }

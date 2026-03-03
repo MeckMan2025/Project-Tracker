@@ -4,7 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount }) {
   const { logout, username, user } = useUser()
   const { isGuest, canEditContent, canRequestContent, hasLeadTag } = usePermissions()
   const { addToast } = useToast()
@@ -122,12 +122,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wide">Menu</h3>
                 <div className="space-y-1">
                   {[
-                    { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
-                    { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark' },
-                    { icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' },
-                    ...(!isGuest ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
-                    ...(!isGuest ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
-                    { icon: HelpCircle, label: 'Help', color: 'text-pastel-orange-dark' },
+                    ...(!isTeamAccount ? [{ icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' }] : []),
+                    ...(!isTeamAccount ? [{ icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark' }] : []),
+                    ...(!isTeamAccount ? [{ icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' }] : []),
+                    ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
+                    ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
+                    ...(!isTeamAccount ? [{ icon: HelpCircle, label: 'Help', color: 'text-pastel-orange-dark' }] : []),
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab, action }) => (
                     <button
@@ -156,6 +156,99 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         )}
 
         <nav className="p-2 flex-1 overflow-y-auto">
+          {/* Team account: only show boards + logout */}
+          {isTeamAccount ? (
+            <>
+              <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                Your Boards
+              </div>
+
+              {/* Board tabs for team */}
+              <div className="space-y-1">
+                {boardTabs.map((tab) => (
+                  <div
+                    key={tab.id}
+                    className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === tab.id
+                        ? 'bg-pastel-pink text-gray-800'
+                        : 'hover:bg-pastel-blue/30 text-gray-600'
+                    }`}
+                    onClick={() => {
+                      onTabChange(tab.id)
+                      onToggle()
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FolderKanban size={14} className="text-pastel-blue-dark" />
+                      <span className="truncate">{tab.name}</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        if (confirm(`Delete "${tab.name}" board?`)) {
+                          onDeleteTab(tab.id)
+                        }
+                      }}
+                      className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add Board */}
+                <div className="pt-1">
+                  {isAdding ? (
+                    <form onSubmit={handleAddTab} className="space-y-2 px-2">
+                      <input
+                        type="text"
+                        value={newTabName}
+                        onChange={(e) => setNewTabName(e.target.value)}
+                        placeholder="Board name"
+                        className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setIsAdding(false); setNewTabName('') }}
+                          className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => setIsAdding(true)}
+                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
+                    >
+                      <Plus size={14} />
+                      Add Board
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <hr className="my-2 border-gray-200" />
+
+              <button
+                onClick={logout}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors text-gray-600 text-sm"
+              >
+                <LogOut size={16} className="text-red-400" />
+                <span>Logout</span>
+              </button>
+            </>
+          ) : (
+          <>
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -580,6 +673,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <span className="truncate">Special Controls</span>
               </div>
             </>
+          )}
+          </>
           )}
         </nav>
 

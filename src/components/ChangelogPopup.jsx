@@ -5,6 +5,22 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 30,
+    date: '2026-03-02',
+    items: [
+      '🤝 Team accounts — add external FRC teams with number, name, and password from User Management',
+      '🔑 Team login — teams sign in with just their team number and password',
+      '📋 Separate team boards — each team gets their own private boards',
+    ],
+  },
+  {
+    id: 29,
+    date: '2026-03-02',
+    items: [
+      '📱 Added native app support — coming soon to the App Store and Google Play!',
+    ],
+  },
+  {
     id: 28,
     date: '2026-02-22',
     items: [

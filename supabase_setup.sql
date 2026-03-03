@@ -388,11 +388,27 @@ DROP POLICY IF EXISTS "Allow all access to attendance_records" ON attendance_rec
 CREATE POLICY "Allow all access to attendance_records" ON attendance_records
   FOR ALL USING (true) WITH CHECK (true);
 
+-- TEAM ACCOUNTS TABLE (external FRC teams that can log in)
+CREATE TABLE IF NOT EXISTS team_accounts (
+  team_number text PRIMARY KEY,
+  team_name text NOT NULL,
+  user_id uuid,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE team_accounts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to team_accounts" ON team_accounts;
+CREATE POLICY "Allow all access to team_accounts" ON team_accounts
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Add owner_team column to boards (null = Radical board, team_number = team-specific board)
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS owner_team text;
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
