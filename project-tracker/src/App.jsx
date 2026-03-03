@@ -291,7 +291,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
     // Clear removed tabs so users don't land on a dead page
-    const removed = ['announcements']
+    const removed = ['announcements', 'quick-chat']
     if (saved && removed.includes(saved)) {
       localStorage.removeItem('scrum-active-tab')
       return 'home'
@@ -1100,8 +1100,12 @@ function App() {
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
         <AttendanceView />
-      ) : activeTab === 'quick-chat' ? (
-        <QuickChat />
+      ) : activeTab === 'chat-all' ? (
+        <QuickChat channel="all" />
+      ) : activeTab === 'chat-alliances' ? (
+        <QuickChat channel="alliances" />
+      ) : activeTab === 'chat-leagues' ? (
+        <QuickChat channel="leagues" />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">

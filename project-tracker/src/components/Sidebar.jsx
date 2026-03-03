@@ -15,6 +15,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [dataOpen, setDataOpen] = useState(false)
   const [scoutingOpen, setScoutingOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
 
   // Reset all dropdowns when sidebar closes
   useEffect(() => {
@@ -24,6 +25,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       setDataOpen(false)
       setScoutingOpen(false)
       setTasksOpen(false)
+      setChatOpen(false)
       setIsAdding(false)
       setNewTabName('')
     }
@@ -67,7 +69,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'quick-chat'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues'
 
   return (
     <>
@@ -241,18 +243,36 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'quick-chat'
+                  activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues'
                     ? 'bg-pastel-pink text-gray-800'
                     : 'hover:bg-pastel-blue/30 text-gray-600'
                 }`}
-                onClick={() => {
-                  onTabChange('quick-chat')
-                  onToggle()
-                }}
+                onClick={() => setChatOpen(prev => !prev)}
               >
                 <MessageCircle size={16} className="text-pastel-pink-dark" />
-                <span className="truncate">Chat</span>
+                <span className="truncate flex-1">Chat</span>
+                <ChevronRight
+                  size={14}
+                  className={`transition-transform ${chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues' ? 'rotate-90' : ''}`}
+                />
               </div>
+
+              {(chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues') && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {[{ tab: 'chat-all', label: 'All' }, { tab: 'chat-alliances', label: 'Alliances' }, { tab: 'chat-leagues', label: 'Leagues' }].map(({ tab, label }) => (
+                    <div
+                      key={tab}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                        activeTab === tab ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                      }`}
+                      onClick={() => { onTabChange(tab); onToggle() }}
+                    >
+                      <ChevronRight size={14} className={activeTab === tab ? 'rotate-90' : ''} />
+                      <span className="truncate">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <hr className="my-2 border-gray-200" />
 
@@ -287,18 +307,36 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* Chat Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'quick-chat'
+              activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
-            onClick={() => {
-              onTabChange('quick-chat')
-              onToggle()
-            }}
+            onClick={() => setChatOpen(prev => !prev)}
           >
             <MessageCircle size={16} className="text-pastel-pink-dark" />
-            <span className="truncate">Chat</span>
+            <span className="truncate flex-1">Chat</span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues' ? 'rotate-90' : ''}`}
+            />
           </div>
+
+          {(chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues') && (
+            <div className="ml-4 mt-1 space-y-1">
+              {[{ tab: 'chat-all', label: 'All' }, { tab: 'chat-alliances', label: 'Alliances' }, { tab: 'chat-leagues', label: 'Leagues' }].map(({ tab, label }) => (
+                <div
+                  key={tab}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                    activeTab === tab ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                  }`}
+                  onClick={() => { onTabChange(tab); onToggle() }}
+                >
+                  <ChevronRight size={14} className={activeTab === tab ? 'rotate-90' : ''} />
+                  <span className="truncate">{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <hr className="my-2 border-gray-200" />
 

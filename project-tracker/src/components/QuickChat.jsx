@@ -20,19 +20,14 @@ function getSenderColor(sender) {
   return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length]
 }
 
-const CHANNELS = [
-  { value: 'all', label: 'All' },
-  { value: 'alliances', label: 'Alliances' },
-  { value: 'leagues', label: 'Leagues' },
-]
+const CHANNEL_LABELS = { all: 'All', alliances: 'Alliances', leagues: 'Leagues' }
 
-function QuickChat() {
+function QuickChat({ channel = 'all' }) {
   const { username, chatName, nickname, user } = useUser()
   const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sendError, setSendError] = useState(null)
-  const [channel, setChannel] = useState('all')
   const messagesEndRef = useRef(null)
   const lastPushTimestamp = useRef(0)
 
@@ -178,7 +173,7 @@ function QuickChat() {
         if (now - lastPushTimestamp.current > 30000) {
           lastPushTimestamp.current = now
           const senderName = chatName || username
-          const channelLabel = CHANNELS.find(c => c.value === channel)?.label || 'All'
+          const channelLabel = CHANNEL_LABELS[channel] || 'All'
           const truncatedMsg = message.content.length > 80 ? message.content.slice(0, 80) + '...' : message.content
           supabase.from('profiles').select('id').then(({ data: profiles }) => {
             if (!profiles) return
@@ -256,29 +251,11 @@ function QuickChat() {
           {/* Centered title */}
           <div className="flex-1 text-center">
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Quick Chat
+              Chat
             </h1>
             <p className="text-sm text-gray-500">Chatting as {chatName || username}</p>
           </div>
           <NotificationBell />
-        </div>
-        {/* Channel selector */}
-        <div className="px-4 pb-3 flex justify-center">
-          <div className="inline-flex rounded-lg bg-gray-100 p-0.5">
-            {CHANNELS.map((ch) => (
-              <button
-                key={ch.value}
-                onClick={() => setChannel(ch.value)}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                  channel === ch.value
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {ch.label}
-              </button>
-            ))}
-          </div>
         </div>
       </header>
 
