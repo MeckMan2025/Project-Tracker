@@ -86,10 +86,14 @@ function UserManagement() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-  // Use the user's JWT so RLS policies (auth.uid()) are satisfied
+  // Use the user's JWT so RLS policies (auth.uid()) are satisfied.
+  // getSession() can hang if the auth lock is stuck, so race with a timeout.
   const getAuthHeaders = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), 3000))
+      ])
       const token = session?.access_token || supabaseKey
       return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
     } catch {
