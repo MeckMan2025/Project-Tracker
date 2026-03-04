@@ -11,7 +11,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [boardsOpen, setBoardsOpen] = useState(false)
+  const [boardsOpen, setBoardsOpen] = useState(isTeamAccount)
   const [dataOpen, setDataOpen] = useState(false)
   const [scoutingOpen, setScoutingOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
@@ -158,135 +158,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         )}
 
         <nav className="p-2 flex-1 overflow-y-auto">
-          {/* Team account: only show boards + logout */}
-          {isTeamAccount ? (
-            <>
-              <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Your Boards
-              </div>
-
-              {/* Board tabs for team */}
-              <div className="space-y-1">
-                {boardTabs.map((tab) => (
-                  <div
-                    key={tab.id}
-                    className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
-                      activeTab === tab.id
-                        ? 'bg-pastel-pink text-gray-800'
-                        : 'hover:bg-pastel-blue/30 text-gray-600'
-                    }`}
-                    onClick={() => {
-                      onTabChange(tab.id)
-                      onToggle()
-                    }}
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <FolderKanban size={14} className="text-pastel-blue-dark" />
-                      <span className="truncate">{tab.name}</span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        if (confirm(`Delete "${tab.name}" board?`)) {
-                          onDeleteTab(tab.id)
-                        }
-                      }}
-                      className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add Board */}
-                <div className="pt-1">
-                  {isAdding ? (
-                    <form onSubmit={handleAddTab} className="space-y-2 px-2">
-                      <input
-                        type="text"
-                        value={newTabName}
-                        onChange={(e) => setNewTabName(e.target.value)}
-                        placeholder="Board name"
-                        className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => { setIsAdding(false); setNewTabName('') }}
-                          className="flex-1 px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="flex-1 px-3 py-1 text-xs bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg"
-                        >
-                          Create
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <button
-                      onClick={() => setIsAdding(true)}
-                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
-                    >
-                      <Plus size={14} />
-                      Add Board
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <hr className="my-2 border-gray-200" />
-
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => setChatOpen(prev => !prev)}
-              >
-                <MessageCircle size={16} className="text-pastel-pink-dark" />
-                <span className="truncate flex-1">Chat</span>
-                <ChevronRight
-                  size={14}
-                  className={`transition-transform ${chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues' ? 'rotate-90' : ''}`}
-                />
-              </div>
-
-              {(chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues') && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {[{ tab: 'chat-all', label: 'All' }, { tab: 'chat-alliances', label: 'Alliances' }, { tab: 'chat-leagues', label: 'Leagues' }].map(({ tab, label }) => (
-                    <div
-                      key={tab}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                        activeTab === tab ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                      }`}
-                      onClick={() => { onTabChange(tab); onToggle() }}
-                    >
-                      <ChevronRight size={14} className={activeTab === tab ? 'rotate-90' : ''} />
-                      <span className="truncate">{label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <hr className="my-2 border-gray-200" />
-
-              <button
-                onClick={logout}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors text-gray-600 text-sm"
-              >
-                <LogOut size={16} className="text-red-400" />
-                <span>Logout</span>
-              </button>
-            </>
-          ) : (
-          <>
-          {/* Home Tab */}
+          {/* Home Tab — hidden for team accounts */}
+          {!isTeamAccount && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
               activeTab === 'home'
@@ -303,6 +176,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </div>
 
           <hr className="my-2 border-gray-200" />
+          </>}
 
           {/* Chat Tab */}
           <div
@@ -340,6 +214,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
+          {!isTeamAccount && <>
           {/* Scouting Tab — hidden for guests */}
           {!isGuest && (
             <>
@@ -467,7 +342,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">AI Manual</span>
           </div>
 
-          <hr className="my-2 border-gray-200" />
+          </>}
 
           {/* Boards Tab */}
           <div
@@ -570,6 +445,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </div>}
           </div>}
 
+          {!isTeamAccount && <>
           <hr className="my-2 border-gray-200" />
 
           {/* Tasks Tab */}
@@ -747,8 +623,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               </div>
             </>
           )}
-          </>
-          )}
+          </>}
         </nav>
 
         {/* Online Now */}

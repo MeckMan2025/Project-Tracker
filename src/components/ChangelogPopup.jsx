@@ -5,6 +5,30 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 34,
+    date: '2026-03-04',
+    items: [
+      '📋 Team sidebar now uses the same Boards tab as members (Chat + Boards only)',
+      '🔧 Moved team Logout into the three-dots menu',
+    ],
+  },
+  {
+    id: 33,
+    date: '2026-03-04',
+    items: [
+      '🔒 Fixed team accounts seeing Radical tabs/loading screen on refresh',
+      '💬 Fixed team chat messages incorrectly showing as Radical',
+      '📋 Fixed Radical members seeing other teams\' tasks',
+    ],
+  },
+  {
+    id: 32,
+    date: '2026-03-04',
+    items: [
+      '📋 Team accounts now have a collapsible Boards dropdown matching the member sidebar style',
+    ],
+  },
+  {
     id: 31,
     date: '2026-03-03',
     items: [
