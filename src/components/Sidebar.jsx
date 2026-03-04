@@ -346,10 +346,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           {/* Boards Tab */}
           <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors font-medium ${
               isBoardActive
                 ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
+                : 'hover:bg-pastel-blue/30 text-gray-700'
             }`}
             onClick={() => {
               setBoardsOpen(prev => !prev)

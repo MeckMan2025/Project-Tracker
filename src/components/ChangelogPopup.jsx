@@ -5,6 +5,21 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 36,
+    date: '2026-03-04',
+    items: [
+      '🏟️ Adding teams now requires selecting a league from a dropdown',
+    ],
+  },
+  {
+    id: 35,
+    date: '2026-03-04',
+    items: [
+      '🔒 Team accounts no longer flash Radical tabs/goals on refresh',
+      '🚫 Team accounts skip the loading screen entirely',
+    ],
+  },
+  {
     id: 34,
     date: '2026-03-04',
     items: [

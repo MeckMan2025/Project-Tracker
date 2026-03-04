@@ -32,8 +32,8 @@ export function UserProvider({ children }) {
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [mustChangePassword, setMustChangePassword] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
-  const [isTeam, setIsTeam] = useState(false)
-  const [teamNumber, setTeamNumber] = useState('')
+  const [isTeam, setIsTeam] = useState(() => localStorage.getItem('scrum-is-team') === 'true')
+  const [teamNumber, setTeamNumber] = useState(() => localStorage.getItem('scrum-team-number') || '')
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
@@ -72,8 +72,12 @@ export function UserProvider({ children }) {
 
       // Detect team accounts by email pattern
       const teamMatch = userEmail && userEmail.match(TEAM_EMAIL_REGEX)
-      setIsTeam(!!teamMatch)
-      setTeamNumber(teamMatch ? teamMatch[1] : '')
+      const isTeamAccount = !!teamMatch
+      const teamNum = teamMatch ? teamMatch[1] : ''
+      setIsTeam(isTeamAccount)
+      setTeamNumber(teamNum)
+      localStorage.setItem('scrum-is-team', String(isTeamAccount))
+      localStorage.setItem('scrum-team-number', teamNum)
 
       setUsername(profile.display_name)
       localStorage.setItem('scrum-cached-user-id', profile.id)
@@ -137,6 +141,8 @@ export function UserProvider({ children }) {
     setUseNickname(false)
     setIsTeam(false)
     setTeamNumber('')
+    localStorage.removeItem('scrum-is-team')
+    localStorage.removeItem('scrum-team-number')
     localStorage.removeItem('session-start')
     localStorage.removeItem('scrum-username')
     localStorage.removeItem('chat-username')
@@ -180,6 +186,15 @@ export function UserProvider({ children }) {
             return
           }
           setUser(session.user)
+          // Immediately detect team account from email — must happen before any setLoading(false)
+          const userEmail = session.user.email?.toLowerCase() || ''
+          const teamMatch = userEmail.match(TEAM_EMAIL_REGEX)
+          if (teamMatch) {
+            setIsTeam(true)
+            setTeamNumber(teamMatch[1])
+            localStorage.setItem('scrum-is-team', 'true')
+            localStorage.setItem('scrum-team-number', teamMatch[1])
+          }
           // Load cached profile keyed by user ID for instant render
           const cachedUserId = localStorage.getItem('scrum-cached-user-id')
           if (cachedUserId === session.user.id) {
@@ -192,8 +207,6 @@ export function UserProvider({ children }) {
               if (cachedTags) { try { setFunctionTags(JSON.parse(cachedTags)) } catch (e) {} }
               const cachedRole = localStorage.getItem('scrum-role')
               if (cachedRole) { setRole(cachedRole); setIsLead(cachedRole === 'lead') }
-              // Check for auto-admin emails (cached instant render)
-              const userEmail = session.user.email?.toLowerCase() || ''
               if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
                 setIsAuthorityAdmin(true)
                 setAuthorityTier('teammate')
@@ -251,8 +264,16 @@ export function UserProvider({ children }) {
           localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
-          // Auto-grant admin for specific emails
+          // Immediately detect team account from email
           const userEmail = session.user.email?.toLowerCase() || ''
+          const signInTeamMatch = userEmail.match(TEAM_EMAIL_REGEX)
+          if (signInTeamMatch) {
+            setIsTeam(true)
+            setTeamNumber(signInTeamMatch[1])
+            localStorage.setItem('scrum-is-team', 'true')
+            localStorage.setItem('scrum-team-number', signInTeamMatch[1])
+          }
+          // Auto-grant admin for specific emails
           if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
             setIsAuthorityAdmin(true)
             setAuthorityTier('teammate')

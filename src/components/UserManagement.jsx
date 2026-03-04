@@ -14,6 +14,17 @@ const ALL_ROLES = [
 
 const PERMANENT_COFOUNDER_NAMES = ['yukti', 'kayden']
 
+const LEAGUES = [
+  'Machu Picchu League',
+  'Acropolis League',
+  'Giza League',
+  'Pompeii League',
+  'Stonehenge League',
+  'Western Iowa League',
+  'Easter Island League',
+  'Chichen Itza League',
+]
+
 const ROLE_DESCRIPTIONS = {
   'Co-Founder': 'Team co-founder with full administrative access',
   'Mentor': 'Adult mentor providing guidance and oversight',
@@ -71,6 +82,7 @@ function UserManagement() {
   const [newTeamNumber, setNewTeamNumber] = useState('')
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamPassword, setNewTeamPassword] = useState('')
+  const [newTeamLeague, setNewTeamLeague] = useState('')
   const [teamError, setTeamError] = useState('')
   const [teamSubmitting, setTeamSubmitting] = useState(false)
   const [whitelistSubSection, setWhitelistSubSection] = useState('members')
@@ -302,7 +314,7 @@ function UserManagement() {
 
   const handleAddTeam = async (e) => {
     e.preventDefault()
-    if (!newTeamNumber.trim() || !newTeamName.trim() || !newTeamPassword.trim()) return
+    if (!newTeamNumber.trim() || !newTeamName.trim() || !newTeamPassword.trim() || !newTeamLeague) return
     if (newTeamPassword.length < 6) {
       setTeamError('Password must be at least 6 characters')
       return
@@ -344,6 +356,7 @@ function UserManagement() {
         body: JSON.stringify({
           team_number: newTeamNumber.trim(),
           team_name: newTeamName.trim(),
+          league: newTeamLeague,
           user_id: data.userId,
         }),
       })
@@ -362,6 +375,7 @@ function UserManagement() {
       setNewTeamNumber('')
       setNewTeamName('')
       setNewTeamPassword('')
+      setNewTeamLeague('')
       setShowAddTeam(false)
     } catch (err) {
       setTeamError(err.message)
@@ -903,6 +917,15 @@ function UserManagement() {
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                         required
                       />
+                      <select
+                        value={newTeamLeague}
+                        onChange={(e) => setNewTeamLeague(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm bg-white"
+                        required
+                      >
+                        <option value="" disabled>Select league...</option>
+                        {LEAGUES.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
                       <PasswordInput
                         value={newTeamPassword}
                         onChange={(e) => setNewTeamPassword(e.target.value)}
@@ -913,14 +936,14 @@ function UserManagement() {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => { setShowAddTeam(false); setTeamError(''); setNewTeamNumber(''); setNewTeamName(''); setNewTeamPassword('') }}
+                          onClick={() => { setShowAddTeam(false); setTeamError(''); setNewTeamNumber(''); setNewTeamName(''); setNewTeamLeague(''); setNewTeamPassword('') }}
                           className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
-                          disabled={teamSubmitting || !newTeamNumber || !newTeamName || !newTeamPassword}
+                          disabled={teamSubmitting || !newTeamNumber || !newTeamName || !newTeamLeague || !newTeamPassword}
                           className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
                         >
                           {teamSubmitting ? 'Creating...' : 'Add Team'}
@@ -940,6 +963,7 @@ function UserManagement() {
                           <div className="flex-1 min-w-0">
                             <span className="text-sm font-medium text-gray-700 block">Team {team.team_number}</span>
                             <span className="text-xs text-gray-500 block truncate">{team.team_name}</span>
+                            {team.league && <span className="text-xs text-gray-400 block truncate">{team.league}</span>}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
