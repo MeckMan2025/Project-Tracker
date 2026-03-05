@@ -394,9 +394,13 @@ CREATE POLICY "Allow all access to attendance_records" ON attendance_records
 CREATE TABLE IF NOT EXISTS team_accounts (
   team_number text PRIMARY KEY,
   team_name text NOT NULL,
+  league text,
   user_id uuid,
   created_at timestamptz DEFAULT now()
 );
+
+-- Add league column if table already exists
+ALTER TABLE team_accounts ADD COLUMN IF NOT EXISTS league text;
 
 ALTER TABLE team_accounts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to team_accounts" ON team_accounts;

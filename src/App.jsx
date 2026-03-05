@@ -277,13 +277,15 @@ function RoleChangeModal({ alert, onDismiss }) {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber } = useUser()
+  // Derive team status directly from user email — never depends on async context timing
+  const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase()))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashRequired = activeFlash && username && presentUsers.includes(username) && !completedUsers.includes(username) && !(activeFlash.exempt_users || []).includes(username)
   useBackButton()
-  const [isLoading, setIsLoading] = useState(() => !isTeam)
+  const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
     const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
     return msgs[Math.floor(Math.random() * msgs.length)]
@@ -292,7 +294,7 @@ function App() {
   const [tabs, setTabs] = useState(() => {
     if (cachedData.current?.tabs) return cachedData.current.tabs
     // Team accounts start with just system tabs (no default boards — their boards load from DB)
-    if (isTeam) return [...SYSTEM_TABS]
+    if (effectiveIsTeam) return [...SYSTEM_TABS]
     return [...SYSTEM_TABS, ...DEFAULT_BOARDS]
   })
   const [activeTab, setActiveTab] = useState(() => {
@@ -308,7 +310,7 @@ function App() {
 
   // When a team logs in, skip loading screen and force them to boards view
   useEffect(() => {
-    if (isTeam) {
+    if (effectiveIsTeam) {
       setIsLoading(false)
       if (activeTab === 'home') {
         const boardTabs = tabs.filter(t => !t.type)
@@ -317,7 +319,7 @@ function App() {
         }
       }
     }
-  }, [isTeam, tabs])
+  }, [effectiveIsTeam, tabs])
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
@@ -581,7 +583,7 @@ function App() {
         delete updated[newId]
         return updated
       })
-      setActiveTab(isTeam ? 'home' : 'business')
+      setActiveTab(effectiveIsTeam ? 'home' : 'business')
       addToast('Failed to create board. Please try again.', 'error')
     }
   }
@@ -1010,8 +1012,8 @@ function App() {
 
   return (
     <>
-      {isLoading && !isTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-      {!isLoading && !isTeam && <ChangelogPopup />}
+      {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
+      {!isLoading && !effectiveIsTeam && <ChangelogPopup />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
           username={username}
@@ -1020,7 +1022,7 @@ function App() {
           completedUsers={completedUsers}
         />
       )}
-    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !isTeam ? 'hidden' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !effectiveIsTeam ? 'hidden' : ''}`}>
       <StateCelebration />
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
@@ -1050,7 +1052,7 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
-        isTeamAccount={isTeam}
+        isTeamAccount={effectiveIsTeam}
       />
 
 
@@ -1350,7 +1352,7 @@ function App() {
             setEditingTask(null)
           }}
           isLead={canEditContent}
-          isTeam={isTeam}
+          isTeam={effectiveIsTeam}
         />
       )}
 

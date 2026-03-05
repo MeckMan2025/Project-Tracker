@@ -197,9 +197,11 @@ const mapTask = (t) => ({
   createdAt: t.created_at,
 })
 
-// Restore cached data from localStorage for instant load
+// Restore cached data from localStorage for instant load (only for Radical members)
 function getCachedData() {
   try {
+    // Team accounts should not use Radical's cached boards/tasks
+    if (localStorage.getItem('scrum-is-team') === 'true') return null
     const cached = localStorage.getItem('scrum-cache')
     if (cached) {
       const { tabs: cachedTabs, tasksByTab: cachedTasks } = JSON.parse(cached)
@@ -275,19 +277,26 @@ function RoleChangeModal({ alert, onDismiss }) {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber } = useUser()
+  // Derive team status directly from user email — never depends on async context timing
+  const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase()))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashRequired = activeFlash && username && presentUsers.includes(username) && !completedUsers.includes(username) && !(activeFlash.exempt_users || []).includes(username)
   useBackButton()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
     const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
     return msgs[Math.floor(Math.random() * msgs.length)]
   })
   const cachedData = useRef(getCachedData())
-  const [tabs, setTabs] = useState(() => cachedData.current?.tabs || [...SYSTEM_TABS, ...DEFAULT_BOARDS])
+  const [tabs, setTabs] = useState(() => {
+    if (cachedData.current?.tabs) return cachedData.current.tabs
+    // Team accounts start with just system tabs (no default boards — their boards load from DB)
+    if (effectiveIsTeam) return [...SYSTEM_TABS]
+    return [...SYSTEM_TABS, ...DEFAULT_BOARDS]
+  })
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('scrum-active-tab')
     // Clear removed tabs so users don't land on a dead page
@@ -299,16 +308,18 @@ function App() {
     return saved || 'home'
   })
 
-  // When a team logs in, force them to boards view
+  // When a team logs in, skip loading screen and force them to boards view
   useEffect(() => {
-    if (isTeam && activeTab === 'home') {
-      // Find first board tab, or stay on a placeholder
-      const boardTabs = tabs.filter(t => !t.type)
-      if (boardTabs.length > 0) {
-        setActiveTab(boardTabs[0].id)
+    if (effectiveIsTeam) {
+      setIsLoading(false)
+      if (activeTab === 'home') {
+        const boardTabs = tabs.filter(t => !t.type)
+        if (boardTabs.length > 0) {
+          setActiveTab(boardTabs[0].id)
+        }
       }
     }
-  }, [isTeam, tabs])
+  }, [effectiveIsTeam, tabs])
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
@@ -443,8 +454,9 @@ function App() {
         const grouped = {}
         allBoards.forEach(b => { grouped[b.id] = [] })
         tasks.forEach(t => {
-          if (!grouped[t.board_id]) grouped[t.board_id] = []
-          grouped[t.board_id].push(mapTask(t))
+          if (grouped[t.board_id] !== undefined) {
+            grouped[t.board_id].push(mapTask(t))
+          }
         })
         setTasksByTab(grouped)
 
@@ -481,6 +493,12 @@ function App() {
       .channel('boards-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'boards' }, (payload) => {
         const b = payload.new
+        // Only add board if it belongs to our view
+        if (isTeam && teamNumber) {
+          if (b.owner_team !== teamNumber) return
+        } else {
+          if (b.owner_team) return
+        }
         setTabs(prev => {
           if (prev.some(t => t.id === b.id)) return prev
           return [...prev, { id: b.id, name: b.name, permanent: b.permanent }]
@@ -499,7 +517,7 @@ function App() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [isTeam, teamNumber])
 
   // Real-time: listen for task changes (use payload, no re-query)
   useEffect(() => {
@@ -509,7 +527,8 @@ function App() {
         const task = mapTask(payload.new)
         const boardId = payload.new.board_id
         setTasksByTab(prev => {
-          const existing = prev[boardId] || []
+          if (prev[boardId] === undefined) return prev // Not our board
+          const existing = prev[boardId]
           if (existing.some(t => t.id === task.id)) return prev
           return { ...prev, [boardId]: [...existing, task] }
         })
@@ -564,7 +583,7 @@ function App() {
         delete updated[newId]
         return updated
       })
-      setActiveTab(isTeam ? 'home' : 'business')
+      setActiveTab(effectiveIsTeam ? 'home' : 'business')
       addToast('Failed to create board. Please try again.', 'error')
     }
   }
@@ -993,8 +1012,8 @@ function App() {
 
   return (
     <>
-      {isLoading && !isTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-      {!isLoading && !isTeam && <ChangelogPopup />}
+      {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
+      {!isLoading && !effectiveIsTeam && <ChangelogPopup />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
           username={username}
@@ -1003,7 +1022,7 @@ function App() {
           completedUsers={completedUsers}
         />
       )}
-    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !isTeam ? 'hidden' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !effectiveIsTeam ? 'hidden' : ''}`}>
       <StateCelebration />
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
@@ -1033,7 +1052,7 @@ function App() {
         onToggleMusic={toggleMusic}
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
-        isTeamAccount={isTeam}
+        isTeamAccount={effectiveIsTeam}
       />
 
 
@@ -1333,7 +1352,7 @@ function App() {
             setEditingTask(null)
           }}
           isLead={canEditContent}
-          isTeam={isTeam}
+          isTeam={effectiveIsTeam}
         />
       )}
 
