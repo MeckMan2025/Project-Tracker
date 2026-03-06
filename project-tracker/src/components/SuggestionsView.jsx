@@ -14,7 +14,7 @@ const STATUS_STYLES = {
 
 function SuggestionsView() {
   const { username, user } = useUser()
-  const { canReviewSuggestions, canSubmitSuggestions, isGuest } = usePermissions()
+  const { canReviewSuggestions, canSubmitSuggestions } = usePermissions()
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -235,7 +235,7 @@ function SuggestionsView() {
             ))}
           </div>
         </main>
-      ) : isGuest ? (
+      ) : !canSubmitSuggestions ? (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto text-center mt-20">
             <p className="text-gray-400">You can view suggestions but need a teammate role to submit.</p>
