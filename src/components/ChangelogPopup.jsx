@@ -5,6 +5,21 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 38,
+    date: '2026-03-06',
+    items: [
+      '📐 Added divider line between AI Manual and Boards in sidebar',
+      '🔤 Fixed Boards tab appearing bold in sidebar',
+    ],
+  },
+  {
+    id: 37,
+    date: '2026-03-06',
+    items: [
+      '⚡ Removed 5-second countdown from loading screen — tap to start goes straight in',
+    ],
+  },
+  {
     id: 36,
     date: '2026-03-04',
     items: [
