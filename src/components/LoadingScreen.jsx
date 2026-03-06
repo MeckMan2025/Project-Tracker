@@ -22,11 +22,8 @@ function pickRandomGoals(arr, count) {
 function LoadingScreen({ onComplete, onMusicStart }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
-  const [countdown, setCountdown] = useState(null)
-  const [ready, setReady] = useState(false)
   const tappedRef = useRef(false)
   const randomGoals = useMemo(() => pickRandomGoals(TEAM_GOALS, 3), [])
-  const waiting = countdown !== null && countdown > 0
 
   const startMusic = () => {
     const pref = localStorage.getItem('scrum-music-pref') || 'off'
@@ -60,18 +57,11 @@ function LoadingScreen({ onComplete, onMusicStart }) {
     }, 500)
   }, [onComplete])
 
-  useEffect(() => {
-    if (countdown === null) return
-    if (countdown <= 0) { setReady(true); return }
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000)
-    return () => clearTimeout(timer)
-  }, [countdown])
-
   const handleTap = () => {
     if (tappedRef.current) return
     tappedRef.current = true
     startMusic()
-    setCountdown(5)
+    finishLoading()
   }
 
   if (!isVisible) return null
@@ -88,10 +78,10 @@ function LoadingScreen({ onComplete, onMusicStart }) {
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {(!isFading || waiting) && (
+      {!isFading && (
         <div
-          onClick={!ready && !waiting ? handleTap : undefined}
-          className={`absolute inset-0 flex flex-col items-center justify-center ${!ready && !waiting ? 'cursor-pointer' : ''}`}
+          onClick={handleTap}
+          className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
         >
           <div className="flex flex-col items-center gap-5 px-4 w-full max-w-sm pointer-events-none">
             {/* Logo + Title */}
@@ -122,23 +112,9 @@ function LoadingScreen({ onComplete, onMusicStart }) {
           </div>
 
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-            {waiting && (
-              <p className="text-sm font-bold text-gray-600 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow pointer-events-none">
-                Read up and get RADICAL
-              </p>
-            )}
-            {ready ? (
-              <button
-                onClick={finishLoading}
-                className="pointer-events-auto text-lg font-bold bg-gradient-to-r from-pastel-pink to-pastel-orange text-gray-700 px-10 py-3 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform animate-pulse"
-              >
-                LET'S GO!
-              </button>
-            ) : (
-              <span className={`pointer-events-none text-sm font-semibold ${waiting ? '' : 'animate-pulse'} ${waiting ? 'bg-gradient-to-r from-pastel-blue/80 to-pastel-pink/80' : 'bg-pastel-pink/80'} text-gray-700 px-6 py-2.5 rounded-full shadow-lg transition-colors`}>
-                {waiting ? `Launching in ${countdown}...` : 'Tap to start'}
-              </span>
-            )}
+            <span className="pointer-events-none text-sm font-semibold animate-pulse bg-pastel-pink/80 text-gray-700 px-6 py-2.5 rounded-full shadow-lg">
+              Tap to start
+            </span>
           </div>
         </div>
       )}
