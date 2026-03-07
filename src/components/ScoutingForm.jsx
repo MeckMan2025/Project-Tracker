@@ -201,6 +201,18 @@ function ScoutingForm() {
     setTimeout(() => setSubmitFeedback(null), 3000)
   }
 
+  if (isTeam) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-20 h-20 drop-shadow-lg" />
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+          Stay Tuned!
+        </h1>
+        <p className="text-gray-500 max-w-sm">Scouting will be available next season. Check back soon!</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
