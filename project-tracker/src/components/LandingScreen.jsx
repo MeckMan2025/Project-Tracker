@@ -20,7 +20,7 @@ function LandingScreen({ onGetRadical, onTeamLogin, onRadicalRundown }) {
 
         <button
           onClick={onTeamLogin}
-          className="w-full py-3 bg-pastel-orange/40 hover:bg-pastel-orange/60 rounded-xl font-semibold text-gray-700 transition-colors text-base"
+          className="w-full py-3 bg-pastel-orange/40 hover:bg-pastel-orange/60 rounded-xl font-semibold text-gray-700 transition-colors text-lg"
         >
           Team Login
         </button>
