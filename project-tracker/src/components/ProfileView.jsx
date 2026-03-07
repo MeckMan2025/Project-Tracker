@@ -1054,6 +1054,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             )}
           </section>
 
+          </>)}
+
           {/* ─── Music Preference ─── */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -1109,8 +1111,6 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               </button>
             </div>
           </section>
-
-          </>)}
 
           {/* ─── Change Password ─── */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
