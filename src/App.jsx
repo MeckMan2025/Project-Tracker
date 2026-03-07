@@ -37,7 +37,6 @@ import TeamSurveyResponses from './components/TeamSurveyResponses'
 import WorkshopIdeas from './components/WorkshopIdeas'
 import CleanUpChart from './components/CleanUpChart'
 import ChangelogPopup from './components/ChangelogPopup'
-import StateCelebration from './components/StateCelebration'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 
@@ -1025,7 +1024,6 @@ function App() {
         />
       )}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !effectiveIsTeam ? 'hidden' : ''}`}>
-      <StateCelebration />
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
           <span>{loadError}</span>
