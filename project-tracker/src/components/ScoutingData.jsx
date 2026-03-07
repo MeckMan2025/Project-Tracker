@@ -399,9 +399,7 @@ function ScoutingData() {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const [exportFeedback, setExportFeedback] = useState('')
-
-  const exportToSheets = async () => {
+  const exportToSheets = () => {
     const allTeams = [...consideredTeams, ...otherTeams]
     const headers = [
       'Rank', 'Team Number', 'Team Name', 'Considered', 'Record', 'Matches Played',
@@ -413,6 +411,10 @@ function ScoutingData() {
       'Tele % Classified', 'Tele % Missed', 'Tele % Overflowed', 'Tele % Motif',
       'Leave %', 'Full Park %', 'Partial Park %', 'No Park %',
     ]
+    const escape = (v) => {
+      const s = String(v ?? '')
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    }
     const rows = allTeams.map(t => [
       t.rank ?? '', t.number, t.name, consideredNumbers.includes(t.number) ? 'Yes' : 'No',
       t.record, t.played,
@@ -423,16 +425,15 @@ function ScoutingData() {
       t.teleAvgClassified ?? '', t.teleAvgMissed ?? '', t.teleAvgOverflowed ?? '', t.teleAvgMotif ?? '', t.teleAvgDepot ?? '',
       t.telePctClassified ?? '', t.telePctMissed ?? '', t.telePctOverflowed ?? '', t.telePctMotif ?? '',
       t.teleLeavePct ?? t.leavePct ?? '', t.fullParkPct ?? '', t.partialParkPct ?? '', t.noParkPct ?? '',
-    ].join('\t'))
-    const tsv = [headers.join('\t'), ...rows].join('\n')
-    try {
-      await navigator.clipboard.writeText(tsv)
-      setExportFeedback('Copied! Paste into Google Sheets (Ctrl+V)')
-    } catch {
-      setExportFeedback('Opening sheet...')
-    }
-    window.open('https://docs.google.com/spreadsheets/create', '_blank')
-    setTimeout(() => setExportFeedback(''), 5000)
+    ].map(escape).join(','))
+    const csv = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `scouting-data${selectedDate ? `-${selectedDate}` : ''}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const addTeamModal = showAddModal ? createPortal(
@@ -548,12 +549,6 @@ function ScoutingData() {
           </div>
         </div>
       </header>
-
-      {exportFeedback && (
-        <div className="mx-4 ml-14 md:ml-4 mt-2 px-4 py-2 bg-green-100 text-green-700 text-sm font-medium rounded-lg text-center animate-pulse">
-          {exportFeedback}
-        </div>
-      )}
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
