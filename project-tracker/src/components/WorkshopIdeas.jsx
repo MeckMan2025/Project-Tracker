@@ -4,7 +4,7 @@ import {
   Lightbulb, Monitor, Video, ListOrdered, Upload, Link, MessageSquare,
   Clock, Users, Target, BookOpen, Edit3, RotateCcw, FileText, Library,
   ImagePlus, Loader2, ArrowLeft, CheckCircle2, Circle, ArrowRight, Trophy,
-  Image, Camera, Save
+  Image, Camera, Save, PlayCircle
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -680,7 +680,7 @@ function WorkshopDetailModal({ workshop, onClose, canReview, onReview }) {
 
 // ─── Full-Screen Workshop Viewer ─────────────────────────────────────────────
 
-function WorkshopViewer({ workshop, onClose, userId, username, onComplete }) {
+function WorkshopViewer({ workshop, onClose, userId, username, onComplete, onSave }) {
   const cd = workshop.content_data || {}
   const fmt = FORMATS.find(f => f.id === workshop.format_type)
 
@@ -1030,7 +1030,7 @@ function WorkshopViewer({ workshop, onClose, userId, username, onComplete }) {
             )}
           </button>
           <button
-            onClick={onClose}
+            onClick={() => { onSave ? onSave() : onClose() }}
             className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-600 transition-colors"
           >
             <Save size={16} /> Save
@@ -1434,8 +1434,33 @@ export default function WorkshopIdeas() {
     completions.filter(c => c.completed_by === username),
   [completions, username])
 
+  const completedWorkshopIds = useMemo(() =>
+    new Set(myCompletions.map(c => c.workshop_id)),
+  [myCompletions])
+
+  // In-progress workshops: have saved step progress in localStorage but not completed
+  const inProgressWorkshops = useMemo(() => {
+    const userId = user?.id || username
+    return libraryWorkshops.filter(w => {
+      if (completedWorkshopIds.has(w.id)) return false
+      try {
+        const saved = JSON.parse(localStorage.getItem(`workshop-progress-${userId}-${w.id}`))
+        return saved && Array.isArray(saved) && saved.length > 0
+      } catch { return false }
+    })
+  }, [libraryWorkshops, completedWorkshopIds, user, username])
+
+  const getProgress = (workshopId) => {
+    const userId = user?.id || username
+    try {
+      const saved = JSON.parse(localStorage.getItem(`workshop-progress-${userId}-${workshopId}`))
+      return saved && Array.isArray(saved) ? saved.length : 0
+    } catch { return 0 }
+  }
+
   const sectionTabs = [
     { id: 'library', label: 'Library', icon: Library, count: libraryWorkshops.length },
+    ...(inProgressWorkshops.length > 0 ? [{ id: 'in-progress', label: 'In Progress', icon: PlayCircle, count: inProgressWorkshops.length }] : []),
     ...(canCreate ? [{ id: 'my', label: 'My Workshops', icon: BookOpen, count: myWorkshops.length }] : []),
     { id: 'completed', label: 'Completed', icon: Trophy, count: myCompletions.length },
     ...(canReview ? [{ id: 'review', label: 'Review', icon: Eye, count: reviewQueue.length }] : []),
@@ -1524,6 +1549,63 @@ export default function WorkshopIdeas() {
                       Be the first to create one!
                     </button>
                   )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* In Progress */}
+          {section === 'in-progress' && (
+            <>
+              {inProgressWorkshops.length > 0 ? (
+                <div className="space-y-3">
+                  {inProgressWorkshops.map(w => {
+                    const cd = w.content_data || {}
+                    const rawSteps = (cd.steps || []).map(s => typeof s === 'string' ? { text: s, image: '' } : s).filter(s => s.text?.trim())
+                    const totalSteps = rawSteps.length
+                    const doneSteps = getProgress(w.id)
+                    const fmt = FORMATS.find(f => f.id === w.format_type)
+
+                    return (
+                      <div
+                        key={w.id}
+                        className="bg-white rounded-xl shadow-sm border border-pastel-pink/30 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => setActiveWorkshop(w)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {fmt && <fmt.icon size={14} className="text-pastel-blue-dark shrink-0" />}
+                              <h3 className="text-sm font-semibold text-gray-800 truncate">{w.title}</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400">{w.creator_name}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-pastel-blue/20 text-pastel-blue-dark font-medium">{w.category}</span>
+                            </div>
+                          </div>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-pastel-pink/30 text-pastel-pink-dark font-medium shrink-0">
+                            {doneSteps}/{totalSteps} steps
+                          </span>
+                        </div>
+                        {totalSteps > 0 && (
+                          <div className="flex gap-1 mt-3">
+                            {rawSteps.map((_, i) => (
+                              <div
+                                key={i}
+                                className={`flex-1 h-1.5 rounded-full ${i < doneSteps ? 'bg-green-400' : 'bg-gray-200'}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-pastel-pink-dark font-medium mt-2">Tap to resume</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-20">
+                  <PlayCircle size={40} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-400 text-sm">No workshops in progress.</p>
                 </div>
               )}
             </>
@@ -1717,6 +1799,7 @@ export default function WorkshopIdeas() {
           userId={user?.id || username}
           username={username}
           onComplete={handleWorkshopComplete}
+          onSave={() => { setActiveWorkshop(null); setSection('in-progress') }}
         />
       )}
     </div>
