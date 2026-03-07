@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home, Gamepad2, MessageCircle } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home, Gamepad2, MessageCircle, GraduationCap } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -453,53 +453,38 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* Tasks Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'tasks' || activeTab === 'workshops'
+              activeTab === 'tasks'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
             onClick={() => {
-              setTasksOpen(prev => !prev)
+              onTabChange('tasks')
+              onToggle()
             }}
           >
             <ClipboardEdit size={16} className="text-pastel-blue-dark" />
             <span className="truncate flex-1">Tasks</span>
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${tasksOpen || activeTab === 'tasks' || activeTab === 'workshops' ? 'rotate-90' : ''}`}
-            />
           </div>
 
-          {/* Tasks sub-items */}
-          {(tasksOpen || activeTab === 'tasks' || activeTab === 'workshops') && (
-            <div className="ml-4 mt-1 space-y-1">
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'tasks' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => {
-                  onTabChange('tasks')
-                  onToggle()
-                }}
-              >
-                <ChevronRight size={14} className={activeTab === 'tasks' ? 'rotate-90' : ''} />
-                <span className="truncate">Scrum</span>
-              </div>
-              {!isGuest && (
-                <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                    activeTab === 'workshops' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                  }`}
-                  onClick={() => {
-                    onTabChange('workshops')
-                    onToggle()
-                  }}
-                >
-                  <ChevronRight size={14} className={activeTab === 'workshops' ? 'rotate-90' : ''} />
-                  <span className="truncate">Workshops</span>
-                </div>
-              )}
+          {/* Workshops Tab */}
+          {!isGuest && (
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === 'workshops'
+                  ? 'bg-pastel-pink text-gray-800'
+                  : 'hover:bg-pastel-blue/30 text-gray-600'
+              }`}
+              onClick={() => {
+                onTabChange('workshops')
+                onToggle()
+              }}
+            >
+              <GraduationCap size={16} className="text-pastel-blue-dark" />
+              <span className="truncate flex-1">Workshops</span>
             </div>
           )}
+
+          </>}
 
           <hr className="my-2 border-gray-200" />
 
@@ -524,8 +509,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               <hr className="my-2 border-gray-200" />
             </>
           )}
-
-          </>}
 
           {/* Suggestions */}
           <div
