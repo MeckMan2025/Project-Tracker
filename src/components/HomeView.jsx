@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
@@ -20,6 +20,10 @@ function HomeView({ onTabChange }) {
   const [ideas, setIdeas] = useState([])
   const [newIdea, setNewIdea] = useState('')
   const [submitError, setSubmitError] = useState('')
+  const [photos, setPhotos] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [selectedPhoto, setSelectedPhoto] = useState(null)
+  const fileInputRef = useRef(null)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -46,6 +50,90 @@ function HomeView({ onTabChange }) {
       })
       .catch(() => {})
   }, [])
+
+  // Fetch photos
+  const loadPhotos = async () => {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/season_photos?select=*&order=created_at.desc`, { headers })
+      if (res.ok) setPhotos(await res.json())
+    } catch {}
+  }
+
+  useEffect(() => { loadPhotos() }, [])
+
+  // Upload photo
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+
+    const ext = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+    try {
+      // Upload to storage
+      const uploadRes = await fetch(
+        `${supabaseUrl}/storage/v1/object/season-photos/${fileName}`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': file.type,
+          },
+          body: file,
+        }
+      )
+
+      if (!uploadRes.ok) {
+        console.error('Upload failed:', await uploadRes.text())
+        setUploading(false)
+        return
+      }
+
+      // Get public URL
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/season-photos/${fileName}`
+
+      // Save record
+      await fetch(`${supabaseUrl}/rest/v1/season_photos`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          url: publicUrl,
+          caption: '',
+          uploaded_by: username,
+        }),
+      })
+
+      loadPhotos()
+    } catch (err) {
+      console.error('Upload error:', err)
+    }
+
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // Delete photo
+  const handleDeletePhoto = async (photo) => {
+    // Extract filename from URL
+    const fileName = photo.url.split('/season-photos/').pop()
+
+    // Delete from storage
+    await fetch(`${supabaseUrl}/storage/v1/object/season-photos/${fileName}`, {
+      method: 'DELETE',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    }).catch(() => {})
+
+    // Delete record
+    await fetch(`${supabaseUrl}/rest/v1/season_photos?id=eq.${photo.id}`, {
+      method: 'DELETE',
+      headers,
+    })
+
+    setSelectedPhoto(null)
+    loadPhotos()
+  }
 
   // Fetch workshop ideas
   const loadIdeas = async () => {
@@ -92,7 +180,7 @@ function HomeView({ onTabChange }) {
     loadIdeas()
   }
 
-  const handleDelete = async (id) => {
+  const handleDeleteIdea = async (id) => {
     await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
       method: 'DELETE',
       headers,
@@ -171,13 +259,54 @@ function HomeView({ onTabChange }) {
 
         {/* 2. Season Photos */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Camera size={18} className="text-pastel-orange-dark" />
-            <h2 className="font-semibold text-gray-700">Season Highlights</h2>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Camera size={18} className="text-pastel-orange-dark" />
+              <h2 className="font-semibold text-gray-700">Season Highlights</h2>
+            </div>
+            {canSubmit && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1 px-3 py-1.5 bg-pastel-orange/30 hover:bg-pastel-orange/50 rounded-lg text-sm text-gray-600 transition-colors disabled:opacity-50"
+              >
+                <Plus size={14} />
+                {uploading ? 'Uploading...' : 'Add Photo'}
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleUpload}
+              className="hidden"
+            />
           </div>
-          <div className="flex items-center justify-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-            <p className="text-gray-400 text-sm">Add photos</p>
-          </div>
+
+          {photos.length === 0 ? (
+            <div
+              className="flex items-center justify-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => canSubmit && fileInputRef.current?.click()}
+            >
+              <p className="text-gray-400 text-sm">{canSubmit ? 'Tap to add the first photo!' : 'No photos yet'}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map(photo => (
+                <div
+                  key={photo.id}
+                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setSelectedPhoto(photo)}
+                >
+                  <img
+                    src={photo.url}
+                    alt={photo.caption || 'Season photo'}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 3. Request Workshops */}
@@ -187,7 +316,6 @@ function HomeView({ onTabChange }) {
             <h2 className="font-semibold text-gray-700">Request Workshops</h2>
           </div>
 
-          {/* Submit input */}
           {canSubmit && (
             <div className="flex gap-2 mb-4">
               <input
@@ -208,7 +336,6 @@ function HomeView({ onTabChange }) {
           )}
           {submitError && <p className="text-xs text-red-500 mb-2">{submitError}</p>}
 
-          {/* Ideas list */}
           <div className="space-y-2">
             {ideas.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-4">No workshop ideas yet. Be the first to suggest one!</p>
@@ -231,7 +358,7 @@ function HomeView({ onTabChange }) {
                     </>
                   )}
                   {(canReview || idea.user_id === user?.id) && (
-                    <button onClick={() => handleDelete(idea.id)} className="p-1 hover:bg-red-50 rounded">
+                    <button onClick={() => handleDeleteIdea(idea.id)} className="p-1 hover:bg-red-50 rounded">
                       <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
                     </button>
                   )}
@@ -255,6 +382,44 @@ function HomeView({ onTabChange }) {
           </div>
         )}
       </main>
+
+      {/* Photo lightbox */}
+      {selectedPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="relative max-w-3xl max-h-[85vh] w-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={selectedPhoto.url}
+              alt={selectedPhoto.caption || 'Season photo'}
+              className="w-full max-h-[80vh] object-contain rounded-lg"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-sm text-white/70">
+                {selectedPhoto.uploaded_by && `Uploaded by ${selectedPhoto.uploaded_by}`}
+              </p>
+              <div className="flex gap-2">
+                {(hasLeadTag || selectedPhoto.uploaded_by === username) && (
+                  <button
+                    onClick={() => handleDeletePhoto(selectedPhoto)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-500/80 hover:bg-red-500 rounded-lg text-sm text-white transition-colors"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedPhoto(null)}
+                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm text-white transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
