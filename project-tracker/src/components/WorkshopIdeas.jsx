@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Plus, Send, Trash2, Check, X, ChevronRight, ChevronLeft, Eye,
   Lightbulb, Monitor, Video, ListOrdered, Upload, Link, MessageSquare,
-  Clock, Users, Target, BookOpen, Edit3, RotateCcw, FileText, Library
+  Clock, Users, Target, BookOpen, Edit3, RotateCcw, FileText, Library,
+  ImagePlus, Loader2, ArrowLeft, CheckCircle2, Circle, ArrowRight, Trophy
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -59,6 +60,12 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
 
+  // Normalize steps: support old string[] format and new {text, image}[] format
+  const normalizeSteps = (raw) => {
+    if (!raw || !Array.isArray(raw)) return [{ text: '', image: '' }, { text: '', image: '' }, { text: '', image: '' }]
+    return raw.map(s => typeof s === 'string' ? { text: s, image: '' } : { text: s.text || '', image: s.image || '' })
+  }
+
   const contentData = () => {
     const d = {}
     if (format === 'live') {
@@ -69,7 +76,7 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
       d.video_link = form.video_link || ''
       d.materials = form.materials || ''
     } else if (format === 'guide') {
-      d.steps = form.steps || ['', '', '']
+      d.steps = normalizeSteps(form.steps)
       d.expected_outcome = form.expected_outcome || ''
     }
     return d
@@ -83,8 +90,8 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
     if (!form.objective.trim()) e.objective = true
     if (!form.duration) e.duration = true
     if (format === 'guide') {
-      const steps = form.steps || ['', '', '']
-      if (!steps[0]?.trim()) e.steps = true
+      const steps = normalizeSteps(form.steps)
+      if (!steps[0]?.text?.trim()) e.steps = true
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -104,16 +111,50 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
     })
   }
 
-  const steps = form.steps || ['', '', '']
+  const steps = normalizeSteps(form.steps)
+  const [uploadingStep, setUploadingStep] = useState(null)
+
   const setStepText = (idx, val) => {
     const newSteps = [...steps]
-    newSteps[idx] = val
+    newSteps[idx] = { ...newSteps[idx], text: val }
     set('steps', newSteps)
   }
-  const addStep = () => set('steps', [...steps, ''])
+  const setStepImage = (idx, url) => {
+    const newSteps = [...steps]
+    newSteps[idx] = { ...newSteps[idx], image: url }
+    set('steps', newSteps)
+  }
+  const addStep = () => set('steps', [...steps, { text: '', image: '' }])
   const removeStep = (idx) => {
     if (steps.length <= 1) return
     set('steps', steps.filter((_, i) => i !== idx))
+  }
+
+  const handleStepImageUpload = async (idx, e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingStep(idx)
+    const ext = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    try {
+      const uploadRes = await fetch(
+        `${supabaseUrl}/storage/v1/object/workshop-steps/${fileName}`,
+        {
+          method: 'POST',
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': file.type },
+          body: file,
+        }
+      )
+      if (uploadRes.ok) {
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/workshop-steps/${fileName}`
+        setStepImage(idx, publicUrl)
+      } else {
+        console.error('Step image upload failed:', await uploadRes.text())
+      }
+    } catch (err) {
+      console.error('Step image upload error:', err)
+    }
+    setUploadingStep(null)
   }
 
   return (
@@ -296,17 +337,45 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
                 <>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Steps *</label>
-                    <div className="mt-1 space-y-2">
+                    <div className="mt-1 space-y-3">
                       {steps.map((s, i) => (
                         <div key={i} className="flex items-start gap-2">
                           <span className="text-xs font-bold text-pastel-blue-dark mt-2.5 w-5 text-right shrink-0">{i + 1}.</span>
-                          <textarea
-                            value={s}
-                            onChange={e => setStepText(i, e.target.value)}
-                            placeholder={`Step ${i + 1}...`}
-                            rows={2}
-                            className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none ${i === 0 && errors.steps ? 'border-red-300' : ''}`}
-                          />
+                          <div className="flex-1 space-y-1.5">
+                            <textarea
+                              value={s.text}
+                              onChange={e => setStepText(i, e.target.value)}
+                              placeholder={`Step ${i + 1}...`}
+                              rows={2}
+                              className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none ${i === 0 && errors.steps ? 'border-red-300' : ''}`}
+                            />
+                            {s.image ? (
+                              <div className="relative inline-block">
+                                <img src={s.image} alt={`Step ${i + 1}`} className="h-20 rounded-lg object-cover" />
+                                <button
+                                  onClick={() => setStepImage(i, '')}
+                                  className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 text-gray-400 hover:text-red-500"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-xs cursor-pointer transition-colors">
+                                {uploadingStep === i ? (
+                                  <><Loader2 size={12} className="animate-spin" /> Uploading...</>
+                                ) : (
+                                  <><ImagePlus size={12} /> Add photo</>
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={e => handleStepImageUpload(i, e)}
+                                  disabled={uploadingStep !== null}
+                                />
+                              </label>
+                            )}
+                          </div>
                           {steps.length > 1 && (
                             <button onClick={() => removeStep(i)} className="mt-2 text-gray-300 hover:text-red-400">
                               <X size={14} />
@@ -468,11 +537,19 @@ function WorkshopDetailModal({ workshop, onClose, canReview, onReview }) {
               {cd.steps && cd.steps.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Steps</p>
-                  <div className="space-y-2">
-                    {cd.steps.filter(s => s.trim()).map((s, i) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="text-xs font-bold text-pastel-blue-dark mt-0.5 w-5 text-right shrink-0">{i + 1}.</span>
-                        <p className="text-sm text-gray-700">{s}</p>
+                  <div className="space-y-3">
+                    {cd.steps
+                      .map(s => typeof s === 'string' ? { text: s, image: '' } : s)
+                      .filter(s => s.text?.trim())
+                      .map((s, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <div className="flex gap-2">
+                          <span className="text-xs font-bold text-pastel-blue-dark mt-0.5 w-5 text-right shrink-0">{i + 1}.</span>
+                          <p className="text-sm text-gray-700">{s.text}</p>
+                        </div>
+                        {s.image && (
+                          <img src={s.image} alt={`Step ${i + 1}`} className="ml-7 rounded-lg max-h-48 object-cover" />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -560,6 +637,260 @@ function WorkshopDetailModal({ workshop, onClose, canReview, onReview }) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── Full-Screen Workshop Viewer ─────────────────────────────────────────────
+
+function WorkshopViewer({ workshop, onClose, userId }) {
+  const cd = workshop.content_data || {}
+  const fmt = FORMATS.find(f => f.id === workshop.format_type)
+
+  // For guide format: step progress with localStorage persistence
+  const storageKey = `workshop-progress-${userId}-${workshop.id}`
+  const rawSteps = (cd.steps || []).map(s => typeof s === 'string' ? { text: s, image: '' } : s).filter(s => s.text?.trim())
+  const totalSteps = rawSteps.length
+
+  const [completedSteps, setCompletedSteps] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(storageKey)) || [] } catch { return [] }
+  })
+  const [currentStep, setCurrentStep] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey)) || []
+      // Resume at the first uncompleted step
+      const firstIncomplete = rawSteps.findIndex((_, i) => !saved.includes(i))
+      return firstIncomplete === -1 ? 0 : firstIncomplete
+    } catch { return 0 }
+  })
+
+  const stepRefs = useRef([])
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(completedSteps))
+  }, [completedSteps, storageKey])
+
+  const toggleStep = (idx) => {
+    setCompletedSteps(prev =>
+      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    )
+  }
+
+  const goToStep = (idx) => {
+    setCurrentStep(idx)
+    stepRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  const nextStep = () => {
+    if (currentStep < totalSteps - 1) goToStep(currentStep + 1)
+  }
+  const prevStep = () => {
+    if (currentStep > 0) goToStep(currentStep - 1)
+  }
+
+  const markAndNext = () => {
+    if (!completedSteps.includes(currentStep)) {
+      setCompletedSteps(prev => [...prev, currentStep])
+    }
+    if (currentStep < totalSteps - 1) {
+      goToStep(currentStep + 1)
+    }
+  }
+
+  const allComplete = totalSteps > 0 && completedSteps.length >= totalSteps
+  const isGuide = workshop.format_type === 'guide' && totalSteps > 0
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      {/* Top bar */}
+      <div className="bg-white border-b px-4 py-3 flex items-center gap-3 shrink-0">
+        <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+          <ArrowLeft size={20} className="text-gray-600" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {fmt && <fmt.icon size={16} className="text-pastel-blue-dark shrink-0" />}
+            <h1 className="text-base font-bold text-gray-800 truncate">{workshop.title}</h1>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs text-gray-400">{workshop.creator_name}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-pastel-blue/20 text-pastel-blue-dark font-medium">{workshop.category}</span>
+            <span className="text-xs text-gray-400 flex items-center gap-0.5"><Clock size={10} /> {workshop.duration}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bar for guides */}
+      {isGuide && (
+        <div className="bg-gray-50 border-b px-4 py-2 shrink-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-medium text-gray-500">
+              {completedSteps.length}/{totalSteps} steps complete
+            </span>
+            {allComplete && <Trophy size={14} className="text-yellow-500" />}
+          </div>
+          <div className="flex gap-1">
+            {rawSteps.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goToStep(i)}
+                className={`flex-1 h-2 rounded-full transition-colors ${
+                  completedSteps.includes(i)
+                    ? 'bg-green-400'
+                    : i === currentStep
+                    ? 'bg-pastel-pink-dark'
+                    : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+          {/* Objective */}
+          <div className="bg-pastel-blue/10 rounded-xl p-4">
+            <p className="text-xs font-semibold text-pastel-blue-dark uppercase tracking-wide mb-1">Learning Objective</p>
+            <p className="text-sm text-gray-700">{workshop.objective}</p>
+          </div>
+
+          {/* Live presentation content */}
+          {workshop.format_type === 'live' && (
+            <div className="space-y-4">
+              {cd.slides_link && (
+                <div className="bg-white rounded-xl border p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Slides</p>
+                  <a href={cd.slides_link} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline break-all">{cd.slides_link}</a>
+                </div>
+              )}
+              {cd.materials && (
+                <div className="bg-white rounded-xl border p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Materials Needed</p>
+                  <p className="text-sm text-gray-700">{cd.materials}</p>
+                </div>
+              )}
+              {cd.location && (
+                <div className="bg-white rounded-xl border p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Location</p>
+                  <p className="text-sm text-gray-700">{cd.location}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Video content */}
+          {workshop.format_type === 'video' && (
+            <div className="space-y-4">
+              {cd.video_link && (
+                <div className="bg-white rounded-xl border p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Video</p>
+                  <a href={cd.video_link} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline break-all">{cd.video_link}</a>
+                </div>
+              )}
+              {cd.materials && (
+                <div className="bg-white rounded-xl border p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Materials Needed</p>
+                  <p className="text-sm text-gray-700">{cd.materials}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Guide steps */}
+          {isGuide && (
+            <div className="space-y-4">
+              {rawSteps.map((step, i) => (
+                <div
+                  key={i}
+                  ref={el => stepRefs.current[i] = el}
+                  className={`rounded-xl border-2 p-4 transition-all ${
+                    i === currentStep
+                      ? 'border-pastel-pink shadow-md'
+                      : completedSteps.includes(i)
+                      ? 'border-green-200 bg-green-50/50'
+                      : 'border-gray-100'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => toggleStep(i)}
+                      className="mt-0.5 shrink-0"
+                    >
+                      {completedSteps.includes(i) ? (
+                        <CheckCircle2 size={22} className="text-green-500" />
+                      ) : (
+                        <Circle size={22} className="text-gray-300 hover:text-pastel-pink" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-pastel-blue-dark mb-1">Step {i + 1}</p>
+                      <p className={`text-sm ${completedSteps.includes(i) ? 'text-gray-500' : 'text-gray-700'}`}>
+                        {step.text}
+                      </p>
+                      {step.image && (
+                        <img src={step.image} alt={`Step ${i + 1}`} className="mt-3 rounded-lg max-w-full max-h-64 object-cover" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Expected outcome */}
+              {cd.expected_outcome && (
+                <div className={`rounded-xl border-2 p-4 ${allComplete ? 'border-green-300 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Expected Outcome</p>
+                  <p className="text-sm text-gray-700">{cd.expected_outcome}</p>
+                </div>
+              )}
+
+              {/* Completion celebration */}
+              {allComplete && (
+                <div className="text-center py-4">
+                  <Trophy size={40} className="mx-auto text-yellow-500 mb-2" />
+                  <p className="text-lg font-bold text-gray-800">Workshop Complete!</p>
+                  <p className="text-sm text-gray-500 mt-1">Great job finishing all {totalSteps} steps.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom navigation for guides */}
+      {isGuide && (
+        <div className="bg-white border-t px-4 py-3 flex items-center gap-3 shrink-0">
+          <button
+            onClick={prevStep}
+            disabled={currentStep === 0}
+            className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 text-sm font-medium text-gray-600 transition-colors"
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <button
+            onClick={markAndNext}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              completedSteps.includes(currentStep)
+                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                : 'bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700'
+            }`}
+          >
+            {completedSteps.includes(currentStep) ? (
+              currentStep < totalSteps - 1 ? <><Check size={16} /> Done — Next Step</> : <><Check size={16} /> Completed</>
+            ) : (
+              currentStep < totalSteps - 1 ? <><CheckCircle2 size={16} /> Mark Complete & Next</> : <><CheckCircle2 size={16} /> Mark Complete</>
+            )}
+          </button>
+          <button
+            onClick={nextStep}
+            disabled={currentStep >= totalSteps - 1}
+            className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 text-sm font-medium text-gray-600 transition-colors"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -659,7 +990,8 @@ export default function WorkshopIdeas() {
   const [section, setSection] = useState('library') // 'library' | 'my' | 'review'
   const [createModal, setCreateModal] = useState(false)
   const [editingWorkshop, setEditingWorkshop] = useState(null)
-  const [viewWorkshop, setViewWorkshop] = useState(null)
+  const [viewWorkshop, setViewWorkshop] = useState(null) // detail modal (my/review)
+  const [activeWorkshop, setActiveWorkshop] = useState(null) // full-screen viewer (library)
   const [myFilter, setMyFilter] = useState('all')
 
   const loadWorkshops = async () => {
@@ -902,7 +1234,7 @@ export default function WorkshopIdeas() {
                     <WorkshopCard
                       key={w.id}
                       workshop={w}
-                      onClick={() => setViewWorkshop(w)}
+                      onClick={() => setActiveWorkshop(w)}
                     />
                   ))}
                 </div>
@@ -1018,6 +1350,14 @@ export default function WorkshopIdeas() {
           onClose={() => setViewWorkshop(null)}
           canReview={canReview}
           onReview={handleReview}
+        />
+      )}
+
+      {activeWorkshop && (
+        <WorkshopViewer
+          workshop={activeWorkshop}
+          onClose={() => setActiveWorkshop(null)}
+          userId={user?.id || username}
         />
       )}
     </div>
