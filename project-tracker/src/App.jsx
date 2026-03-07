@@ -1061,7 +1061,7 @@ function App() {
       {!hasAccess(activeTab, tier) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        <HomeView tasksByTab={tasksByTab} tabs={tabs} onTabChange={setActiveTab} />
+        <HomeView onTabChange={setActiveTab} />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (

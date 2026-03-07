@@ -1,30 +1,33 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { Calendar, ClipboardList, FolderKanban, BookOpen, Shield, Inbox, Zap, Clock, CheckCircle2, AlertCircle, ArrowRight, Users, Camera, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 
+const STATUS_STYLES = {
+  pending: 'bg-yellow-100 text-yellow-700',
+  approved: 'bg-green-100 text-green-700',
+  denied: 'bg-red-100 text-red-600',
+}
 
-function HomeView({ tasksByTab, tabs, onTabChange }) {
-  const { username } = useUser()
+function HomeView({ onTabChange }) {
+  const { username, user } = useUser()
   const { isGuest, hasLeadTag } = usePermissions()
-  const isLead = hasLeadTag
 
   const [nextEvent, setNextEvent] = useState(null)
   const [eventLoading, setEventLoading] = useState(true)
-  const [pendingRequestCount, setPendingRequestCount] = useState(0)
   const [quote, setQuote] = useState(null)
-  const [galleryPhotos, setGalleryPhotos] = useState([])
-  const [lightboxIdx, setLightboxIdx] = useState(null)
-  const scrollRef = useRef(null)
+  const [ideas, setIdeas] = useState([])
+  const [newIdea, setNewIdea] = useState('')
+  const [submitError, setSubmitError] = useState('')
 
-  // Fetch next event, pending requests, and random quote
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+  // Fetch next event + quote
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
     fetch(`${supabaseUrl}/rest/v1/calendar_events?date_key=gte.${today}&order=date_key.asc&limit=1&select=*`, { headers })
       .then(res => res.ok ? res.json() : [])
@@ -34,11 +37,6 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
       })
       .catch(() => setEventLoading(false))
 
-    fetch(`${supabaseUrl}/rest/v1/requests?status=eq.pending&select=id`, { headers })
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setPendingRequestCount(data ? data.length : 0))
-      .catch(() => {})
-
     fetch(`${supabaseUrl}/rest/v1/fun_quotes?approved=eq.true&select=*`, { headers })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
@@ -47,46 +45,71 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
         }
       })
       .catch(() => {})
-
-    fetch(`${supabaseUrl}/rest/v1/notebook_entries?photo_url=neq.&photo_url=not.is.null&select=photo_url,username,what_did,created_at&order=created_at.desc&limit=20`, { headers })
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setGalleryPhotos(data.filter(e => e.photo_url)))
-      .catch(() => {})
   }, [])
 
-  // Compute task stats from existing tasksByTab
-  const stats = useMemo(() => {
-    const allTasks = Object.values(tasksByTab).flat()
-    const myTasks = allTasks.filter(t => t.assignee && t.assignee.toLowerCase() === (username || '').toLowerCase())
-    const isDone = (t) => t.status === 'done' || t.status === 'completed'
-    const myOpen = myTasks.filter(t => !isDone(t))
-    const myDone = myTasks.filter(isDone)
-    const allOpen = allTasks.filter(t => !isDone(t))
-    const allDone = allTasks.filter(isDone)
+  // Fetch workshop ideas
+  const loadIdeas = async () => {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
+      if (res.ok) setIdeas(await res.json())
+    } catch {}
+  }
 
-    // Find nearest deadline task
-    const now = new Date()
-    const upcoming = allOpen
-      .filter(t => t.dueDate)
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-    const nextDeadline = upcoming.length > 0 ? upcoming[0] : null
+  useEffect(() => { loadIdeas() }, [])
 
-    return { myTasks, myOpen, myDone, allOpen, allDone, allTasks, nextDeadline }
-  }, [tasksByTab, username])
+  const handleSubmitIdea = async () => {
+    const text = newIdea.trim()
+    if (!text) return
+    setSubmitError('')
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          idea: text,
+          submitted_by: username,
+          user_id: user?.id,
+          status: 'pending',
+        }),
+      })
+      if (res.ok) {
+        setNewIdea('')
+        loadIdeas()
+      } else {
+        setSubmitError('Failed to submit.')
+      }
+    } catch {
+      setSubmitError('Failed to submit.')
+    }
+  }
 
-  // Days until event
+  const handleReview = async (id, status) => {
+    await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status }),
+    })
+    loadIdeas()
+  }
+
+  const handleDelete = async (id) => {
+    await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
+      method: 'DELETE',
+      headers,
+    })
+    loadIdeas()
+  }
+
   const daysUntil = nextEvent ? Math.ceil((new Date(nextEvent.date_key) - new Date()) / (1000 * 60 * 60 * 24)) : null
 
-  // Format date nicely
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
     const d = new Date(dateStr + 'T00:00:00')
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }
 
-  // My open tasks (for teammate panel)
-  const myOpenTasks = stats.myOpen.slice(0, 5)
-  const myOverflow = stats.myOpen.length - 5
+  const canReview = hasLeadTag
+  const canSubmit = !isGuest
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -94,7 +117,7 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
         <div className="px-4 py-3 ml-14 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Mission Control
+              Off-Season HQ
             </h1>
             <p className="text-sm text-gray-500">Welcome back{username ? `, ${username}` : ''}!</p>
           </div>
@@ -146,246 +169,79 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
           )}
         </div>
 
-        {/* 2. My Tasks Panel (hidden for guest) */}
-        {!isGuest && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <ClipboardList size={18} className="text-pastel-blue-dark" />
-              <h2 className="font-semibold text-gray-700">{isLead ? 'Team Overview' : 'My Tasks'}</h2>
-            </div>
-
-            {isLead ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-pastel-orange/20 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-pastel-orange-dark">{pendingRequestCount}</p>
-                  <p className="text-xs text-gray-500">Pending Requests</p>
-                </div>
-                <div className="bg-pastel-blue/20 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-pastel-blue-dark">{stats.allOpen.length}</p>
-                  <p className="text-xs text-gray-500">Open Tasks</p>
-                </div>
-                {pendingRequestCount > 0 && (
-                  <div className="col-span-2">
-                    <button
-                      onClick={() => onTabChange('requests')}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-pastel-orange/30 hover:bg-pastel-orange/50 rounded-lg text-sm text-gray-700 transition-colors"
-                    >
-                      <Inbox size={14} />
-                      Open Approvals
-                      <span className="bg-pastel-orange text-xs px-2 py-0.5 rounded-full font-semibold">{pendingRequestCount}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                {myOpenTasks.length > 0 ? (
-                  <div className="space-y-2">
-                    {myOpenTasks.map(task => {
-                      const overdue = task.dueDate && new Date(task.dueDate) < new Date()
-                      return (
-                        <div
-                          key={task.id}
-                          className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
-                            overdue ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
-                          }`}
-                        >
-                          <span className={`truncate flex-1 ${overdue ? 'text-red-700' : 'text-gray-700'}`}>
-                            {task.title}
-                          </span>
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            {task.dueDate && (
-                              <span className={`text-xs ${overdue ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
-                                {formatDate(task.dueDate)}
-                              </span>
-                            )}
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              task.status === 'todo' ? 'bg-pastel-blue/40' :
-                              (task.status === 'done' || task.status === 'completed') ? 'bg-green-100 text-green-700' :
-                              'bg-pastel-orange/40'
-                            }`}>
-                              {task.status}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {myOverflow > 0 && (
-                      <p className="text-xs text-gray-400 text-center">+{myOverflow} more</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No open tasks assigned to you</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 3. Status Dashboard (hidden for guest) */}
-        {!isGuest && (
-          <div className="grid grid-cols-2 gap-3">
-            {isLead ? (
-              <>
-                <StatCard icon={CheckCircle2} label="Team Tasks Done" value={stats.allDone.length} color="text-green-500" bg="bg-green-50" />
-                <StatCard icon={AlertCircle} label="Open Tasks" value={stats.allOpen.length} color="text-pastel-blue-dark" bg="bg-pastel-blue/20" />
-                <StatCard icon={Inbox} label="Pending Requests" value={pendingRequestCount} color="text-pastel-orange-dark" bg="bg-pastel-orange/20" />
-                <StatCard icon={Users} label="Total Tasks" value={stats.allTasks.length} color="text-pastel-pink-dark" bg="bg-pastel-pink/20" />
-              </>
-            ) : (
-              <>
-                <StatCard icon={CheckCircle2} label="My Done Tasks" value={stats.myDone.length} color="text-green-500" bg="bg-green-50" />
-                <StatCard icon={AlertCircle} label="My Open Tasks" value={stats.myOpen.length} color="text-pastel-blue-dark" bg="bg-pastel-blue/20" />
-                <StatCard icon={Clock} label="Attendance" value="--" color="text-pastel-orange-dark" bg="bg-pastel-orange/20" />
-                <StatCard icon={Zap} label="Business Hrs" value="--" color="text-pastel-pink-dark" bg="bg-pastel-pink/20" />
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 4. Quick Action Buttons */}
+        {/* 2. Season Photos */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-          <h2 className="font-semibold text-gray-700 mb-3">Quick Actions</h2>
-          <div className="flex flex-wrap gap-2">
-            <QuickAction icon={FolderKanban} label="Open Boards" onClick={() => onTabChange('business')} />
-            <QuickAction icon={Calendar} label="View Calendar" onClick={() => onTabChange('calendar')} />
-            {!isGuest && (
-              <>
-                <QuickAction icon={ClipboardList} label="Submit Scouting" onClick={() => onTabChange('scouting')} />
-                <QuickAction icon={BookOpen} label="Notebook" onClick={() => onTabChange('notebook')} />
-              </>
-            )}
-            {isLead && (
-              <>
-                <QuickAction
-                  icon={Inbox}
-                  label="Approvals"
-                  badge={pendingRequestCount > 0 ? pendingRequestCount : null}
-                  onClick={() => onTabChange('requests')}
-                />
-                <QuickAction icon={Shield} label="Manage Users" onClick={() => onTabChange('user-management')} />
-              </>
+          <div className="flex items-center gap-2 mb-3">
+            <Camera size={18} className="text-pastel-orange-dark" />
+            <h2 className="font-semibold text-gray-700">Season Highlights</h2>
+          </div>
+          <div className="flex items-center justify-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+            <p className="text-gray-400 text-sm">Add photos</p>
+          </div>
+        </div>
+
+        {/* 3. Request Workshops */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb size={18} className="text-pastel-blue-dark" />
+            <h2 className="font-semibold text-gray-700">Request Workshops</h2>
+          </div>
+
+          {/* Submit input */}
+          {canSubmit && (
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newIdea}
+                onChange={(e) => setNewIdea(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmitIdea()}
+                placeholder="Suggest a workshop idea..."
+                className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+              />
+              <button
+                onClick={handleSubmitIdea}
+                className="p-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors"
+              >
+                <Send size={16} className="text-gray-700" />
+              </button>
+            </div>
+          )}
+          {submitError && <p className="text-xs text-red-500 mb-2">{submitError}</p>}
+
+          {/* Ideas list */}
+          <div className="space-y-2">
+            {ideas.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">No workshop ideas yet. Be the first to suggest one!</p>
+            ) : (
+              ideas.map(idea => (
+                <div key={idea.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[idea.status] || STATUS_STYLES.pending}`}>
+                    {idea.status}
+                  </span>
+                  <span className="flex-1 text-sm text-gray-700 truncate">{idea.idea}</span>
+                  <span className="text-xs text-gray-400 shrink-0">{idea.submitted_by}</span>
+                  {canReview && idea.status === 'pending' && (
+                    <>
+                      <button onClick={() => handleReview(idea.id, 'approved')} className="p-1 hover:bg-green-100 rounded">
+                        <Check size={14} className="text-green-600" />
+                      </button>
+                      <button onClick={() => handleReview(idea.id, 'denied')} className="p-1 hover:bg-red-100 rounded">
+                        <X size={14} className="text-red-500" />
+                      </button>
+                    </>
+                  )}
+                  {(canReview || idea.user_id === user?.id) && (
+                    <button onClick={() => handleDelete(idea.id)} className="p-1 hover:bg-red-50 rounded">
+                      <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                    </button>
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        {/* 5. Notebook Photo Gallery */}
-        {galleryPhotos.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Camera size={18} className="text-pastel-pink-dark" />
-              <h2 className="font-semibold text-gray-700">Notebook Photos</h2>
-              <span className="text-xs text-gray-400 ml-auto">{galleryPhotos.length} photo{galleryPhotos.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="relative">
-              <div
-                ref={scrollRef}
-                className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-              >
-                {galleryPhotos.map((photo, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setLightboxIdx(i)}
-                    className="flex-shrink-0 snap-start rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
-                  >
-                    <div className="w-36 h-36 relative">
-                      <img
-                        src={photo.photo_url}
-                        alt={photo.what_did || 'Notebook photo'}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <p className="text-white text-[10px] font-medium truncate">{photo.username}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {galleryPhotos.length > 3 && (
-                <>
-                  <button
-                    onClick={() => scrollRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 -ml-1 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    onClick={() => scrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 -mr-1 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Lightbox */}
-        {lightboxIdx !== null && (
-          <>
-            <div className="fixed inset-0 bg-black/80 z-[200]" onClick={() => setLightboxIdx(null)} />
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
-              <div className="relative max-w-lg w-full pointer-events-auto">
-                <button
-                  onClick={() => setLightboxIdx(null)}
-                  className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-                {lightboxIdx > 0 && (
-                  <button
-                    onClick={() => setLightboxIdx(lightboxIdx - 1)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white/80 hover:text-white transition-colors z-10"
-                  >
-                    <ChevronLeft size={22} />
-                  </button>
-                )}
-                {lightboxIdx < galleryPhotos.length - 1 && (
-                  <button
-                    onClick={() => setLightboxIdx(lightboxIdx + 1)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white/80 hover:text-white transition-colors z-10"
-                  >
-                    <ChevronRight size={22} />
-                  </button>
-                )}
-                <img
-                  src={galleryPhotos[lightboxIdx].photo_url}
-                  alt={galleryPhotos[lightboxIdx].what_did || 'Notebook photo'}
-                  className="w-full rounded-xl shadow-2xl"
-                />
-                <div className="mt-3 text-center">
-                  <p className="text-white text-sm font-medium">{galleryPhotos[lightboxIdx].what_did}</p>
-                  <p className="text-white/60 text-xs mt-1">by {galleryPhotos[lightboxIdx].username}</p>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* 6. Team Pulse (hidden for guest) */}
-        {!isGuest && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-            <h2 className="font-semibold text-gray-700 mb-2">Team Pulse</h2>
-            <div className="space-y-1 text-sm text-gray-600">
-              {pendingRequestCount > 0 && (
-                <p>{pendingRequestCount} request{pendingRequestCount !== 1 ? 's' : ''} pending approval</p>
-              )}
-              {stats.nextDeadline && (
-                <p>
-                  Next deadline: <span className="font-medium">{stats.nextDeadline.title}</span>{' '}
-                  due {formatDate(stats.nextDeadline.dueDate)}
-                </p>
-              )}
-              {pendingRequestCount === 0 && !stats.nextDeadline && (
-                <p className="text-gray-400">All clear — nothing urgent right now</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 6. Random Quote Footer */}
+        {/* 4. Random Quote Footer */}
         {!isGuest && (
           <div className="text-center py-3">
             {quote ? (
@@ -394,39 +250,12 @@ function HomeView({ tasksByTab, tabs, onTabChange }) {
                 {quote.submitted_by && <span className="not-italic"> — {quote.submitted_by}</span>}
               </p>
             ) : (
-              <p className="text-sm italic text-gray-400">No fun quotes yet — submit one in the Notebook!</p>
+              <p className="text-sm italic text-gray-400">No fun quotes yet — submit one!</p>
             )}
           </div>
         )}
       </main>
     </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, color, bg }) {
-  return (
-    <div className={`${bg} rounded-xl p-3 flex items-center gap-3`}>
-      <Icon size={20} className={color} />
-      <div>
-        <p className="text-xl font-bold text-gray-800">{value}</p>
-        <p className="text-xs text-gray-500">{label}</p>
-      </div>
-    </div>
-  )
-}
-
-function QuickAction({ icon: Icon, label, badge, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 px-3 py-2 bg-pastel-blue/20 hover:bg-pastel-blue/40 rounded-lg text-sm text-gray-700 transition-colors"
-    >
-      <Icon size={16} />
-      {label}
-      {badge && (
-        <span className="bg-pastel-orange text-xs px-1.5 py-0.5 rounded-full font-semibold">{badge}</span>
-      )}
-    </button>
   )
 }
 
