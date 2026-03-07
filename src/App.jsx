@@ -22,6 +22,7 @@ import RequestsView from './components/RequestsView'
 import RequestsBadge from './components/RequestsBadge'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
+import TeamScoutingData from './components/TeamScoutingData'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
@@ -85,7 +86,7 @@ const TAB_ACCESS = {
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
-  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate',
+  'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
 
@@ -1066,6 +1067,8 @@ function App() {
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
         <ScoutingSchedule />
+      ) : activeTab === 'team-scouting-data' ? (
+        <TeamScoutingData />
       ) : activeTab === 'tasks' ? (
         <TasksView tasksByTab={tasksByTab} tabs={tabs} />
       ) : activeTab === 'workshops' ? (

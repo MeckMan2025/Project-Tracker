@@ -98,7 +98,7 @@ function SectionHeader({ title }) {
 }
 
 function ScoutingForm() {
-  const { username } = useUser()
+  const { username, isTeam, teamNumber } = useUser()
   const [formData, setFormData] = useState(() => {
     const draft = localStorage.getItem('scouting-draft')
     return draft ? JSON.parse(draft) : { ...INITIAL_FORM_STATE }
@@ -180,13 +180,17 @@ function ScoutingForm() {
     } catch { /* ignore - submit without period link */ }
 
     // Also save to Supabase for shared analytics
-    const { error } = await supabase.from('scouting_records').insert({
+    const insertData = {
       id,
       data: formData,
       submitted_by: username || '',
       submitted_at: new Date().toISOString(),
       scouting_period_id: scoutingPeriodId,
-    })
+    }
+    if (isTeam && teamNumber) {
+      insertData.owner_team = teamNumber
+    }
+    const { error } = await supabase.from('scouting_records').insert(insertData)
     if (error) {
       console.error('Failed to save scouting record to Supabase:', error.message)
     }
