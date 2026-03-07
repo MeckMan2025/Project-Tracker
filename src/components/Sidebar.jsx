@@ -214,9 +214,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
-          {!isTeamAccount && <>
-          {/* Scouting Tab — hidden for guests */}
-          {!isGuest && (
+          {/* Scouting Tab — hidden for guests (but shown for team accounts) */}
+          {(!isGuest || isTeamAccount) && (
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -225,19 +224,26 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     : 'hover:bg-pastel-blue/30 text-gray-600'
                 }`}
                 onClick={() => {
-                  setScoutingOpen(prev => !prev)
+                  if (isTeamAccount) {
+                    onTabChange('scouting')
+                    onToggle()
+                  } else {
+                    setScoutingOpen(prev => !prev)
+                  }
                 }}
               >
                 <ClipboardList size={16} className="text-pastel-orange-dark" />
                 <span className="truncate flex-1">Scouting</span>
-                <ChevronRight
-                  size={14}
-                  className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
-                />
+                {!isTeamAccount && (
+                  <ChevronRight
+                    size={14}
+                    className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
+                  />
+                )}
               </div>
 
-              {/* Scouting sub-items */}
-              {(scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
+              {/* Scouting sub-items — not shown for team accounts */}
+              {!isTeamAccount && (scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
                 <div className="ml-4 mt-1 space-y-1">
                   <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
@@ -270,6 +276,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
+          {!isTeamAccount && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
               activeTab === 'data' || activeTab === 'attendance'
@@ -490,8 +497,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
-          {/* Engineering Notebook — hidden for guests */}
-          {!isGuest && (
+          {/* Engineering Notebook — hidden for guests and team accounts */}
+          {!isGuest && !isTeamAccount && (
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
