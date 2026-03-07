@@ -1,0 +1,8 @@
+{
+  "appId": "org.radicalrobotics.scrum",
+  "appName": "Everything Thats Scrum",
+  "webDir": "dist",
+  "server": {
+    "iosScheme": "https"
+  }
+}

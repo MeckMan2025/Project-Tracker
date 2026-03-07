@@ -26,6 +26,7 @@ import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
 import QuickChat from './components/QuickChat'
+import AllianceHubs from './components/AllianceHubs'
 import QuotesManager from './components/QuotesManager'
 import AttendanceManager from './components/AttendanceManager'
 import AttendanceView from './components/AttendanceView'
@@ -1122,7 +1123,7 @@ function App() {
       ) : activeTab === 'chat-all' ? (
         <QuickChat channel="all" />
       ) : activeTab === 'chat-alliances' ? (
-        <QuickChat channel="alliances" />
+        <AllianceHubs />
       ) : activeTab === 'chat-leagues' ? (
         <QuickChat channel="leagues" />
       ) : activeTab === 'special-controls' ? (

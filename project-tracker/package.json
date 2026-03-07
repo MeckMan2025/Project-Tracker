@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npx cap sync",
+    "cap:ios": "vite build && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
+    "@capacitor/app": "^8.0.1",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0",
     "@hello-pangea/dnd": "^16.5.0",
     "@supabase/supabase-js": "^2.95.3",
     "canvas-confetti": "^1.9.4",
@@ -19,6 +24,7 @@
     "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.1.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",

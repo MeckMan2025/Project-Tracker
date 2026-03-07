@@ -5,10 +5,24 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 41,
+    date: '2026-03-06',
+    items: [
+      '🤝 Alliance Hubs — create chat rooms between two teams, no duplicates allowed, and you can delete them',
+    ],
+  },
+  {
     id: 40,
     date: '2026-03-06',
     items: [
       '📖 Team accounts now have AI Manual and Suggestions in their sidebar',
+    ],
+  },
+  {
+    id: 39,
+    date: '2026-03-06',
+    items: [
+      '📝 Task assignee is now a text input instead of a dropdown',
     ],
   },
   {

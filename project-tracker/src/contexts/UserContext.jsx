@@ -386,7 +386,7 @@ export function UserProvider({ children }) {
 
   const resetPassword = async (email) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: typeof window !== 'undefined' ? window.location.origin : '/',
     })
     if (error) throw error
   }
@@ -416,7 +416,7 @@ export function UserProvider({ children }) {
     clearState()
     localStorage.clear()
     sessionStorage.clear()
-    window.location.replace(window.location.origin)
+    window.location.reload()
   }
 
   return (
