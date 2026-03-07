@@ -400,36 +400,32 @@ function ScoutingData() {
   }
 
   const exportToCSV = () => {
+    const allTeams = [...consideredTeams, ...otherTeams]
     const headers = [
-      'Team Number', 'Alliance Color', 'Match Number', 'Starting Position',
-      'Auto Classified', 'Auto Missed', 'Auto Overflowed', 'Auto Motif Order',
-      'Tele Classified', 'Tele Missed', 'Tele Overflowed', 'Tele Motif Order', 'Tele Depot',
-      'Did Leave', 'Parking Status', 'Double Park',
-      'Alliance Score', 'Leave Points', 'Artifact Points', 'Pattern Points', 'Base Points', 'Foul Points',
-      'Pattern RP', 'Goal RP', 'Movement RP',
-      'Robot Stability', 'Roles', 'Observations',
-      'Submitted By', 'Submitted At',
+      'Rank', 'Team Number', 'Team Name', 'Considered', 'Record', 'Matches Played',
+      'RP/Match', 'TBP/Match', 'Auto Avg', 'Teleop Avg', 'High Score',
+      'Scout Count', 'Avg Alliance Score',
+      'Auto Avg Classified', 'Auto Avg Missed', 'Auto Avg Overflowed', 'Auto Avg Motif',
+      'Auto % Classified', 'Auto % Missed', 'Auto % Overflowed', 'Auto % Motif',
+      'Tele Avg Classified', 'Tele Avg Missed', 'Tele Avg Overflowed', 'Tele Avg Motif', 'Tele Avg Depot',
+      'Tele % Classified', 'Tele % Missed', 'Tele % Overflowed', 'Tele % Motif',
+      'Leave %', 'Full Park %', 'Partial Park %', 'No Park %',
     ]
     const escape = (v) => {
       const s = String(v ?? '')
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
     }
-    const rows = filteredRecords.map(r => {
-      const d = r.data || {}
-      return [
-        d.teamNumber, d.allianceColor, d.matchNumber, d.startingPosition,
-        d.autoClassified ?? 0, d.autoArtifactsMissed ?? 0, d.autoOverflowed ?? 0, d.autoInMotifOrder ?? 0,
-        d.teleClassified ?? 0, d.teleArtifactsMissed ?? 0, d.teleOverflowed ?? 0, d.teleInMotifOrder ?? 0, d.teleArtifactsInDepot ?? 0,
-        d.teleDidLeave === true ? 'Yes' : d.teleDidLeave === false ? 'No' : '',
-        d.parkingStatus, d.doublePark === true ? 'Yes' : d.doublePark === false ? 'No' : '',
-        d.allianceScore, d.leavePoints, d.artifactPoints, d.patternPoints, d.basePoints, d.foulPoints,
-        d.patternRP ? 'Yes' : 'No', d.goalRP ? 'Yes' : 'No', d.movementRP ? 'Yes' : 'No',
-        d.robotStability === 'no' ? 'No issues' : d.robotStability === 'major' ? 'Major breakdown' : d.robotStability === 'shutdown' ? 'Shutdown' : '',
-        (d.roles || []).join('; '),
-        d.observations || '',
-        r.submitted_by || '', r.submitted_at || '',
-      ].map(escape).join(',')
-    })
+    const rows = allTeams.map(t => [
+      t.rank ?? '', t.number, t.name, consideredNumbers.includes(t.number) ? 'Yes' : 'No',
+      t.record, t.played,
+      t.rp, t.tbp, t.autoAvg, t.teleopAvg, t.highScore,
+      t.scoutCount, t.avgAllianceScore ?? '',
+      t.autoAvgClassified ?? '', t.autoAvgMissed ?? '', t.autoAvgOverflowed ?? '', t.autoAvgMotif ?? '',
+      t.autoPctClassified ?? '', t.autoPctMissed ?? '', t.autoPctOverflowed ?? '', t.autoPctMotif ?? '',
+      t.teleAvgClassified ?? '', t.teleAvgMissed ?? '', t.teleAvgOverflowed ?? '', t.teleAvgMotif ?? '', t.teleAvgDepot ?? '',
+      t.telePctClassified ?? '', t.telePctMissed ?? '', t.telePctOverflowed ?? '', t.telePctMotif ?? '',
+      t.teleLeavePct ?? t.leavePct ?? '', t.fullParkPct ?? '', t.partialParkPct ?? '', t.noParkPct ?? '',
+    ].map(escape).join(','))
     const csv = [headers.join(','), ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
