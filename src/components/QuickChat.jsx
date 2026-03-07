@@ -28,6 +28,7 @@ function QuickChat({ channel = 'all' }) {
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sendError, setSendError] = useState(null)
+  const [myAvatarUrl, setMyAvatarUrl] = useState('')
   const messagesEndRef = useRef(null)
   const lastPushTimestamp = useRef(0)
 
@@ -62,12 +63,23 @@ function QuickChat({ channel = 'all' }) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+  // Load avatar URL from profile
+  useEffect(() => {
+    if (!user) return
+    fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=avatar_url`, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(rows => { if (rows[0]?.avatar_url) setMyAvatarUrl(rows[0].avatar_url) })
+      .catch(() => {})
+  }, [user?.id])
+
   // Fetch messages from DB via direct fetch
   const fetchMessages = async () => {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel`,
+        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel,avatar_url`,
         { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
       )
       if (!res.ok) return
@@ -146,6 +158,7 @@ function QuickChat({ channel = 'all' }) {
       content: newMessage.trim(),
       created_at: new Date().toISOString(),
       channel,
+      ...(myAvatarUrl ? { avatar_url: myAvatarUrl } : {}),
     }
 
     setNewMessage('')
@@ -299,8 +312,11 @@ function QuickChat({ channel = 'all' }) {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex mb-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    className={`flex mb-3 items-end gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
                   >
+                    {!isOwn && msg.avatar_url && (
+                      <img src={msg.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 mb-1" />
+                    )}
                     <div
                       className={`relative group max-w-[75%] rounded-2xl px-4 py-2 shadow-sm text-gray-800 ${
                         isOwn
