@@ -466,6 +466,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate flex-1">Tasks</span>
           </div>
 
+          <hr className="my-2 border-gray-200" />
+
           {/* Workshops Tab */}
           {!isGuest && (
             <div
