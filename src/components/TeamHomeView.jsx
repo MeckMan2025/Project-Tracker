@@ -164,19 +164,12 @@ function TeamHomeView({ onTabChange }) {
         <Smartphone size={18} className="text-pastel-blue-dark" />
         <h3 className="text-base font-bold text-gray-800">Add to your phone</h3>
       </div>
-      <p className="text-sm text-gray-600 mb-3 text-center">
-        Add this app to your home screen for quick access — no app store needed!
-      </p>
       <img
         src="/install-guide.png"
         alt="How to install on your phone"
-        className="w-full rounded-lg border mb-3"
+        className="w-full rounded-lg"
         onError={(e) => { e.target.style.display = 'none' }}
       />
-      <div className="space-y-1.5 text-xs text-gray-500">
-        <p><strong>iPhone:</strong> Open in Safari, tap Share, then "Add to Home Screen"</p>
-        <p><strong>Android:</strong> Open in Chrome, tap the three dots, then "Add to Home Screen"</p>
-      </div>
     </div>
   )
 
