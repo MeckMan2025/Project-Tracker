@@ -147,7 +147,7 @@ function TeamScoutingData() {
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-14 h-14 animate-pulse drop-shadow-lg" />
+            <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-14 h-14 animate-spin drop-shadow-lg" />
             <p className="text-sm font-semibold text-gray-500 animate-pulse">Scrumming it up...</p>
           </div>
         ) : records.length === 0 ? (
