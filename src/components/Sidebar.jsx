@@ -214,8 +214,29 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-2 border-gray-200" />
 
-          {/* Scouting Tab — hidden for guests (but shown for team accounts) */}
-          {(!isGuest || isTeamAccount) && (
+          {/* Scouting Tab for team accounts — form only, no dropdown */}
+          {isTeamAccount && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'scouting'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('scouting')
+                  onToggle()
+                }}
+              >
+                <ClipboardList size={16} className="text-pastel-orange-dark" />
+                <span className="truncate flex-1">Scouting</span>
+              </div>
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
+
+          {/* Scouting Tab for regular accounts — dropdown with form + schedule */}
+          {!isTeamAccount && !isGuest && (
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -224,26 +245,18 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     : 'hover:bg-pastel-blue/30 text-gray-600'
                 }`}
                 onClick={() => {
-                  if (isTeamAccount) {
-                    onTabChange('scouting')
-                    onToggle()
-                  } else {
-                    setScoutingOpen(prev => !prev)
-                  }
+                  setScoutingOpen(prev => !prev)
                 }}
               >
                 <ClipboardList size={16} className="text-pastel-orange-dark" />
                 <span className="truncate flex-1">Scouting</span>
-                {!isTeamAccount && (
-                  <ChevronRight
-                    size={14}
-                    className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
-                  />
-                )}
+                <ChevronRight
+                  size={14}
+                  className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
+                />
               </div>
 
-              {/* Scouting sub-items — not shown for team accounts */}
-              {!isTeamAccount && (scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
+              {(scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
                 <div className="ml-4 mt-1 space-y-1">
                   <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
