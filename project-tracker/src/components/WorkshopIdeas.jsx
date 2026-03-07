@@ -644,7 +644,7 @@ function WorkshopDetailModal({ workshop, onClose, canReview, onReview }) {
 
 // ─── Full-Screen Workshop Viewer ─────────────────────────────────────────────
 
-function WorkshopViewer({ workshop, onClose, userId }) {
+function WorkshopViewer({ workshop, onClose, userId, username, onComplete }) {
   const cd = workshop.content_data || {}
   const fmt = FORMATS.find(f => f.id === workshop.format_type)
 
@@ -659,11 +659,14 @@ function WorkshopViewer({ workshop, onClose, userId }) {
   const [currentStep, setCurrentStep] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey)) || []
-      // Resume at the first uncompleted step
       const firstIncomplete = rawSteps.findIndex((_, i) => !saved.includes(i))
       return firstIncomplete === -1 ? 0 : firstIncomplete
     } catch { return 0 }
   })
+  const [showFinish, setShowFinish] = useState(false)
+  const [finishPhoto, setFinishPhoto] = useState(null)
+  const [finishPreview, setFinishPreview] = useState(null)
+  const [finishUploading, setFinishUploading] = useState(false)
 
   const stepRefs = useRef([])
 
@@ -695,7 +698,46 @@ function WorkshopViewer({ workshop, onClose, userId }) {
     }
     if (currentStep < totalSteps - 1) {
       goToStep(currentStep + 1)
+    } else {
+      // Last step marked — show finish screen
+      setShowFinish(true)
     }
+  }
+
+  const handleFinish = async () => {
+    let photoUrl = null
+    if (finishPhoto) {
+      setFinishUploading(true)
+      const ext = finishPhoto.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      try {
+        const uploadRes = await fetch(
+          `${supabaseUrl}/storage/v1/object/workshop-gallery/${fileName}`,
+          {
+            method: 'POST',
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': finishPhoto.type },
+            body: finishPhoto,
+          }
+        )
+        if (uploadRes.ok) {
+          photoUrl = `${supabaseUrl}/storage/v1/object/public/workshop-gallery/${fileName}`
+        }
+      } catch (err) {
+        console.error('Finish photo upload error:', err)
+      }
+      setFinishUploading(false)
+    }
+    // Save completion
+    onComplete(workshop, photoUrl)
+    // Clear step progress from localStorage
+    localStorage.removeItem(storageKey)
+    onClose()
+  }
+
+  const handleSkipFinish = () => {
+    onComplete(workshop, null)
+    localStorage.removeItem(storageKey)
+    onClose()
   }
 
   const allComplete = totalSteps > 0 && completedSteps.length >= totalSteps
@@ -846,12 +888,68 @@ function WorkshopViewer({ workshop, onClose, userId }) {
                 </div>
               )}
 
-              {/* Completion celebration */}
-              {allComplete && (
-                <div className="text-center py-4">
-                  <Trophy size={40} className="mx-auto text-yellow-500 mb-2" />
-                  <p className="text-lg font-bold text-gray-800">Workshop Complete!</p>
-                  <p className="text-sm text-gray-500 mt-1">Great job finishing all {totalSteps} steps.</p>
+              {/* Finish screen */}
+              {showFinish && (
+                <div className="text-center py-6 space-y-4">
+                  <Trophy size={48} className="mx-auto text-yellow-500" />
+                  <div>
+                    <p className="text-lg font-bold text-gray-800">Workshop Complete!</p>
+                    <p className="text-sm text-gray-500 mt-1">Great job finishing all {totalSteps} steps.</p>
+                  </div>
+
+                  {/* Optional photo */}
+                  <div className="max-w-xs mx-auto space-y-3">
+                    <p className="text-sm font-medium text-gray-600">Take a photo of what you made (optional)</p>
+                    {finishPreview ? (
+                      <div className="relative inline-block">
+                        <img src={finishPreview} alt="Your work" className="h-40 rounded-xl object-cover" />
+                        <button
+                          onClick={() => { setFinishPhoto(null); setFinishPreview(null) }}
+                          className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 text-gray-400 hover:text-red-500"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 px-4 py-8 rounded-xl border-2 border-dashed border-gray-200 hover:border-pastel-pink cursor-pointer transition-colors">
+                        <Camera size={24} className="text-gray-400" />
+                        <span className="text-sm text-gray-400">Upload photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              setFinishPhoto(file)
+                              setFinishPreview(URL.createObjectURL(file))
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSkipFinish}
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-600 transition-colors"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        onClick={handleFinish}
+                        disabled={finishUploading}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold text-gray-700 transition-colors disabled:opacity-40"
+                      >
+                        {finishUploading ? (
+                          <><Loader2 size={14} className="animate-spin" /> Saving...</>
+                        ) : (
+                          <><Check size={14} /> Finish</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -863,7 +961,7 @@ function WorkshopViewer({ workshop, onClose, userId }) {
       {!isGuide && (
         <div className="bg-white border-t px-4 py-3 shrink-0">
           <button
-            onClick={onClose}
+            onClick={() => { onComplete(workshop, null); onClose() }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold text-gray-700 transition-colors"
           >
             <Check size={16} /> Done
@@ -872,7 +970,7 @@ function WorkshopViewer({ workshop, onClose, userId }) {
       )}
 
       {/* Bottom navigation for guides */}
-      {isGuide && (
+      {isGuide && !showFinish && (
         <div className="bg-white border-t px-4 py-3 flex items-center gap-3 shrink-0">
           <button
             onClick={prevStep}
@@ -1019,11 +1117,7 @@ export default function WorkshopIdeas() {
   const [activeWorkshop, setActiveWorkshop] = useState(null) // full-screen viewer (library)
   const [myFilter, setMyFilter] = useState('all')
   const [galleryItems, setGalleryItems] = useState([])
-  const [galleryUploading, setGalleryUploading] = useState(false)
-  const [galleryCaption, setGalleryCaption] = useState('')
-  const [galleryWorkshopId, setGalleryWorkshopId] = useState('')
-  const [galleryFile, setGalleryFile] = useState(null)
-  const [galleryPreview, setGalleryPreview] = useState(null)
+  const [completions, setCompletions] = useState([])
 
   const loadWorkshops = async () => {
     try {
@@ -1043,10 +1137,20 @@ export default function WorkshopIdeas() {
     }
   }
 
+  const loadCompletions = async () => {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_completions?select=*&order=completed_at.desc`, { headers })
+      if (res.ok) setCompletions(await res.json())
+    } catch (err) {
+      console.error('Failed to load completions:', err)
+    }
+  }
+
   useEffect(() => {
     loadWorkshops()
     loadGallery()
-    const onFocus = () => { loadWorkshops(); loadGallery() }
+    loadCompletions()
+    const onFocus = () => { loadWorkshops(); loadGallery(); loadCompletions() }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [])
@@ -1227,47 +1331,43 @@ export default function WorkshopIdeas() {
     }
   }
 
-  const handleGallerySubmit = async () => {
-    if (!galleryFile) return
-    setGalleryUploading(true)
-    const ext = galleryFile.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const handleWorkshopComplete = async (workshop, photoUrl) => {
+    const completion = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      workshop_id: workshop.id,
+      workshop_title: workshop.title,
+      completed_by: username,
+      photo_url: photoUrl || null,
+      completed_at: new Date().toISOString(),
+    }
+    setCompletions(prev => [completion, ...prev])
     try {
-      const uploadRes = await fetch(
-        `${supabaseUrl}/storage/v1/object/workshop-gallery/${fileName}`,
-        {
-          method: 'POST',
-          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': galleryFile.type },
-          body: galleryFile,
-        }
-      )
-      if (!uploadRes.ok) {
-        console.error('Gallery upload failed:', await uploadRes.text())
-        setGalleryUploading(false)
-        return
-      }
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/workshop-gallery/${fileName}`
-      const item = {
+      await fetch(`${supabaseUrl}/rest/v1/workshop_completions`, {
+        method: 'POST', headers: jsonHeaders, body: JSON.stringify(completion),
+      })
+    } catch (err) {
+      console.error('Failed to save completion:', err)
+    }
+    // Also add to gallery if photo was provided
+    if (photoUrl) {
+      const galleryItem = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
-        image_url: publicUrl,
-        caption: galleryCaption.trim(),
-        workshop_id: galleryWorkshopId || null,
-        workshop_title: galleryWorkshopId ? (workshops.find(w => w.id === galleryWorkshopId)?.title || '') : '',
+        image_url: photoUrl,
+        caption: '',
+        workshop_id: workshop.id,
+        workshop_title: workshop.title,
         submitted_by: username,
         created_at: new Date().toISOString(),
       }
-      setGalleryItems(prev => [item, ...prev])
-      await fetch(`${supabaseUrl}/rest/v1/workshop_gallery`, {
-        method: 'POST', headers: jsonHeaders, body: JSON.stringify(item),
-      })
-      setGalleryFile(null)
-      setGalleryPreview(null)
-      setGalleryCaption('')
-      setGalleryWorkshopId('')
-    } catch (err) {
-      console.error('Gallery submit error:', err)
+      setGalleryItems(prev => [galleryItem, ...prev])
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/workshop_gallery`, {
+          method: 'POST', headers: jsonHeaders, body: JSON.stringify(galleryItem),
+        })
+      } catch (err) {
+        console.error('Failed to save gallery item:', err)
+      }
     }
-    setGalleryUploading(false)
   }
 
   const handleGalleryDelete = async (id) => {
@@ -1281,10 +1381,15 @@ export default function WorkshopIdeas() {
     }
   }
 
+  const myCompletions = useMemo(() =>
+    completions.filter(c => c.completed_by === username),
+  [completions, username])
+
   const sectionTabs = [
-    { id: 'library', label: 'Workshop Library', icon: Library, count: libraryWorkshops.length },
+    { id: 'library', label: 'Library', icon: Library, count: libraryWorkshops.length },
     ...(canCreate ? [{ id: 'my', label: 'My Workshops', icon: BookOpen, count: myWorkshops.length }] : []),
-    ...(canReview ? [{ id: 'review', label: 'Review Queue', icon: Eye, count: reviewQueue.length }] : []),
+    { id: 'completed', label: 'Completed', icon: Trophy, count: myCompletions.length },
+    ...(canReview ? [{ id: 'review', label: 'Review', icon: Eye, count: reviewQueue.length }] : []),
     { id: 'gallery', label: 'Gallery', icon: Image, count: galleryItems.length },
   ]
 
@@ -1452,79 +1557,51 @@ export default function WorkshopIdeas() {
             </>
           )}
 
-          {/* Gallery */}
-          {section === 'gallery' && (
+          {/* Completed */}
+          {section === 'completed' && (
             <>
-              {/* Submit to gallery */}
-              {canCreate && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Camera size={16} className="text-pastel-orange-dark" />
-                    <span className="text-sm font-semibold text-gray-600">Share What You Made</span>
-                  </div>
-
-                  {galleryPreview ? (
-                    <div className="relative inline-block">
-                      <img src={galleryPreview} alt="Preview" className="h-32 rounded-lg object-cover" />
-                      <button
-                        onClick={() => { setGalleryFile(null); setGalleryPreview(null) }}
-                        className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 text-gray-400 hover:text-red-500"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-pastel-pink cursor-pointer transition-colors">
-                      <ImagePlus size={20} className="text-gray-400" />
-                      <span className="text-sm text-gray-400">Upload a photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            setGalleryFile(file)
-                            setGalleryPreview(URL.createObjectURL(file))
-                          }
-                        }}
-                      />
-                    </label>
-                  )}
-
-                  <input
-                    value={galleryCaption}
-                    onChange={e => setGalleryCaption(e.target.value)}
-                    placeholder="Caption (optional)"
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
-                  />
-
-                  <select
-                    value={galleryWorkshopId}
-                    onChange={e => setGalleryWorkshopId(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
-                  >
-                    <option value="">Link to a workshop (optional)</option>
-                    {libraryWorkshops.map(w => (
-                      <option key={w.id} value={w.id}>{w.title}</option>
-                    ))}
-                  </select>
-
+              {myCompletions.length > 0 ? (
+                <div className="space-y-3">
+                  {myCompletions.map(c => {
+                    const w = workshops.find(ws => ws.id === c.workshop_id)
+                    const fmt = w ? FORMATS.find(f => f.id === w.format_type) : null
+                    return (
+                      <div key={c.id} className="bg-white rounded-xl shadow-sm border border-green-100 p-4">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 size={20} className="text-green-500 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {fmt && <fmt.icon size={14} className="text-pastel-blue-dark shrink-0" />}
+                              <h3 className="text-sm font-semibold text-gray-800 truncate">{c.workshop_title}</h3>
+                            </div>
+                            <p className="text-xs text-gray-400">Completed {formatDate(c.completed_at)}</p>
+                            {c.photo_url && (
+                              <img src={c.photo_url} alt="Your work" className="mt-2 rounded-lg h-32 object-cover" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-20">
+                  <Trophy size={40} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-400 text-sm">No completed workshops yet.</p>
                   <button
-                    onClick={handleGallerySubmit}
-                    disabled={!galleryFile || galleryUploading}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-semibold text-gray-700 transition-colors"
+                    onClick={() => setSection('library')}
+                    className="mt-3 text-sm text-pastel-pink-dark hover:underline font-medium"
                   >
-                    {galleryUploading ? (
-                      <><Loader2 size={14} className="animate-spin" /> Uploading...</>
-                    ) : (
-                      <><Send size={14} /> Share</>
-                    )}
+                    Browse the library to get started
                   </button>
                 </div>
               )}
+            </>
+          )}
 
-              {/* Gallery grid */}
+          {/* Gallery */}
+          {section === 'gallery' && (
+            <>
               {galleryItems.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">
                   {galleryItems.map(item => (
@@ -1555,8 +1632,8 @@ export default function WorkshopIdeas() {
               ) : (
                 <div className="text-center py-20">
                   <Image size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-400 text-sm">No gallery submissions yet.</p>
-                  {canCreate && <p className="text-xs text-gray-400 mt-1">Share what you made from a workshop!</p>}
+                  <p className="text-gray-400 text-sm">No gallery photos yet.</p>
+                  <p className="text-xs text-gray-400 mt-1">Complete a workshop and share a photo of your work!</p>
                 </div>
               )}
             </>
@@ -1587,6 +1664,8 @@ export default function WorkshopIdeas() {
           workshop={activeWorkshop}
           onClose={() => setActiveWorkshop(null)}
           userId={user?.id || username}
+          username={username}
+          onComplete={handleWorkshopComplete}
         />
       )}
     </div>
