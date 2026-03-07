@@ -26,5 +26,5 @@ npm-debug.log*
 # Cache
 .cache/
 
-# Capacitor native projects
-ios/
+# Capacitor native projects (root only, not project-tracker)
+/ios/

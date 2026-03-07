@@ -1,0 +1,283 @@
+EVERYTHING THAT'S SCRUM — NATIVE APP MIGRATION PLAN
+=====================================================
+
+GOAL: Keep the web version (GitHub Pages) AND publish to iOS App Store + Google Play Store
+APPROACH: Capacitor (wraps your existing React app in a native shell)
+
+STATUS: Capacitor is already partially set up (core + iOS deps installed, config exists)
+
+
+========================================================================
+PHASE 1: CONSOLIDATE THE PROJECT (Do First)
+========================================================================
+
+PROBLEM: There are two copies of the app — root src/ and project-tracker/src/.
+The deployed app builds from project-tracker/ but Capacitor points to root.
+This will cause constant confusion.
+
+STEPS:
+  1. Pick ONE source of truth (project-tracker/src/ since that's what deploys)
+  2. Move Capacitor dependencies into project-tracker/package.json:
+     - @capacitor/core
+     - @capacitor/ios
+     - @capacitor/android
+     - @capacitor/app
+     - @capacitor/cli
+     - @capacitor/push-notifications
+     - @capacitor/filesystem
+     - @capacitor/preferences (optional, replaces localStorage)
+  3. Move capacitor.config.json into project-tracker/ and update it:
+     - Set webDir to "dist"
+     - Set appId (e.g. "org.meckman.scrum")
+     - Set appName to "Everything That's Scrum"
+  4. Delete the duplicate root src/ folder (or stop syncing it)
+  5. Update GitHub Actions to build from the consolidated location
+  6. Verify the web version still deploys correctly after this change
+
+
+========================================================================
+PHASE 2: FIX NATIVE-INCOMPATIBLE CODE
+========================================================================
+
+These are things that work in a browser but will break or behave badly
+in a native app (Capacitor WebView).
+
+FILE: src/contexts/UserContext.jsx
+  ISSUE: Uses window.location.origin for Supabase auth redirects
+  FIX: Detect if running in native app, use deep link URL instead
+  CODE PATTERN:
+    import { Capacitor } from '@capacitor/core'
+    const redirectUrl = Capacitor.isNativePlatform()
+      ? 'org.meckman.scrum://auth-callback'
+      : window.location.origin
+
+FILE: src/contexts/UserContext.jsx
+  ISSUE: window.location.replace() for session reset
+  FIX: Use app state reset instead of page reload on native
+
+FILE: src/utils/csvUtils.js
+  ISSUE: Creates <a> element to trigger file download — won't work natively
+  FIX: Use @capacitor/filesystem to write file, then share via native share sheet
+  INSTALL: @capacitor/filesystem, @capacitor/share
+
+FILE: src/components/ProfileView.jsx
+  ISSUE: document.createElement('canvas') for image processing
+  STATUS: Should work in WebView, but test on real devices
+
+FILE: Audio playback (7 files)
+  ISSUE: new Audio() and <audio> elements with relative URLs
+  STATUS: Should work in WebView since assets are bundled, but test
+  FILES: App.jsx, LoadingScreen.jsx, Sidebar.jsx, TaskModal.jsx,
+         EngineeringNotebook.jsx, TeamInfoPage.jsx, NotebookFlashRequired.jsx
+
+
+========================================================================
+PHASE 3: ADD NATIVE PUSH NOTIFICATIONS
+========================================================================
+
+Current web push (sw.js + usePushNotifications.js) won't work on native.
+Need a parallel native notification system.
+
+STEPS:
+  1. Install @capacitor/push-notifications
+  2. Create a new hook: useNativePushNotifications.js
+     - Request permission via Capacitor API
+     - Get device token (APNs for iOS, FCM for Android)
+     - Store token in Supabase push_subscriptions table (new column: platform)
+  3. Update usePushNotifications.js to detect platform:
+     - Web: use existing Web Push logic
+     - Native: use Capacitor push logic
+  4. Backend changes (Supabase Edge Function):
+     - Detect subscription type (web vs native)
+     - Send via Web Push API for web subscribers
+     - Send via APNs/FCM for native subscribers
+  5. Apple requirements:
+     - Enable Push Notifications capability in Xcode
+     - Create APNs key in Apple Developer account
+     - Upload key to your push notification service (Firebase or direct APNs)
+  6. Android requirements:
+     - Set up Firebase Cloud Messaging (FCM)
+     - Add google-services.json to android/app/
+
+
+========================================================================
+PHASE 4: ADD DEEP LINKING (Required for Auth)
+========================================================================
+
+Supabase magic links/OAuth redirects need to open back in the app.
+
+STEPS:
+  1. Configure URL scheme in capacitor.config.json:
+     - appUrlScheme: "org.meckman.scrum"
+  2. Add universal links / app links:
+     - iOS: apple-app-site-association file on your domain
+     - Android: assetlinks.json on your domain
+  3. Add listener in App.jsx or main.jsx:
+     import { App as CapApp } from '@capacitor/app'
+     CapApp.addListener('appUrlOpen', ({ url }) => {
+       // Parse the auth token from the URL
+       // Pass to Supabase auth handler
+     })
+  4. Update Supabase auth config to include the native redirect URL
+
+
+========================================================================
+PHASE 5: OPTIMIZE FOR MOBILE
+========================================================================
+
+BUNDLE SIZE:
+  Current dist/ is ~27MB, mostly audio files (~14MB) and images (~10MB).
+  App Store limit is 200MB so you're fine, but smaller = faster install.
+
+  STEPS:
+  1. Compress audio files (consider 128kbps MP3 or AAC)
+  2. Compress Background.png (2.7MB is huge — resize or use WebP)
+  3. Optimize team photos with sharper compression
+  4. Consider lazy-loading audio (stream from Supabase Storage instead of bundling)
+
+TOUCH/UX:
+  1. Test drag-and-drop (@hello-pangea/dnd) on touch devices
+     - May need touch-specific adjustments
+  2. Test all tap targets are at least 44x44px (Apple requirement)
+  3. Safe area insets — add padding for iPhone notch/dynamic island:
+     - Use env(safe-area-inset-top) etc. in CSS
+  4. Test keyboard behavior on input fields (auto-scroll, dismiss)
+
+PERFORMANCE:
+  1. Test on older phones (iPhone SE, budget Android)
+  2. Supabase realtime connections should work the same
+  3. Test audio playback on both platforms
+
+
+========================================================================
+PHASE 6: SET UP iOS BUILD
+========================================================================
+
+REQUIREMENTS:
+  - Mac computer (required, no way around this)
+  - Apple Developer Account ($99/year)
+  - Xcode installed
+
+STEPS:
+  1. npx cap add ios (already done partially)
+  2. npx cap sync ios
+  3. Open in Xcode: npx cap open ios
+  4. Configure in Xcode:
+     - Bundle ID: org.meckman.scrum (or your choice)
+     - Display name: Everything That's Scrum
+     - Set app icons (need all sizes: 20, 29, 40, 60, 76, 83.5, 1024px)
+     - Set launch screen (can use your Background.png)
+     - Enable Push Notifications capability
+     - Enable Associated Domains (for deep links)
+  5. Test on iOS Simulator
+  6. Test on a real iPhone (need to add device to provisioning profile)
+  7. Archive and upload to App Store Connect
+  8. Fill out App Store listing:
+     - Screenshots (6.5" and 5.5" required)
+     - Description, keywords, category (Productivity or Education)
+     - Privacy policy URL (required)
+     - Age rating questionnaire
+
+
+========================================================================
+PHASE 7: SET UP ANDROID BUILD
+========================================================================
+
+REQUIREMENTS:
+  - Any computer (Windows works)
+  - Google Play Developer Account ($25 one-time)
+  - Android Studio installed
+
+STEPS:
+  1. npx cap add android
+  2. npx cap sync android
+  3. Open in Android Studio: npx cap open android
+  4. Configure:
+     - Package name: org.meckman.scrum
+     - App name: Everything That's Scrum
+     - App icons (adaptive icons: foreground + background layers)
+     - Add google-services.json for FCM push notifications
+  5. Test on Android Emulator
+  6. Test on a real Android device
+  7. Generate signed APK/AAB
+  8. Upload to Google Play Console
+  9. Fill out store listing:
+     - Screenshots, description, category
+     - Privacy policy URL (required)
+     - Content rating questionnaire
+     - Data safety section
+
+
+========================================================================
+PHASE 8: AUTOMATE BUILDS (Optional but Recommended)
+========================================================================
+
+Add to GitHub Actions so pushing to main also builds native apps.
+
+OPTION A — Appflow (Ionic's cloud build service)
+  - Paid service but handles iOS builds without a Mac
+  - Connects to GitHub, auto-builds on push
+
+OPTION B — GitHub Actions + Fastlane
+  - Free (GitHub gives macOS runners)
+  - More setup but full control
+  - Add workflow steps:
+    1. Build web app (npm run build)
+    2. npx cap sync
+    3. Build iOS with xcodebuild
+    4. Build Android with Gradle
+    5. Upload to TestFlight / Google Play internal testing
+
+OPTION C — Manual builds
+  - Just build locally when you want to update the native apps
+  - Fine for a small team, gets tedious over time
+
+
+========================================================================
+ORDER OF OPERATIONS (What to do when)
+========================================================================
+
+DO NOW:
+  [ ] Phase 1 — Consolidate the two src/ folders
+  [ ] Phase 2 — Fix window.location and file download code
+  [ ] Phase 5 — Compress large assets
+
+DO NEXT:
+  [ ] Phase 6 — Get iOS building and running on simulator
+  [ ] Phase 7 — Get Android building and running on emulator
+  [ ] Phase 4 — Set up deep linking for auth
+
+DO BEFORE PUBLISHING:
+  [ ] Phase 3 — Native push notifications
+  [ ] Phase 5 — Full mobile UX testing
+  [ ] Create privacy policy page
+  [ ] Create app icons and screenshots
+  [ ] Test on 3+ real devices
+
+DO AFTER PUBLISHING:
+  [ ] Phase 8 — Automate builds (when manual gets annoying)
+
+
+========================================================================
+COSTS
+========================================================================
+
+Apple Developer Account:  $99/year
+Google Play Account:      $25 one-time
+Supabase (current plan):  Already paying, no change
+Push notification service: Free tier of Firebase covers small teams
+Total first year:         ~$124
+Total ongoing:            ~$99/year
+
+
+========================================================================
+THINGS YOU CAN KEEP DOING THE SAME
+========================================================================
+
+- Writing React components
+- Using Supabase for backend
+- Pushing to GitHub for web updates
+- Using localStorage for caching
+- All your existing CSS/Tailwind
+- State-based tab navigation (no router changes needed)
+- Supabase realtime subscriptions
