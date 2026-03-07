@@ -399,25 +399,32 @@ function ScoutingData() {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const [allScoutingRecords, setAllScoutingRecords] = useState([])
+  const [exportReady, setExportReady] = useState(false)
+  const [exportRecordsCache, setExportRecordsCache] = useState([])
 
-  // Fetch all scouting records once for export
+  // Pre-fetch scouting records using anon key directly (bypasses auth RLS)
   useEffect(() => {
-    supabase
-      .from('scouting_records')
-      .select('*')
-      .order('submitted_at', { ascending: true })
-      .then(({ data }) => {
-        if (data) setAllScoutingRecords(data)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    fetch(`${supabaseUrl}/rest/v1/scouting_records?select=*&order=submitted_at.asc`, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setExportRecordsCache(data)
+          setExportReady(true)
+        }
       })
+      .catch(() => {})
   }, [])
 
   const exportToSheets = () => {
     const exportRecords = selectedDate
-      ? allScoutingRecords.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
-      : allScoutingRecords
+      ? exportRecordsCache.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
+      : exportRecordsCache
     if (exportRecords.length === 0) {
-      alert('No scouting records to export.')
+      alert('No scouting records found. Try refreshing the page.')
       return
     }
     const headers = [
