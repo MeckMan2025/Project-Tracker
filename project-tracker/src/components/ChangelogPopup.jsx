@@ -5,6 +5,23 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 51,
+    date: '2026-03-07',
+    items: [
+      'Scouting Form is now available for team accounts (form only, no schedule)',
+    ],
+  },
+  {
+    id: 50,
+    date: '2026-03-07',
+    items: [
+      'Fixed role changes not taking effect until page reload — roles now update instantly when a lead assigns them',
+      'Fixed user management updates silently failing without feedback',
+      'Suggestions: reviewers (leads/co-founders) can now also submit suggestions with ChatGPT prompt helper',
+      'Suggestions: status now shows as clear labels (Pending/Approved/Denied) instead of tiny dots',
+    ],
+  },
+  {
     id: 49,
     date: '2026-03-07',
     items: [
