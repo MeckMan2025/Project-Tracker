@@ -24,16 +24,17 @@ function SuggestionsView() {
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
-  // Load suggestions via direct fetch
+  // Load suggestions
   useEffect(() => {
     async function load() {
       try {
-        let url = `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc`
+        let query = supabase.from('suggestions').select('*').order('created_at', { ascending: false })
         if (!isReviewer && username) {
-          url += `&author=eq.${encodeURIComponent(username)}`
+          query = query.eq('author', username)
         }
-        const res = await fetch(url, { headers })
-        if (res.ok) setSuggestions(await res.json())
+        const { data, error } = await query
+        if (error) throw error
+        if (data) setSuggestions(data)
       } catch (err) {
         console.error('Failed to load suggestions:', err)
       }
@@ -82,29 +83,12 @@ function SuggestionsView() {
     setNewSuggestion('')
 
     try {
-      // Use the user's JWT for the write so RLS/grants are satisfied
-      let writeToken = supabaseKey
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) writeToken = session.access_token
-      } catch (_) {}
-
-      const res = await fetch(`${supabaseUrl}/rest/v1/suggestions`, {
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${writeToken}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify(suggestion),
-      })
-      if (!res.ok) {
-        const t = await res.text()
-        throw new Error(t || res.statusText)
-      }
-      const rows = await res.json()
-      if (rows[0]) setSuggestions(prev => prev.map(s => s.id === suggestion.id ? rows[0] : s))
+      const { data, error } = await supabase
+        .from('suggestions')
+        .insert(suggestion)
+        .select()
+      if (error) throw error
+      if (data?.[0]) setSuggestions(prev => prev.map(s => s.id === suggestion.id ? data[0] : s))
     } catch (err) {
       console.error('Suggestion save failed:', err)
       setSubmitError('Failed to save — ' + err.message)
