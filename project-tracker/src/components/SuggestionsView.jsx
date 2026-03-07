@@ -103,7 +103,6 @@ function SuggestionsView() {
       }
     } catch (err) {
       console.error('Suggestion save failed:', err)
-      alert('Suggestion failed to save: ' + err.message)
       setSubmitError('Failed to save — ' + err.message)
       setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
     }

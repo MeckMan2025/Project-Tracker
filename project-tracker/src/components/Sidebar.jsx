@@ -386,7 +386,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           </>}
 
-          <hr className="my-2 border-gray-200" />
+          {/* Only show separator if non-team Data section was rendered (team Data has its own hr) */}
+          {!isTeamAccount && <hr className="my-2 border-gray-200" />}
 
           {/* AI Manual Tab */}
           <div
