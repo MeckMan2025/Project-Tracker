@@ -323,7 +323,7 @@ function TeamHomeView({ onTabChange }) {
               </div>
 
               {/* Slide content */}
-              <div className="p-5 max-h-[60vh] overflow-y-auto">
+              <div className="p-5 h-[60vh] overflow-y-auto">
                 {slides[currentSlide]}
               </div>
 
