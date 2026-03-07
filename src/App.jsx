@@ -23,6 +23,7 @@ import RequestsBadge from './components/RequestsBadge'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
 import TeamScoutingData from './components/TeamScoutingData'
+import TeamHomeView from './components/TeamHomeView'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
 import HomeView from './components/HomeView'
@@ -310,18 +311,12 @@ function App() {
     return saved || 'home'
   })
 
-  // When a team logs in, skip loading screen and force them to boards view
+  // When a team logs in, skip loading screen — they land on home (TeamHomeView)
   useEffect(() => {
     if (effectiveIsTeam) {
       setIsLoading(false)
-      if (activeTab === 'home') {
-        const boardTabs = tabs.filter(t => !t.type)
-        if (boardTabs.length > 0) {
-          setActiveTab(boardTabs[0].id)
-        }
-      }
     }
-  }, [effectiveIsTeam, tabs])
+  }, [effectiveIsTeam])
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
@@ -1062,7 +1057,7 @@ function App() {
       {!hasAccess(activeTab, tier) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        <HomeView onTabChange={setActiveTab} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (

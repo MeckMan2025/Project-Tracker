@@ -158,8 +158,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         )}
 
         <nav className="p-2 flex-1 overflow-y-auto">
-          {/* Home Tab — hidden for team accounts */}
-          {!isTeamAccount && <>
+          {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
               activeTab === 'home'
@@ -176,7 +175,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </div>
 
           <hr className="my-2 border-gray-200" />
-          </>}
 
           {/* Chat Tab */}
           <div
