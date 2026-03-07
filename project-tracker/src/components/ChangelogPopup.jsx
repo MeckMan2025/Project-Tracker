@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 42,
+    date: '2026-03-06',
+    items: [
+      '👥 Team accounts no longer appear under Members in the Org Chart',
+    ],
+  },
+  {
     id: 41,
     date: '2026-03-06',
     items: [

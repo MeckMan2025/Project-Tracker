@@ -56,6 +56,10 @@ function isTechnicalLead(p) {
   return hasTag(p, 'Technical Lead')
 }
 
+function isTeamAccount(p) {
+  return hasTag(p, 'Team')
+}
+
 const TECHNICAL_TAGS = ['Technical', 'Programming', 'CAD', 'Build', 'Website', 'Scouting']
 const BUSINESS_TAGS = ['Business', 'Communications']
 
@@ -366,7 +370,7 @@ function OrgChart({ onViewProfile }) {
   const teamLeads = place(profiles.filter(p => !placed.has(p.id) && isTeamLead(p)))
   const businessLeads = place(profiles.filter(p => !placed.has(p.id) && isBusinessLead(p)))
   const technicalLeads = place(profiles.filter(p => !placed.has(p.id) && isTechnicalLead(p)))
-  const members = profiles.filter(p => !placed.has(p.id))
+  const members = profiles.filter(p => !placed.has(p.id) && !isTeamAccount(p))
 
   const businessMembers = members.filter(p => classifyMember(p) === 'business')
   const technicalMembers = members.filter(p => classifyMember(p) === 'technical')
