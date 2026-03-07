@@ -85,10 +85,15 @@ function SuggestionsView() {
     try {
       const { data, error } = await supabase
         .from('suggestions')
-        .insert(suggestion)
+        .insert({ id: suggestion.id, author: suggestion.author, text: suggestion.text })
         .select()
-      if (error) throw error
-      if (data?.[0]) setSuggestions(prev => prev.map(s => s.id === suggestion.id ? data[0] : s))
+      if (error) {
+        console.error('Suggestion insert error:', JSON.stringify(error))
+        throw new Error(error.message || error.code || 'Unknown DB error')
+      }
+      if (data?.[0]) {
+        setSuggestions(prev => prev.map(s => s.id === suggestion.id ? data[0] : s))
+      }
     } catch (err) {
       console.error('Suggestion save failed:', err)
       setSubmitError('Failed to save — ' + err.message)
