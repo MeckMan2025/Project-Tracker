@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
-import { supabase } from '../supabase'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 function TeamSurveyResponses({ onBack }) {
   const [responses, setResponses] = useState([])
@@ -11,11 +13,12 @@ function TeamSurveyResponses({ onBack }) {
   const load = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('team_survey_responses')
-        .select('*')
-        .order('submitted_at', { ascending: false })
-      if (error) throw error
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/team_survey_responses?select=*&order=submitted_at.desc`,
+        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
       setResponses(data || [])
     } catch (err) {
       console.error('Failed to load survey responses:', err)
