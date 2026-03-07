@@ -23,7 +23,9 @@ function HomeView({ onTabChange }) {
   const [photos, setPhotos] = useState([])
   const [uploading, setUploading] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState(null)
+  const [photoIndex, setPhotoIndex] = useState(0)
   const fileInputRef = useRef(null)
+  const scrollRef = useRef(null)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -291,20 +293,36 @@ function HomeView({ onTabChange }) {
               <p className="text-gray-400 text-sm">{canSubmit ? 'Tap to add the first photo!' : 'No photos yet'}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map(photo => (
-                <div
-                  key={photo.id}
-                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setSelectedPhoto(photo)}
-                >
-                  <img
-                    src={photo.url}
-                    alt={photo.caption || 'Season photo'}
-                    className="w-full h-full object-cover"
-                  />
+            <div className="relative">
+              <div
+                ref={scrollRef}
+                className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {photos.map((photo, i) => (
+                  <div
+                    key={photo.id}
+                    className="flex-shrink-0 w-64 h-48 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity snap-center"
+                    onClick={() => { setSelectedPhoto(photo); setPhotoIndex(i) }}
+                  >
+                    <img
+                      src={photo.url}
+                      alt={photo.caption || 'Season photo'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+              {photos.length > 1 && (
+                <div className="flex justify-center gap-1.5 mt-2">
+                  {photos.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIndex ? 'bg-pastel-pink-dark' : 'bg-gray-300'}`}
+                    />
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
@@ -390,6 +408,34 @@ function HomeView({ onTabChange }) {
           onClick={() => setSelectedPhoto(null)}
         >
           <div className="relative max-w-3xl max-h-[85vh] w-full" onClick={(e) => e.stopPropagation()}>
+            {/* Left arrow */}
+            {photos.length > 1 && (
+              <button
+                onClick={() => {
+                  const prev = (photoIndex - 1 + photos.length) % photos.length
+                  setPhotoIndex(prev)
+                  setSelectedPhoto(photos[prev])
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors"
+              >
+                <ChevronLeft size={24} className="text-white" />
+              </button>
+            )}
+
+            {/* Right arrow */}
+            {photos.length > 1 && (
+              <button
+                onClick={() => {
+                  const next = (photoIndex + 1) % photos.length
+                  setPhotoIndex(next)
+                  setSelectedPhoto(photos[next])
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors"
+              >
+                <ChevronRight size={24} className="text-white" />
+              </button>
+            )}
+
             <img
               src={selectedPhoto.url}
               alt={selectedPhoto.caption || 'Season photo'}
@@ -398,6 +444,7 @@ function HomeView({ onTabChange }) {
             <div className="flex items-center justify-between mt-2">
               <p className="text-sm text-white/70">
                 {selectedPhoto.uploaded_by && `Uploaded by ${selectedPhoto.uploaded_by}`}
+                {photos.length > 1 && <span className="ml-2">{photoIndex + 1} / {photos.length}</span>}
               </p>
               <div className="flex gap-2">
                 {(hasLeadTag || selectedPhoto.uploaded_by === username) && (
