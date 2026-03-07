@@ -1008,7 +1008,7 @@ function WorkshopViewer({ workshop, onClose, userId, username, onComplete }) {
 
 // ─── Workshop Card ───────────────────────────────────────────────────────────
 
-function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, onWithdraw, onEdit, onSubmit, onAdminDelete }) {
+function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, onWithdraw, onEdit, onSubmit, onAdminDelete, onAdminEdit }) {
   const fmt = FORMATS.find(f => f.id === workshop.format_type)
 
   return (
@@ -1085,15 +1085,25 @@ function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, on
         </div>
       )}
 
-      {/* Admin delete (leads only) */}
-      {onAdminDelete && (
-        <div className="mt-3" onClick={e => e.stopPropagation()}>
-          <button
-            onClick={() => onAdminDelete(workshop.id)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium transition-colors"
-          >
-            <Trash2 size={12} /> Delete Workshop
-          </button>
+      {/* Admin controls (leads only) */}
+      {(onAdminEdit || onAdminDelete) && (
+        <div className="flex items-center gap-2 mt-3" onClick={e => e.stopPropagation()}>
+          {onAdminEdit && (
+            <button
+              onClick={() => onAdminEdit(workshop)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium transition-colors"
+            >
+              <Edit3 size={12} /> Edit
+            </button>
+          )}
+          {onAdminDelete && (
+            <button
+              onClick={() => onAdminDelete(workshop.id)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium transition-colors"
+            >
+              <Trash2 size={12} /> Delete
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1458,6 +1468,7 @@ export default function WorkshopIdeas() {
                       key={w.id}
                       workshop={w}
                       onClick={() => setActiveWorkshop(w)}
+                      onAdminEdit={canReview ? handleEdit : null}
                       onAdminDelete={canReview ? handleAdminDelete : null}
                     />
                   ))}
@@ -1545,6 +1556,7 @@ export default function WorkshopIdeas() {
                       workshop={w}
                       onClick={() => setViewWorkshop(w)}
                       showStatus
+                      onAdminDelete={handleAdminDelete}
                     />
                   ))}
                 </div>
