@@ -4,7 +4,7 @@ import {
   Lightbulb, Monitor, Video, ListOrdered, Upload, Link, MessageSquare,
   Clock, Users, Target, BookOpen, Edit3, RotateCcw, FileText, Library,
   ImagePlus, Loader2, ArrowLeft, CheckCircle2, Circle, ArrowRight, Trophy,
-  Image, Camera
+  Image, Camera, Save
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -1011,7 +1011,7 @@ function WorkshopViewer({ workshop, onClose, userId, username, onComplete }) {
           <button
             onClick={prevStep}
             disabled={currentStep === 0}
-            className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 text-sm font-medium text-gray-600 transition-colors"
+            className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 text-sm font-medium text-gray-600 transition-colors"
           >
             <ChevronLeft size={16} /> Prev
           </button>
@@ -1024,17 +1024,16 @@ function WorkshopViewer({ workshop, onClose, userId, username, onComplete }) {
             }`}
           >
             {completedSteps.includes(currentStep) ? (
-              currentStep < totalSteps - 1 ? <><Check size={16} /> Done — Next Step</> : <><Check size={16} /> Completed</>
+              currentStep < totalSteps - 1 ? <><Check size={16} /> Next</> : <><Check size={16} /> Completed</>
             ) : (
-              currentStep < totalSteps - 1 ? <><CheckCircle2 size={16} /> Mark Complete & Next</> : <><CheckCircle2 size={16} /> Mark Complete</>
+              currentStep < totalSteps - 1 ? <><CheckCircle2 size={16} /> Complete & Next</> : <><CheckCircle2 size={16} /> Complete</>
             )}
           </button>
           <button
-            onClick={nextStep}
-            disabled={currentStep >= totalSteps - 1}
-            className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-30 text-sm font-medium text-gray-600 transition-colors"
+            onClick={onClose}
+            className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-600 transition-colors"
           >
-            Next <ChevronRight size={16} />
+            <Save size={16} /> Save
           </button>
         </div>
       )}
