@@ -399,66 +399,67 @@ function ScoutingData() {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const [exporting, setExporting] = useState(false)
+  const [allScoutingRecords, setAllScoutingRecords] = useState([])
 
-  const exportToSheets = async () => {
-    setExporting(true)
-    try {
-      // Fetch all records directly from Supabase to bypass any state/auth issues
-      const { data: allRecords, error } = await supabase
-        .from('scouting_records')
-        .select('*')
-        .order('submitted_at', { ascending: true })
-      if (error) {
-        alert('Failed to fetch scouting data: ' + error.message)
-        setExporting(false)
-        return
-      }
-      const exportRecords = selectedDate
-        ? allRecords.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
-        : allRecords
-      const headers = [
-        'Team Number', 'Alliance Color', 'Match Number', 'Starting Position',
-        'Auto Classified', 'Auto Missed', 'Auto Overflowed', 'Auto Motif Order',
-        'Tele Classified', 'Tele Missed', 'Tele Overflowed', 'Tele Motif Order', 'Tele Depot',
-        'Did Leave', 'Parking Status', 'Double Park',
-        'Alliance Score', 'Leave Points', 'Artifact Points', 'Pattern Points', 'Base Points', 'Foul Points',
-        'Pattern RP', 'Goal RP', 'Movement RP',
-        'Robot Stability', 'Roles', 'Observations',
-        'Submitted By', 'Submitted At',
-      ]
-      const escape = (v) => {
-        const s = String(v ?? '')
-        return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
-      }
-      const rows = exportRecords.map(r => {
-        const d = r.data || {}
-        return [
-          d.teamNumber, d.allianceColor, d.matchNumber, d.startingPosition,
-          d.autoClassified ?? 0, d.autoArtifactsMissed ?? 0, d.autoOverflowed ?? 0, d.autoInMotifOrder ?? 0,
-          d.teleClassified ?? 0, d.teleArtifactsMissed ?? 0, d.teleOverflowed ?? 0, d.teleInMotifOrder ?? 0, d.teleArtifactsInDepot ?? 0,
-          d.teleDidLeave === true ? 'Yes' : d.teleDidLeave === false ? 'No' : '',
-          d.parkingStatus, d.doublePark === true ? 'Yes' : d.doublePark === false ? 'No' : '',
-          d.allianceScore, d.leavePoints, d.artifactPoints, d.patternPoints, d.basePoints, d.foulPoints,
-          d.patternRP ? 'Yes' : 'No', d.goalRP ? 'Yes' : 'No', d.movementRP ? 'Yes' : 'No',
-          d.robotStability === 'no' ? 'No issues' : d.robotStability === 'major' ? 'Major breakdown' : d.robotStability === 'shutdown' ? 'Shutdown' : '',
-          (d.roles || []).join('; '),
-          d.observations || '',
-          r.submitted_by || '', r.submitted_at || '',
-        ].map(escape).join(',')
+  // Fetch all scouting records once for export
+  useEffect(() => {
+    supabase
+      .from('scouting_records')
+      .select('*')
+      .order('submitted_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setAllScoutingRecords(data)
       })
-      const csv = [headers.join(','), ...rows].join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `scouting-forms${selectedDate ? `-${selectedDate}` : ''}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      alert('Export failed: ' + err.message)
+  }, [])
+
+  const exportToSheets = () => {
+    const exportRecords = selectedDate
+      ? allScoutingRecords.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
+      : allScoutingRecords
+    if (exportRecords.length === 0) {
+      alert('No scouting records to export.')
+      return
     }
-    setExporting(false)
+    const headers = [
+      'Team Number', 'Alliance Color', 'Match Number', 'Starting Position',
+      'Auto Classified', 'Auto Missed', 'Auto Overflowed', 'Auto Motif Order',
+      'Tele Classified', 'Tele Missed', 'Tele Overflowed', 'Tele Motif Order', 'Tele Depot',
+      'Did Leave', 'Parking Status', 'Double Park',
+      'Alliance Score', 'Leave Points', 'Artifact Points', 'Pattern Points', 'Base Points', 'Foul Points',
+      'Pattern RP', 'Goal RP', 'Movement RP',
+      'Robot Stability', 'Roles', 'Observations',
+      'Submitted By', 'Submitted At',
+    ]
+    const escape = (v) => {
+      const s = String(v ?? '')
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const rows = exportRecords.map(r => {
+      const d = r.data || {}
+      return [
+        d.teamNumber, d.allianceColor, d.matchNumber, d.startingPosition,
+        d.autoClassified ?? 0, d.autoArtifactsMissed ?? 0, d.autoOverflowed ?? 0, d.autoInMotifOrder ?? 0,
+        d.teleClassified ?? 0, d.teleArtifactsMissed ?? 0, d.teleOverflowed ?? 0, d.teleInMotifOrder ?? 0, d.teleArtifactsInDepot ?? 0,
+        d.teleDidLeave === true ? 'Yes' : d.teleDidLeave === false ? 'No' : '',
+        d.parkingStatus, d.doublePark === true ? 'Yes' : d.doublePark === false ? 'No' : '',
+        d.allianceScore, d.leavePoints, d.artifactPoints, d.patternPoints, d.basePoints, d.foulPoints,
+        d.patternRP ? 'Yes' : 'No', d.goalRP ? 'Yes' : 'No', d.movementRP ? 'Yes' : 'No',
+        d.robotStability === 'no' ? 'No issues' : d.robotStability === 'major' ? 'Major breakdown' : d.robotStability === 'shutdown' ? 'Shutdown' : '',
+        (d.roles || []).join('; '),
+        d.observations || '',
+        r.submitted_by || '', r.submitted_at || '',
+      ].map(escape).join(',')
+    })
+    const csv = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `scouting-forms${selectedDate ? `-${selectedDate}` : ''}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   const addTeamModal = showAddModal ? createPortal(
@@ -564,12 +565,11 @@ function ScoutingData() {
             </div>
             <button
               onClick={exportToSheets}
-              disabled={exporting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors shadow-sm"
               title="Download scouting form data as CSV"
             >
               <Download size={14} />
-              {exporting ? '...' : 'Export'}
+              Export
             </button>
             <NotificationBell />
           </div>
