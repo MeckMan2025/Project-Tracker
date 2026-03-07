@@ -399,7 +399,9 @@ function ScoutingData() {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const exportToCSV = () => {
+  const [exportFeedback, setExportFeedback] = useState('')
+
+  const exportToSheets = async () => {
     const allTeams = [...consideredTeams, ...otherTeams]
     const headers = [
       'Rank', 'Team Number', 'Team Name', 'Considered', 'Record', 'Matches Played',
@@ -411,10 +413,6 @@ function ScoutingData() {
       'Tele % Classified', 'Tele % Missed', 'Tele % Overflowed', 'Tele % Motif',
       'Leave %', 'Full Park %', 'Partial Park %', 'No Park %',
     ]
-    const escape = (v) => {
-      const s = String(v ?? '')
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
-    }
     const rows = allTeams.map(t => [
       t.rank ?? '', t.number, t.name, consideredNumbers.includes(t.number) ? 'Yes' : 'No',
       t.record, t.played,
@@ -425,15 +423,16 @@ function ScoutingData() {
       t.teleAvgClassified ?? '', t.teleAvgMissed ?? '', t.teleAvgOverflowed ?? '', t.teleAvgMotif ?? '', t.teleAvgDepot ?? '',
       t.telePctClassified ?? '', t.telePctMissed ?? '', t.telePctOverflowed ?? '', t.telePctMotif ?? '',
       t.teleLeavePct ?? t.leavePct ?? '', t.fullParkPct ?? '', t.partialParkPct ?? '', t.noParkPct ?? '',
-    ].map(escape).join(','))
-    const csv = [headers.join(','), ...rows].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `scouting-data${selectedDate ? `-${selectedDate}` : ''}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    ].join('\t'))
+    const tsv = [headers.join('\t'), ...rows].join('\n')
+    try {
+      await navigator.clipboard.writeText(tsv)
+      setExportFeedback('Copied! Paste into Google Sheets (Ctrl+V)')
+    } catch {
+      setExportFeedback('Opening sheet...')
+    }
+    window.open('https://docs.google.com/spreadsheets/create', '_blank')
+    setTimeout(() => setExportFeedback(''), 5000)
   }
 
   const addTeamModal = showAddModal ? createPortal(
@@ -538,17 +537,23 @@ function ScoutingData() {
               )}
             </div>
             <button
-              onClick={exportToCSV}
+              onClick={exportToSheets}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors shadow-sm"
-              title="Export to CSV (open in Google Sheets)"
+              title="Copy data and open Google Sheets"
             >
               <Download size={14} />
-              Export
+              Sheets
             </button>
             <NotificationBell />
           </div>
         </div>
       </header>
+
+      {exportFeedback && (
+        <div className="mx-4 ml-14 md:ml-4 mt-2 px-4 py-2 bg-green-100 text-green-700 text-sm font-medium rounded-lg text-center animate-pulse">
+          {exportFeedback}
+        </div>
+      )}
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
