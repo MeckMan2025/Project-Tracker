@@ -1,4 +1,4 @@
-function LandingScreen({ onGetRadical, onRadicalRundown }) {
+function LandingScreen({ onGetRadical, onTeamLogin, onRadicalRundown }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex items-center justify-center p-4">
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 w-80 space-y-6 text-center">
@@ -18,8 +18,15 @@ function LandingScreen({ onGetRadical, onRadicalRundown }) {
           Get Radical
         </button>
 
+        <button
+          onClick={onTeamLogin}
+          className="w-full py-3 bg-pastel-orange/40 hover:bg-pastel-orange/60 rounded-xl font-semibold text-gray-700 transition-colors text-base"
+        >
+          Team Login
+        </button>
+
         <p className="text-xs text-gray-400">
-          Team members sign in above. Scouts &amp; visitors, check us out below!
+          Scouts &amp; visitors, check us out below!
         </p>
 
         <button

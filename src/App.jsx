@@ -33,6 +33,7 @@ import QuotesManager from './components/QuotesManager'
 import AttendanceManager from './components/AttendanceManager'
 import AttendanceView from './components/AttendanceView'
 import InterestedTeams from './components/InterestedTeams'
+import TeamSurveyResponses from './components/TeamSurveyResponses'
 import WorkshopIdeas from './components/WorkshopIdeas'
 import CleanUpChart from './components/CleanUpChart'
 import ChangelogPopup from './components/ChangelogPopup'
@@ -992,12 +993,16 @@ function App() {
     if (landingChoice === 'login') {
       return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} />
     }
+    if (landingChoice === 'team-login') {
+      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} initialMode="team" />
+    }
     if (landingChoice === 'team-info') {
       return <TeamInfoPage onBack={() => setLandingChoice(null)} />
     }
     return (
       <LandingScreen
         onGetRadical={() => setLandingChoice('login')}
+        onTeamLogin={() => setLandingChoice('team-login')}
         onRadicalRundown={() => setLandingChoice('team-info')}
       />
     )
@@ -1146,6 +1151,8 @@ function App() {
             <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
           ) : specialView === 'cleanup' ? (
             <CleanUpChart onBack={() => setSpecialView(null)} />
+          ) : specialView === 'team-survey' ? (
+            <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto grid gap-4">
@@ -1188,6 +1195,15 @@ function App() {
                   <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
                   <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
                 </button>
+                {isCofounder && (
+                  <button
+                    onClick={() => setSpecialView('team-survey')}
+                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                  >
+                    <span className="text-lg font-semibold text-gray-700">Team Survey Responses</span>
+                    <p className="text-sm text-gray-400 mt-1">View feedback from team accounts</p>
+                  </button>
+                )}
                 <button
                   className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
                 >

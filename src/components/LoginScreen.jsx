@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 
-function LoginScreen({ sessionExpired, onBack }) {
+function LoginScreen({ sessionExpired, onBack, initialMode }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
-  const [loginMode, setLoginMode] = useState('member') // 'member' or 'team'
+  const [loginMode, setLoginMode] = useState(initialMode === 'team' ? 'team' : 'member')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [teamNumber, setTeamNumber] = useState('')

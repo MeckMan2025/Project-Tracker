@@ -5,6 +5,20 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 54,
+    date: '2026-03-07',
+    items: [
+      'Co-founders can now view team survey responses in Special Controls',
+    ],
+  },
+  {
+    id: 53,
+    date: '2026-03-07',
+    items: [
+      'Added Team Login button to the welcome screen for easy team access',
+    ],
+  },
+  {
     id: 52,
     date: '2026-03-07',
     items: [
