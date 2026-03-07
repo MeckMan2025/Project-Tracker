@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -399,6 +399,47 @@ function ScoutingData() {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const exportToCSV = () => {
+    const headers = [
+      'Team Number', 'Alliance Color', 'Match Number', 'Starting Position',
+      'Auto Classified', 'Auto Missed', 'Auto Overflowed', 'Auto Motif Order',
+      'Tele Classified', 'Tele Missed', 'Tele Overflowed', 'Tele Motif Order', 'Tele Depot',
+      'Did Leave', 'Parking Status', 'Double Park',
+      'Alliance Score', 'Leave Points', 'Artifact Points', 'Pattern Points', 'Base Points', 'Foul Points',
+      'Pattern RP', 'Goal RP', 'Movement RP',
+      'Robot Stability', 'Roles', 'Observations',
+      'Submitted By', 'Submitted At',
+    ]
+    const escape = (v) => {
+      const s = String(v ?? '')
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const rows = filteredRecords.map(r => {
+      const d = r.data || {}
+      return [
+        d.teamNumber, d.allianceColor, d.matchNumber, d.startingPosition,
+        d.autoClassified ?? 0, d.autoArtifactsMissed ?? 0, d.autoOverflowed ?? 0, d.autoInMotifOrder ?? 0,
+        d.teleClassified ?? 0, d.teleArtifactsMissed ?? 0, d.teleOverflowed ?? 0, d.teleInMotifOrder ?? 0, d.teleArtifactsInDepot ?? 0,
+        d.teleDidLeave === true ? 'Yes' : d.teleDidLeave === false ? 'No' : '',
+        d.parkingStatus, d.doublePark === true ? 'Yes' : d.doublePark === false ? 'No' : '',
+        d.allianceScore, d.leavePoints, d.artifactPoints, d.patternPoints, d.basePoints, d.foulPoints,
+        d.patternRP ? 'Yes' : 'No', d.goalRP ? 'Yes' : 'No', d.movementRP ? 'Yes' : 'No',
+        d.robotStability === 'no' ? 'No issues' : d.robotStability === 'major' ? 'Major breakdown' : d.robotStability === 'shutdown' ? 'Shutdown' : '',
+        (d.roles || []).join('; '),
+        d.observations || '',
+        r.submitted_by || '', r.submitted_at || '',
+      ].map(escape).join(',')
+    })
+    const csv = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `scouting-data${selectedDate ? `-${selectedDate}` : ''}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const addTeamModal = showAddModal ? createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowAddModal(false); setAddForm({ name: '', number: '', rank: '' }) }}>
       <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', width: '100%', maxWidth: '384px', margin: '0 16px', padding: '24px' }} onClick={e => e.stopPropagation()}>
@@ -500,6 +541,14 @@ function ScoutingData() {
                 </button>
               )}
             </div>
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-pastel-pink-dark hover:bg-pastel-pink rounded-lg transition-colors shadow-sm"
+              title="Export to CSV (open in Google Sheets)"
+            >
+              <Download size={14} />
+              Export
+            </button>
             <NotificationBell />
           </div>
         </div>
