@@ -5,6 +5,21 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 46,
+    date: '2026-03-07',
+    items: [
+      '📊 Export scouting data to CSV — open in Google Sheets, Excel, etc.',
+    ],
+  },
+  {
+    id: 45,
+    date: '2026-03-07',
+    items: [
+      '🎓 Workshops — create workshops (Live, Video, or Step-by-Step), submit for approval, and browse the Workshop Library',
+      '📋 Workshop review system for leads: approve, request revisions, or deny submissions',
+    ],
+  },
+  {
     id: 44,
     date: '2026-03-06',
     items: [
