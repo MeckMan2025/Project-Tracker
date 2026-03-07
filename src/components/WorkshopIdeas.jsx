@@ -1163,6 +1163,7 @@ export default function WorkshopIdeas() {
   const [myFilter, setMyFilter] = useState('all')
   const [galleryItems, setGalleryItems] = useState([])
   const [completions, setCompletions] = useState([])
+  const [progressTick, setProgressTick] = useState(0)
 
   const loadWorkshops = async () => {
     try {
@@ -1448,7 +1449,7 @@ export default function WorkshopIdeas() {
         return saved && Array.isArray(saved) && saved.length > 0
       } catch { return false }
     })
-  }, [libraryWorkshops, completedWorkshopIds, user, username])
+  }, [libraryWorkshops, completedWorkshopIds, user, username, progressTick])
 
   const getProgress = (workshopId) => {
     const userId = user?.id || username
@@ -1460,7 +1461,7 @@ export default function WorkshopIdeas() {
 
   const sectionTabs = [
     { id: 'library', label: 'Library', icon: Library, count: libraryWorkshops.length },
-    ...(inProgressWorkshops.length > 0 ? [{ id: 'in-progress', label: 'In Progress', icon: PlayCircle, count: inProgressWorkshops.length }] : []),
+    { id: 'in-progress', label: 'In Progress', icon: PlayCircle, count: inProgressWorkshops.length },
     ...(canCreate ? [{ id: 'my', label: 'My Workshops', icon: BookOpen, count: myWorkshops.length }] : []),
     { id: 'completed', label: 'Completed', icon: Trophy, count: myCompletions.length },
     ...(canReview ? [{ id: 'review', label: 'Review', icon: Eye, count: reviewQueue.length }] : []),
@@ -1795,11 +1796,11 @@ export default function WorkshopIdeas() {
       {activeWorkshop && (
         <WorkshopViewer
           workshop={activeWorkshop}
-          onClose={() => setActiveWorkshop(null)}
+          onClose={() => { setActiveWorkshop(null); setProgressTick(t => t + 1) }}
           userId={user?.id || username}
           username={username}
           onComplete={handleWorkshopComplete}
-          onSave={() => { setActiveWorkshop(null); setSection('in-progress') }}
+          onSave={() => { setActiveWorkshop(null); setProgressTick(t => t + 1); setSection('in-progress') }}
         />
       )}
     </div>
