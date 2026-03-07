@@ -71,7 +71,7 @@ function TeamHomeView({ onTabChange }) {
   const { username, teamNumber } = useUser()
   const storageKey = `team-welcome-seen-${teamNumber || 'default'}`
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => localStorage.getItem(storageKey) === 'true')
-  const [dismissed, setDismissed] = useState(false)
+  const [showPopup, setShowPopup] = useState(true)
   const [slide, setSlide] = useState(0)
 
   // Survey state
@@ -80,15 +80,14 @@ function TeamHomeView({ onTabChange }) {
   const [surveySubmitted, setSurveySubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const canDismiss = hasSeenWelcome
-
-  const handleDismiss = () => {
-    setDismissed(true)
-  }
-
   const markSeen = () => {
     localStorage.setItem(storageKey, 'true')
     setHasSeenWelcome(true)
+  }
+
+  const closePopup = () => {
+    if (!hasSeenWelcome) markSeen()
+    setShowPopup(false)
   }
 
   const handleSurveySubmit = async () => {
@@ -125,223 +124,153 @@ function TeamHomeView({ onTabChange }) {
     markSeen()
   }
 
-  // Build slides array
+  // Build slides
   const slides = []
 
-  // Slide 0: Welcome
-  slides.push({
-    title: 'Welcome',
-    content: (
-      <div className="flex flex-col items-center justify-center text-center px-4 py-8">
-        <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-20 h-20 mb-4 drop-shadow-lg" />
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!
-        </h2>
-        <p className="text-gray-600 max-w-sm">
-          This is your team's private workspace on Everything That's Scrum. Swipe through to see what you can do.
-        </p>
-      </div>
-    ),
-  })
+  slides.push(
+    <div className="flex flex-col items-center justify-center text-center py-6">
+      <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-16 h-16 mb-3 drop-shadow-lg" />
+      <h2 className="text-xl font-bold text-gray-800 mb-2">
+        Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!
+      </h2>
+      <p className="text-sm text-gray-600 max-w-xs">
+        This is your team's private workspace. Use the arrows to see what you can do.
+      </p>
+    </div>
+  )
 
-  // Slide 1: Your Tabs
-  slides.push({
-    title: 'Your Tabs',
-    content: (
-      <div className="px-4 py-4">
-        <h3 className="text-lg font-bold text-gray-800 text-center mb-4">What each tab does</h3>
-        <div className="space-y-2.5 max-h-[55vh] overflow-y-auto">
-          {TAB_INFO.map(({ icon: Icon, name, color, bg, description }) => (
-            <div key={name} className="bg-white rounded-xl shadow-sm border p-3.5 flex gap-3 items-start">
-              <div className={`${bg} p-2 rounded-xl shrink-0`}>
-                <Icon size={18} className={color} />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-800 text-sm">{name}</h4>
-                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
-              </div>
+  slides.push(
+    <div>
+      <h3 className="text-base font-bold text-gray-800 text-center mb-3">What each tab does</h3>
+      <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+        {TAB_INFO.map(({ icon: Icon, name, color, bg, description }) => (
+          <div key={name} className="bg-gray-50 rounded-xl p-3 flex gap-3 items-start">
+            <div className={`${bg} p-2 rounded-lg shrink-0`}>
+              <Icon size={16} className={color} />
             </div>
-          ))}
-        </div>
-      </div>
-    ),
-  })
-
-  // Slide 2: Install on phone
-  slides.push({
-    title: 'Add to Phone',
-    content: (
-      <div className="px-4 py-4">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <Smartphone size={20} className="text-pastel-blue-dark" />
-          <h3 className="text-lg font-bold text-gray-800">Add to your phone</h3>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <p className="text-sm text-gray-600 mb-3 text-center">
-            Add this app to your home screen for quick access — no app store needed!
-          </p>
-          <img
-            src="/install-guide.png"
-            alt="How to install on your phone"
-            className="w-full rounded-lg border mb-3"
-            onError={(e) => { e.target.style.display = 'none' }}
-          />
-          <div className="space-y-2 text-xs text-gray-500">
-            <p><strong>iPhone:</strong> Open in Safari, tap the Share button, then "Add to Home Screen"</p>
-            <p><strong>Android:</strong> Open in Chrome, tap the three dots menu, then "Add to Home Screen"</p>
-          </div>
-        </div>
-      </div>
-    ),
-  })
-
-  // Slide 3: Survey (only on first visit)
-  if (!hasSeenWelcome) {
-    slides.push({
-      title: 'Quick Survey',
-      content: (
-        <div className="px-4 py-4">
-          <h3 className="text-lg font-bold text-gray-800 text-center mb-4">Quick Survey</h3>
-          <div className="bg-white rounded-xl shadow-sm border p-5">
-            {surveySubmitted ? (
-              <div className="text-center py-6">
-                <CheckCircle size={40} className="text-green-400 mx-auto mb-3" />
-                <p className="font-semibold text-gray-800 text-lg">Thanks for the feedback!</p>
-                <p className="text-sm text-gray-500 mt-1">We'll use this to make the app better for your team.</p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    How often do you think your team would use this app?
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {USAGE_OPTIONS.map(option => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setUsageFrequency(option)}
-                        className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                          usageFrequency === option
-                            ? 'bg-pastel-pink text-gray-800 font-medium'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Any features you wish you had for team management?
-                  </label>
-                  <textarea
-                    value={featureRequest}
-                    onChange={(e) => setFeatureRequest(e.target.value)}
-                    placeholder="e.g. inventory tracking, meeting notes, practice schedules..."
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSkipSurvey}
-                    className="flex-1 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
-                  >
-                    Skip
-                  </button>
-                  <button
-                    onClick={handleSurveySubmit}
-                    disabled={submitting || (!featureRequest.trim() && !usageFrequency)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg font-medium text-gray-700 transition-colors disabled:opacity-50"
-                  >
-                    <Send size={14} />
-                    {submitting ? 'Sending...' : 'Submit'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ),
-    })
-  }
-
-  // Slide 4 (or 3): Updates
-  slides.push({
-    title: 'Updates',
-    content: (
-      <div className="px-4 py-4">
-        <h3 className="text-lg font-bold text-gray-800 text-center mb-4">Updates for Teams</h3>
-        <div className="space-y-3">
-          {TEAM_UPDATES.map((update, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm border p-4">
-              <p className="text-xs font-medium text-gray-400 mb-2">{update.date}</p>
-              <ul className="space-y-1.5">
-                {update.items.map((item, j) => (
-                  <li key={j} className="flex gap-2 text-sm text-gray-700">
-                    <span className="text-pastel-pink-dark shrink-0 mt-0.5">-</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
-  })
-
-  const totalSlides = slides.length
-  const currentSlide = Math.min(slide, totalSlides - 1)
-
-  // If dismissed, show simple home
-  if (dismissed) {
-    return (
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-          <div className="px-4 py-3 ml-14 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-                Home
-              </h1>
+              <h4 className="font-semibold text-gray-800 text-sm">{name}</h4>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
             </div>
-            <NotificationBell />
           </div>
-        </header>
-        <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
-          <div className="max-w-2xl mx-auto space-y-8 pb-8">
-            <div className="bg-gradient-to-r from-pastel-blue/30 via-pastel-pink/30 to-pastel-orange/30 rounded-2xl p-6 text-center">
-              <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-14 h-14 mx-auto mb-2 drop-shadow-lg" />
-              <h2 className="text-lg font-bold text-gray-800">Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!</h2>
-              <p className="text-sm text-gray-600 mt-1">Use the sidebar to navigate. Tap Home anytime to come back here.</p>
-            </div>
-            <section>
-              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Updates for Teams</h3>
-              <div className="space-y-3">
-                {TEAM_UPDATES.map((update, i) => (
-                  <div key={i} className="bg-white rounded-xl shadow-sm border p-4">
-                    <p className="text-xs font-medium text-gray-400 mb-2">{update.date}</p>
-                    <ul className="space-y-1.5">
-                      {update.items.map((item, j) => (
-                        <li key={j} className="flex gap-2 text-sm text-gray-700">
-                          <span className="text-pastel-pink-dark shrink-0 mt-0.5">-</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  slides.push(
+    <div>
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <Smartphone size={18} className="text-pastel-blue-dark" />
+        <h3 className="text-base font-bold text-gray-800">Add to your phone</h3>
+      </div>
+      <p className="text-sm text-gray-600 mb-3 text-center">
+        Add this app to your home screen for quick access — no app store needed!
+      </p>
+      <img
+        src="/install-guide.png"
+        alt="How to install on your phone"
+        className="w-full rounded-lg border mb-3"
+        onError={(e) => { e.target.style.display = 'none' }}
+      />
+      <div className="space-y-1.5 text-xs text-gray-500">
+        <p><strong>iPhone:</strong> Open in Safari, tap Share, then "Add to Home Screen"</p>
+        <p><strong>Android:</strong> Open in Chrome, tap the three dots, then "Add to Home Screen"</p>
+      </div>
+    </div>
+  )
+
+  if (!hasSeenWelcome) {
+    slides.push(
+      <div>
+        <h3 className="text-base font-bold text-gray-800 text-center mb-3">Quick Survey</h3>
+        {surveySubmitted ? (
+          <div className="text-center py-4">
+            <CheckCircle size={36} className="text-green-400 mx-auto mb-2" />
+            <p className="font-semibold text-gray-800">Thanks for the feedback!</p>
+            <p className="text-sm text-gray-500 mt-1">We'll use this to make the app better.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                How often would your team use this app?
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {USAGE_OPTIONS.map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setUsageFrequency(option)}
+                    className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
+                      usageFrequency === option
+                        ? 'bg-pastel-pink text-gray-800 font-medium'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {option}
+                  </button>
                 ))}
               </div>
-            </section>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Any features you wish you had?
+              </label>
+              <textarea
+                value={featureRequest}
+                onChange={(e) => setFeatureRequest(e.target.value)}
+                placeholder="e.g. inventory tracking, meeting notes..."
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
+                rows={2}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSkipSurvey}
+                className="flex-1 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSurveySubmit}
+                disabled={submitting || (!featureRequest.trim() && !usageFrequency)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg font-medium text-gray-700 transition-colors disabled:opacity-50"
+              >
+                <Send size={14} />
+                {submitting ? 'Sending...' : 'Submit'}
+              </button>
+            </div>
           </div>
-        </main>
+        )}
       </div>
     )
   }
+
+  slides.push(
+    <div>
+      <h3 className="text-base font-bold text-gray-800 text-center mb-3">Updates</h3>
+      <div className="space-y-3">
+        {TEAM_UPDATES.map((update, i) => (
+          <div key={i} className="bg-gray-50 rounded-xl p-4">
+            <p className="text-xs font-medium text-gray-400 mb-2">{update.date}</p>
+            <ul className="space-y-1.5">
+              {update.items.map((item, j) => (
+                <li key={j} className="flex gap-2 text-sm text-gray-700">
+                  <span className="text-pastel-pink-dark shrink-0 mt-0.5">-</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  const totalSlides = slides.length
+  const currentSlide = Math.min(slide, totalSlides - 1)
+  const isLastSlide = currentSlide === totalSlides - 1
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -351,104 +280,107 @@ function TeamHomeView({ onTabChange }) {
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Home
             </h1>
-            <p className="text-xs text-gray-500">Everything That's Scrum</p>
           </div>
-          <div className="flex items-center gap-2">
-            {canDismiss && (
-              <button
-                onClick={handleDismiss}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
-                title="Close welcome"
-              >
-                <X size={18} />
-              </button>
-            )}
-            <NotificationBell />
-          </div>
+          <NotificationBell />
         </div>
       </header>
-
-      <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Slideshow overlay */}
-        <div className="flex-1 flex flex-col bg-gradient-to-b from-pastel-blue/10 via-pastel-pink/10 to-pastel-orange/10">
-          {/* Slide title bar */}
-          <div className="flex items-center justify-center gap-3 px-4 pt-4 pb-2">
-            {slides.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setSlide(i)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  i === currentSlide
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'bg-white/60 text-gray-400 hover:bg-white/80 hover:text-gray-600'
-                }`}
-              >
-                {s.title}
-              </button>
-            ))}
+      <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
+        <div className="max-w-2xl mx-auto space-y-8 pb-8">
+          <div className="bg-gradient-to-r from-pastel-blue/30 via-pastel-pink/30 to-pastel-orange/30 rounded-2xl p-6 text-center">
+            <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-14 h-14 mx-auto mb-2 drop-shadow-lg" />
+            <h2 className="text-lg font-bold text-gray-800">Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!</h2>
+            <p className="text-sm text-gray-600 mt-1">Use the sidebar to navigate. Tap Home anytime to come back here.</p>
           </div>
-
-          {/* Slide content with arrows */}
-          <div className="flex-1 flex items-start relative overflow-hidden">
-            {/* Left arrow */}
-            {currentSlide > 0 && (
-              <button
-                onClick={() => setSlide(s => s - 1)}
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 shadow-md hover:bg-white transition-colors"
-              >
-                <ChevronLeft size={22} className="text-gray-600" />
-              </button>
-            )}
-
-            {/* Slide */}
-            <div className="flex-1 overflow-y-auto px-8 md:px-12">
-              <div className="max-w-lg mx-auto">
-                {slides[currentSlide].content}
-              </div>
+          <section>
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Updates for Teams</h3>
+            <div className="space-y-3">
+              {TEAM_UPDATES.map((update, i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm border p-4">
+                  <p className="text-xs font-medium text-gray-400 mb-2">{update.date}</p>
+                  <ul className="space-y-1.5">
+                    {update.items.map((item, j) => (
+                      <li key={j} className="flex gap-2 text-sm text-gray-700">
+                        <span className="text-pastel-pink-dark shrink-0 mt-0.5">-</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-
-            {/* Right arrow */}
-            {currentSlide < totalSlides - 1 && (
-              <button
-                onClick={() => setSlide(s => s + 1)}
-                className="absolute right-1 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 shadow-md hover:bg-white transition-colors"
-              >
-                <ChevronRight size={22} className="text-gray-600" />
-              </button>
-            )}
-          </div>
-
-          {/* Dot indicators */}
-          <div className="flex items-center justify-center gap-2 py-4">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setSlide(i)}
-                className={`rounded-full transition-all ${
-                  i === currentSlide
-                    ? 'w-6 h-2.5 bg-pastel-pink-dark'
-                    : 'w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Finish button on last slide */}
-          {currentSlide === totalSlides - 1 && (
-            <div className="px-8 pb-6">
-              <button
-                onClick={() => {
-                  if (!hasSeenWelcome) markSeen()
-                  handleDismiss()
-                }}
-                className="w-full max-w-lg mx-auto block py-3 rounded-xl font-semibold text-gray-700 bg-pastel-pink hover:bg-pastel-pink-dark transition-colors"
-              >
-                Let's go!
-              </button>
-            </div>
-          )}
+          </section>
         </div>
       </main>
+
+      {/* Slideshow popup overlay */}
+      {showPopup && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[100]" onClick={hasSeenWelcome ? closePopup : undefined} />
+          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden relative">
+              {/* Header */}
+              <div className="px-4 py-3 flex items-center gap-2 bg-gradient-to-r from-pastel-blue/30 via-pastel-pink/30 to-pastel-orange/30">
+                <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-5 h-5" />
+                <span className="text-sm font-semibold text-gray-700">Getting Started</span>
+                {hasSeenWelcome && (
+                  <button onClick={closePopup} className="p-1 rounded hover:bg-white/50 transition-colors ml-auto">
+                    <X size={16} className="text-gray-500" />
+                  </button>
+                )}
+              </div>
+
+              {/* Slide content */}
+              <div className="p-5 max-h-[60vh] overflow-y-auto">
+                {slides[currentSlide]}
+              </div>
+
+              {/* Footer with arrows, dots, and button */}
+              <div className="px-5 pb-4 pt-2 flex items-center gap-3">
+                {/* Left arrow */}
+                <button
+                  onClick={() => setSlide(s => s - 1)}
+                  disabled={currentSlide === 0}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-0"
+                >
+                  <ChevronLeft size={20} className="text-gray-500" />
+                </button>
+
+                {/* Dots */}
+                <div className="flex-1 flex items-center justify-center gap-1.5">
+                  {slides.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSlide(i)}
+                      className={`rounded-full transition-all ${
+                        i === currentSlide
+                          ? 'w-5 h-2 bg-pastel-pink-dark'
+                          : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                {/* Right arrow or finish button */}
+                {isLastSlide ? (
+                  <button
+                    onClick={closePopup}
+                    className="px-4 py-1.5 rounded-xl text-sm font-semibold text-gray-700 bg-pastel-pink hover:bg-pastel-pink-dark transition-colors"
+                  >
+                    Got it!
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setSlide(s => s + 1)}
+                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronRight size={20} className="text-gray-500" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
