@@ -221,6 +221,42 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
                 </span>
               </div>
 
+              {/* ChatGPT helper */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
+                <p className="font-semibold mb-1">Need help planning your workshop?</p>
+                <p className="text-blue-600 text-xs">
+                  Paste{' '}
+                  <a
+                    href="https://chatgpt.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-medium hover:text-blue-800"
+                  >this prompt into ChatGPT</a>{' '}
+                  and it will help you build out your steps, objectives, and materials:
+                </p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-medium text-blue-700 hover:text-blue-900 text-xs">
+                    Click to see the prompt
+                  </summary>
+                  <div className="mt-2 bg-white border border-blue-100 rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap select-all">
+{`I'm creating a ${FORMATS.find(f => f.id === format)?.label || 'workshop'} for my robotics team. Help me plan it out by asking me questions about:
+
+1. What topic I want to teach
+2. Who my audience is and their skill level
+3. What I want them to learn by the end
+
+Then based on my answers, generate:
+- A clear title
+- A 1-2 sentence learning objective
+- The target audience description
+- Estimated duration
+- ${format === 'guide' ? 'A step-by-step guide with detailed instructions for each step' : format === 'live' ? 'An outline for my presentation slides and a list of materials needed' : 'An outline for my video and any materials viewers will need'}
+
+Keep it concise and practical. Ask me one question at a time.`}
+                  </div>
+                </details>
+              </div>
+
               {/* Common Fields */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Title *</label>
