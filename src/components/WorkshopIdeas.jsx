@@ -1234,8 +1234,12 @@ export default function WorkshopIdeas() {
 
   // Derived lists
   const myWorkshops = useMemo(() =>
-    workshops.filter(w => w.creator_name === username),
-  [workshops, username])
+    workshops.filter(w =>
+      w.creator_name === username ||
+      (user?.email && w.creator_name === user.email) ||
+      (username && w.creator_name?.toLowerCase() === username.toLowerCase())
+    ),
+  [workshops, username, user])
 
   const filteredMyWorkshops = useMemo(() =>
     myFilter === 'all' ? myWorkshops : myWorkshops.filter(w => w.status === myFilter),
