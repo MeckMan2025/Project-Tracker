@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { MessageCircle, ClipboardList, LineChart, BookOpen, FolderKanban, HelpCircle, ChevronDown, ChevronUp, Smartphone } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MessageCircle, ClipboardList, LineChart, BookOpen, FolderKanban, HelpCircle, ChevronDown, ChevronUp, Smartphone, X, Send, CheckCircle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import NotificationBell from './NotificationBell'
 
@@ -9,7 +9,7 @@ const TAB_INFO = [
     name: 'Chat',
     color: 'text-pastel-pink-dark',
     bg: 'bg-pastel-pink/20',
-    description: 'Talk with other teams in real time. There are three channels: All (everyone), Alliances (your alliance partners), and Leagues (teams in your league).',
+    description: 'Talk with other teams in real time. Three channels: All (everyone), Alliances (your alliance partners), and Leagues (teams in your league).',
   },
   {
     icon: ClipboardList,
@@ -23,7 +23,7 @@ const TAB_INFO = [
     name: 'Data',
     color: 'text-pastel-blue-dark',
     bg: 'bg-pastel-blue/20',
-    description: 'View your team\'s scouting data submissions. Only your team can see your data — it\'s completely private. Coming next season!',
+    description: 'View your team\'s scouting data submissions. Only your team can see your data — completely private. Coming next season!',
   },
   {
     icon: BookOpen,
@@ -44,7 +44,7 @@ const TAB_INFO = [
     name: 'Suggestions',
     color: 'text-pastel-orange-dark',
     bg: 'bg-pastel-orange/20',
-    description: 'Have an idea for a feature or improvement? Submit suggestions and our team will review them.',
+    description: 'Have an idea for a feature or improvement? Submit suggestions and we\'ll review them.',
   },
 ]
 
@@ -59,32 +59,122 @@ const TEAM_UPDATES = [
   },
 ]
 
-const FAQ = [
-  {
-    q: 'Is our data private?',
-    a: 'Yes! Your boards, tasks, and scouting data are completely isolated to your team. No other team can see your information.',
-  },
-  {
-    q: 'Can we create multiple boards?',
-    a: 'Absolutely. Use the "+ Add Board" button in the sidebar to create as many boards as you need — one for each subteam, project, or competition.',
-  },
-  {
-    q: 'How do we add team members?',
-    a: 'Team accounts are shared — everyone on your team uses the same login. Share your team number and password with your members.',
-  },
-  {
-    q: 'When will scouting be available?',
-    a: 'Scouting forms and data will be enabled next season. You\'ll be able to submit match scouting data and view it privately.',
-  },
-  {
-    q: 'How do I report a bug or request a feature?',
-    a: 'Use the Suggestions tab in the sidebar! Describe the issue or feature and our team will review it.',
-  },
+const USAGE_OPTIONS = [
+  'Every day',
+  'A few times a week',
+  'Once a week',
+  'At competitions only',
+  'Just trying it out',
 ]
 
 function TeamHomeView({ onTabChange }) {
   const { username, teamNumber } = useUser()
+  const storageKey = `team-welcome-seen-${teamNumber || 'default'}`
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(() => localStorage.getItem(storageKey) === 'true')
+  const [dismissed, setDismissed] = useState(false)
   const [expandedFaq, setExpandedFaq] = useState(null)
+
+  // Survey state
+  const [featureRequest, setFeatureRequest] = useState('')
+  const [usageFrequency, setUsageFrequency] = useState('')
+  const [surveySubmitted, setSurveySubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const showWelcome = !dismissed && (!hasSeenWelcome || !dismissed)
+  const canDismiss = hasSeenWelcome
+
+  const handleDismiss = () => {
+    setDismissed(true)
+  }
+
+  const markSeen = () => {
+    localStorage.setItem(storageKey, 'true')
+    setHasSeenWelcome(true)
+  }
+
+  const handleSurveySubmit = async () => {
+    if (!featureRequest.trim() && !usageFrequency) return
+    setSubmitting(true)
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      await fetch(`${supabaseUrl}/rest/v1/team_survey_responses`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          team_number: teamNumber || '',
+          team_name: username || '',
+          feature_request: featureRequest.trim(),
+          usage_frequency: usageFrequency,
+          submitted_at: new Date().toISOString(),
+        }),
+      })
+    } catch (err) {
+      console.error('Failed to submit survey:', err)
+    }
+    setSurveySubmitted(true)
+    setSubmitting(false)
+    markSeen()
+  }
+
+  const handleSkipSurvey = () => {
+    markSeen()
+  }
+
+  // If dismissed, show simple home
+  if (dismissed) {
+    return (
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+          <div className="px-4 py-3 ml-14 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                Home
+              </h1>
+            </div>
+            <NotificationBell />
+          </div>
+        </header>
+        <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
+          <div className="max-w-2xl mx-auto space-y-8 pb-8">
+
+            {/* Quick welcome */}
+            <div className="bg-gradient-to-r from-pastel-blue/30 via-pastel-pink/30 to-pastel-orange/30 rounded-2xl p-6 text-center">
+              <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-14 h-14 mx-auto mb-2 drop-shadow-lg" />
+              <h2 className="text-lg font-bold text-gray-800">Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!</h2>
+              <p className="text-sm text-gray-600 mt-1">Use the sidebar to navigate. Tap Home anytime to come back here.</p>
+            </div>
+
+            {/* Team updates */}
+            <section>
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Updates for Teams</h3>
+              <div className="space-y-3">
+                {TEAM_UPDATES.map((update, i) => (
+                  <div key={i} className="bg-white rounded-xl shadow-sm border p-4">
+                    <p className="text-xs font-medium text-gray-400 mb-2">{update.date}</p>
+                    <ul className="space-y-1.5">
+                      {update.items.map((item, j) => (
+                        <li key={j} className="flex gap-2 text-sm text-gray-700">
+                          <span className="text-pastel-pink-dark shrink-0 mt-0.5">-</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -96,7 +186,18 @@ function TeamHomeView({ onTabChange }) {
             </h1>
             <p className="text-xs text-gray-500">Everything That's Scrum</p>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-2">
+            {canDismiss && (
+              <button
+                onClick={handleDismiss}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                title="Close welcome"
+              >
+                <X size={18} />
+              </button>
+            )}
+            <NotificationBell />
+          </div>
         </div>
       </header>
 
@@ -108,7 +209,7 @@ function TeamHomeView({ onTabChange }) {
             <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-16 h-16 mx-auto mb-3 drop-shadow-lg" />
             <h2 className="text-lg font-bold text-gray-800">Your team hub is ready</h2>
             <p className="text-sm text-gray-600 mt-1 max-w-md mx-auto">
-              This is your team's private workspace. Use the tabs in the sidebar to navigate between features. Here's what's available:
+              This is your team's private workspace. Here's everything you can do:
             </p>
           </div>
 
@@ -138,7 +239,7 @@ function TeamHomeView({ onTabChange }) {
             </h3>
             <div className="bg-white rounded-xl shadow-sm border p-4">
               <p className="text-sm text-gray-600 mb-3">
-                You can add this app to your phone's home screen for quick access — no app store needed!
+                Add this app to your phone's home screen for quick access — no app store needed!
               </p>
               <img
                 src="/install-guide.png"
@@ -153,28 +254,75 @@ function TeamHomeView({ onTabChange }) {
             </div>
           </section>
 
-          {/* FAQ */}
-          <section>
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Frequently Asked Questions</h3>
-            <div className="space-y-2">
-              {FAQ.map((item, i) => (
-                <div key={i} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-sm font-medium text-gray-800">{item.q}</span>
-                    {expandedFaq === i ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
-                  </button>
-                  {expandedFaq === i && (
-                    <div className="px-4 pb-3 border-t bg-gray-50/50">
-                      <p className="text-sm text-gray-600 pt-2 leading-relaxed">{item.a}</p>
+          {/* Survey */}
+          {!hasSeenWelcome && (
+            <section>
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Quick Survey</h3>
+              <div className="bg-white rounded-xl shadow-sm border p-5">
+                {surveySubmitted ? (
+                  <div className="text-center py-4">
+                    <CheckCircle size={32} className="text-green-400 mx-auto mb-2" />
+                    <p className="font-semibold text-gray-800">Thanks for the feedback!</p>
+                    <p className="text-sm text-gray-500 mt-1">We'll use this to make the app better for your team.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        How often do you think your team would use this app?
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {USAGE_OPTIONS.map(option => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setUsageFrequency(option)}
+                            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                              usageFrequency === option
+                                ? 'bg-pastel-pink text-gray-800 font-medium'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Any features you wish you had for team management?
+                      </label>
+                      <textarea
+                        value={featureRequest}
+                        onChange={(e) => setFeatureRequest(e.target.value)}
+                        placeholder="e.g. inventory tracking, meeting notes, practice schedules..."
+                        className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleSkipSurvey}
+                        className="flex-1 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        onClick={handleSurveySubmit}
+                        disabled={submitting || (!featureRequest.trim() && !usageFrequency)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg font-medium text-gray-700 transition-colors disabled:opacity-50"
+                      >
+                        <Send size={14} />
+                        {submitting ? 'Sending...' : 'Submit'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Team updates */}
           <section>
