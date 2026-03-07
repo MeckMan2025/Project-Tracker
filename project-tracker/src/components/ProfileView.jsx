@@ -79,7 +79,8 @@ const DEFAULT_PROFILE_DATA = {
 }
 
 function ProfileView({ viewingProfileId, onClearViewing }) {
-  const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio } = useUser()
+  const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio, isTeam, teamNumber } = useUser()
+  const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
   const isViewingOther = viewingProfileId && viewingProfileId !== user?.id
   const [viewedProfile, setViewedProfile] = useState(null)
@@ -642,7 +643,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             </div>
 
             {/* Status selector */}
-            <div className="mt-4 relative">
+            {!effectiveIsTeam && <div className="mt-4 relative">
               <button
                 onClick={() => setStatusOpen(!statusOpen)}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 transition-colors ${currentStatus.bg} border-current/10`}
@@ -678,9 +679,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                   })}
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* Discipline & Timezone */}
+            {!effectiveIsTeam && (
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Discipline</label>
@@ -704,8 +706,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                 />
               </div>
             </div>
+            )}
           </section>
 
+          {!effectiveIsTeam && (<>
           {/* ─── Work Summary ─── */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -1105,6 +1109,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               </button>
             </div>
           </section>
+
+          </>)}
 
           {/* ─── Change Password ─── */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">

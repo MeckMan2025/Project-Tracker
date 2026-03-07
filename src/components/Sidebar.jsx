@@ -124,7 +124,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wide">Menu</h3>
                 <div className="space-y-1">
                   {[
-                    ...(!isTeamAccount ? [{ icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' }] : []),
+                    { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     ...(!isTeamAccount ? [{ icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark' }] : []),
                     ...(!isTeamAccount ? [{ icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' }] : []),
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
