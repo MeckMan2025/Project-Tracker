@@ -5,6 +5,16 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 49,
+    date: '2026-03-07',
+    items: [
+      '🖼 Workshop Gallery — share photos of what you made from workshops',
+      '🗑 Leads can now delete any workshop from the library',
+      '✅ "Done" button on live & video workshops in full-screen viewer',
+      '📷 Add photos to each step in guided workshops',
+    ],
+  },
+  {
     id: 48,
     date: '2026-03-07',
     items: [

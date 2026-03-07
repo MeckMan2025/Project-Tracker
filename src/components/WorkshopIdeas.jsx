@@ -3,7 +3,8 @@ import {
   Plus, Send, Trash2, Check, X, ChevronRight, ChevronLeft, Eye,
   Lightbulb, Monitor, Video, ListOrdered, Upload, Link, MessageSquare,
   Clock, Users, Target, BookOpen, Edit3, RotateCcw, FileText, Library,
-  ImagePlus, Loader2, ArrowLeft, CheckCircle2, Circle, ArrowRight, Trophy
+  ImagePlus, Loader2, ArrowLeft, CheckCircle2, Circle, ArrowRight, Trophy,
+  Image, Camera
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -858,6 +859,18 @@ function WorkshopViewer({ workshop, onClose, userId }) {
         </div>
       </div>
 
+      {/* Done button for non-guide workshops */}
+      {!isGuide && (
+        <div className="bg-white border-t px-4 py-3 shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold text-gray-700 transition-colors"
+          >
+            <Check size={16} /> Done
+          </button>
+        </div>
+      )}
+
       {/* Bottom navigation for guides */}
       {isGuide && (
         <div className="bg-white border-t px-4 py-3 flex items-center gap-3 shrink-0">
@@ -897,7 +910,7 @@ function WorkshopViewer({ workshop, onClose, userId }) {
 
 // ─── Workshop Card ───────────────────────────────────────────────────────────
 
-function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, onWithdraw, onEdit, onSubmit }) {
+function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, onWithdraw, onEdit, onSubmit, onAdminDelete }) {
   const fmt = FORMATS.find(f => f.id === workshop.format_type)
 
   return (
@@ -973,6 +986,18 @@ function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, on
           )}
         </div>
       )}
+
+      {/* Admin delete (leads only) */}
+      {onAdminDelete && (
+        <div className="mt-3" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={() => onAdminDelete(workshop.id)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium transition-colors"
+          >
+            <Trash2 size={12} /> Delete Workshop
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -987,12 +1012,18 @@ export default function WorkshopIdeas() {
   const canCreate = !isGuest
 
   const [workshops, setWorkshops] = useState([])
-  const [section, setSection] = useState('library') // 'library' | 'my' | 'review'
+  const [section, setSection] = useState('library') // 'library' | 'my' | 'review' | 'gallery'
   const [createModal, setCreateModal] = useState(false)
   const [editingWorkshop, setEditingWorkshop] = useState(null)
   const [viewWorkshop, setViewWorkshop] = useState(null) // detail modal (my/review)
   const [activeWorkshop, setActiveWorkshop] = useState(null) // full-screen viewer (library)
   const [myFilter, setMyFilter] = useState('all')
+  const [galleryItems, setGalleryItems] = useState([])
+  const [galleryUploading, setGalleryUploading] = useState(false)
+  const [galleryCaption, setGalleryCaption] = useState('')
+  const [galleryWorkshopId, setGalleryWorkshopId] = useState('')
+  const [galleryFile, setGalleryFile] = useState(null)
+  const [galleryPreview, setGalleryPreview] = useState(null)
 
   const loadWorkshops = async () => {
     try {
@@ -1003,9 +1034,19 @@ export default function WorkshopIdeas() {
     }
   }
 
+  const loadGallery = async () => {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_gallery?select=*&order=created_at.desc`, { headers })
+      if (res.ok) setGalleryItems(await res.json())
+    } catch (err) {
+      console.error('Failed to load gallery:', err)
+    }
+  }
+
   useEffect(() => {
     loadWorkshops()
-    const onFocus = () => loadWorkshops()
+    loadGallery()
+    const onFocus = () => { loadWorkshops(); loadGallery() }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [])
@@ -1027,7 +1068,18 @@ export default function WorkshopIdeas() {
         setWorkshops(prev => prev.filter(w => w.id !== payload.old.id))
       })
       .subscribe()
-    return () => supabase.removeChannel(channel)
+
+    const galleryChannel = supabase
+      .channel('workshop-gallery-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshop_gallery' }, (payload) => {
+        setGalleryItems(prev => prev.some(g => g.id === payload.new.id) ? prev : [payload.new, ...prev])
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshop_gallery' }, (payload) => {
+        setGalleryItems(prev => prev.filter(g => g.id !== payload.old.id))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel); supabase.removeChannel(galleryChannel) }
   }, [])
 
   // Derived lists
@@ -1164,10 +1216,76 @@ export default function WorkshopIdeas() {
     setCreateModal(true)
   }
 
+  const handleAdminDelete = async (id) => {
+    if (!window.confirm('Delete this workshop? This cannot be undone.')) return
+    setWorkshops(prev => prev.filter(w => w.id !== id))
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/workshops?id=eq.${id}`, { method: 'DELETE', headers })
+    } catch (err) {
+      console.error('Failed to delete workshop:', err)
+      loadWorkshops()
+    }
+  }
+
+  const handleGallerySubmit = async () => {
+    if (!galleryFile) return
+    setGalleryUploading(true)
+    const ext = galleryFile.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    try {
+      const uploadRes = await fetch(
+        `${supabaseUrl}/storage/v1/object/workshop-gallery/${fileName}`,
+        {
+          method: 'POST',
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': galleryFile.type },
+          body: galleryFile,
+        }
+      )
+      if (!uploadRes.ok) {
+        console.error('Gallery upload failed:', await uploadRes.text())
+        setGalleryUploading(false)
+        return
+      }
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/workshop-gallery/${fileName}`
+      const item = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        image_url: publicUrl,
+        caption: galleryCaption.trim(),
+        workshop_id: galleryWorkshopId || null,
+        workshop_title: galleryWorkshopId ? (workshops.find(w => w.id === galleryWorkshopId)?.title || '') : '',
+        submitted_by: username,
+        created_at: new Date().toISOString(),
+      }
+      setGalleryItems(prev => [item, ...prev])
+      await fetch(`${supabaseUrl}/rest/v1/workshop_gallery`, {
+        method: 'POST', headers: jsonHeaders, body: JSON.stringify(item),
+      })
+      setGalleryFile(null)
+      setGalleryPreview(null)
+      setGalleryCaption('')
+      setGalleryWorkshopId('')
+    } catch (err) {
+      console.error('Gallery submit error:', err)
+    }
+    setGalleryUploading(false)
+  }
+
+  const handleGalleryDelete = async (id) => {
+    if (!window.confirm('Delete this gallery submission?')) return
+    setGalleryItems(prev => prev.filter(g => g.id !== id))
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/workshop_gallery?id=eq.${id}`, { method: 'DELETE', headers })
+    } catch (err) {
+      console.error('Failed to delete gallery item:', err)
+      loadGallery()
+    }
+  }
+
   const sectionTabs = [
     { id: 'library', label: 'Workshop Library', icon: Library, count: libraryWorkshops.length },
     ...(canCreate ? [{ id: 'my', label: 'My Workshops', icon: BookOpen, count: myWorkshops.length }] : []),
     ...(canReview ? [{ id: 'review', label: 'Review Queue', icon: Eye, count: reviewQueue.length }] : []),
+    { id: 'gallery', label: 'Gallery', icon: Image, count: galleryItems.length },
   ]
 
   return (
@@ -1235,6 +1353,7 @@ export default function WorkshopIdeas() {
                       key={w.id}
                       workshop={w}
                       onClick={() => setActiveWorkshop(w)}
+                      onAdminDelete={canReview ? handleAdminDelete : null}
                     />
                   ))}
                 </div>
@@ -1328,6 +1447,116 @@ export default function WorkshopIdeas() {
                 <div className="text-center py-20">
                   <Check size={40} className="mx-auto text-gray-300 mb-3" />
                   <p className="text-gray-400 text-sm">No workshops pending review.</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Gallery */}
+          {section === 'gallery' && (
+            <>
+              {/* Submit to gallery */}
+              {canCreate && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Camera size={16} className="text-pastel-orange-dark" />
+                    <span className="text-sm font-semibold text-gray-600">Share What You Made</span>
+                  </div>
+
+                  {galleryPreview ? (
+                    <div className="relative inline-block">
+                      <img src={galleryPreview} alt="Preview" className="h-32 rounded-lg object-cover" />
+                      <button
+                        onClick={() => { setGalleryFile(null); setGalleryPreview(null) }}
+                        className="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 text-gray-400 hover:text-red-500"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-pastel-pink cursor-pointer transition-colors">
+                      <ImagePlus size={20} className="text-gray-400" />
+                      <span className="text-sm text-gray-400">Upload a photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setGalleryFile(file)
+                            setGalleryPreview(URL.createObjectURL(file))
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+
+                  <input
+                    value={galleryCaption}
+                    onChange={e => setGalleryCaption(e.target.value)}
+                    placeholder="Caption (optional)"
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+
+                  <select
+                    value={galleryWorkshopId}
+                    onChange={e => setGalleryWorkshopId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  >
+                    <option value="">Link to a workshop (optional)</option>
+                    {libraryWorkshops.map(w => (
+                      <option key={w.id} value={w.id}>{w.title}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={handleGallerySubmit}
+                    disabled={!galleryFile || galleryUploading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-semibold text-gray-700 transition-colors"
+                  >
+                    {galleryUploading ? (
+                      <><Loader2 size={14} className="animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Send size={14} /> Share</>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Gallery grid */}
+              {galleryItems.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {galleryItems.map(item => (
+                    <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                      <img src={item.image_url} alt={item.caption || 'Gallery'} className="w-full h-40 object-cover" />
+                      <div className="p-3">
+                        {item.caption && <p className="text-sm text-gray-700 mb-1">{item.caption}</p>}
+                        {item.workshop_title && (
+                          <p className="text-xs text-pastel-blue-dark font-medium mb-1">
+                            From: {item.workshop_title}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">{item.submitted_by} &middot; {formatDate(item.created_at)}</span>
+                          {(canReview || item.submitted_by === username) && (
+                            <button
+                              onClick={() => handleGalleryDelete(item.id)}
+                              className="text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20">
+                  <Image size={40} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-400 text-sm">No gallery submissions yet.</p>
+                  {canCreate && <p className="text-xs text-gray-400 mt-1">Share what you made from a workshop!</p>}
                 </div>
               )}
             </>

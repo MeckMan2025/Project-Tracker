@@ -5,10 +5,35 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 49,
+    date: '2026-03-07',
+    items: [
+      '🖼 Workshop Gallery — share photos of what you made from workshops',
+      '🗑 Leads can now delete any workshop from the library',
+      '✅ "Done" button on live & video workshops in full-screen viewer',
+      '📷 Add photos to each step in guided workshops',
+    ],
+  },
+  {
+    id: 48,
+    date: '2026-03-07',
+    items: [
+      '🔧 Fixed suggestions not saving/persisting after refresh',
+      '🔓 Everyone can now submit suggestions (including guests)',
+    ],
+  },
+  {
+    id: 47,
+    date: '2026-03-07',
+    items: [
+      '💡 Suggestions page now includes a ChatGPT prompt helper to turn complex ideas into clear feature requests',
+    ],
+  },
+  {
     id: 46,
     date: '2026-03-07',
     items: [
-      '📊 Export scouting data to CSV — open in Google Sheets, Excel, etc.',
+      '📊 Export scouting data to CSV — open in Google Sheets',
     ],
   },
   {
