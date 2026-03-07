@@ -484,6 +484,29 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </div>
           )}
 
+          </>}
+
+          {/* Workshops Tab for team accounts */}
+          {isTeamAccount && !isGuest && (
+            <>
+            <hr className="my-2 border-gray-200" />
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === 'workshops'
+                  ? 'bg-pastel-pink text-gray-800'
+                  : 'hover:bg-pastel-blue/30 text-gray-600'
+              }`}
+              onClick={() => {
+                onTabChange('workshops')
+                onToggle()
+              }}
+            >
+              <GraduationCap size={16} className="text-pastel-blue-dark" />
+              <span className="truncate flex-1">Workshops</span>
+            </div>
+            </>
+          )}
+
           <hr className="my-2 border-gray-200" />
 
           {/* Engineering Notebook — hidden for guests */}
@@ -507,8 +530,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               <hr className="my-2 border-gray-200" />
             </>
           )}
-
-          </>}
 
           {/* Suggestions */}
           <div
