@@ -19,18 +19,26 @@ function TeamScoutingData() {
   const loadRecords = async () => {
     setLoading(true)
     try {
-      // Filter by owner_team first, fall back to submitted_by matching username
-      let query = supabase.from('scouting_records').select('*')
+      // Try filtering by owner_team first
       if (teamNumber) {
-        query = query.eq('owner_team', teamNumber)
-      } else {
-        query = query.eq('submitted_by', username || '')
+        const { data, error } = await supabase.from('scouting_records').select('*')
+          .eq('owner_team', teamNumber)
+          .order('submitted_at', { ascending: false })
+        if (!error) {
+          setRecords(data || [])
+          setLoading(false)
+          return
+        }
       }
-      const { data, error } = await query.order('submitted_at', { ascending: false })
+      // Fallback: filter by submitted_by containing the username
+      const { data, error } = await supabase.from('scouting_records').select('*')
+        .eq('submitted_by', username || '')
+        .order('submitted_at', { ascending: false })
       if (error) throw error
       setRecords(data || [])
     } catch (err) {
       console.error('Failed to load scouting records:', err)
+      setRecords([])
     }
     setLoading(false)
   }
@@ -138,8 +146,9 @@ function TeamScoutingData() {
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pastel-pink-dark" />
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-14 h-14 animate-pulse drop-shadow-lg" />
+            <p className="text-sm font-semibold text-gray-500 animate-pulse">Scrumming it up...</p>
           </div>
         ) : records.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
