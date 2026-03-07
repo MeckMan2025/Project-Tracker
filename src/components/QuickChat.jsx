@@ -314,9 +314,11 @@ function QuickChat({ channel = 'all' }) {
                     key={msg.id}
                     className={`flex mb-3 items-end gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
                   >
-                    {!isOwn && msg.avatar_url && (
+                    {!isOwn && (msg.avatar_url ? (
                       <img src={msg.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 mb-1" />
-                    )}
+                    ) : (
+                      <div className="w-7 h-7 shrink-0" />
+                    ))}
                     <div
                       className={`relative group max-w-[75%] rounded-2xl px-4 py-2 shadow-sm text-gray-800 ${
                         isOwn
@@ -348,6 +350,9 @@ function QuickChat({ channel = 'all' }) {
                         <p className="text-[10px] text-gray-400 text-right">Seen</p>
                       )}
                     </div>
+                    {isOwn && (myAvatarUrl || msg.avatar_url) && (
+                      <img src={myAvatarUrl || msg.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 mb-1" />
+                    )}
                   </div>
                 )
               })}
