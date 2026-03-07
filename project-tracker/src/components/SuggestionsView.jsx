@@ -65,7 +65,7 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, username])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
     setSubmitError('')
@@ -81,19 +81,35 @@ function SuggestionsView() {
     setSuggestions(prev => [suggestion, ...prev])
     setNewSuggestion('')
 
-    fetch(`${supabaseUrl}/rest/v1/suggestions`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify(suggestion),
-    }).then(res => {
+    try {
+      // Use the user's JWT for the write so RLS/grants are satisfied
+      let writeToken = supabaseKey
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) writeToken = session.access_token
+      } catch (_) {}
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/suggestions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${writeToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(suggestion),
+      })
       if (!res.ok) {
-        res.text().then(t => setSubmitError('Failed to save: ' + t))
-        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
+        const t = await res.text()
+        throw new Error(t || res.statusText)
       }
-    }).catch(err => {
-      setSubmitError('Failed to save: ' + err.message)
+      const rows = await res.json()
+      if (rows[0]) setSuggestions(prev => prev.map(s => s.id === suggestion.id ? rows[0] : s))
+    } catch (err) {
+      console.error('Suggestion save failed:', err)
+      setSubmitError('Failed to save — ' + err.message)
       setSuggestions(prev => prev.filter(s => s.id !== suggestion.id))
-    })
+    }
   }
 
   const handleSetStatus = async (id, status) => {
@@ -155,6 +171,67 @@ function SuggestionsView() {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
+  const submitForm = (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h2 className="text-xl font-semibold text-gray-700 text-center">
+        What would make this app better?
+      </h2>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        <p className="font-semibold mb-1">💡 Having trouble explaining your idea?</p>
+        <p className="text-blue-600">
+          If your feature idea is complex or hard to put into words, try pasting
+          {' '}<a
+            href="https://chatgpt.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-medium hover:text-blue-800"
+          >this prompt into ChatGPT</a>{' '}
+          and it will ask you questions to help you write a clear, detailed suggestion:
+        </p>
+        <details className="mt-2">
+          <summary className="cursor-pointer font-medium text-blue-700 hover:text-blue-900">
+            Click to see the prompt to copy
+          </summary>
+          <div className="mt-2 bg-white border border-blue-100 rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap select-all">
+{`I have an idea for a feature I want added to my team's app, but I'm having trouble explaining it clearly. I need your help turning my idea into a detailed, well-written feature request.
+
+Please ask me questions one at a time to understand my idea. Keep going until you have enough detail. Here are some things to ask about:
+
+1. What is the feature? (Get me to describe the basic idea)
+2. What problem does it solve? (Why do I want this?)
+3. Who would use it? (Just me, my whole team, leads only, etc.)
+4. How should it look/work? (Where in the app, what buttons, what happens when you click them)
+5. Are there any edge cases? (What if someone does X, what should happen?)
+6. Any examples of something similar? (Other apps that do this)
+
+After you've asked enough questions, write me a final polished feature suggestion that I can copy and paste directly into the suggestion box. Make it clear, specific, and easy for a developer to understand. Format it like:
+
+**Feature:** [Name]
+**Problem:** [What it solves]
+**How it works:** [Step by step description]
+**Details:** [Any extra info]`}
+          </div>
+        </details>
+      </div>
+      <textarea
+        value={newSuggestion}
+        onChange={(e) => setNewSuggestion(e.target.value)}
+        placeholder="Type your suggestion here..."
+        rows={4}
+        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none text-sm"
+      />
+      {submitError && <p className="text-sm text-red-500 text-center">{submitError}</p>}
+      <button
+        type="submit"
+        disabled={!newSuggestion.trim()}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-gray-700"
+      >
+        <Send size={16} />
+        Submit Suggestion
+      </button>
+    </form>
+  )
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -175,6 +252,9 @@ function SuggestionsView() {
       {isReviewer ? (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
+            {/* Submit form for reviewers too */}
+            {submitForm}
+
             {[
               { key: 'pending', label: 'Pending', color: 'bg-amber-200', items: suggestions.filter(s => !s.status || s.status === 'pending') },
               { key: 'approved', label: 'Approved', color: 'bg-green-200', items: suggestions.filter(s => s.status === 'approved') },
@@ -244,27 +324,7 @@ function SuggestionsView() {
       ) : (
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-700 text-center">
-                What would make this app better?
-              </h2>
-              <textarea
-                value={newSuggestion}
-                onChange={(e) => setNewSuggestion(e.target.value)}
-                placeholder="Type your suggestion here..."
-                rows={4}
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pastel-pink focus:border-transparent resize-none text-sm"
-              />
-              {submitError && <p className="text-sm text-red-500 text-center">{submitError}</p>}
-              <button
-                type="submit"
-                disabled={!newSuggestion.trim()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-gray-700"
-              >
-                <Send size={16} />
-                Submit Suggestion
-              </button>
-            </form>
+            {submitForm}
 
             {suggestions.length > 0 && (
               <div className="space-y-3">
@@ -272,11 +332,9 @@ function SuggestionsView() {
                 {suggestions.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                        s.status === 'approved' ? 'bg-green-500' :
-                        s.status === 'denied' ? 'bg-red-500' :
-                        'bg-yellow-400'
-                      }`} title={s.status === 'approved' ? 'Approved' : s.status === 'denied' ? 'Denied' : 'Pending'} />
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[s.status] || STATUS_STYLES.pending}`}>
+                        {s.status === 'approved' ? 'Approved' : s.status === 'denied' ? 'Denied' : 'Pending'}
+                      </span>
                       <span className="text-xs text-gray-400">{s.created_at ? formatDate(s.created_at) : 'Just now'}</span>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mt-1">{s.text}</p>

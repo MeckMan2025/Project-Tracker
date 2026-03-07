@@ -233,6 +233,7 @@ export function UserProvider({ children }) {
               setLoading(false)
               return
             }
+            setupRealtimeSub(session.user.id)
             setLoading(false)
           }
           return
@@ -293,6 +294,7 @@ export function UserProvider({ children }) {
             } else {
               console.error('[Auth] No profile found for user:', session.user.id)
             }
+            setupRealtimeSub(session.user.id)
           }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Keep user state fresh when token auto-refreshes (e.g. after page idle/refresh)
@@ -309,6 +311,31 @@ export function UserProvider({ children }) {
         expireSession()
       }
     }, 60 * 1000)
+
+    // Realtime subscription: pick up role/tag changes made by leads immediately
+    let profileChannel = null
+    const setupRealtimeSub = (userId) => {
+      if (profileChannel) supabase.removeChannel(profileChannel)
+      profileChannel = supabase
+        .channel(`profile-changes-${userId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        }, async () => {
+          if (!mounted) return
+          // Re-fetch profile + session email to avoid stale closure issues
+          try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user && mounted) {
+              const profile = await fetchProfile(session.user.id)
+              if (mounted && profile) applyProfile(profile, session.user.email)
+            }
+          } catch (e) { /* ignore */ }
+        })
+        .subscribe()
+    }
 
     // Detect stale session on tab/laptop wake + re-fetch profile for permission changes
     const handleVisibility = async () => {
@@ -341,6 +368,7 @@ export function UserProvider({ children }) {
     return () => {
       mounted = false
       subscription.unsubscribe()
+      if (profileChannel) supabase.removeChannel(profileChannel)
       clearTimeout(timeout)
       clearInterval(interval)
       document.removeEventListener('visibilitychange', handleVisibility)
@@ -386,7 +414,7 @@ export function UserProvider({ children }) {
 
   const resetPassword = async (email) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== 'undefined' ? window.location.origin : '/',
+      redirectTo: window.location.origin,
     })
     if (error) throw error
   }
@@ -416,7 +444,7 @@ export function UserProvider({ children }) {
     clearState()
     localStorage.clear()
     sessionStorage.clear()
-    window.location.reload()
+    window.location.replace(window.location.origin)
   }
 
   return (

@@ -43,7 +43,7 @@ export function usePermissions() {
     canUseChat: !isGuest,
     canDeleteOwnMessages: !isGuest,
     canViewOwnAttendance: !isGuest,
-    canSubmitSuggestions: !isGuest || isTeam,
+    canSubmitSuggestions: true,
     canDragOwnTask: !isGuest,
     canImport: !isGuest,
 
