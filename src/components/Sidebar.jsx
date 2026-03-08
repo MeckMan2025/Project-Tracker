@@ -261,7 +261,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           )}
 
           {/* Scouting Tab for regular accounts — dropdown with form + schedule */}
-          {navFilter !== 'business' && !isTeamAccount && !isGuest && (
+          {!isTeamAccount && !isGuest && (
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
