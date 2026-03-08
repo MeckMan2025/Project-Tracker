@@ -1023,7 +1023,7 @@ function App() {
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {!isLoading && !effectiveIsTeam && <ChangelogPopup />}
-      {!isLoading && flashRequired && (
+      {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
           username={flashUsername}
           activeFlash={activeFlash}
