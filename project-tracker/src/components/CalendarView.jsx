@@ -534,39 +534,47 @@ function CalendarView() {
                     </button>
                   )}
                 </div>
-                {/* Event dots/names */}
-                <div className="mt-1 space-y-0.5">
-                  {dayEvents.map(ev => {
-                    const t = EVENT_TYPES[ev.eventType] || EVENT_TYPES.other
-                    return (
-                      <div
-                        key={ev.id}
-                        className="flex items-center gap-1 group"
-                        title={ev.description || ev.name}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dot} shrink-0`} />
-                        <span className="text-xs text-gray-600 truncate">{ev.name}</span>
-                        {pendingScheduled[ev.id] && (
-                          <Clock size={10} className="text-pastel-orange-dark shrink-0" title="Scheduled notification pending" />
-                        )}
-                      </div>
-                    )
-                  })}
-                  {dayTasks.map(task => {
-                    const isDone = task.status === 'done' || task.status === 'completed'
-                    const isMyTask = task.assignee?.toLowerCase() === username?.toLowerCase()
-                    return (
-                      <div
-                        key={task.id}
-                        className="flex items-center gap-1"
-                        title={`Task: ${task.title}${task.assignee ? ' (' + task.assignee + ')' : ''}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-green-400' : (PRIORITY_DOT[task.priority] || PRIORITY_DOT.medium)}`} />
-                        <span className={`text-xs truncate ${isDone ? 'text-green-600 line-through' : isMyTask ? 'text-pastel-blue-dark font-semibold' : 'text-gray-600'}`}>{task.title}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+                {/* Event dots/names — max 3 visible, overflow indicator */}
+                {(() => {
+                  const allItems = [
+                    ...dayEvents.map(ev => ({ type: 'event', item: ev })),
+                    ...dayTasks.map(task => ({ type: 'task', item: task })),
+                  ]
+                  const visible = allItems.slice(0, 3)
+                  const overflow = allItems.length - 3
+
+                  return (
+                    <div className="mt-1 space-y-0.5">
+                      {visible.map((entry, idx) => {
+                        if (entry.type === 'event') {
+                          const ev = entry.item
+                          const t = EVENT_TYPES[ev.eventType] || EVENT_TYPES.other
+                          return (
+                            <div key={ev.id} className="flex items-center gap-1 group" title={ev.description || ev.name}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${t.dot} shrink-0`} />
+                              <span className="text-xs text-gray-600 truncate">{ev.name}</span>
+                              {pendingScheduled[ev.id] && (
+                                <Clock size={10} className="text-pastel-orange-dark shrink-0" title="Scheduled notification pending" />
+                              )}
+                            </div>
+                          )
+                        }
+                        const task = entry.item
+                        const isDone = task.status === 'done' || task.status === 'completed'
+                        const isMyTask = task.assignee?.toLowerCase() === username?.toLowerCase()
+                        return (
+                          <div key={task.id} className="flex items-center gap-1" title={`Task: ${task.title}${task.assignee ? ' (' + task.assignee + ')' : ''}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-green-400' : (PRIORITY_DOT[task.priority] || PRIORITY_DOT.medium)}`} />
+                            <span className={`text-xs truncate ${isDone ? 'text-green-600 line-through' : isMyTask ? 'text-pastel-blue-dark font-semibold' : 'text-gray-600'}`}>{task.title}</span>
+                          </div>
+                        )
+                      })}
+                      {overflow > 0 && (
+                        <span className="text-[10px] text-gray-400 font-medium">+{overflow} more</span>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
