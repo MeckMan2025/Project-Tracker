@@ -1312,15 +1312,10 @@ function App() {
                     <div className="grid gap-3">
                       <button
                         onClick={() => setActiveTab('comp-day')}
-                        className="w-full px-6 py-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all text-left group"
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-lg font-bold text-white">Competition Day</span>
-                            <p className="text-sm text-gray-400 mt-1">Plan roles, manage blocks, track scouting accountability</p>
-                          </div>
-                          <span className="text-3xl group-hover:scale-110 transition-transform">🏁</span>
-                        </div>
+                        <span className="text-lg font-semibold text-gray-700">🏁 Competition Day</span>
+                        <p className="text-sm text-gray-400 mt-1">Plan roles, manage blocks, track scouting accountability</p>
                       </button>
                       {['SWOT Mode', 'Scouting Mode', 'Meeting Stats'].map(label => (
                         <button
