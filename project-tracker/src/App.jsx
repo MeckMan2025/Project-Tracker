@@ -289,6 +289,13 @@ function App() {
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashRequired = activeFlash && username && presentUsers.includes(username) && !completedUsers.includes(username) && !(activeFlash.exempt_users || []).includes(username)
+
+  // Debug flash — remove after testing
+  useEffect(() => {
+    if (activeFlash) {
+      console.log('[Flash Debug]', { activeFlash: !!activeFlash, username, presentUsers, completedUsers, flashRequired: !!activeFlash && !!username && presentUsers.includes(username) && !completedUsers.includes(username), hasLeadTag })
+    }
+  }, [activeFlash, username, presentUsers, completedUsers, hasLeadTag])
   useBackButton()
   const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
