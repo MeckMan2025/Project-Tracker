@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 71,
+    date: '2026-03-08',
+    items: [
+      '🏁 Comp Day session editor redesigned with 6 tabs: Roles, Schedule, Matches, Rotation, Tasks, and Team Status',
+    ],
+  },
+  {
     id: 70,
     date: '2026-03-08',
     items: [

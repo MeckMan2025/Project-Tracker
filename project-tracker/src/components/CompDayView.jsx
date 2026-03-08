@@ -62,6 +62,10 @@ export default function CompDayView({ onBack }) {
   const [assigningBlock, setAssigningBlock] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [createStep, setCreateStep] = useState(1) // 1 = intro splash, 2 = name/details
+  const [editorTab, setEditorTab] = useState('roles')
+  const [compMatches, setCompMatches] = useState([])
+  const [compTasks, setCompTasks] = useState([])
+  const [blockTimes, setBlockTimes] = useState({})
 
   // Load all sessions
   const fetchSessions = useCallback(async () => {
@@ -554,9 +558,38 @@ export default function CompDayView({ onBack }) {
     )
   }
 
-  // ─── Lead View: Session editor ───
+  // ─── Lead View: Session editor with tabbed nav ───
+  const TABS = [
+    { id: 'roles', label: 'Roles', emoji: '👥' },
+    { id: 'schedule', label: 'Schedule', emoji: '📅' },
+    { id: 'matches', label: 'Matches', emoji: '🏁' },
+    { id: 'rotation', label: 'Rotation', emoji: '🔄' },
+    { id: 'tasks', label: 'Tasks', emoji: '✅' },
+    { id: 'status', label: 'Team Status', emoji: '📊' },
+  ]
+
+  const storageKey = `comp-day-${activeSession?.id}`
+
+  // Local storage helpers for matches & tasks
+  const getStored = (key) => { try { return JSON.parse(localStorage.getItem(`${storageKey}-${key}`) || '[]') } catch { return [] } }
+  const setStored = (key, val) => localStorage.setItem(`${storageKey}-${key}`, JSON.stringify(val))
+
+  // Load stored matches/tasks/times when session changes
+  useEffect(() => {
+    if (!activeSession) return
+    const sk = `comp-day-${activeSession.id}`
+    try { setCompMatches(JSON.parse(localStorage.getItem(`${sk}-matches`) || '[]')) } catch { setCompMatches([]) }
+    try { setCompTasks(JSON.parse(localStorage.getItem(`${sk}-tasks`) || '[]')) } catch { setCompTasks([]) }
+    try { setBlockTimes(JSON.parse(localStorage.getItem(`${sk}-times`) || '{}')) } catch { setBlockTimes({}) }
+  }, [activeSession?.id])
+
+  const saveMatches = (m) => { setCompMatches(m); setStored('matches', m) }
+  const saveTasks = (t) => { setCompTasks(t); setStored('tasks', t) }
+  const saveBlockTimes = (t) => { setBlockTimes(t); localStorage.setItem(`${storageKey}-times`, JSON.stringify(t)) }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
+      {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 ml-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -572,7 +605,7 @@ export default function CompDayView({ onBack }) {
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-300 font-medium">DRAFT</span>
                 )}
               </div>
-              <p className="text-xs text-gray-400">{activeSession.session_date} &middot; {members.length} members &middot; {blocks.length} blocks</p>
+              <p className="text-xs text-gray-400">{activeSession.session_date}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -588,6 +621,24 @@ export default function CompDayView({ onBack }) {
             <NotificationBell />
           </div>
         </div>
+
+        {/* Tab nav */}
+        <div className="px-4 ml-14 pb-2 flex gap-1 overflow-x-auto">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setEditorTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                editorTab === tab.id
+                  ? 'bg-pastel-pink text-gray-800'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <span>{tab.emoji}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
@@ -601,178 +652,460 @@ export default function CompDayView({ onBack }) {
             </div>
           )}
 
-          {/* Add block */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newBlockName}
-              onChange={e => setNewBlockName(e.target.value)}
-              placeholder="Add block (e.g. Match 1, Lunch, Judging)"
-              className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-              onKeyDown={e => e.key === 'Enter' && addBlock()}
-            />
-            <button onClick={addBlock} disabled={!newBlockName.trim()} className="px-4 py-2.5 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors">
-              <Plus size={16} />
-            </button>
-          </div>
-
-          {/* Blocks */}
-          {blocks.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <p className="text-sm">Add blocks to build the day's schedule.</p>
-              <p className="text-xs mt-1">e.g. Match 1, Match 2, Lunch, Judging, Playoffs</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {blocks.map(block => {
-                const blockAssigns = getBlockAssignments(block.id)
-                const unassigned = unassignedInBlock(block.id)
-                const isExpanded = assigningBlock === block.id
-
-                return (
-                  <div key={block.id} className={`bg-white rounded-xl shadow-sm border ${block.is_active ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200'}`}>
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex items-center gap-2">
-                        {block.is_active && <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />}
-                        <span className="font-semibold text-gray-800">{block.name}</span>
-                        <span className="text-xs text-gray-400">({blockAssigns.length}/{members.length})</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {isLive && (
-                          !block.is_active ? (
-                            <button onClick={() => activateBlock(block.id)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Activate">
-                              <Play size={16} />
-                            </button>
-                          ) : (
-                            <button onClick={() => restPatch('comp_day_blocks', `id=eq.${block.id}`, { is_active: false }).then(() => fetchSessionData(activeSession.id))} className="p-1.5 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors" title="Deactivate">
-                              <Pause size={16} />
-                            </button>
-                          )
-                        )}
-                        <button onClick={() => setAssigningBlock(isExpanded ? null : block.id)} className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-gray-200 text-gray-700' : 'hover:bg-gray-100 text-gray-500'}`} title="Assign roles">
-                          <Users size={16} />
-                        </button>
-                        <button onClick={() => deleteBlock(block.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {!isExpanded && blockAssigns.length > 0 && (
-                      <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-                        {ROLES.map(role => {
-                          const count = blockAssigns.filter(a => a.role === role.id).length
-                          if (count === 0) return null
-                          return (
-                            <span key={role.id} className={`text-xs px-2 py-0.5 rounded-full border ${role.color}`}>
-                              {role.emoji} {count}
-                            </span>
-                          )
-                        })}
-                        {unassigned.length > 0 && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-200">
-                            ❓ {unassigned.length} unassigned
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {isExpanded && (
-                      <div className="border-t border-gray-100 p-4 space-y-2">
-                        {members.map(member => {
-                          const currentRole = getMemberRole(block.id, member)
-                          return (
-                            <div key={member} className="flex items-center gap-2">
-                              <span className="text-sm text-gray-700 w-36 truncate font-medium">{member}</span>
-                              <div className="flex flex-wrap gap-1 flex-1">
-                                {ROLES.map(role => (
-                                  <button
-                                    key={role.id}
-                                    onClick={() => setRole(block.id, member, currentRole === role.id ? '' : role.id)}
-                                    className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                                      currentRole === role.id
-                                        ? role.color + ' font-semibold'
-                                        : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                                    }`}
-                                  >
-                                    {role.emoji} {role.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
+          {/* ═══ ROLES TAB ═══ */}
+          {editorTab === 'roles' && (
+            <div className="space-y-4">
+              {blocks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-sm">Add schedule blocks first (📅 Schedule tab), then assign roles here.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Block selector for role assignment */}
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {blocks.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => setAssigningBlock(b.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                          assigningBlock === b.id ? 'bg-pastel-blue text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {b.is_active && <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />}
+                        {b.name}
+                      </button>
+                    ))}
                   </div>
-                )
-              })}
+
+                  {/* Role cards grouped by role */}
+                  {assigningBlock && (
+                    <div className="space-y-3">
+                      {ROLES.map(role => {
+                        const assigned = assignments.filter(a => a.block_id === assigningBlock && a.role === role.id)
+                        return (
+                          <div key={role.id} className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden`}>
+                            <div className={`px-4 py-3 flex items-center justify-between ${role.color} border-b`}>
+                              <span className="text-sm font-semibold">{role.emoji} {role.label}</span>
+                              <span className="text-xs">{assigned.length} assigned</span>
+                            </div>
+                            <div className="p-3">
+                              {/* Assigned members */}
+                              {assigned.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  {assigned.map(a => (
+                                    <span key={a.username} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
+                                      {a.username}
+                                      {hasLeadTag && (
+                                        <button onClick={() => setRole(assigningBlock, a.username, '')} className="text-gray-400 hover:text-red-500">
+                                          <X size={12} />
+                                        </button>
+                                      )}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Add member dropdown */}
+                              {hasLeadTag && (
+                                <select
+                                  className="text-xs border rounded-lg px-2 py-1.5 text-gray-500 w-full"
+                                  value=""
+                                  onChange={e => { if (e.target.value) setRole(assigningBlock, e.target.value, role.id) }}
+                                >
+                                  <option value="">+ Add person...</option>
+                                  {members.filter(m => !assigned.some(a => a.username === m)).map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                  ))}
+                                </select>
+                              )}
+                              {assigned.length === 0 && !hasLeadTag && (
+                                <p className="text-xs text-gray-400">No one assigned</p>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {/* Unassigned */}
+                      {(() => {
+                        const unassigned = unassignedInBlock(assigningBlock)
+                        if (unassigned.length === 0) return null
+                        return (
+                          <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+                            <div className="px-4 py-3 bg-red-50 border-b border-red-200 flex items-center justify-between">
+                              <span className="text-sm font-semibold text-red-600">❓ Unassigned</span>
+                              <span className="text-xs text-red-500">{unassigned.length} members</span>
+                            </div>
+                            <div className="p-3 flex flex-wrap gap-1.5">
+                              {unassigned.map(m => (
+                                <span key={m} className="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded-full">{m}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
+
+                  {!assigningBlock && (
+                    <div className="text-center py-8 text-gray-400">
+                      <p className="text-sm">Select a block above to assign roles.</p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
-          {/* Scouting Accountability */}
-          {(() => {
-            const scoutAssigns = assignments.filter(a => a.role === 'scouting')
-            const scoutMembers = [...new Set(scoutAssigns.map(a => a.username))]
-            if (scoutMembers.length === 0) return null
+          {/* ═══ SCHEDULE TAB ═══ */}
+          {editorTab === 'schedule' && (
+            <div className="space-y-4">
+              {/* Add block */}
+              {hasLeadTag && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newBlockName}
+                    onChange={e => setNewBlockName(e.target.value)}
+                    placeholder="Add block (e.g. Qual Match 1, Lunch, Judging)"
+                    className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                    onKeyDown={e => e.key === 'Enter' && addBlock()}
+                  />
+                  <button onClick={addBlock} disabled={!newBlockName.trim()} className="px-4 py-2.5 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors">
+                    <Plus size={16} />
+                  </button>
+                </div>
+              )}
 
-            const scoutBlockCount = {}
-            scoutMembers.forEach(m => { scoutBlockCount[m] = scoutAssigns.filter(a => a.username === m).length })
-            const submissionCount = {}
-            scoutingRecords.forEach(r => { submissionCount[r.submitted_by] = (submissionCount[r.submitted_by] || 0) + 1 })
-
-            return (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <ClipboardCheck size={16} className="text-blue-500" />
-                  Scouting Accountability
-                </h3>
+              {blocks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-sm">No schedule blocks yet.</p>
+                  <p className="text-xs mt-1">Add blocks like Opening Matches, Lunch, Judging, Finals...</p>
+                </div>
+              ) : (
                 <div className="space-y-2">
-                  {scoutMembers.map(member => {
-                    const assigned = scoutBlockCount[member] || 0
-                    const submitted = submissionCount[member] || 0
-                    const ok = submitted >= assigned
+                  {blocks.map((block, idx) => {
+                    const times = blockTimes[block.id] || {}
                     return (
-                      <div key={member} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                        <span className="text-sm font-medium text-gray-700">{member}</span>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold ${ok ? 'text-green-600' : 'text-red-600'}`}>{submitted}/{assigned}</span>
-                          <span className="text-sm">{ok ? '✅' : '⚠️'}</span>
+                      <div key={block.id} className={`bg-white rounded-xl shadow-sm border p-4 ${block.is_active ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {block.is_active && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                            <span className="font-semibold text-gray-800">{block.name}</span>
+                            <span className="text-xs text-gray-400">Block {idx + 1}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {isLive && !block.is_active && (
+                              <button onClick={() => activateBlock(block.id)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Activate">
+                                <Play size={14} />
+                              </button>
+                            )}
+                            {isLive && block.is_active && (
+                              <button onClick={() => restPatch('comp_day_blocks', `id=eq.${block.id}`, { is_active: false }).then(() => fetchSessionData(activeSession.id))} className="p-1.5 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors" title="Deactivate">
+                                <Pause size={14} />
+                              </button>
+                            )}
+                            {hasLeadTag && (
+                              <button onClick={() => deleteBlock(block.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete">
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                         </div>
+                        {/* Time inputs */}
+                        {hasLeadTag && (
+                          <div className="flex gap-3 mt-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-400 uppercase">Start</span>
+                              <input
+                                type="time"
+                                value={times.start || ''}
+                                onChange={e => saveBlockTimes({ ...blockTimes, [block.id]: { ...times, start: e.target.value } })}
+                                className="text-xs border rounded px-2 py-1 text-gray-600"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-400 uppercase">End</span>
+                              <input
+                                type="time"
+                                value={times.end || ''}
+                                onChange={e => saveBlockTimes({ ...blockTimes, [block.id]: { ...times, end: e.target.value } })}
+                                className="text-xs border rounded px-2 py-1 text-gray-600"
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {!hasLeadTag && times.start && (
+                          <p className="text-xs text-gray-400 mt-1">{times.start}{times.end ? ` – ${times.end}` : ''}</p>
+                        )}
                       </div>
                     )
                   })}
                 </div>
-                <p className="text-xs text-gray-400 mt-2">Scouting blocks assigned vs. records submitted today</p>
-              </div>
-            )
-          })()}
+              )}
+            </div>
+          )}
 
-          {/* Live overview */}
-          {isLive && activeBlock && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                Now: {activeBlock.name}
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {ROLES.map(role => {
-                  const assigned = assignments.filter(a => a.block_id === activeBlock.id && a.role === role.id)
-                  if (assigned.length === 0) return null
-                  return (
-                    <div key={role.id} className={`rounded-lg border p-3 ${role.color}`}>
-                      <p className="text-xs font-semibold mb-1">{role.emoji} {role.label}</p>
-                      {assigned.map(a => <p key={a.username} className="text-xs">{a.username}</p>)}
-                    </div>
-                  )
-                })}
-              </div>
-              {unassignedInBlock(activeBlock.id).length > 0 && (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
-                  <p className="text-xs font-semibold text-red-600 mb-1">❓ Unassigned</p>
-                  {unassignedInBlock(activeBlock.id).map(m => <p key={m} className="text-xs text-red-500">{m}</p>)}
+          {/* ═══ MATCHES TAB ═══ */}
+          {editorTab === 'matches' && (
+            <div className="space-y-4">
+              {hasLeadTag && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Match # (e.g. Q12, SF1-1)"
+                    id="match-num"
+                    className="w-24 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <input
+                    type="time"
+                    id="match-time"
+                    className="border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Notes (optional)"
+                    id="match-notes"
+                    className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <button
+                    onClick={() => {
+                      const num = document.getElementById('match-num').value.trim()
+                      const time = document.getElementById('match-time').value
+                      const notes = document.getElementById('match-notes').value.trim()
+                      if (!num) return
+                      const updated = [...compMatches, { id: Date.now(), number: num, time, notes }]
+                      saveMatches(updated)
+                      document.getElementById('match-num').value = ''
+                      document.getElementById('match-time').value = ''
+                      document.getElementById('match-notes').value = ''
+                    }}
+                    className="px-4 py-2.5 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium hover:bg-pastel-pink-dark transition-colors"
+                  >
+                    <Plus size={16} />
+                  </button>
                 </div>
               )}
+
+              {compMatches.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-sm">No matches added yet.</p>
+                  <p className="text-xs mt-1">Add your team's match numbers and times.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {compMatches.map((match, idx) => (
+                    <div key={match.id} className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold text-gray-800">{match.number}</span>
+                        {match.time && <span className="text-sm text-gray-500">{match.time}</span>}
+                        {match.notes && <span className="text-xs text-gray-400">— {match.notes}</span>}
+                      </div>
+                      {hasLeadTag && (
+                        <button onClick={() => saveMatches(compMatches.filter(m => m.id !== match.id))} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ ROTATION TAB ═══ */}
+          {editorTab === 'rotation' && (
+            <div className="space-y-4">
+              {blocks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-sm">Add schedule blocks first to see rotations.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {members.map(member => {
+                    const memberRoles = blocks.map(b => {
+                      const role = getMemberRole(b.id, member)
+                      return { block: b.name, blockId: b.id, role, isActive: b.is_active }
+                    })
+                    const currentIdx = memberRoles.findIndex(r => r.isActive)
+                    const currentRole = currentIdx >= 0 ? memberRoles[currentIdx] : null
+                    const nextRole = currentIdx >= 0 && currentIdx < memberRoles.length - 1 ? memberRoles[currentIdx + 1] : null
+
+                    return (
+                      <div key={member} className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-semibold text-gray-800">{member}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {memberRoles.map((mr, idx) => {
+                            const roleInfo = ROLE_MAP[mr.role]
+                            return (
+                              <div key={mr.blockId} className="flex items-center gap-1">
+                                {idx > 0 && <ChevronRight size={12} className="text-gray-300" />}
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                                  mr.isActive ? (roleInfo ? roleInfo.color : 'bg-red-50 text-red-500 border-red-200') + ' ring-2 ring-green-200' :
+                                  roleInfo ? roleInfo.color : 'bg-gray-100 text-gray-400 border-gray-200'
+                                }`}>
+                                  {roleInfo ? `${roleInfo.emoji} ${roleInfo.label}` : '—'}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {currentRole && (
+                          <p className="text-[10px] text-gray-400 mt-1.5">
+                            Now: {ROLE_MAP[currentRole.role]?.label || 'Unassigned'}
+                            {nextRole && ` → Next: ${ROLE_MAP[nextRole.role]?.label || 'Unassigned'}`}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ TASKS TAB ═══ */}
+          {editorTab === 'tasks' && (
+            <div className="space-y-4">
+              {hasLeadTag && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Task (e.g. Charge batteries, Fix intake)"
+                    id="comp-task-title"
+                    className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const title = e.target.value.trim()
+                        if (!title) return
+                        saveTasks([...compTasks, { id: Date.now(), title, assignee: '', done: false }])
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById('comp-task-title')
+                      const title = el.value.trim()
+                      if (!title) return
+                      saveTasks([...compTasks, { id: Date.now(), title, assignee: '', done: false }])
+                      el.value = ''
+                    }}
+                    className="px-4 py-2.5 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium hover:bg-pastel-pink-dark transition-colors"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              )}
+
+              {compTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-sm">No competition tasks yet.</p>
+                  <p className="text-xs mt-1">Add tasks like charging batteries, fixing parts, scouting teams...</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {compTasks.map(task => (
+                    <div key={task.id} className={`bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 flex items-center gap-3 ${task.done ? 'opacity-60' : ''}`}>
+                      <button
+                        onClick={() => saveTasks(compTasks.map(t => t.id === task.id ? { ...t, done: !t.done } : t))}
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          task.done ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'
+                        }`}
+                      >
+                        {task.done && <span className="text-[10px]">✓</span>}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${task.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                        {task.assignee && <p className="text-xs text-gray-400">{task.assignee}</p>}
+                      </div>
+                      {hasLeadTag && (
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={task.assignee}
+                            onChange={e => saveTasks(compTasks.map(t => t.id === task.id ? { ...t, assignee: e.target.value } : t))}
+                            className="text-xs border rounded px-1.5 py-1 text-gray-500 max-w-[100px]"
+                          >
+                            <option value="">Assign...</option>
+                            {members.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <button onClick={() => saveTasks(compTasks.filter(t => t.id !== task.id))} className="p-1 rounded hover:bg-red-50 text-red-400 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ TEAM STATUS TAB ═══ */}
+          {editorTab === 'status' && (
+            <div className="space-y-4">
+              {/* Scouting accountability */}
+              {(() => {
+                const scoutAssigns = assignments.filter(a => a.role === 'scouting')
+                const scoutMembers = [...new Set(scoutAssigns.map(a => a.username))]
+                if (scoutMembers.length === 0) return null
+                const scoutBlockCount = {}
+                scoutMembers.forEach(m => { scoutBlockCount[m] = scoutAssigns.filter(a => a.username === m).length })
+                const submissionCount = {}
+                scoutingRecords.forEach(r => { submissionCount[r.submitted_by] = (submissionCount[r.submitted_by] || 0) + 1 })
+                return (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <ClipboardCheck size={16} className="text-blue-500" />
+                      Scouting Accountability
+                    </h3>
+                    <div className="space-y-1.5">
+                      {scoutMembers.map(member => {
+                        const assigned = scoutBlockCount[member] || 0
+                        const submitted = submissionCount[member] || 0
+                        const ok = submitted >= assigned
+                        return (
+                          <div key={member} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                            <span className="text-sm font-medium text-gray-700">{member}</span>
+                            <span className={`text-xs font-semibold ${ok ? 'text-green-600' : 'text-red-600'}`}>{submitted}/{assigned} {ok ? '✅' : '⚠️'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Everyone's current role */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  👥 Current Assignments
+                  {activeBlock && <span className="text-xs font-normal text-gray-400">— {activeBlock.name}</span>}
+                </h3>
+                {!activeBlock ? (
+                  <p className="text-sm text-gray-400">No active block. Activate a block in the Schedule tab to see live status.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {members.map(member => {
+                      const role = getMemberRole(activeBlock.id, member)
+                      const roleInfo = ROLE_MAP[role]
+                      return (
+                        <div key={member} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                          <span className="text-sm font-medium text-gray-700">{member}</span>
+                          {roleInfo ? (
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${roleInfo.color}`}>
+                              {roleInfo.emoji} {roleInfo.label}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">Unassigned</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
