@@ -61,7 +61,7 @@ export default function CompDayView({ onBack }) {
   const [newBlockName, setNewBlockName] = useState('')
   const [assigningBlock, setAssigningBlock] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [showIntro, setShowIntro] = useState(() => !localStorage.getItem('comp-day-intro-seen'))
+  const [createStep, setCreateStep] = useState(1) // 1 = intro splash, 2 = name/details
 
   // Load all sessions
   const fetchSessions = useCallback(async () => {
@@ -391,37 +391,8 @@ export default function CompDayView({ onBack }) {
     const liveSessions = sessions.filter(s => s.is_active)
     const draftSessions = sessions.filter(s => !s.is_active)
 
-    const dismissIntro = () => {
-      localStorage.setItem('comp-day-intro-seen', '1')
-      setShowIntro(false)
-    }
-
     return (
       <div className="flex-1 flex flex-col min-w-0">
-        {/* ─── Intro splash popup ─── */}
-        {showIntro && (
-          <>
-            <div className="fixed inset-0 bg-black/50 z-[100]" onClick={dismissIntro} />
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden animate-bounce-in">
-                <div className="p-8 text-center">
-                  <p className="text-6xl mb-4">🏁</p>
-                  <h2 className="text-2xl font-black text-gray-800 mb-2">Competition Day</h2>
-                  <p className="text-gray-500 mb-1">Assign roles. Lock screens.</p>
-                  <p className="text-gray-500 mb-1">Track accountability.</p>
-                  <p className="text-gray-400 text-sm mt-2 mb-6">Every member knows exactly what to do.</p>
-                  <button
-                    onClick={dismissIntro}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pastel-pink to-pastel-orange text-gray-800 font-bold text-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
-                  >
-                    Let's Get Started
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
           <div className="px-4 py-3 ml-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -497,7 +468,7 @@ export default function CompDayView({ onBack }) {
 
             {/* New Competition Day button */}
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => { setShowCreate(true); setCreateStep(1) }}
               className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-pastel-pink hover:bg-pastel-pink/10 transition-colors text-gray-500 hover:text-gray-700"
             >
               <Plus size={18} />
@@ -514,39 +485,67 @@ export default function CompDayView({ onBack }) {
           </div>
         </main>
 
-        {/* ─── Create Modal (workshop-style) ─── */}
+        {/* ─── Create Modal: Step 1 = Intro, Step 2 = Details ─── */}
         {showCreate && (
           <>
             <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowCreate(false)} />
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md pointer-events-auto overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="border-b px-5 py-4 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-gray-800">New Competition Day</h2>
-                  <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-                    <X size={18} className="text-gray-400" />
-                  </button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Competition Name</label>
-                    <input
-                      type="text"
-                      value={newSessionName}
-                      onChange={e => setNewSessionName(e.target.value)}
-                      placeholder="e.g. States Day 1, Qualifier Round 2"
-                      className="w-full mt-1.5 border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
-                      onKeyDown={e => e.key === 'Enter' && newSessionName.trim() && createSession()}
-                      autoFocus
-                    />
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden animate-bounce-in" onClick={e => e.stopPropagation()}>
+
+                {/* Step 1: Intro splash */}
+                {createStep === 1 && (
+                  <div className="p-8 text-center">
+                    <p className="text-6xl mb-4">🏁</p>
+                    <h2 className="text-2xl font-black text-gray-800 mb-2">Competition Day</h2>
+                    <p className="text-gray-500 mb-1">Assign roles. Lock screens.</p>
+                    <p className="text-gray-500 mb-1">Track accountability.</p>
+                    <p className="text-gray-400 text-sm mt-2 mb-6">Every member knows exactly what to do.</p>
+                    <button
+                      onClick={() => setCreateStep(2)}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pastel-pink to-pastel-orange text-gray-800 font-bold text-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
+                    >
+                      Let's Get Started
+                    </button>
                   </div>
-                  <button
-                    onClick={() => { createSession(); setShowCreate(false) }}
-                    disabled={!newSessionName.trim()}
-                    className="w-full py-3 rounded-xl bg-pastel-pink text-gray-800 font-semibold disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors"
-                  >
-                    Create Plan
-                  </button>
-                </div>
+                )}
+
+                {/* Step 2: Name & create */}
+                {createStep === 2 && (
+                  <>
+                    <div className="border-b px-5 py-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setCreateStep(1)} className="p-1 hover:bg-gray-100 rounded-lg">
+                          <ArrowLeft size={16} className="text-gray-400" />
+                        </button>
+                        <h2 className="text-lg font-bold text-gray-800">New Competition Day</h2>
+                      </div>
+                      <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                        <X size={18} className="text-gray-400" />
+                      </button>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Competition Name</label>
+                        <input
+                          type="text"
+                          value={newSessionName}
+                          onChange={e => setNewSessionName(e.target.value)}
+                          placeholder="e.g. States Day 1, Qualifier Round 2"
+                          className="w-full mt-1.5 border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                          onKeyDown={e => e.key === 'Enter' && newSessionName.trim() && createSession()}
+                          autoFocus
+                        />
+                      </div>
+                      <button
+                        onClick={() => { createSession(); setShowCreate(false) }}
+                        disabled={!newSessionName.trim()}
+                        className="w-full py-3 rounded-xl bg-pastel-pink text-gray-800 font-semibold disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors"
+                      >
+                        Create Plan
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </>
