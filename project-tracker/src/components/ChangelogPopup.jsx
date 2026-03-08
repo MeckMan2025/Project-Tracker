@@ -5,6 +5,15 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 59,
+    date: '2026-03-07',
+    items: [
+      'Calendar now shows a "What\'s Next" panel with upcoming events and tasks for the next 7 days',
+      'Your tasks are highlighted and separated in the day detail view',
+      'Task priority levels now show on the calendar with color-coded dots',
+    ],
+  },
+  {
     id: 58,
     date: '2026-03-07',
     items: [

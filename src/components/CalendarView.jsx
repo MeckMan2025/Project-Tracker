@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell, Clock } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell, Clock, AlertCircle } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -13,6 +13,20 @@ const EVENT_TYPES = {
   meeting:     { label: 'Meeting',     bg: 'bg-pastel-blue/20',  dot: 'bg-pastel-blue-dark',  ring: 'ring-pastel-blue' },
   competition: { label: 'Competition', bg: 'bg-pastel-pink/20',  dot: 'bg-pastel-pink-dark',  ring: 'ring-pastel-pink' },
   other:       { label: 'Other',       bg: 'bg-pastel-orange/20', dot: 'bg-pastel-orange-dark', ring: 'ring-pastel-orange' },
+}
+
+const PRIORITY_DOT = {
+  critical: 'bg-red-500',
+  high: 'bg-orange-400',
+  medium: 'bg-pastel-blue-dark',
+  low: 'bg-gray-300',
+}
+
+const PRIORITY_LABEL = {
+  critical: { text: 'Critical', cls: 'bg-red-100 text-red-600' },
+  high: { text: 'High', cls: 'bg-orange-100 text-orange-600' },
+  medium: { text: 'Medium', cls: 'bg-gray-100 text-gray-500' },
+  low: { text: 'Low', cls: 'bg-gray-100 text-gray-400' },
 }
 
 function CalendarView() {
@@ -68,7 +82,7 @@ function CalendarView() {
       try {
         const { data: tasks, error } = await supabase
           .from('tasks')
-          .select('id,title,assignee,status,due_date,board_id')
+          .select('id,title,assignee,status,due_date,board_id,priority')
           .neq('due_date', '')
         if (error) {
           console.error('Failed to load task due dates:', error)
@@ -85,6 +99,7 @@ function CalendarView() {
             assignee: task.assignee,
             status: task.status,
             boardId: task.board_id,
+            priority: task.priority || 'medium',
           })
         })
         setTasksDue(grouped)
@@ -154,6 +169,7 @@ function CalendarView() {
               updated[key].push({
                 id: t.id, title: t.title, assignee: t.assignee,
                 status: t.status, boardId: t.board_id,
+                priority: t.priority || 'medium',
               })
             }
             return updated
@@ -355,6 +371,31 @@ function CalendarView() {
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+  // "What's Next" — next 7 days of events & tasks
+  const whatsNext = useMemo(() => {
+    const items = []
+    const now = new Date()
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' })
+      const dayEvents = events[key] || []
+      const dayTasks = tasksDue[key] || []
+      dayEvents.forEach(ev => items.push({ dateKey: key, label, type: 'event', item: ev }))
+      dayTasks.forEach(task => items.push({ dateKey: key, label, type: 'task', item: task }))
+    }
+    return items
+  }, [events, tasksDue])
+
+  // Filter for current user's upcoming tasks
+  const myUpcoming = useMemo(() => {
+    return whatsNext.filter(w =>
+      w.type === 'task' &&
+      w.item.assignee?.toLowerCase() === username?.toLowerCase() &&
+      w.item.status !== 'done' && w.item.status !== 'completed'
+    )
+  }, [whatsNext, username])
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -382,6 +423,59 @@ function CalendarView() {
       </header>
 
       <main className="flex-1 p-4 overflow-auto">
+        {/* What's Next panel */}
+        {whatsNext.length > 0 && (
+          <div className="mb-4 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle size={16} className="text-pastel-pink-dark" />
+              <h3 className="text-sm font-semibold text-gray-700">What's Next</h3>
+              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded-full">7 days</span>
+              {myUpcoming.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-pastel-blue/30 text-pastel-blue-dark rounded-full ml-auto">
+                  {myUpcoming.length} task{myUpcoming.length !== 1 ? 's' : ''} for you
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+              {whatsNext.slice(0, 10).map((w, i) => {
+                if (w.type === 'event') {
+                  const t = EVENT_TYPES[w.item.eventType] || EVENT_TYPES.other
+                  return (
+                    <div key={`e-${w.item.id}-${i}`} className={`shrink-0 w-[180px] snap-center rounded-lg px-2.5 py-2 ${t.bg}`}>
+                      <p className="text-[10px] text-gray-400 font-medium">{w.label}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dot} shrink-0`} />
+                        <p className="text-xs font-medium text-gray-700 truncate">{w.item.name}</p>
+                      </div>
+                      {w.item.description && (
+                        <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{w.item.description}</p>
+                      )}
+                    </div>
+                  )
+                }
+                const isMyTask = w.item.assignee?.toLowerCase() === username?.toLowerCase()
+                const isDone = w.item.status === 'done' || w.item.status === 'completed'
+                const prio = PRIORITY_LABEL[w.item.priority] || PRIORITY_LABEL.medium
+                return (
+                  <div key={`t-${w.item.id}-${i}`} className={`shrink-0 w-[180px] snap-center rounded-lg px-2.5 py-2 ${isDone ? 'bg-green-50' : isMyTask ? 'bg-pastel-blue/30' : 'bg-gray-50'}`}>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] text-gray-400 font-medium">{w.label}</p>
+                      {isMyTask && <span className="text-[10px] px-1 bg-pastel-blue/50 text-pastel-blue-dark rounded">You</span>}
+                    </div>
+                    <p className={`text-xs font-medium mt-0.5 truncate ${isDone ? 'text-green-600 line-through' : 'text-gray-700'}`}>{w.item.title}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className={`text-[10px] px-1 rounded ${prio.cls}`}>{prio.text}</span>
+                      {w.item.assignee && !isMyTask && (
+                        <span className="text-[10px] text-gray-400 truncate">{w.item.assignee}</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {dayNames.map(d => (
@@ -458,16 +552,20 @@ function CalendarView() {
                       </div>
                     )
                   })}
-                  {dayTasks.map(task => (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-1"
-                      title={`Task: ${task.title}${task.assignee ? ' (' + task.assignee + ')' : ''}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${(task.status === 'done' || task.status === 'completed') ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
-                      <span className={`text-xs truncate ${(task.status === 'done' || task.status === 'completed') ? 'text-green-600 line-through' : 'text-pastel-blue-dark'}`}>{task.title}</span>
-                    </div>
-                  ))}
+                  {dayTasks.map(task => {
+                    const isDone = task.status === 'done' || task.status === 'completed'
+                    const isMyTask = task.assignee?.toLowerCase() === username?.toLowerCase()
+                    return (
+                      <div
+                        key={task.id}
+                        className="flex items-center gap-1"
+                        title={`Task: ${task.title}${task.assignee ? ' (' + task.assignee + ')' : ''}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-green-400' : (PRIORITY_DOT[task.priority] || PRIORITY_DOT.medium)}`} />
+                        <span className={`text-xs truncate ${isDone ? 'text-green-600 line-through' : isMyTask ? 'text-pastel-blue-dark font-semibold' : 'text-gray-600'}`}>{task.title}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -521,23 +619,49 @@ function CalendarView() {
             )}
 
             {/* Tasks due on this day */}
-            {(tasksDue[dateKey(selectedDay)] || []).length > 0 && (
-              <div className="space-y-2 mb-3">
-                <p className="text-xs font-semibold text-pastel-blue-dark uppercase tracking-wide">Tasks Due</p>
-                {(tasksDue[dateKey(selectedDay)] || []).map(task => (
-                  <div key={task.id} className={`flex items-start gap-2 rounded-lg px-3 py-2 ${(task.status === 'done' || task.status === 'completed') ? 'bg-green-50' : 'bg-pastel-blue/20'}`}>
-                    <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${(task.status === 'done' || task.status === 'completed') ? 'bg-green-400' : 'bg-pastel-blue-dark'}`} />
+            {(() => {
+              const allDayTasks = tasksDue[dateKey(selectedDay)] || []
+              const myTasks = allDayTasks.filter(t => t.assignee?.toLowerCase() === username?.toLowerCase())
+              const otherTasks = allDayTasks.filter(t => t.assignee?.toLowerCase() !== username?.toLowerCase())
+
+              const renderTask = (task) => {
+                const isDone = task.status === 'done' || task.status === 'completed'
+                const prio = PRIORITY_LABEL[task.priority] || PRIORITY_LABEL.medium
+                const prioDot = PRIORITY_DOT[task.priority] || PRIORITY_DOT.medium
+                return (
+                  <div key={task.id} className={`flex items-start gap-2 rounded-lg px-3 py-2 border-l-3 ${isDone ? 'bg-green-50 border-l-green-400' : `bg-pastel-blue/10 border-l-4`}`} style={!isDone ? { borderLeftColor: task.priority === 'critical' ? '#ef4444' : task.priority === 'high' ? '#fb923c' : task.priority === 'low' ? '#d1d5db' : '#c084a0' } : undefined}>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${(task.status === 'done' || task.status === 'completed') ? 'text-green-700 line-through' : 'text-gray-700'}`}>{task.title}</p>
-                      {task.assignee && (
-                        <p className="text-xs text-gray-400 mt-0.5">Assigned to {task.assignee}</p>
-                      )}
-                      <p className="text-xs text-gray-400">{(task.status === 'done' || task.status === 'completed') ? 'Completed' : task.status === 'todo' ? 'To Do' : task.status}</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isDone ? 'bg-green-400' : prioDot}`} />
+                        <p className={`text-sm font-medium ${isDone ? 'text-green-700 line-through' : 'text-gray-700'}`}>{task.title}</p>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 ml-3.5">
+                        <span className={`text-[10px] px-1 rounded ${prio.cls}`}>{prio.text}</span>
+                        {task.assignee && <span className="text-[10px] text-gray-400">Assigned to {task.assignee}</span>}
+                        <span className="text-[10px] text-gray-400">{isDone ? 'Completed' : task.status === 'todo' ? 'To Do' : task.status + '%'}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                )
+              }
+
+              return allDayTasks.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {myTasks.length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-pastel-blue-dark uppercase tracking-wide">My Tasks Due</p>
+                      {myTasks.map(renderTask)}
+                    </>
+                  )}
+                  {otherTasks.length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{myTasks.length > 0 ? 'Other Tasks Due' : 'Tasks Due'}</p>
+                      {otherTasks.map(renderTask)}
+                    </>
+                  )}
+                </div>
+              )
+            })()}
 
             {(events[dateKey(selectedDay)] || []).length === 0 && (tasksDue[dateKey(selectedDay)] || []).length === 0 && (
               <p className="text-sm text-gray-400 mb-3">No events or tasks on this day.</p>
