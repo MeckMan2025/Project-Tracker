@@ -5,6 +5,20 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 56,
+    date: '2026-03-07',
+    items: [
+      '🗂️ Special Controls organized into categories: Main, Fun, Business, Technical, Modes, and Co-Founders',
+    ],
+  },
+  {
+    id: 55,
+    date: '2026-03-07',
+    items: [
+      'Tasks now have a priority level (Low, Medium, High, Critical) — higher priority tasks sort to the top and get a colored side stripe',
+    ],
+  },
+  {
     id: 54,
     date: '2026-03-07',
     items: [

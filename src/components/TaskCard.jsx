@@ -7,11 +7,24 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeav
   const isUpForGrabs = task.assignee === UP_FOR_GRABS
   const isAssignedToMe = currentUser && task.assignee && task.assignee.toLowerCase() === currentUser.toLowerCase()
 
+  const priorityBorder = {
+    critical: 'border-l-red-500',
+    high: 'border-l-orange-400',
+    medium: 'border-l-pastel-pink-dark',
+    low: 'border-l-gray-300',
+  }
+
+  const borderColor = isUpForGrabs
+    ? 'border-l-amber-400'
+    : isOverdue
+      ? 'border-l-red-400'
+      : (priorityBorder[task.priority] || priorityBorder.medium)
+
   return (
     <div
       className={`bg-white rounded-lg p-3 mb-2 shadow-sm border-l-4 transition-shadow ${
         isDragging ? 'shadow-lg' : 'hover:shadow-md'
-      } ${isUpForGrabs ? 'border-l-amber-400' : isOverdue ? 'border-l-red-400' : 'border-l-pastel-pink-dark'}`}
+      } ${borderColor}`}
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-medium text-gray-800 flex-1">{task.title}</h3>

@@ -11,12 +11,16 @@ function TasksView({ tasksByTab, tabs }) {
   const [filter, setFilter] = useState('all') // 'all' | 'mine'
   const boardTabs = tabs.filter(t => !t.type)
 
+  const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
   const filteredTasksByTab = {}
   for (const tab of boardTabs) {
     const tasks = tasksByTab[tab.id] || []
-    filteredTasksByTab[tab.id] = filter === 'mine'
+    const filtered = filter === 'mine'
       ? tasks.filter(t => t.assignee && t.assignee.toLowerCase() === username?.toLowerCase())
       : tasks
+    filteredTasksByTab[tab.id] = [...filtered].sort(
+      (a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)
+    )
   }
 
   const totalTasks = boardTabs.reduce((sum, tab) => sum + (filteredTasksByTab[tab.id] || []).length, 0)
@@ -85,12 +89,21 @@ function TasksView({ tasksByTab, tabs }) {
                       {tasks.map(task => {
                         const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' && task.status !== 'completed'
                         const isUpForGrabs = task.assignee === '__up_for_grabs__'
+                        const priorityBorder = {
+                          critical: 'border-l-red-500',
+                          high: 'border-l-orange-400',
+                          medium: 'border-l-pastel-pink-dark',
+                          low: 'border-l-gray-300',
+                        }
+                        const borderColor = isUpForGrabs
+                          ? 'border-l-amber-400'
+                          : isOverdue
+                            ? 'border-l-red-400'
+                            : (priorityBorder[task.priority] || priorityBorder.medium)
                         return (
                           <div
                             key={task.id}
-                            className={`bg-white rounded-lg p-3 shadow-sm border-l-4 shrink-0 w-[220px] snap-center ${
-                              isUpForGrabs ? 'border-l-amber-400' : isOverdue ? 'border-l-red-400' : 'border-l-pastel-pink-dark'
-                            }`}
+                            className={`bg-white rounded-lg p-3 shadow-sm border-l-4 shrink-0 w-[220px] snap-center ${borderColor}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <h3 className="font-medium text-gray-800 text-sm truncate">{task.title}</h3>

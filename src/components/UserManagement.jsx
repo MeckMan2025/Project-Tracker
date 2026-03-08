@@ -468,7 +468,7 @@ function UserManagement() {
         headers: {
           ...headers,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
+          'Prefer': 'return=representation',
         },
         body: JSON.stringify({ function_tags: updated, authority_tier: newTier }),
       })
@@ -476,6 +476,14 @@ function UserManagement() {
         const text = await res.text()
         throw new Error(text || res.statusText)
       }
+      // Verify the update actually persisted (PostgREST returns updated rows)
+      const rows = await res.json()
+      if (!rows || rows.length === 0) {
+        throw new Error('Update did not affect any rows — profile may not exist')
+      }
+      // Sync local state with what the DB actually saved
+      const saved = rows[0]
+      setRegisteredMembers(prev => prev.map(m => m.id === memberId ? { ...m, function_tags: saved.function_tags, authority_tier: saved.authority_tier } : m))
       // Notify the user about their role change
       const notif = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),

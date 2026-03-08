@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_date text DEFAULT '',
   status text DEFAULT 'todo',
   skills jsonb DEFAULT '[]',
+  priority text DEFAULT 'medium',
   created_at text DEFAULT ''
 );
 
@@ -60,10 +61,13 @@ CREATE POLICY "Allow all access to messages" ON messages
 -- 4. SUGGESTIONS TABLE (new)
 CREATE TABLE IF NOT EXISTS suggestions (
   id text PRIMARY KEY,
-  username text NOT NULL,
-  content text NOT NULL,
+  author text NOT NULL,
+  text text NOT NULL,
+  status text DEFAULT 'pending',
   created_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS author_id uuid;
 
 ALTER TABLE suggestions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to suggestions" ON suggestions;

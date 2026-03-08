@@ -197,6 +197,7 @@ const mapTask = (t) => ({
   dueDate: t.due_date,
   status: t.status,
   skills: t.skills || [],
+  priority: t.priority || 'medium',
   createdAt: t.created_at,
 })
 
@@ -674,8 +675,11 @@ function App() {
     }
   }
 
+  const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
   const getTasksByStatus = (status) => {
-    return tasks.filter(task => task.status === status)
+    return tasks
+      .filter(task => task.status === status)
+      .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
   }
 
   const handleAddTask = async (newTask) => {
@@ -688,6 +692,7 @@ function App() {
       due_date: newTask.dueDate || '',
       status: newTask.status || 'todo',
       skills: newTask.skills || [],
+      priority: newTask.priority || 'medium',
       created_at: new Date().toISOString().split('T')[0],
     }
 
@@ -857,6 +862,7 @@ function App() {
         due_date: updatedTask.dueDate || '',
         status: updatedTask.status || 'todo',
         skills: updatedTask.skills || [],
+        priority: updatedTask.priority || 'medium',
       })
       const newAssignee = updatedTask.assignee || ''
       const oldAssignee = oldTask?.assignee || ''
@@ -1153,84 +1159,127 @@ function App() {
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
-              <div className="max-w-md mx-auto grid gap-4">
-                <button
-                  onClick={() => setSpecialView('cleanup')}
-                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                >
-                  <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
-                  <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
-                </button>
-                <button
-                  onClick={() => setSpecialView('quotes')}
-                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                >
-                  <span className="text-lg font-semibold text-gray-700">Quotes</span>
-                  <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
-                </button>
+              <div className="max-w-md mx-auto space-y-6">
+                {/* Main */}
+                <div>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Main</h2>
+                  <div className="grid gap-3">
+                    {hasLeadTag && (
+                      <button
+                        onClick={() => setSpecialView('attendance')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Attendance</span>
+                        <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
+                      </button>
+                    )}
+                    {hasLeadTag && (
+                      <button
+                        onClick={() => setSpecialView('flash')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Notebook Flash</span>
+                        <p className="text-sm text-gray-400 mt-1">Force notebook entries from present members</p>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSpecialView('cleanup')}
+                      className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                    >
+                      <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
+                      <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Fun */}
+                <div>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Fun</h2>
+                  <div className="grid gap-3">
+                    <button
+                      onClick={() => setSpecialView('quotes')}
+                      className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                    >
+                      <span className="text-lg font-semibold text-gray-700">Quotes</span>
+                      <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Business */}
+                <div>
+                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Business</h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['Portfolio', 'Outreach'].map(label => (
+                      <button
+                        key={label}
+                        className="w-full px-4 py-3 bg-gray-50/80 backdrop-blur-sm rounded-xl text-left opacity-60"
+                        disabled
+                      >
+                        <span className="text-sm font-semibold text-gray-500">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Technical */}
                 {hasLeadTag && (
-                  <button
-                    onClick={() => setSpecialView('attendance')}
-                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                  >
-                    <span className="text-lg font-semibold text-gray-700">Attendance</span>
-                    <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
-                  </button>
+                  <div>
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Technical</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['SWOT Mode', 'Scouting Mode', 'Testing'].map(label => (
+                        <button
+                          key={label}
+                          className="w-full px-4 py-3 bg-gray-50/80 backdrop-blur-sm rounded-xl text-left opacity-60"
+                          disabled
+                        >
+                          <span className="text-sm font-semibold text-gray-500">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
+
+                {/* Modes */}
                 {hasLeadTag && (
-                  <button
-                    onClick={() => setSpecialView('flash')}
-                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                  >
-                    <span className="text-lg font-semibold text-gray-700">Notebook Flash</span>
-                    <p className="text-sm text-gray-400 mt-1">Force notebook entries from present members</p>
-                  </button>
+                  <div>
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Modes</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['Comp Day', 'Meeting Stats'].map(label => (
+                        <button
+                          key={label}
+                          className="w-full px-4 py-3 bg-gray-50/80 backdrop-blur-sm rounded-xl text-left opacity-60"
+                          disabled
+                        >
+                          <span className="text-sm font-semibold text-gray-500">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                <button
-                  onClick={() => setSpecialView('interested-teams')}
-                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                >
-                  <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
-                  <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
-                </button>
+
+                {/* Co-Founders */}
                 {isCofounder && (
-                  <button
-                    onClick={() => setSpecialView('team-survey')}
-                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                  >
-                    <span className="text-lg font-semibold text-gray-700">Team Survey Responses</span>
-                    <p className="text-sm text-gray-400 mt-1">View feedback from team accounts</p>
-                  </button>
+                  <div>
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Co-Founders</h2>
+                    <div className="grid gap-3">
+                      <button
+                        onClick={() => setSpecialView('interested-teams')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Interested Teams</span>
+                        <p className="text-sm text-gray-400 mt-1">Teams that want to use the app</p>
+                      </button>
+                      <button
+                        onClick={() => setSpecialView('team-survey')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Team Survey Responses</span>
+                        <p className="text-sm text-gray-400 mt-1">View feedback from team accounts</p>
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <button
-                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                >
-                  <span className="text-lg font-semibold text-gray-700">Portfolio</span>
-                  <p className="text-sm text-gray-400 mt-1">Coming soon</p>
-                </button>
-                <button
-                  className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                >
-                  <span className="text-lg font-semibold text-gray-700">Outreach</span>
-                  <p className="text-sm text-gray-400 mt-1">Coming soon</p>
-                </button>
-                {hasLeadTag && (
-                  <button
-                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                  >
-                    <span className="text-lg font-semibold text-gray-700">Comp Day</span>
-                    <p className="text-sm text-gray-400 mt-1">Coming soon</p>
-                  </button>
-                )}
-                {hasLeadTag && ['SWOT Mode', 'Meeting Stats', 'Scouting Mode', 'Testing'].map(label => (
-                  <button
-                    key={label}
-                    className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                  >
-                    <span className="text-lg font-semibold text-gray-700">{label}</span>
-                    <p className="text-sm text-gray-400 mt-1">Coming soon</p>
-                  </button>
-                ))}
               </div>
             </div>
           )}
