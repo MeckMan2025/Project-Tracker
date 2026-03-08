@@ -283,7 +283,7 @@ export default function NotebookFlashRequired({ username, activeFlash, presentUs
             <label className="text-sm font-medium text-gray-600 flex items-center gap-1.5 mb-1">
               <Users size={14} /> Include group members
             </label>
-            <p className="text-xs text-gray-400 mb-2">Select teammates who worked with you on this</p>
+            <p className="text-xs text-gray-400 mb-2">Select teammates who worked with you — they won't need to fill out their own entry</p>
             <div className="flex flex-wrap gap-2">
               {availableGroupMembers.map(member => (
                 <button

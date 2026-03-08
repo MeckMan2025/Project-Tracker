@@ -61,6 +61,12 @@ export function useNotebookFlash() {
     fetchFlashState()
   }, [fetchFlashState])
 
+  // Poll every 10s as fallback (realtime may not work if tables aren't in publication)
+  useEffect(() => {
+    const interval = setInterval(fetchFlashState, 10000)
+    return () => clearInterval(interval)
+  }, [fetchFlashState])
+
   // Realtime subscriptions
   useEffect(() => {
     const channel = supabase
