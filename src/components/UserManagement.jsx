@@ -694,7 +694,7 @@ function UserManagement() {
               }`}
             >
               <Users size={14} className="inline mr-1" />
-              Members ({registeredMembers.length})
+              Members ({registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length})
             </button>
           </div>
         )}
@@ -1003,9 +1003,13 @@ function UserManagement() {
                 <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
               ) : (
                 (() => {
+                  const isTeamAccount = (m) => (m.function_tags || []).includes('Team')
+                  const regularMembers = registeredMembers.filter(m => !isTeamAccount(m))
+                  const teamMembers = registeredMembers.filter(m => isTeamAccount(m))
+
                   // Sort co-founders first
                   const isCofounder = (m) => PERMANENT_COFOUNDER_NAMES.some(n => m.display_name?.toLowerCase().includes(n))
-                  const sorted = [...registeredMembers].sort((a, b) => {
+                  const sorted = [...regularMembers].sort((a, b) => {
                     const aIsCo = isCofounder(a)
                     const bIsCo = isCofounder(b)
                     if (aIsCo && !bIsCo) return -1
@@ -1013,7 +1017,7 @@ function UserManagement() {
                     return 0
                   })
 
-                  return sorted.map((member) => {
+                  const renderMember = (member) => {
                     const memberIsCofounder = isCofounder(member)
                     const memberRoles = member.function_tags || []
                     const isSelf = member.id === user.id
@@ -1079,7 +1083,21 @@ function UserManagement() {
                         </div>
                       </div>
                     )
-                  })
+                  }
+
+                  return (
+                    <>
+                      {sorted.map(renderMember)}
+                      {teamMembers.length > 0 && (
+                        <>
+                          <div className="mt-6 mb-2">
+                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Team Accounts ({teamMembers.length})</h3>
+                          </div>
+                          {teamMembers.map(renderMember)}
+                        </>
+                      )}
+                    </>
+                  )
                 })()
               )}
             </div>
