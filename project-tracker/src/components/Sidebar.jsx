@@ -125,6 +125,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <div className="space-y-1">
                   {[
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
+                    ...(!isTeamAccount ? [{ icon: Calendar, label: 'Calendar', color: 'text-pastel-pink-dark', tab: 'calendar' }] : []),
                     ...(!isTeamAccount ? [{ icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark' }] : []),
                     ...(!isTeamAccount ? [{ icon: Bell, label: 'Notifications', color: 'text-pastel-pink-dark' }] : []),
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
@@ -590,23 +591,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </div>
 
           {!isTeamAccount && <>
-          <hr className="my-2 border-gray-200" />
-
-          {/* Calendar Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'calendar'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('calendar')
-              onToggle()
-            }}
-          >
-            <Calendar size={16} className="text-pastel-pink-dark" />
-            <span className="truncate">Calendar</span>
-          </div>
 
           {!isGuest && (
             <>
