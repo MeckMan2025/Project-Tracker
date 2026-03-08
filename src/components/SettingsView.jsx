@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Settings, Bell, Music, Volume2, Lock, Zap } from 'lucide-react'
+import { Settings, Bell, Music, Volume2, Lock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePushNotifications } from '../hooks/usePushNotifications'
@@ -23,8 +23,6 @@ export default function SettingsView() {
 
   const [musicPref, setMusicPref] = useState(() => localStorage.getItem('scrum-music-pref') || 'off')
   const [sfxEnabled, setSfxEnabled] = useState(() => localStorage.getItem('scrum-sfx-enabled') !== 'false')
-  const [skipLoading, setSkipLoading] = useState(() => localStorage.getItem('scrum-skip-loading') === 'true')
-
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [pwError, setPwError] = useState('')
@@ -72,34 +70,6 @@ export default function SettingsView() {
         <Settings size={22} className="text-pastel-orange-dark" />
         Settings
       </h2>
-
-      {/* ─── Skip Loading Screen ─── */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <Zap size={16} className="text-pastel-orange-dark" />
-          Loading Screen
-        </h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-700">Skip loading animation</p>
-            <p className="text-xs text-gray-400">Go straight to the app without the intro</p>
-          </div>
-          <button
-            onClick={() => {
-              const next = !skipLoading
-              setSkipLoading(next)
-              localStorage.setItem('scrum-skip-loading', String(next))
-            }}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              skipLoading ? 'bg-pastel-blue-dark' : 'bg-gray-300'
-            }`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              skipLoading ? 'translate-x-6' : 'translate-x-1'
-            }`} />
-          </button>
-        </div>
-      </section>
 
       {/* ─── Push Notifications ─── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
