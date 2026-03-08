@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MessageCircle, ClipboardList, LineChart, BookOpen, FolderKanban, HelpCircle, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MessageCircle, ClipboardList, LineChart, BookOpen, FolderKanban, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import NotificationBell from './NotificationBell'
 
@@ -38,13 +38,6 @@ const TAB_INFO = [
     color: 'text-pastel-blue-dark',
     bg: 'bg-pastel-blue/20',
     description: 'Kanban-style task boards for your team. Create boards for different projects, add tasks, and track progress with drag-and-drop.',
-  },
-  {
-    icon: HelpCircle,
-    name: 'Suggestions',
-    color: 'text-pastel-orange-dark',
-    bg: 'bg-pastel-orange/20',
-    description: 'Have an idea for a feature or improvement? Submit suggestions and we\'ll review them.',
   },
 ]
 
