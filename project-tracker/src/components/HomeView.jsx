@@ -192,6 +192,34 @@ function HomeView({ onTabChange }) {
 
   const daysUntil = nextEvent ? Math.ceil((new Date(nextEvent.date_key) - new Date()) / (1000 * 60 * 60 * 24)) : null
 
+  // Mini week calendar data
+  const today = new Date()
+  const dayOfWeek = today.getDay() // 0=Sun
+  const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWeek)
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return { date: d, key, dayName: d.toLocaleDateString('en-US', { weekday: 'short' }), dayNum: d.getDate(), isToday: i === dayOfWeek }
+  })
+
+  // Fetch events for this week
+  const [weekEvents, setWeekEvents] = useState({})
+  useEffect(() => {
+    const startKey = weekDays[0].key
+    const endKey = weekDays[6].key
+    fetch(`${supabaseUrl}/rest/v1/calendar_events?date_key=gte.${startKey}&date_key=lte.${endKey}&select=id,name,date_key,event_type`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        const grouped = {}
+        data.forEach(ev => {
+          if (!grouped[ev.date_key]) grouped[ev.date_key] = []
+          grouped[ev.date_key].push(ev)
+        })
+        setWeekEvents(grouped)
+      })
+      .catch(() => {})
+  }, [])
+
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
     const d = new Date(dateStr + 'T00:00:00')
@@ -216,6 +244,51 @@ function HomeView({ onTabChange }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
+        {/* Mini Week Calendar */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">This Week</h2>
+            <button
+              onClick={() => onTabChange('calendar')}
+              className="text-xs text-pastel-blue-dark hover:underline flex items-center gap-0.5"
+            >
+              Full Calendar <ArrowRight size={10} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {weekDays.map(day => {
+              const dayEvts = weekEvents[day.key] || []
+              const hasEvents = dayEvts.length > 0
+              const isPast = day.date < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+              return (
+                <div
+                  key={day.key}
+                  className={`flex flex-col items-center py-2 rounded-lg transition-colors ${
+                    day.isToday
+                      ? 'bg-pastel-blue/30 ring-2 ring-pastel-blue-dark/40'
+                      : isPast
+                        ? 'opacity-40'
+                        : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-[10px] text-gray-400 font-medium">{day.dayName}</span>
+                  <span className={`text-sm font-semibold mt-0.5 ${day.isToday ? 'text-pastel-blue-dark' : 'text-gray-700'}`}>
+                    {day.dayNum}
+                  </span>
+                  {hasEvents && (
+                    <div className="flex gap-0.5 mt-1">
+                      {dayEvts.slice(0, 3).map(ev => {
+                        const colors = { meeting: 'bg-pastel-blue-dark', competition: 'bg-pastel-pink-dark', other: 'bg-pastel-orange-dark' }
+                        return <span key={ev.id} className={`w-1 h-1 rounded-full ${colors[ev.event_type] || colors.other}`} />
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         {/* 1. Next Event Card */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">

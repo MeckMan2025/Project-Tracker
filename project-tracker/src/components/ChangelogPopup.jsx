@@ -6,11 +6,11 @@ import { useUser } from '../contexts/UserContext'
 const CHANGELOG = [
   {
     id: 59,
-    date: '2026-03-07',
+    date: '2026-03-08',
     items: [
-      'Calendar now shows a "What\'s Next" panel with upcoming events and tasks for the next 7 days',
-      'Your tasks are highlighted and separated in the day detail view',
-      'Task priority levels now show on the calendar with color-coded dots',
+      'Mini week calendar on the home page showing this week at a glance',
+      'Calendar day cells now cap at 3 items with a +N more indicator',
+      'Task priority colors and My Tasks section in calendar day details',
     ],
   },
   {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell, Clock, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Bell, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -371,31 +371,6 @@ function CalendarView() {
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  // "What's Next" — next 7 days of events & tasks
-  const whatsNext = useMemo(() => {
-    const items = []
-    const now = new Date()
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' })
-      const dayEvents = events[key] || []
-      const dayTasks = tasksDue[key] || []
-      dayEvents.forEach(ev => items.push({ dateKey: key, label, type: 'event', item: ev }))
-      dayTasks.forEach(task => items.push({ dateKey: key, label, type: 'task', item: task }))
-    }
-    return items
-  }, [events, tasksDue])
-
-  // Filter for current user's upcoming tasks
-  const myUpcoming = useMemo(() => {
-    return whatsNext.filter(w =>
-      w.type === 'task' &&
-      w.item.assignee?.toLowerCase() === username?.toLowerCase() &&
-      w.item.status !== 'done' && w.item.status !== 'completed'
-    )
-  }, [whatsNext, username])
-
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -423,59 +398,6 @@ function CalendarView() {
       </header>
 
       <main className="flex-1 p-4 overflow-auto">
-        {/* What's Next panel */}
-        {whatsNext.length > 0 && (
-          <div className="mb-4 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle size={16} className="text-pastel-pink-dark" />
-              <h3 className="text-sm font-semibold text-gray-700">What's Next</h3>
-              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded-full">7 days</span>
-              {myUpcoming.length > 0 && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-pastel-blue/30 text-pastel-blue-dark rounded-full ml-auto">
-                  {myUpcoming.length} task{myUpcoming.length !== 1 ? 's' : ''} for you
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
-              {whatsNext.slice(0, 10).map((w, i) => {
-                if (w.type === 'event') {
-                  const t = EVENT_TYPES[w.item.eventType] || EVENT_TYPES.other
-                  return (
-                    <div key={`e-${w.item.id}-${i}`} className={`shrink-0 w-[180px] snap-center rounded-lg px-2.5 py-2 ${t.bg}`}>
-                      <p className="text-[10px] text-gray-400 font-medium">{w.label}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dot} shrink-0`} />
-                        <p className="text-xs font-medium text-gray-700 truncate">{w.item.name}</p>
-                      </div>
-                      {w.item.description && (
-                        <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{w.item.description}</p>
-                      )}
-                    </div>
-                  )
-                }
-                const isMyTask = w.item.assignee?.toLowerCase() === username?.toLowerCase()
-                const isDone = w.item.status === 'done' || w.item.status === 'completed'
-                const prio = PRIORITY_LABEL[w.item.priority] || PRIORITY_LABEL.medium
-                return (
-                  <div key={`t-${w.item.id}-${i}`} className={`shrink-0 w-[180px] snap-center rounded-lg px-2.5 py-2 ${isDone ? 'bg-green-50' : isMyTask ? 'bg-pastel-blue/30' : 'bg-gray-50'}`}>
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] text-gray-400 font-medium">{w.label}</p>
-                      {isMyTask && <span className="text-[10px] px-1 bg-pastel-blue/50 text-pastel-blue-dark rounded">You</span>}
-                    </div>
-                    <p className={`text-xs font-medium mt-0.5 truncate ${isDone ? 'text-green-600 line-through' : 'text-gray-700'}`}>{w.item.title}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className={`text-[10px] px-1 rounded ${prio.cls}`}>{prio.text}</span>
-                      {w.item.assignee && !isMyTask && (
-                        <span className="text-[10px] text-gray-400 truncate">{w.item.assignee}</span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {dayNames.map(d => (
