@@ -5,6 +5,41 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 70,
+    date: '2026-03-08',
+    items: [
+      'Homepage shows your upcoming comp day role assignments at a glance',
+    ],
+  },
+  {
+    id: 69,
+    date: '2026-03-08',
+    items: [
+      'Role-specific tools — Pit Crew gets a checklist + issues log, Bag Watch gets a shift timer, Break gets a countdown timer, Spirit gets cheer reminders, Safety Monitor gets a safety checklist',
+    ],
+  },
+  {
+    id: 68,
+    date: '2026-03-08',
+    items: [
+      'New comp day roles: Strategy Lead 🧠 (scouting data + chat) and Safety Monitor 🦺 (safety checklist)',
+    ],
+  },
+  {
+    id: 67,
+    date: '2026-03-08',
+    items: [
+      'Scouting Accountability grid — names × match blocks with ✅/❌, visible in Data tab anytime',
+    ],
+  },
+  {
+    id: 66,
+    date: '2026-03-08',
+    items: [
+      'Comp Day screen lock — all 8 roles now lock screens to role-specific tabs when live',
+    ],
+  },
+  {
     id: 65,
     date: '2026-03-08',
     items: [

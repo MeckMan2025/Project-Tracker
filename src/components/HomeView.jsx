@@ -17,6 +17,7 @@ function HomeView({ onTabChange }) {
   const [nextEvent, setNextEvent] = useState(null)
   const [eventLoading, setEventLoading] = useState(true)
   const [compDayActive, setCompDayActive] = useState(false)
+  const [compDayPreview, setCompDayPreview] = useState(null) // { sessionName, roles: [{blockName, role, emoji}] }
   const [quote, setQuote] = useState(null)
   const [ideas, setIdeas] = useState([])
   const [newIdea, setNewIdea] = useState('')
@@ -32,13 +33,45 @@ function HomeView({ onTabChange }) {
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
-  // Check for active comp day session
+  const ROLE_EMOJIS = { 'scouting': '🔍', 'pit-crew': '🔧', 'drive-team': '🎮', 'spirit': '📣', 'bag-watch': '🎒', 'break': '☕', 'strategy': '🧠', 'safety': '🦺' }
+  const ROLE_LABELS = { 'scouting': 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team': 'Drive Team', 'spirit': 'Spirit', 'bag-watch': 'Bag Watch', 'break': 'Break', 'strategy': 'Strategy Lead', 'safety': 'Safety Monitor' }
+
+  // Check for active/upcoming comp day session + role preview
   useEffect(() => {
-    fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1&select=id`, { headers })
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setCompDayActive(data.length > 0))
-      .catch(() => {})
-  }, [])
+    const fetchCompDay = async () => {
+      try {
+        // Check active session
+        const activeRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1&select=id`, { headers })
+        const activeData = await activeRes.json()
+        setCompDayActive(Array.isArray(activeData) && activeData.length > 0)
+
+        // Find upcoming or most recent session for role preview
+        if (!username) return
+        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?order=created_at.desc&limit=1&select=id,name,session_date`, { headers })
+        const sessions = await sessRes.json()
+        if (!Array.isArray(sessions) || sessions.length === 0) return
+
+        const session = sessions[0]
+        // Get my assignments for this session
+        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?session_id=eq.${session.id}&username=eq.${encodeURIComponent(username)}&select=role,block_id`, { headers })
+        const assigns = await assignRes.json()
+        if (!Array.isArray(assigns) || assigns.length === 0) { setCompDayPreview(null); return }
+
+        // Get block names
+        const blockIds = [...new Set(assigns.map(a => a.block_id))]
+        const blocksRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?session_id=eq.${session.id}&order=order_index.asc&select=id,name`, { headers })
+        const blocks = await blocksRes.json()
+        const blockMap = Object.fromEntries((blocks || []).map(b => [b.id, b.name]))
+
+        setCompDayPreview({
+          sessionName: session.name,
+          sessionDate: session.session_date,
+          roles: assigns.map(a => ({ blockName: blockMap[a.block_id] || '?', role: a.role, emoji: ROLE_EMOJIS[a.role] || '❓', label: ROLE_LABELS[a.role] || a.role })),
+        })
+      } catch { setCompDayActive(false) }
+    }
+    fetchCompDay()
+  }, [username])
 
   // Fetch next event + quote
   useEffect(() => {
@@ -269,6 +302,32 @@ function HomeView({ onTabChange }) {
               <ArrowRight size={20} />
             </div>
           </button>
+        )}
+
+        {/* Comp Day Role Preview */}
+        {!compDayActive && compDayPreview && !isGuest && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Comp Day Roles</h3>
+              <span className="text-xs text-gray-400">{compDayPreview.sessionName}</span>
+            </div>
+            <div className="space-y-1.5">
+              {compDayPreview.roles.map((r, i) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                  <span className="text-sm text-gray-600">{r.blockName}</span>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-700">
+                    {r.emoji} {r.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => onTabChange('comp-day')}
+              className="w-full mt-3 py-2 rounded-lg bg-pastel-pink/50 hover:bg-pastel-pink text-gray-700 text-sm font-medium transition-colors"
+            >
+              View Competition Day
+            </button>
+          </div>
         )}
 
         {/* Mini Week Calendar */}

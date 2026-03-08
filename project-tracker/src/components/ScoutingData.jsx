@@ -5,6 +5,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
+import ScoutingAccountability from './ScoutingAccountability'
 
 // Default considered teams (used as fallback before Supabase loads)
 const DEFAULT_CONSIDERED = ['6603', '20097', '22479']
@@ -585,6 +586,9 @@ function ScoutingData() {
 
       <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
+
+          {/* Scouting Accountability Grid */}
+          <ScoutingAccountability />
 
           {/* Teams Being Considered */}
           <div className="border-b-2 border-pastel-pink pb-2 mb-1">

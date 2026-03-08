@@ -336,6 +336,71 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
+  const [compDayLock, setCompDayLock] = useState(null) // { role: 'scouting' | 'drive-team' | ... } or null
+
+  // Comp Day screen captivation — check if there's a live session with an active block and user has a role
+  useEffect(() => {
+    if (!username || hasLeadTag || effectiveIsTeam) { setCompDayLock(null); return }
+    let cancelled = false
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+    const check = async () => {
+      try {
+        // Find active session
+        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1`, { headers })
+        const sessions = await sessRes.json()
+        if (!Array.isArray(sessions) || sessions.length === 0) { if (!cancelled) setCompDayLock(null); return }
+        const sessionId = sessions[0].id
+        // Find active block
+        const blockRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?session_id=eq.${sessionId}&is_active=eq.true&limit=1`, { headers })
+        const blocks = await blockRes.json()
+        if (!Array.isArray(blocks) || blocks.length === 0) { if (!cancelled) setCompDayLock(null); return }
+        // Find my assignment
+        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?block_id=eq.${blocks[0].id}&username=eq.${encodeURIComponent(username)}&limit=1`, { headers })
+        const assigns = await assignRes.json()
+        if (!cancelled) {
+          if (Array.isArray(assigns) && assigns.length > 0) {
+            setCompDayLock({ role: assigns[0].role })
+          } else {
+            setCompDayLock(null)
+          }
+        }
+      } catch { if (!cancelled) setCompDayLock(null) }
+    }
+    check()
+    const interval = setInterval(check, 15000)
+
+    // Also listen for realtime changes
+    const channel = supabase
+      .channel('comp-day-lock')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_sessions' }, check)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_blocks' }, check)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_assignments' }, check)
+      .subscribe()
+
+    return () => { cancelled = true; clearInterval(interval); supabase.removeChannel(channel) }
+  }, [username, hasLeadTag, effectiveIsTeam])
+
+  // Force tab when comp day lock is active
+  useEffect(() => {
+    if (!compDayLock) return
+    const roleTabMap = {
+      'scouting': ['comp-day', 'scouting', 'schedule', 'data'],
+      'drive-team': ['comp-day', 'chat-all', 'chat-alliances', 'chat-leagues', 'schedule'],
+      'pit-crew': ['comp-day', 'schedule'],
+      'spirit': ['comp-day', 'schedule'],
+      'bag-watch': ['comp-day', 'schedule'],
+      'break': ['comp-day', 'schedule'],
+      'strategy': ['comp-day', 'data', 'chat-all', 'chat-alliances', 'chat-leagues', 'schedule'],
+      'safety': ['comp-day', 'schedule'],
+    }
+    const allowedTabs = roleTabMap[compDayLock.role] || ['comp-day']
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab(allowedTabs[0])
+    }
+  }, [compDayLock, activeTab])
 
   // Heartbeat: update last_seen_at every 10s so attendance knows who's online
   // Users who stop pinging for >15s are considered offline
@@ -1109,6 +1174,7 @@ function App() {
         musicStarted={musicStarted}
         onlineUsers={onlineUsers}
         isTeamAccount={effectiveIsTeam}
+        compDayLock={compDayLock}
       />
 
 
@@ -1186,7 +1252,7 @@ function App() {
       ) : activeTab === 'chat-leagues' ? (
         <QuickChat channel="leagues" />
       ) : activeTab === 'comp-day' ? (
-        <CompDayView onBack={() => setActiveTab('home')} />
+        <CompDayView onBack={() => setActiveTab('special-controls')} />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">

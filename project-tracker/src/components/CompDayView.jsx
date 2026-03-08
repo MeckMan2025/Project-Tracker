@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Play, Pause, Trash2, Users, ArrowLeft, ClipboardCheck, AlertCircle, ChevronRight, Calendar, Shield } from 'lucide-react'
+import { Plus, Play, Pause, Trash2, Users, ArrowLeft, ClipboardCheck, AlertCircle, ChevronRight, Calendar, Shield, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
+import PitChecklist from './PitChecklist'
+import BagWatchTimer from './BagWatchTimer'
+import BreakTimer from './BreakTimer'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -28,12 +31,14 @@ async function restDelete(table, filter) {
 }
 
 const ROLES = [
-  { id: 'scouting', label: 'Scouting', emoji: '🔍', color: 'bg-blue-100 text-blue-800 border-blue-300', bg: 'from-blue-400 to-blue-600' },
-  { id: 'pit-crew', label: 'Pit Crew', emoji: '🔧', color: 'bg-orange-100 text-orange-800 border-orange-300', bg: 'from-orange-400 to-orange-600' },
-  { id: 'drive-team', label: 'Drive Team', emoji: '🎮', color: 'bg-purple-100 text-purple-800 border-purple-300', bg: 'from-purple-400 to-purple-600' },
-  { id: 'spirit', label: 'Spirit', emoji: '📣', color: 'bg-pink-100 text-pink-800 border-pink-300', bg: 'from-pink-400 to-pink-600' },
-  { id: 'bag-watch', label: 'Bag Watch', emoji: '🎒', color: 'bg-yellow-100 text-yellow-800 border-yellow-300', bg: 'from-yellow-400 to-yellow-600' },
-  { id: 'break', label: 'Break', emoji: '☕', color: 'bg-gray-100 text-gray-600 border-gray-300', bg: 'from-gray-400 to-gray-500' },
+  { id: 'scouting', label: 'Scouting', emoji: '🔍', color: 'bg-blue-100 text-blue-800 border-blue-300', bg: 'from-blue-200 to-blue-300', textColor: 'text-blue-800' },
+  { id: 'pit-crew', label: 'Pit Crew', emoji: '🔧', color: 'bg-orange-100 text-orange-800 border-orange-300', bg: 'from-orange-200 to-orange-300', textColor: 'text-orange-800' },
+  { id: 'drive-team', label: 'Drive Team', emoji: '🎮', color: 'bg-purple-100 text-purple-800 border-purple-300', bg: 'from-purple-200 to-purple-300', textColor: 'text-purple-800' },
+  { id: 'spirit', label: 'Spirit', emoji: '📣', color: 'bg-pink-100 text-pink-800 border-pink-300', bg: 'from-pink-200 to-pink-300', textColor: 'text-pink-800' },
+  { id: 'bag-watch', label: 'Bag Watch', emoji: '🎒', color: 'bg-yellow-100 text-yellow-800 border-yellow-300', bg: 'from-yellow-200 to-yellow-300', textColor: 'text-yellow-800' },
+  { id: 'break', label: 'Break', emoji: '☕', color: 'bg-gray-100 text-gray-600 border-gray-300', bg: 'from-gray-200 to-gray-300', textColor: 'text-gray-700' },
+  { id: 'strategy', label: 'Strategy Lead', emoji: '🧠', color: 'bg-indigo-100 text-indigo-800 border-indigo-300', bg: 'from-indigo-200 to-indigo-300', textColor: 'text-indigo-800' },
+  { id: 'safety', label: 'Safety Monitor', emoji: '🦺', color: 'bg-emerald-100 text-emerald-800 border-emerald-300', bg: 'from-emerald-200 to-emerald-300', textColor: 'text-emerald-800' },
 ]
 
 const ROLE_MAP = Object.fromEntries(ROLES.map(r => [r.id, r]))
@@ -55,6 +60,8 @@ export default function CompDayView({ onBack }) {
   const [newSessionName, setNewSessionName] = useState('')
   const [newBlockName, setNewBlockName] = useState('')
   const [assigningBlock, setAssigningBlock] = useState(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [showIntro, setShowIntro] = useState(() => !localStorage.getItem('comp-day-intro-seen'))
 
   // Load all sessions
   const fetchSessions = useCallback(async () => {
@@ -111,7 +118,7 @@ export default function CompDayView({ onBack }) {
   const myRole = useMemo(() => {
     if (!activeBlock) return null
     const a = assignments.find(a => a.block_id === activeBlock.id && a.username === username)
-    return a ? ROLE_MAP[a.role] : null
+    return a ? { ...ROLE_MAP[a.role], id: a.role } : null
   }, [activeBlock, assignments, username])
 
   const isLive = activeSession?.is_active
@@ -253,10 +260,10 @@ export default function CompDayView({ onBack }) {
                 )}
 
                 {activeBlock && myRole ? (
-                  <div className={`rounded-2xl bg-gradient-to-br ${myRole.bg} p-8 text-center text-white shadow-lg`}>
+                  <div className={`rounded-2xl bg-gradient-to-br ${myRole.bg} p-8 text-center shadow-lg border border-gray-200`}>
                     <p className="text-6xl mb-3">{myRole.emoji}</p>
-                    <h1 className="text-3xl font-black">{myRole.label}</h1>
-                    <p className="text-white/80 mt-2 text-sm">This is your current assignment</p>
+                    <h1 className={`text-3xl font-black ${myRole.textColor || 'text-gray-800'}`}>{myRole.label}</h1>
+                    <p className="text-gray-500 mt-2 text-sm">This is your current assignment</p>
                   </div>
                 ) : activeBlock ? (
                   <div className="rounded-2xl bg-gray-100 p-8 text-center">
@@ -269,6 +276,79 @@ export default function CompDayView({ onBack }) {
                     <p className="text-4xl mb-2">⏳</p>
                     <h2 className="text-xl font-bold text-gray-600">Waiting</h2>
                     <p className="text-gray-400 mt-1">No block is active yet.</p>
+                  </div>
+                )}
+
+                {/* Role-specific tools */}
+                {activeBlock && myRole && (
+                  <div className="space-y-3">
+                    {myRole.id === 'scouting' && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">📊 Scouting Tools</h3>
+                        <p className="text-sm text-gray-500 mb-3">Focus on watching the field and recording data.</p>
+                        <button
+                          onClick={() => {/* This will be handled by parent via tab change */}}
+                          className="w-full py-2.5 rounded-xl font-semibold text-gray-700 bg-pastel-blue hover:bg-pastel-blue-dark transition-colors text-sm"
+                        >
+                          Open Scouting Form
+                        </button>
+                      </div>
+                    )}
+                    {myRole.id === 'drive-team' && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">🎮 Drive Team</h3>
+                        <p className="text-sm text-gray-500">Coordinate strategy with your alliance in the chat.</p>
+                      </div>
+                    )}
+                    {myRole.id === 'pit-crew' && <PitChecklist />}
+                    {myRole.id === 'spirit' && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">📣 Spirit Squad</h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-pink-50 border border-pink-200">
+                            <span className="text-lg">📢</span>
+                            <span className="text-sm text-gray-700">Cheer loud for our team during matches!</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-50 border border-yellow-200">
+                            <span className="text-lg">👏</span>
+                            <span className="text-sm text-gray-700">Support the drive team — they can hear you!</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+                            <span className="text-lg">🤝</span>
+                            <span className="text-sm text-gray-700">Be friendly to other teams — Gracious Professionalism!</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {myRole.id === 'bag-watch' && <BagWatchTimer />}
+                    {myRole.id === 'break' && <BreakTimer />}
+                    {myRole.id === 'strategy' && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">🧠 Strategy Lead</h3>
+                        <p className="text-sm text-gray-500 mb-3">Analyze scouting data and plan match strategy.</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                            <span className="text-sm text-gray-700">Review scouting data in the Data tab</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                            <span className="text-sm text-gray-700">Discuss strategy in Alliance Chat</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {myRole.id === 'safety' && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">🦺 Safety Monitor</h3>
+                        <div className="space-y-2">
+                          {['Safety glasses on in pit', 'No loose clothing near machinery', 'Tools returned after use', 'Pit area clean and organized', 'First aid kit accessible'].map((item, i) => (
+                            <label key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 cursor-pointer">
+                              <input type="checkbox" className="rounded" />
+                              <span className="text-sm text-gray-700">{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -311,13 +391,44 @@ export default function CompDayView({ onBack }) {
     const liveSessions = sessions.filter(s => s.is_active)
     const draftSessions = sessions.filter(s => !s.is_active)
 
+    const dismissIntro = () => {
+      localStorage.setItem('comp-day-intro-seen', '1')
+      setShowIntro(false)
+    }
+
     return (
       <div className="flex-1 flex flex-col min-w-0">
+        {/* ─── Intro splash popup ─── */}
+        {showIntro && (
+          <>
+            <div className="fixed inset-0 bg-black/50 z-[100]" onClick={dismissIntro} />
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden animate-bounce-in">
+                <div className="p-8 text-center">
+                  <p className="text-6xl mb-4">🏁</p>
+                  <h2 className="text-2xl font-black text-gray-800 mb-2">Competition Day</h2>
+                  <p className="text-gray-500 mb-1">Assign roles. Lock screens.</p>
+                  <p className="text-gray-500 mb-1">Track accountability.</p>
+                  <p className="text-gray-400 text-sm mt-2 mb-6">Every member knows exactly what to do.</p>
+                  <button
+                    onClick={dismissIntro}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pastel-pink to-pastel-orange text-gray-800 font-bold text-lg shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
+                  >
+                    Let's Get Started
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
           <div className="px-4 py-3 ml-14 flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
+              <button onClick={onBack} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+                <ArrowLeft size={18} />
+              </button>
               <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">Competition Day</h1>
-              <p className="text-sm text-gray-500">Plan and manage competition operations</p>
             </div>
             <NotificationBell />
           </div>
@@ -333,32 +444,6 @@ export default function CompDayView({ onBack }) {
                 <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-xs">dismiss</button>
               </div>
             )}
-
-            {/* Create new */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
-                <Calendar size={16} />
-                Plan a Competition Day
-              </h3>
-              <p className="text-xs text-gray-400 mb-3">Create a plan with blocks and role assignments. Go live when you're at the event.</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newSessionName}
-                  onChange={e => setNewSessionName(e.target.value)}
-                  placeholder="e.g. States Day 1, Qualifier Round 2"
-                  className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-                  onKeyDown={e => e.key === 'Enter' && createSession()}
-                />
-                <button
-                  onClick={createSession}
-                  disabled={!newSessionName.trim()}
-                  className="px-5 py-2.5 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors"
-                >
-                  Create Plan
-                </button>
-              </div>
-            </div>
 
             {/* Live sessions */}
             {liveSessions.length > 0 && (
@@ -387,7 +472,7 @@ export default function CompDayView({ onBack }) {
             {/* Draft plans */}
             {draftSessions.length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Plans</h3>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Your Plans</h3>
                 <div className="space-y-2">
                   {draftSessions.map(s => (
                     <div key={s.id} className="flex items-center gap-2">
@@ -410,14 +495,62 @@ export default function CompDayView({ onBack }) {
               </div>
             )}
 
+            {/* New Competition Day button */}
+            <button
+              onClick={() => setShowCreate(true)}
+              className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-pastel-pink hover:bg-pastel-pink/10 transition-colors text-gray-500 hover:text-gray-700"
+            >
+              <Plus size={18} />
+              <span className="font-medium">New Competition Day</span>
+            </button>
+
+            {/* Empty state */}
             {sessions.length === 0 && (
-              <div className="text-center py-8">
-                <Shield size={40} className="mx-auto text-gray-300 mb-3" />
+              <div className="text-center py-6">
                 <p className="text-gray-400 text-sm">No competition days planned yet.</p>
+                <p className="text-gray-300 text-xs mt-1">Tap above to create your first plan.</p>
               </div>
             )}
           </div>
         </main>
+
+        {/* ─── Create Modal (workshop-style) ─── */}
+        {showCreate && (
+          <>
+            <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowCreate(false)} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md pointer-events-auto overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="border-b px-5 py-4 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-800">New Competition Day</h2>
+                  <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                    <X size={18} className="text-gray-400" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Competition Name</label>
+                    <input
+                      type="text"
+                      value={newSessionName}
+                      onChange={e => setNewSessionName(e.target.value)}
+                      placeholder="e.g. States Day 1, Qualifier Round 2"
+                      className="w-full mt-1.5 border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                      onKeyDown={e => e.key === 'Enter' && newSessionName.trim() && createSession()}
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    onClick={() => { createSession(); setShowCreate(false) }}
+                    disabled={!newSessionName.trim()}
+                    className="w-full py-3 rounded-xl bg-pastel-pink text-gray-800 font-semibold disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors"
+                  >
+                    Create Plan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     )
   }
@@ -425,7 +558,7 @@ export default function CompDayView({ onBack }) {
   // ─── Lead View: Session editor ───
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <header className="bg-gray-900 shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 ml-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => setActiveSession(null)} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">

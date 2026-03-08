@@ -4,7 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
   const { isGuest, canEditContent, canRequestContent, hasLeadTag } = usePermissions()
   const { addToast } = useToast()
@@ -67,6 +67,18 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       body: JSON.stringify(request),
     }).catch(err => console.error('Failed to request board:', err))
   }
+
+  // Comp Day screen lock — determine which tabs are allowed per role
+  const compDayAllowedTabs = compDayLock ? ({
+    'scouting': ['comp-day', 'scouting', 'schedule', 'data'],
+    'drive-team': ['comp-day', 'chat-all', 'chat-alliances', 'chat-leagues', 'schedule'],
+    'pit-crew': ['comp-day', 'schedule'],
+    'spirit': ['comp-day', 'schedule'],
+    'bag-watch': ['comp-day', 'schedule'],
+    'break': ['comp-day', 'schedule'],
+    'strategy': ['comp-day', 'data', 'chat-all', 'chat-alliances', 'chat-leagues', 'schedule'],
+    'safety': ['comp-day', 'schedule'],
+  }[compDayLock.role] || ['comp-day']) : null
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
@@ -158,8 +170,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </>
         )}
 
-        {/* Category Filter */}
-        <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
+        {/* Category Filter — hidden during comp day lock */}
+        {!compDayAllowedTabs && <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
           {[
             { id: 'technical', emoji: '🔧' },
             { id: 'general', emoji: '🏠' },
@@ -182,10 +194,92 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               {emoji}
             </button>
           ))}
-        </div>
+        </div>}
 
         <nav className="p-2 flex-1 overflow-y-auto">
-          <hr className="my-2 border-gray-200" />
+          {/* ─── Comp Day Locked Nav ─── */}
+          {compDayAllowedTabs ? (<>
+            <div className="mb-2 px-2 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
+              <p className="text-xs font-bold text-red-700 text-center">🔒 Comp Day Active</p>
+              <p className="text-[10px] text-red-500 text-center mt-0.5">Screen locked to your assigned role</p>
+            </div>
+            <hr className="my-2 border-gray-200" />
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === 'comp-day' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+              }`}
+              onClick={() => { onTabChange('comp-day'); onToggle() }}
+            >
+              <Shield size={16} className="text-red-500" />
+              <span className="truncate">Competition Day</span>
+            </div>
+            <hr className="my-2 border-gray-200" />
+
+            {/* Role-specific tabs based on allowed tabs */}
+            {compDayAllowedTabs.includes('scouting') && (
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'scouting' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('scouting'); onToggle() }}
+              >
+                <ClipboardList size={16} className="text-pastel-orange-dark" />
+                <span className="truncate">Scouting Form</span>
+              </div>
+            )}
+            {compDayAllowedTabs.includes('schedule') && (
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'schedule' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('schedule'); onToggle() }}
+              >
+                <Calendar size={16} className="text-pastel-blue-dark" />
+                <span className="truncate">Match Schedule</span>
+              </div>
+            )}
+            {compDayAllowedTabs.includes('data') && (
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'data' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('data'); onToggle() }}
+              >
+                <LineChart size={16} className="text-pastel-blue-dark" />
+                <span className="truncate">Scouting Data</span>
+              </div>
+            )}
+            {compDayAllowedTabs.includes('chat-all') && (<>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues'
+                    ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => setChatOpen(prev => !prev)}
+              >
+                <MessageCircle size={16} className="text-pastel-pink-dark" />
+                <span className="truncate flex-1">Strategy Chat</span>
+                <ChevronRight size={14} className={`transition-transform ${chatOpen ? 'rotate-90' : ''}`} />
+              </div>
+              {chatOpen && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {[{ tab: 'chat-all', label: 'All' }, { tab: 'chat-alliances', label: 'Alliances' }, { tab: 'chat-leagues', label: 'Leagues' }].map(({ tab, label }) => (
+                    <div
+                      key={tab}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                        activeTab === tab ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                      }`}
+                      onClick={() => { onTabChange(tab); onToggle() }}
+                    >
+                      <ChevronRight size={14} className={activeTab === tab ? 'rotate-90' : ''} />
+                      <span className="truncate">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>)}
+          </>) : (<>
+          {/* ─── Normal Nav ─── */}
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -649,6 +743,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
           </>}
+          </>)}
         </nav>
 
         {/* Online Now */}
