@@ -40,6 +40,7 @@ import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
+import SettingsView from './components/SettingsView'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -291,7 +292,7 @@ function App() {
   const flashUsername = username || localStorage.getItem('scrum-username') || ''
   const flashRequired = activeFlash && flashUsername && presentUsers.includes(flashUsername) && !completedUsers.includes(flashUsername) && !(activeFlash.exempt_users || []).includes(flashUsername)
   useBackButton()
-  const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
+  const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam && localStorage.getItem('scrum-skip-loading') !== 'true')
   const [radicalMsg] = useState(() => {
     const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
     return msgs[Math.floor(Math.random() * msgs.length)]
@@ -589,7 +590,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -1169,6 +1170,8 @@ function App() {
         <RequestsView tabs={tabs} />
       ) : activeTab === 'profile' ? (
         <ProfileView viewingProfileId={viewingProfileId} onClearViewing={() => setViewingProfileId(null)} />
+      ) : activeTab === 'settings' ? (
+        <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
       ) : activeTab === 'notebook' ? (
