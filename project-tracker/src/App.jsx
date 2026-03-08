@@ -41,6 +41,7 @@ import ChangelogPopup from './components/ChangelogPopup'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
+import CompDayView from './components/CompDayView'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -590,7 +591,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'comp-day' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
     const board = tabs.find(t => t.id === tabId)
     if (board?.permanent) return
 
@@ -1184,6 +1185,8 @@ function App() {
         <AllianceHubs />
       ) : activeTab === 'chat-leagues' ? (
         <QuickChat channel="leagues" />
+      ) : activeTab === 'comp-day' ? (
+        <CompDayView onBack={() => setActiveTab('home')} />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -1210,6 +1213,8 @@ function App() {
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
             <DesignMatrix onBack={() => setSpecialView(null)} />
+          ) : specialView === 'comp-day' ? (
+            <CompDayView onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto space-y-6">
@@ -1307,7 +1312,14 @@ function App() {
                   <div>
                     <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Modes</h2>
                     <div className="grid gap-3">
-                      {['SWOT Mode', 'Scouting Mode', 'Comp Day', 'Meeting Stats'].map(label => (
+                      <button
+                        onClick={() => setSpecialView('comp-day')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">🏁 Comp Day</span>
+                        <p className="text-sm text-gray-400 mt-1">Assign roles, track accountability during competitions</p>
+                      </button>
+                      {['SWOT Mode', 'Scouting Mode', 'Meeting Stats'].map(label => (
                         <button
                           key={label}
                           className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm text-left opacity-60"

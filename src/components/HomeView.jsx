@@ -16,6 +16,7 @@ function HomeView({ onTabChange }) {
 
   const [nextEvent, setNextEvent] = useState(null)
   const [eventLoading, setEventLoading] = useState(true)
+  const [compDayActive, setCompDayActive] = useState(false)
   const [quote, setQuote] = useState(null)
   const [ideas, setIdeas] = useState([])
   const [newIdea, setNewIdea] = useState('')
@@ -30,6 +31,14 @@ function HomeView({ onTabChange }) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+  // Check for active comp day session
+  useEffect(() => {
+    fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1&select=id`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setCompDayActive(data.length > 0))
+      .catch(() => {})
+  }, [])
 
   // Fetch next event + quote
   useEffect(() => {
@@ -244,6 +253,24 @@ function HomeView({ onTabChange }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
+        {/* Comp Day Banner */}
+        {compDayActive && (
+          <button
+            onClick={() => onTabChange('comp-day')}
+            className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg font-bold flex items-center gap-2">
+                  <span className="animate-pulse">🏁</span> Competition Day is LIVE
+                </p>
+                <p className="text-white/80 text-sm">Tap to see your role assignment</p>
+              </div>
+              <ArrowRight size={20} />
+            </div>
+          </button>
+        )}
+
         {/* Mini Week Calendar */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
           <div className="flex items-center justify-between mb-2">

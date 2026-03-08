@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 65,
+    date: '2026-03-08',
+    items: [
+      'Comp Day mode — leads assign roles (Scouting, Pit Crew, Drive Team, Spirit, Bag Watch, Break) per match block, members see their role front and center',
+    ],
+  },
+  {
     id: 64,
     date: '2026-03-08',
     items: [

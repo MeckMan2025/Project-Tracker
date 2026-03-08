@@ -449,11 +449,56 @@ DROP POLICY IF EXISTS "Allow authenticated delete design-matrix-images" ON stora
 CREATE POLICY "Allow authenticated delete design-matrix-images" ON storage.objects
   FOR DELETE USING (bucket_id = 'design-matrix-images');
 
+-- COMP DAY SESSIONS TABLE (represents a competition day)
+CREATE TABLE IF NOT EXISTS comp_day_sessions (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  session_date text NOT NULL,
+  is_active boolean DEFAULT false,
+  created_by text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE comp_day_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to comp_day_sessions" ON comp_day_sessions;
+CREATE POLICY "Allow all access to comp_day_sessions" ON comp_day_sessions
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- COMP DAY BLOCKS TABLE (time blocks within a session)
+CREATE TABLE IF NOT EXISTS comp_day_blocks (
+  id text PRIMARY KEY,
+  session_id text NOT NULL REFERENCES comp_day_sessions(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  order_index integer NOT NULL DEFAULT 0,
+  is_active boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE comp_day_blocks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to comp_day_blocks" ON comp_day_blocks;
+CREATE POLICY "Allow all access to comp_day_blocks" ON comp_day_blocks
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- COMP DAY ASSIGNMENTS TABLE (role assignments per member per block)
+CREATE TABLE IF NOT EXISTS comp_day_assignments (
+  id text PRIMARY KEY,
+  block_id text NOT NULL REFERENCES comp_day_blocks(id) ON DELETE CASCADE,
+  session_id text NOT NULL,
+  username text NOT NULL,
+  role text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE comp_day_assignments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to comp_day_assignments" ON comp_day_assignments;
+CREATE POLICY "Allow all access to comp_day_assignments" ON comp_day_assignments
+  FOR ALL USING (true) WITH CHECK (true);
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','notebook_entry_participants','notebook_flash','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts','design_matrices']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','notebook_entry_participants','notebook_flash','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts','design_matrices','comp_day_sessions','comp_day_blocks','comp_day_assignments']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
