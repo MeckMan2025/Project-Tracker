@@ -6,6 +6,8 @@ const SKILL_OPTIONS = [
   'Presentation', 'Testing', 'Documentation', 'Business', 'Strategy'
 ]
 
+const DEPARTMENT_OPTIONS = ['Business', 'Technical', 'Programming']
+
 function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
   const [formData, setFormData] = useState({
     title: task?.title || '',
@@ -98,30 +100,45 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assignee
-              </label>
-              <input
-                type="text"
-                value={formData.assignee}
-                onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                placeholder="Name"
-              />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Assign To
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {DEPARTMENT_OPTIONS.map(dept => (
+                <button
+                  key={dept}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, assignee: formData.assignee === dept ? '' : dept })}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    formData.assignee === dept
+                      ? 'bg-pastel-blue text-gray-700'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {dept}
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              />
-            </div>
+            <input
+              type="text"
+              value={DEPARTMENT_OPTIONS.includes(formData.assignee) ? '' : formData.assignee}
+              onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              placeholder="Or type a person's name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Due Date
+            </label>
+            <input
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
