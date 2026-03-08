@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Play, Pause, ChevronRight, Trash2, Users, ArrowLeft, X } from 'lucide-react'
+import { Plus, Play, Pause, ChevronRight, Trash2, Users, ArrowLeft, X, ClipboardCheck } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -46,6 +46,8 @@ export default function CompDayView({ onBack }) {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [scoutingRecords, setScoutingRecords] = useState([])
+
   // Lead UI state
   const [creating, setCreating] = useState(false)
   const [newSessionName, setNewSessionName] = useState('')
@@ -66,15 +68,18 @@ export default function CompDayView({ onBack }) {
         return
       }
 
-      const [blks, assigns, profiles] = await Promise.all([
+      const today = new Date().toISOString().split('T')[0]
+      const [blks, assigns, profiles, scoutRecs] = await Promise.all([
         restGet(`comp_day_blocks?session_id=eq.${s.id}&order=order_index.asc`),
         restGet(`comp_day_assignments?session_id=eq.${s.id}&select=*`),
         restGet('profiles?select=display_name,function_tags'),
+        restGet(`scouting_records?submitted_at=gte.${today}T00:00:00&select=submitted_by,submitted_at`),
       ])
 
       setBlocks(blks)
       setAssignments(assigns)
       setMembers(profiles.filter(p => !(p.function_tags || []).includes('Team')).map(p => p.display_name))
+      setScoutingRecords(scoutRecs)
     } catch (err) {
       console.error('CompDay fetch error:', err)
     } finally {
@@ -91,6 +96,7 @@ export default function CompDayView({ onBack }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_sessions' }, fetchAll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_blocks' }, fetchAll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_assignments' }, fetchAll)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, fetchAll)
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [fetchAll])
@@ -422,6 +428,54 @@ export default function CompDayView({ onBack }) {
               })}
             </div>
           )}
+
+          {/* Scouting Accountability */}
+          {(() => {
+            // Find all members assigned to scouting in any block
+            const scoutAssigns = assignments.filter(a => a.role === 'scouting')
+            const scoutMembers = [...new Set(scoutAssigns.map(a => a.username))]
+            if (scoutMembers.length === 0) return null
+
+            // Count scouting blocks per member
+            const scoutBlockCount = {}
+            scoutMembers.forEach(m => {
+              scoutBlockCount[m] = scoutAssigns.filter(a => a.username === m).length
+            })
+
+            // Count scouting submissions per member today
+            const submissionCount = {}
+            scoutingRecords.forEach(r => {
+              submissionCount[r.submitted_by] = (submissionCount[r.submitted_by] || 0) + 1
+            })
+
+            return (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <ClipboardCheck size={16} className="text-blue-500" />
+                  Scouting Accountability
+                </h3>
+                <div className="space-y-2">
+                  {scoutMembers.map(member => {
+                    const assigned = scoutBlockCount[member] || 0
+                    const submitted = submissionCount[member] || 0
+                    const ok = submitted >= assigned
+                    return (
+                      <div key={member} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                        <span className="text-sm font-medium text-gray-700">{member}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold ${ok ? 'text-green-600' : 'text-red-600'}`}>
+                            {submitted}/{assigned} submitted
+                          </span>
+                          <span className="text-sm">{ok ? '✅' : '⚠️'}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Compares scouting blocks assigned vs. scouting records submitted today</p>
+              </div>
+            )
+          })()}
 
           {/* Overview: who's doing what right now */}
           {activeBlock && (
