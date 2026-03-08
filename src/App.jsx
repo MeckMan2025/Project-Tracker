@@ -292,10 +292,20 @@ function App() {
 
   // Debug flash — remove after testing
   useEffect(() => {
-    if (activeFlash) {
-      console.log('[Flash Debug]', { activeFlash: !!activeFlash, username, presentUsers, completedUsers, flashRequired: !!activeFlash && !!username && presentUsers.includes(username) && !completedUsers.includes(username), hasLeadTag })
-    }
-  }, [activeFlash, username, presentUsers, completedUsers, hasLeadTag])
+    console.log('[Flash Debug]', {
+      activeFlash: !!activeFlash,
+      flashId: activeFlash?.id,
+      username: JSON.stringify(username),
+      usernameType: typeof username,
+      usernameLen: username?.length,
+      presentUsers,
+      completedUsers,
+      exemptUsers: activeFlash?.exempt_users,
+      inPresent: presentUsers.includes(username),
+      hasLeadTag,
+      isLoading,
+    })
+  }, [activeFlash, username, presentUsers, completedUsers, hasLeadTag, isLoading])
   useBackButton()
   const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
