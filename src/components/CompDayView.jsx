@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Play, Pause, Trash2, Users, ArrowLeft, ClipboardCheck, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
+import { Plus, Play, Pause, Trash2, Users, ArrowLeft, ClipboardCheck, AlertCircle, ChevronRight, Calendar, Shield } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
+import NotificationBell from './NotificationBell'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -42,7 +43,7 @@ export default function CompDayView({ onBack }) {
   const { hasLeadTag } = usePermissions()
 
   const [sessions, setSessions] = useState([])
-  const [session, setSession] = useState(null)  // currently viewed session
+  const [activeSession, setActiveSession] = useState(null)  // currently open session
   const [blocks, setBlocks] = useState([])
   const [assignments, setAssignments] = useState([])
   const [members, setMembers] = useState([])
@@ -50,43 +51,21 @@ export default function CompDayView({ onBack }) {
   const [error, setError] = useState('')
   const [scoutingRecords, setScoutingRecords] = useState([])
 
-  // Lead UI state
+  // UI state
   const [newSessionName, setNewSessionName] = useState('')
   const [newBlockName, setNewBlockName] = useState('')
   const [assigningBlock, setAssigningBlock] = useState(null)
 
-  const fetchAll = useCallback(async () => {
+  // Load all sessions
+  const fetchSessions = useCallback(async () => {
     try {
       setError('')
-      // Get all sessions (active + recent inactive for planning)
-      const allSessions = await restGet('comp_day_sessions?order=created_at.desc&limit=10')
-      setSessions(allSessions)
+      const all = await restGet('comp_day_sessions?order=created_at.desc&limit=20')
+      setSessions(all)
 
-      // Find active session or most recent
-      const active = allSessions.find(s => s.is_active)
-      const current = active || allSessions[0] || null
-      setSession(current)
-
-      if (!current) {
-        setBlocks([])
-        setAssignments([])
-        setMembers([])
-        setLoading(false)
-        return
-      }
-
-      const today = new Date().toISOString().split('T')[0]
-      const [blks, assigns, profiles, scoutRecs] = await Promise.all([
-        restGet(`comp_day_blocks?session_id=eq.${current.id}&order=order_index.asc`),
-        restGet(`comp_day_assignments?session_id=eq.${current.id}&select=*`),
-        restGet('profiles?select=display_name,function_tags'),
-        restGet(`scouting_records?submitted_at=gte.${today}T00:00:00&select=submitted_by,submitted_at`),
-      ])
-
-      setBlocks(blks)
-      setAssignments(assigns)
+      // Load members list
+      const profiles = await restGet('profiles?select=display_name,function_tags')
       setMembers(profiles.filter(p => !(p.function_tags || []).includes('Team')).map(p => p.display_name))
-      setScoutingRecords(scoutRecs)
     } catch (err) {
       console.error('CompDay fetch error:', err)
       setError(err.message)
@@ -95,19 +74,38 @@ export default function CompDayView({ onBack }) {
     }
   }, [])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  // Load data for a specific session
+  const fetchSessionData = useCallback(async (sessionId) => {
+    if (!sessionId) return
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const [blks, assigns, scoutRecs] = await Promise.all([
+        restGet(`comp_day_blocks?session_id=eq.${sessionId}&order=order_index.asc`),
+        restGet(`comp_day_assignments?session_id=eq.${sessionId}&select=*`),
+        restGet(`scouting_records?submitted_at=gte.${today}T00:00:00&select=submitted_by,submitted_at`),
+      ])
+      setBlocks(blks)
+      setAssignments(assigns)
+      setScoutingRecords(scoutRecs)
+    } catch (err) {
+      console.error('Session data fetch error:', err)
+    }
+  }, [])
+
+  useEffect(() => { fetchSessions() }, [fetchSessions])
+  useEffect(() => { if (activeSession) fetchSessionData(activeSession.id) }, [activeSession?.id, fetchSessionData])
 
   // Realtime
   useEffect(() => {
     const channel = supabase
       .channel('comp-day-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_sessions' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_blocks' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_assignments' }, fetchAll)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_sessions' }, () => fetchSessions())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_blocks' }, () => { if (activeSession) fetchSessionData(activeSession.id) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_assignments' }, () => { if (activeSession) fetchSessionData(activeSession.id) })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, () => { if (activeSession) fetchSessionData(activeSession.id) })
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [fetchAll])
+  }, [fetchSessions, fetchSessionData, activeSession?.id])
 
   const activeBlock = useMemo(() => blocks.find(b => b.is_active), [blocks])
   const myRole = useMemo(() => {
@@ -116,100 +114,82 @@ export default function CompDayView({ onBack }) {
     return a ? ROLE_MAP[a.role] : null
   }, [activeBlock, assignments, username])
 
-  const isLive = session?.is_active
+  const isLive = activeSession?.is_active
 
-  // Lead actions
+  // Actions
   const createSession = async () => {
     if (!newSessionName.trim()) return
     try {
       setError('')
       const id = 'comp_' + Date.now()
       await restPost('comp_day_sessions', {
-        id,
-        name: newSessionName.trim(),
+        id, name: newSessionName.trim(),
         session_date: new Date().toISOString().split('T')[0],
-        is_active: false,
-        created_by: username,
+        is_active: false, created_by: username,
       })
       setNewSessionName('')
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await fetchSessions()
+      // Auto-open the new session
+      const updated = await restGet('comp_day_sessions?order=created_at.desc&limit=1')
+      if (updated[0]) setActiveSession(updated[0])
+    } catch (err) { setError(err.message) }
   }
 
   const goLive = async () => {
-    if (!session) return
+    if (!activeSession) return
     try {
       setError('')
-      // Deactivate any other active sessions first
       await restPatch('comp_day_sessions', 'is_active=eq.true', { is_active: false })
-      await restPatch('comp_day_sessions', `id=eq.${session.id}`, { is_active: true })
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { is_active: true })
+      setActiveSession({ ...activeSession, is_active: true })
+      await fetchSessions()
+    } catch (err) { setError(err.message) }
   }
 
   const endSession = async () => {
-    if (!session) return
+    if (!activeSession) return
     try {
       setError('')
-      await restPatch('comp_day_sessions', `id=eq.${session.id}`, { is_active: false })
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { is_active: false })
+      setActiveSession({ ...activeSession, is_active: false })
+      await fetchSessions()
+    } catch (err) { setError(err.message) }
   }
 
-  const deleteSession = async () => {
-    if (!session) return
+  const deleteSession = async (sid) => {
     try {
       setError('')
-      await restDelete('comp_day_sessions', `id=eq.${session.id}`)
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await restDelete('comp_day_sessions', `id=eq.${sid}`)
+      if (activeSession?.id === sid) { setActiveSession(null); setBlocks([]); setAssignments([]) }
+      await fetchSessions()
+    } catch (err) { setError(err.message) }
   }
 
   const addBlock = async () => {
-    if (!newBlockName.trim() || !session) return
+    if (!newBlockName.trim() || !activeSession) return
     try {
       setError('')
-      const id = 'block_' + Date.now()
       await restPost('comp_day_blocks', {
-        id,
-        session_id: session.id,
-        name: newBlockName.trim(),
-        order_index: blocks.length,
-        is_active: false,
+        id: 'block_' + Date.now(), session_id: activeSession.id,
+        name: newBlockName.trim(), order_index: blocks.length, is_active: false,
       })
       setNewBlockName('')
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await fetchSessionData(activeSession.id)
+    } catch (err) { setError(err.message) }
   }
 
   const activateBlock = async (blockId) => {
     try {
       setError('')
-      await restPatch('comp_day_blocks', `session_id=eq.${session.id}`, { is_active: false })
+      await restPatch('comp_day_blocks', `session_id=eq.${activeSession.id}`, { is_active: false })
       await restPatch('comp_day_blocks', `id=eq.${blockId}`, { is_active: true })
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await fetchSessionData(activeSession.id)
+    } catch (err) { setError(err.message) }
   }
 
   const deleteBlock = async (blockId) => {
-    try {
-      await restDelete('comp_day_blocks', `id=eq.${blockId}`)
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+    try { await restDelete('comp_day_blocks', `id=eq.${blockId}`); await fetchSessionData(activeSession.id) }
+    catch (err) { setError(err.message) }
   }
 
   const setRole = async (blockId, memberName, role) => {
@@ -218,16 +198,11 @@ export default function CompDayView({ onBack }) {
       if (role) {
         await restPost('comp_day_assignments', {
           id: 'assign_' + Date.now() + Math.random().toString(36).slice(2),
-          block_id: blockId,
-          session_id: session.id,
-          username: memberName,
-          role,
+          block_id: blockId, session_id: activeSession.id, username: memberName, role,
         })
       }
-      await fetchAll()
-    } catch (err) {
-      setError(err.message)
-    }
+      await fetchSessionData(activeSession.id)
+    } catch (err) { setError(err.message) }
   }
 
   const getBlockAssignments = (blockId) => assignments.filter(a => a.block_id === blockId)
@@ -235,15 +210,9 @@ export default function CompDayView({ onBack }) {
     const a = assignments.find(a => a.block_id === blockId && a.username === memberName)
     return a?.role || ''
   }
-
   const unassignedInBlock = (blockId) => {
     const assigned = assignments.filter(a => a.block_id === blockId).map(a => a.username)
     return members.filter(m => !assigned.includes(m))
-  }
-
-  const viewSession = (s) => {
-    setSession(s)
-    setAssigningBlock(null)
   }
 
   if (loading) {
@@ -254,187 +223,251 @@ export default function CompDayView({ onBack }) {
   if (!hasLeadTag) {
     const liveSession = sessions.find(s => s.is_active)
     return (
-      <div className="max-w-lg mx-auto p-4 space-y-4">
-        <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
-          <ArrowLeft size={16} /> Back
-        </button>
-
-        {!liveSession ? (
-          <div className="text-center py-16">
-            <p className="text-6xl mb-4">🏁</p>
-            <h2 className="text-xl font-bold text-gray-700">No Active Competition</h2>
-            <p className="text-gray-400 mt-2">A lead will activate Comp Day mode when it's time.</p>
-          </div>
-        ) : (
-          <>
-            <div className="text-center">
-              <h2 className="text-lg font-bold text-gray-700">{liveSession.name}</h2>
-              {activeBlock && (
-                <p className="text-sm text-gray-500 mt-1">Current: <span className="font-semibold">{activeBlock.name}</span></p>
-              )}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="bg-gray-900 shadow-sm sticky top-0 z-10">
+          <div className="px-4 py-3 ml-14 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-white">Competition Day</h1>
+              <p className="text-sm text-gray-400">{liveSession ? liveSession.name : 'No active competition'}</p>
             </div>
+            <NotificationBell />
+          </div>
+        </header>
 
-            {activeBlock && myRole ? (
-              <div className={`rounded-2xl bg-gradient-to-br ${myRole.bg} p-8 text-center text-white shadow-lg`}>
-                <p className="text-6xl mb-3">{myRole.emoji}</p>
-                <h1 className="text-3xl font-black">{myRole.label}</h1>
-                <p className="text-white/80 mt-2 text-sm">This is your current assignment</p>
-              </div>
-            ) : activeBlock ? (
-              <div className="rounded-2xl bg-gray-100 p-8 text-center">
-                <p className="text-4xl mb-2">❓</p>
-                <h2 className="text-xl font-bold text-gray-600">No Role Assigned</h2>
-                <p className="text-gray-400 mt-1">Ask a lead for your assignment.</p>
+        <main className="flex-1 p-4 overflow-y-auto">
+          <div className="max-w-lg mx-auto space-y-4">
+            {!liveSession ? (
+              <div className="text-center py-16">
+                <p className="text-6xl mb-4">🏁</p>
+                <h2 className="text-xl font-bold text-gray-700">No Active Competition</h2>
+                <p className="text-gray-400 mt-2">A lead will activate Comp Day when it's time.</p>
               </div>
             ) : (
-              <div className="rounded-2xl bg-gray-50 p-8 text-center">
-                <p className="text-4xl mb-2">⏳</p>
-                <h2 className="text-xl font-bold text-gray-600">Waiting</h2>
-                <p className="text-gray-400 mt-1">No block is active yet.</p>
-              </div>
-            )}
+              <>
+                {activeBlock && (
+                  <div className="text-center mb-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> LIVE — {activeBlock.name}
+                    </span>
+                  </div>
+                )}
 
-            {blocks.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2">Schedule</h3>
-                <div className="space-y-2">
-                  {blocks.map(b => {
-                    const role = getMemberRole(b.id, username)
-                    const roleInfo = ROLE_MAP[role]
-                    return (
-                      <div key={b.id} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${b.is_active ? 'bg-pastel-blue/20 border-pastel-blue-dark' : 'bg-white border-gray-200'}`}>
-                        <div className="flex items-center gap-2">
-                          {b.is_active && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
-                          <span className={`text-sm font-medium ${b.is_active ? 'text-gray-800' : 'text-gray-600'}`}>{b.name}</span>
-                        </div>
-                        {roleInfo ? (
-                          <span className={`text-xs px-2 py-1 rounded-full border ${roleInfo.color}`}>
-                            {roleInfo.emoji} {roleInfo.label}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+                {activeBlock && myRole ? (
+                  <div className={`rounded-2xl bg-gradient-to-br ${myRole.bg} p-8 text-center text-white shadow-lg`}>
+                    <p className="text-6xl mb-3">{myRole.emoji}</p>
+                    <h1 className="text-3xl font-black">{myRole.label}</h1>
+                    <p className="text-white/80 mt-2 text-sm">This is your current assignment</p>
+                  </div>
+                ) : activeBlock ? (
+                  <div className="rounded-2xl bg-gray-100 p-8 text-center">
+                    <p className="text-4xl mb-2">❓</p>
+                    <h2 className="text-xl font-bold text-gray-600">No Role Assigned</h2>
+                    <p className="text-gray-400 mt-1">Ask a lead for your assignment.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-gray-50 p-8 text-center">
+                    <p className="text-4xl mb-2">⏳</p>
+                    <h2 className="text-xl font-bold text-gray-600">Waiting</h2>
+                    <p className="text-gray-400 mt-1">No block is active yet.</p>
+                  </div>
+                )}
+
+                {blocks.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-500 mb-2">Your Schedule</h3>
+                    <div className="space-y-2">
+                      {blocks.map(b => {
+                        const role = getMemberRole(b.id, username)
+                        const roleInfo = ROLE_MAP[role]
+                        return (
+                          <div key={b.id} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${b.is_active ? 'bg-pastel-blue/20 border-pastel-blue-dark' : 'bg-white border-gray-200'}`}>
+                            <div className="flex items-center gap-2">
+                              {b.is_active && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                              <span className={`text-sm font-medium ${b.is_active ? 'text-gray-800' : 'text-gray-600'}`}>{b.name}</span>
+                            </div>
+                            {roleInfo ? (
+                              <span className={`text-xs px-2 py-1 rounded-full border ${roleInfo.color}`}>
+                                {roleInfo.emoji} {roleInfo.label}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </main>
       </div>
     )
   }
 
-  // ─── Lead View ───
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
-          <ArrowLeft size={16} /> Back
-        </button>
-        <h2 className="text-xl font-bold text-gray-800">🏁 Comp Day</h2>
-        <div className="w-16" />
-      </div>
+  // ─── Lead View: Landing page (no session open) ───
+  if (!activeSession) {
+    const liveSessions = sessions.filter(s => s.is_active)
+    const draftSessions = sessions.filter(s => !s.is_active)
 
-      {/* Error display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-          <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm text-red-700 font-medium">Something went wrong</p>
-            <p className="text-xs text-red-500 mt-0.5 break-all">{error}</p>
+    return (
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="bg-gray-900 shadow-sm sticky top-0 z-10">
+          <div className="px-4 py-3 ml-14 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-white">Competition Day</h1>
+              <p className="text-sm text-gray-400">Plan and manage competition operations</p>
+            </div>
+            <NotificationBell />
           </div>
-          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600 text-xs">dismiss</button>
-        </div>
-      )}
+        </header>
 
-      {/* Create new plan */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <h3 className="text-sm font-semibold text-gray-600 mb-2">Plan a Comp Day</h3>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newSessionName}
-            onChange={e => setNewSessionName(e.target.value)}
-            placeholder="e.g. States Day 1, Qualifier Round 2"
-            className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-            onKeyDown={e => e.key === 'Enter' && createSession()}
-          />
-          <button
-            onClick={createSession}
-            disabled={!newSessionName.trim()}
-            className="px-4 py-2 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium disabled:opacity-40 hover:bg-pastel-pink-dark transition-colors"
-          >
-            Create
-          </button>
-        </div>
+        <main className="flex-1 p-4 overflow-y-auto">
+          <div className="max-w-2xl mx-auto space-y-6">
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-red-700 flex-1 break-all">{error}</p>
+                <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-xs">dismiss</button>
+              </div>
+            )}
+
+            {/* Create new */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
+                <Calendar size={16} />
+                Plan a Competition Day
+              </h3>
+              <p className="text-xs text-gray-400 mb-3">Create a plan with blocks and role assignments. Go live when you're at the event.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newSessionName}
+                  onChange={e => setNewSessionName(e.target.value)}
+                  placeholder="e.g. States Day 1, Qualifier Round 2"
+                  className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                  onKeyDown={e => e.key === 'Enter' && createSession()}
+                />
+                <button
+                  onClick={createSession}
+                  disabled={!newSessionName.trim()}
+                  className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium disabled:opacity-40 hover:bg-gray-800 transition-colors"
+                >
+                  Create Plan
+                </button>
+              </div>
+            </div>
+
+            {/* Live sessions */}
+            {liveSessions.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Live Now
+                </h3>
+                <div className="space-y-2">
+                  {liveSessions.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => { setActiveSession(s); setAssigningBlock(null) }}
+                      className="w-full flex items-center justify-between px-5 py-4 bg-green-50 border-2 border-green-300 rounded-xl hover:bg-green-100 transition-colors text-left"
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-800">{s.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}</p>
+                      </div>
+                      <ChevronRight size={18} className="text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Draft plans */}
+            {draftSessions.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Plans</h3>
+                <div className="space-y-2">
+                  {draftSessions.map(s => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setActiveSession(s); setAssigningBlock(null) }}
+                        className="flex-1 flex items-center justify-between px-5 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <div>
+                          <p className="font-semibold text-gray-800">{s.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}</p>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-400" />
+                      </button>
+                      <button onClick={() => deleteSession(s.id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete plan">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {sessions.length === 0 && (
+              <div className="text-center py-8">
+                <Shield size={40} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-400 text-sm">No competition days planned yet.</p>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
+    )
+  }
 
-      {/* Session picker (if multiple) */}
-      {sessions.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {sessions.map(s => (
-            <button
-              key={s.id}
-              onClick={() => viewSession(s)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                session?.id === s.id
-                  ? 'bg-pastel-blue text-gray-800 border-pastel-blue-dark'
-                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              {s.name}
-              {s.is_active && <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-green-500" />}
+  // ─── Lead View: Session editor ───
+  return (
+    <div className="flex-1 flex flex-col min-w-0">
+      <header className="bg-gray-900 shadow-sm sticky top-0 z-10">
+        <div className="px-4 py-3 ml-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setActiveSession(null)} className="p-1 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+              <ArrowLeft size={18} />
             </button>
-          ))}
-        </div>
-      )}
-
-      {/* No sessions at all */}
-      {!session && sessions.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-5xl mb-4">🏁</p>
-          <h2 className="text-xl font-bold text-gray-700 mb-2">No Comp Days Planned</h2>
-          <p className="text-gray-400">Create a plan above to get started.</p>
-        </div>
-      )}
-
-      {/* Active session editor */}
-      {session && (
-        <>
-          {/* Session header */}
-          <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-gray-800">{session.name}</h3>
+                <h1 className="text-lg font-bold text-white">{activeSession.name}</h1>
                 {isLive ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-300 font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> LIVE
-                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold tracking-wider">LIVE</span>
                 ) : (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200 font-medium">Planning</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 font-medium">DRAFT</span>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">{session.session_date} &middot; {members.length} members &middot; {blocks.length} blocks</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {!isLive ? (
-                <>
-                  <button onClick={goLive} disabled={blocks.length === 0} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-40" title={blocks.length === 0 ? 'Add blocks first' : ''}>
-                    Go Live
-                  </button>
-                  <button onClick={deleteSession} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-sm font-medium hover:bg-red-100 transition-colors">
-                    Delete
-                  </button>
-                </>
-              ) : (
-                <button onClick={endSession} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-sm font-medium hover:bg-red-100 transition-colors">
-                  End Session
-                </button>
-              )}
+              <p className="text-xs text-gray-400">{activeSession.session_date} &middot; {members.length} members &middot; {blocks.length} blocks</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            {!isLive ? (
+              <button onClick={goLive} disabled={blocks.length === 0} className="px-4 py-1.5 rounded-lg bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-colors disabled:opacity-40">
+                Go Live
+              </button>
+            ) : (
+              <button onClick={endSession} className="px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold hover:bg-red-500/30 transition-colors">
+                End
+              </button>
+            )}
+            <NotificationBell />
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 p-4 overflow-y-auto">
+        <div className="max-w-3xl mx-auto space-y-4">
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700 flex-1 break-all">{error}</p>
+              <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-xs">dismiss</button>
+            </div>
+          )}
 
           {/* Add block */}
           <div className="flex gap-2">
@@ -443,17 +476,20 @@ export default function CompDayView({ onBack }) {
               value={newBlockName}
               onChange={e => setNewBlockName(e.target.value)}
               placeholder="Add block (e.g. Match 1, Lunch, Judging)"
-              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
               onKeyDown={e => e.key === 'Enter' && addBlock()}
             />
-            <button onClick={addBlock} disabled={!newBlockName.trim()} className="px-4 py-2 rounded-lg bg-pastel-blue text-gray-700 text-sm font-medium disabled:opacity-40 hover:bg-pastel-blue-dark hover:text-white transition-colors">
+            <button onClick={addBlock} disabled={!newBlockName.trim()} className="px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium disabled:opacity-40 hover:bg-gray-800 transition-colors">
               <Plus size={16} />
             </button>
           </div>
 
-          {/* Blocks list */}
+          {/* Blocks */}
           {blocks.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-8">Add blocks to build the day's schedule</p>
+            <div className="text-center py-12 text-gray-400">
+              <p className="text-sm">Add blocks to build the day's schedule.</p>
+              <p className="text-xs mt-1">e.g. Match 1, Match 2, Lunch, Judging, Playoffs</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {blocks.map(block => {
@@ -462,7 +498,7 @@ export default function CompDayView({ onBack }) {
                 const isExpanded = assigningBlock === block.id
 
                 return (
-                  <div key={block.id} className={`bg-white rounded-xl shadow-sm border ${block.is_active ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-100'}`}>
+                  <div key={block.id} className={`bg-white rounded-xl shadow-sm border ${block.is_active ? 'border-green-400 ring-2 ring-green-100' : 'border-gray-200'}`}>
                     <div className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-2">
                         {block.is_active && <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />}
@@ -472,25 +508,24 @@ export default function CompDayView({ onBack }) {
                       <div className="flex items-center gap-1">
                         {isLive && (
                           !block.is_active ? (
-                            <button onClick={() => activateBlock(block.id)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Activate this block">
+                            <button onClick={() => activateBlock(block.id)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Activate">
                               <Play size={16} />
                             </button>
                           ) : (
-                            <button onClick={() => restPatch('comp_day_blocks', `id=eq.${block.id}`, { is_active: false }).then(fetchAll)} className="p-1.5 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors" title="Deactivate">
+                            <button onClick={() => restPatch('comp_day_blocks', `id=eq.${block.id}`, { is_active: false }).then(() => fetchSessionData(activeSession.id))} className="p-1.5 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors" title="Deactivate">
                               <Pause size={16} />
                             </button>
                           )
                         )}
-                        <button onClick={() => setAssigningBlock(isExpanded ? null : block.id)} className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-pastel-blue/30 text-pastel-blue-dark' : 'hover:bg-pastel-blue/20 text-gray-500'}`} title="Assign roles">
+                        <button onClick={() => setAssigningBlock(isExpanded ? null : block.id)} className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-gray-200 text-gray-700' : 'hover:bg-gray-100 text-gray-500'}`} title="Assign roles">
                           <Users size={16} />
                         </button>
-                        <button onClick={() => deleteBlock(block.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete block">
+                        <button onClick={() => deleteBlock(block.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete">
                           <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
 
-                    {/* Role summary (collapsed) */}
                     {!isExpanded && blockAssigns.length > 0 && (
                       <div className="px-4 pb-3 flex flex-wrap gap-1.5">
                         {ROLES.map(role => {
@@ -510,7 +545,6 @@ export default function CompDayView({ onBack }) {
                       </div>
                     )}
 
-                    {/* Expanded assignment panel */}
                     {isExpanded && (
                       <div className="border-t border-gray-100 p-4 space-y-2">
                         {members.map(member => {
@@ -551,17 +585,12 @@ export default function CompDayView({ onBack }) {
             if (scoutMembers.length === 0) return null
 
             const scoutBlockCount = {}
-            scoutMembers.forEach(m => {
-              scoutBlockCount[m] = scoutAssigns.filter(a => a.username === m).length
-            })
-
+            scoutMembers.forEach(m => { scoutBlockCount[m] = scoutAssigns.filter(a => a.username === m).length })
             const submissionCount = {}
-            scoutingRecords.forEach(r => {
-              submissionCount[r.submitted_by] = (submissionCount[r.submitted_by] || 0) + 1
-            })
+            scoutingRecords.forEach(r => { submissionCount[r.submitted_by] = (submissionCount[r.submitted_by] || 0) + 1 })
 
             return (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                 <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
                   <ClipboardCheck size={16} className="text-blue-500" />
                   Scouting Accountability
@@ -575,9 +604,7 @@ export default function CompDayView({ onBack }) {
                       <div key={member} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                         <span className="text-sm font-medium text-gray-700">{member}</span>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold ${ok ? 'text-green-600' : 'text-red-600'}`}>
-                            {submitted}/{assigned} submitted
-                          </span>
+                          <span className={`text-xs font-semibold ${ok ? 'text-green-600' : 'text-red-600'}`}>{submitted}/{assigned}</span>
                           <span className="text-sm">{ok ? '✅' : '⚠️'}</span>
                         </div>
                       </div>
@@ -591,7 +618,7 @@ export default function CompDayView({ onBack }) {
 
           {/* Live overview */}
           {isLive && activeBlock && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
                 Now: {activeBlock.name}
@@ -603,9 +630,7 @@ export default function CompDayView({ onBack }) {
                   return (
                     <div key={role.id} className={`rounded-lg border p-3 ${role.color}`}>
                       <p className="text-xs font-semibold mb-1">{role.emoji} {role.label}</p>
-                      {assigned.map(a => (
-                        <p key={a.username} className="text-xs">{a.username}</p>
-                      ))}
+                      {assigned.map(a => <p key={a.username} className="text-xs">{a.username}</p>)}
                     </div>
                   )
                 })}
@@ -613,15 +638,13 @@ export default function CompDayView({ onBack }) {
               {unassignedInBlock(activeBlock.id).length > 0 && (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
                   <p className="text-xs font-semibold text-red-600 mb-1">❓ Unassigned</p>
-                  {unassignedInBlock(activeBlock.id).map(m => (
-                    <p key={m} className="text-xs text-red-500">{m}</p>
-                  ))}
+                  {unassignedInBlock(activeBlock.id).map(m => <p key={m} className="text-xs text-red-500">{m}</p>)}
                 </div>
               )}
             </div>
           )}
-        </>
-      )}
+        </div>
+      </main>
     </div>
   )
 }

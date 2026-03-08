@@ -1213,8 +1213,6 @@ function App() {
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
             <DesignMatrix onBack={() => setSpecialView(null)} />
-          ) : specialView === 'comp-day' ? (
-            <CompDayView onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto space-y-6">
@@ -1313,11 +1311,16 @@ function App() {
                     <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Modes</h2>
                     <div className="grid gap-3">
                       <button
-                        onClick={() => setSpecialView('comp-day')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                        onClick={() => setActiveTab('comp-day')}
+                        className="w-full px-6 py-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all text-left group"
                       >
-                        <span className="text-lg font-semibold text-gray-700">🏁 Comp Day</span>
-                        <p className="text-sm text-gray-400 mt-1">Assign roles, track accountability during competitions</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-lg font-bold text-white">Competition Day</span>
+                            <p className="text-sm text-gray-400 mt-1">Plan roles, manage blocks, track scouting accountability</p>
+                          </div>
+                          <span className="text-3xl group-hover:scale-110 transition-transform">🏁</span>
+                        </div>
                       </button>
                       {['SWOT Mode', 'Scouting Mode', 'Meeting Stats'].map(label => (
                         <button
