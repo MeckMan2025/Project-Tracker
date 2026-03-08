@@ -67,6 +67,21 @@ export default function CompDayView({ onBack }) {
   const [compTasks, setCompTasks] = useState([])
   const [blockTimes, setBlockTimes] = useState({})
 
+  // Load stored matches/tasks/times when session changes
+  const storageKey = `comp-day-${activeSession?.id}`
+  const getStored = (key) => { try { return JSON.parse(localStorage.getItem(`${storageKey}-${key}`) || '[]') } catch { return [] } }
+  const setStored = (key, val) => localStorage.setItem(`${storageKey}-${key}`, JSON.stringify(val))
+  useEffect(() => {
+    if (!activeSession) return
+    const sk = `comp-day-${activeSession.id}`
+    try { setCompMatches(JSON.parse(localStorage.getItem(`${sk}-matches`) || '[]')) } catch { setCompMatches([]) }
+    try { setCompTasks(JSON.parse(localStorage.getItem(`${sk}-tasks`) || '[]')) } catch { setCompTasks([]) }
+    try { setBlockTimes(JSON.parse(localStorage.getItem(`${sk}-times`) || '{}')) } catch { setBlockTimes({}) }
+  }, [activeSession?.id])
+  const saveMatches = (m) => { setCompMatches(m); setStored('matches', m) }
+  const saveTasks = (t) => { setCompTasks(t); setStored('tasks', t) }
+  const saveBlockTimes = (t) => { setBlockTimes(t); localStorage.setItem(`${storageKey}-times`, JSON.stringify(t)) }
+
   // Load all sessions
   const fetchSessions = useCallback(async () => {
     try {
@@ -567,25 +582,6 @@ export default function CompDayView({ onBack }) {
     { id: 'tasks', label: 'Tasks', emoji: '✅' },
     { id: 'status', label: 'Team Status', emoji: '📊' },
   ]
-
-  const storageKey = `comp-day-${activeSession?.id}`
-
-  // Local storage helpers for matches & tasks
-  const getStored = (key) => { try { return JSON.parse(localStorage.getItem(`${storageKey}-${key}`) || '[]') } catch { return [] } }
-  const setStored = (key, val) => localStorage.setItem(`${storageKey}-${key}`, JSON.stringify(val))
-
-  // Load stored matches/tasks/times when session changes
-  useEffect(() => {
-    if (!activeSession) return
-    const sk = `comp-day-${activeSession.id}`
-    try { setCompMatches(JSON.parse(localStorage.getItem(`${sk}-matches`) || '[]')) } catch { setCompMatches([]) }
-    try { setCompTasks(JSON.parse(localStorage.getItem(`${sk}-tasks`) || '[]')) } catch { setCompTasks([]) }
-    try { setBlockTimes(JSON.parse(localStorage.getItem(`${sk}-times`) || '{}')) } catch { setBlockTimes({}) }
-  }, [activeSession?.id])
-
-  const saveMatches = (m) => { setCompMatches(m); setStored('matches', m) }
-  const saveTasks = (t) => { setCompTasks(t); setStored('tasks', t) }
-  const saveBlockTimes = (t) => { setBlockTimes(t); localStorage.setItem(`${storageKey}-times`, JSON.stringify(t)) }
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
