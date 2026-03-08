@@ -169,9 +169,13 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
       const method = initial ? 'PATCH' : 'POST'
       const url = initial ? `${REST_URL}/rest/v1/design_matrices?id=eq.${initial.id}` : `${REST_URL}/rest/v1/design_matrices`
       const res = await fetch(url, { method, headers: REST_JSON, body: JSON.stringify(data) })
-      if (!res.ok) throw new Error('Save failed')
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        console.error('Save failed:', res.status, errText)
+        throw new Error('Save failed: ' + res.status)
+      }
       onSave(data)
-    } catch (err) { console.error(err); showFeedback('Failed to save') }
+    } catch (err) { console.error(err); showFeedback(err.message || 'Failed to save') }
     finally { setSaving(false) }
   }
 
@@ -217,7 +221,7 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
                 </tr>
               )}
               {/* Option names row */}
-              <tr className="bg-gray-800 text-white">
+              <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700">
                 <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[120px]">
                   Design Options →
                 </th>
@@ -226,21 +230,21 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
                     <input
                       value={opt.name} onChange={e => updateOption(opt.id, 'name', e.target.value)}
                       placeholder="Option name"
-                      className="w-full text-center text-xs font-semibold bg-transparent text-white placeholder-gray-400 focus:outline-none border-b border-transparent focus:border-gray-400"
+                      className="w-full text-center text-xs font-semibold bg-transparent text-gray-700 placeholder-gray-400 focus:outline-none border-b border-transparent focus:border-gray-500"
                     />
                     <div className="flex items-center justify-center gap-1 mt-1">
-                      <button onClick={() => triggerUpload(opt.id)} className="text-gray-400 hover:text-white" title="Upload image">
+                      <button onClick={() => triggerUpload(opt.id)} className="text-gray-400 hover:text-gray-800" title="Upload image">
                         <Camera size={11} />
                       </button>
                       {uploading === opt.id && <span className="text-[10px] text-gray-400">...</span>}
-                      <button onClick={() => removeOption(opt.id)} className="text-gray-400 hover:text-red-300" title="Remove option">
+                      <button onClick={() => removeOption(opt.id)} className="text-gray-400 hover:text-red-500" title="Remove option">
                         <Trash2 size={11} />
                       </button>
                     </div>
                   </th>
                 ))}
                 <th className="border border-gray-300 px-2 py-2">
-                  <button onClick={addOption} className="text-gray-400 hover:text-white mx-auto flex items-center gap-1 text-xs">
+                  <button onClick={addOption} className="text-gray-400 hover:text-gray-800 mx-auto flex items-center gap-1 text-xs">
                     <Plus size={12} /> Add
                   </button>
                 </th>
@@ -302,13 +306,13 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
 
               {/* Totals row */}
               {options.length > 0 && criteria.length > 0 && (
-                <tr className="bg-gray-800 text-white font-bold">
+                <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700 font-bold">
                   <td className="border border-gray-300 px-3 py-2 text-sm">TOTAL</td>
                   {options.map(opt => {
                     const total = getTotal(opt.id)
                     const isHighest = total > 0 && total === highestTotal
                     return (
-                      <td key={opt.id} className={`border border-gray-300 px-2 py-2 text-center text-sm ${isHighest ? 'bg-amber-500 text-white' : ''}`}>
+                      <td key={opt.id} className={`border border-gray-300 px-2 py-2 text-center text-sm ${isHighest ? 'bg-amber-200/60 font-extrabold' : ''}`}>
                         <span className="inline-flex items-center gap-1 justify-center">
                           {isHighest && <Trophy size={13} />}
                           {total}
@@ -428,13 +432,13 @@ function MatrixViewer({ matrix, onEdit }) {
               </tr>
             )}
             {/* Option names */}
-            <tr className="bg-gray-800 text-white">
+            <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700">
               <th className="border border-gray-300 px-3 py-2 text-left font-semibold min-w-[120px]">Design Options →</th>
               {matrix.options.map(opt => {
                 const total = getTotal(opt.id)
                 const isHighest = total > 0 && total === highestTotal
                 return (
-                  <th key={opt.id} className={`border border-gray-300 px-3 py-2 text-center font-semibold min-w-[100px] ${isHighest ? 'bg-amber-500' : ''}`}>
+                  <th key={opt.id} className={`border border-gray-300 px-3 py-2 text-center font-semibold min-w-[100px] ${isHighest ? 'bg-amber-200/60' : ''}`}>
                     {opt.name}
                     {isHighest && <Trophy size={12} className="inline ml-1" />}
                   </th>
@@ -464,13 +468,13 @@ function MatrixViewer({ matrix, onEdit }) {
                 ))}
               </tr>
             ))}
-            <tr className="bg-gray-800 text-white font-bold">
+            <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700 font-bold">
               <td className="border border-gray-300 px-3 py-2 text-sm">TOTAL</td>
               {matrix.options.map(opt => {
                 const total = getTotal(opt.id)
                 const isHighest = total > 0 && total === highestTotal
                 return (
-                  <td key={opt.id} className={`border border-gray-300 px-3 py-2 text-center text-sm ${isHighest ? 'bg-amber-500 text-white' : ''}`}>
+                  <td key={opt.id} className={`border border-gray-300 px-3 py-2 text-center text-sm ${isHighest ? 'bg-amber-200/60 font-extrabold' : ''}`}>
                     <span className="inline-flex items-center gap-1 justify-center">
                       {isHighest && <Trophy size={13} />} {total}
                     </span>
