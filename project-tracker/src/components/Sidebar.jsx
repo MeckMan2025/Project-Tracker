@@ -569,8 +569,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <BookOpen size={16} className="text-pastel-blue-dark" />
                 <span className="truncate">Engineering Notebook</span>
               </div>
-
-              <hr className="my-2 border-gray-200" />
             </>
           )}
 
