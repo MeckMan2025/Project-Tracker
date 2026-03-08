@@ -684,27 +684,18 @@ function App() {
       const jsonHeaders = { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
 
       try {
+        const completerName = username || localStorage.getItem('scrum-username') || 'Someone'
         const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,display_name,function_tags`, { headers })
         if (!res.ok) throw new Error('Failed to fetch profiles')
         const allProfiles = await res.json()
 
         let targetProfiles = []
         if (effectiveIsTeam && teamNumber) {
-          // Team account: notify only profiles with same team number in email
-          const teamEmail = `team${teamNumber}@teams.radical`
-          // Find other team accounts with same team number by checking user emails
-          const teamRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, { headers })
-          // Since we can't access admin API, filter profiles by function_tags containing 'Team'
-          // and match by team number from the user's own email pattern
-          // Simpler: team accounts only notify themselves (same team_number)
-          // We need to find profiles whose auth email matches team{teamNumber}@teams.radical
-          // But we can't query auth emails from client. Instead, for team accounts, skip notifications.
-          // Actually, team accounts share a single login per team, so there's no one else to notify.
           targetProfiles = []
         } else {
           // Regular member: notify all other regular members (non-team accounts)
           targetProfiles = allProfiles.filter(p => {
-            if (p.display_name === username) return false // don't notify self
+            if (p.display_name === completerName) return false // don't notify self
             const tags = p.function_tags || []
             return !tags.includes('Team')
           })
@@ -716,7 +707,7 @@ function App() {
             user_id: p.id,
             type: 'task_completed',
             title: 'Task Completed',
-            body: `${username} completed "${taskTitle}"`,
+            body: `${completerName} completed "${taskTitle}"`,
           }))
           await fetch(`${supabaseUrl}/rest/v1/notifications`, {
             method: 'POST', headers: jsonHeaders, body: JSON.stringify(notifs),
