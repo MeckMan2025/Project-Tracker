@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 60,
+    date: '2026-03-08',
+    items: [
+      'Notifications when teammates complete tasks (scoped: members see member completions only)',
+    ],
+  },
+  {
     id: 59,
     date: '2026-03-08',
     items: [

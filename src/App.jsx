@@ -658,6 +658,11 @@ function App() {
   }
 
   const handleMarkDone = async (taskId) => {
+    // Find the task title before updating state
+    const allTasks = tasksByTab[activeTab] || []
+    const doneTask = allTasks.find(t => t.id === taskId)
+    const taskTitle = doneTask?.title || 'a task'
+
     setTasksByTab(prev => {
       const updated = {
         ...prev,
@@ -671,6 +676,56 @@ function App() {
     try {
       await restUpdate('tasks', `id=eq.${taskId}`, { status: 'completed' })
       addToast('Task marked as done!', 'success')
+
+      // Send scoped notifications for task completion
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+      const jsonHeaders = { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,display_name,function_tags`, { headers })
+        if (!res.ok) throw new Error('Failed to fetch profiles')
+        const allProfiles = await res.json()
+
+        let targetProfiles = []
+        if (effectiveIsTeam && teamNumber) {
+          // Team account: notify only profiles with same team number in email
+          const teamEmail = `team${teamNumber}@teams.radical`
+          // Find other team accounts with same team number by checking user emails
+          const teamRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, { headers })
+          // Since we can't access admin API, filter profiles by function_tags containing 'Team'
+          // and match by team number from the user's own email pattern
+          // Simpler: team accounts only notify themselves (same team_number)
+          // We need to find profiles whose auth email matches team{teamNumber}@teams.radical
+          // But we can't query auth emails from client. Instead, for team accounts, skip notifications.
+          // Actually, team accounts share a single login per team, so there's no one else to notify.
+          targetProfiles = []
+        } else {
+          // Regular member: notify all other regular members (non-team accounts)
+          targetProfiles = allProfiles.filter(p => {
+            if (p.display_name === username) return false // don't notify self
+            const tags = p.function_tags || []
+            return !tags.includes('Team')
+          })
+        }
+
+        if (targetProfiles.length > 0) {
+          const notifs = targetProfiles.map(p => ({
+            id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
+            user_id: p.id,
+            type: 'task_completed',
+            title: 'Task Completed',
+            body: `${username} completed "${taskTitle}"`,
+          }))
+          await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+            method: 'POST', headers: jsonHeaders, body: JSON.stringify(notifs),
+          })
+          notifs.forEach(n => triggerPush(n))
+        }
+      } catch (notifErr) {
+        console.error('Failed to send completion notifications:', notifErr)
+      }
     } catch (err) {
       console.error('Failed to mark task done:', err.message)
       addToast('Failed to mark task done.', 'error')
