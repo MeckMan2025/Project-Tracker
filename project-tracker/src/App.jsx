@@ -1228,7 +1228,7 @@ function App() {
                   <div>
                     <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Technical</h2>
                     <div className="grid gap-3">
-                      {['SWOT Mode', 'Scouting Mode', 'Design Matrix', 'Testing'].map(label => (
+                      {['Design Matrix', 'Testing'].map(label => (
                         <button
                           key={label}
                           className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm text-left opacity-60"
@@ -1247,7 +1247,7 @@ function App() {
                   <div>
                     <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Modes</h2>
                     <div className="grid gap-3">
-                      {['Comp Day', 'Meeting Stats'].map(label => (
+                      {['SWOT Mode', 'Scouting Mode', 'Comp Day', 'Meeting Stats'].map(label => (
                         <button
                           key={label}
                           className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm text-left opacity-60"
