@@ -288,20 +288,8 @@ function App() {
   const { addToast } = useToast()
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
-  const flashRequired = activeFlash && username && presentUsers.includes(username) && !completedUsers.includes(username) && !(activeFlash.exempt_users || []).includes(username)
-
-  // Debug flash — remove after testing
-  useEffect(() => {
-    console.log('[Flash Debug]', {
-      activeFlash: !!activeFlash,
-      flashId: activeFlash?.id,
-      username: JSON.stringify(username),
-      presentUsers,
-      completedUsers,
-      inPresent: presentUsers.includes(username),
-      hasLeadTag,
-    })
-  }, [activeFlash, username, presentUsers, completedUsers, hasLeadTag])
+  const flashUsername = username || localStorage.getItem('scrum-username') || ''
+  const flashRequired = activeFlash && flashUsername && presentUsers.includes(flashUsername) && !completedUsers.includes(flashUsername) && !(activeFlash.exempt_users || []).includes(flashUsername)
   useBackButton()
   const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
@@ -1037,7 +1025,7 @@ function App() {
       {!isLoading && !effectiveIsTeam && <ChangelogPopup />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
-          username={username}
+          username={flashUsername}
           activeFlash={activeFlash}
           presentUsers={presentUsers}
           completedUsers={completedUsers}
