@@ -346,7 +346,7 @@ function QuickChat({ channel = 'all' }) {
                       <p className={`text-[10px] mt-1 ${isOwn ? 'text-gray-500 text-right' : 'text-gray-400 text-right'}`}>
                         {formatTime(msg.created_at)}
                       </p>
-                      {isOwn && msg.seen_by?.length > 0 && (
+                      {isOwn && msg.seen_by?.filter(s => s !== username && s !== (nickname || '')).length > 0 && (
                         <p className="text-[10px] text-gray-400 text-right">Seen</p>
                       )}
                     </div>
