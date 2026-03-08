@@ -36,6 +36,7 @@ import InterestedTeams from './components/InterestedTeams'
 import TeamSurveyResponses from './components/TeamSurveyResponses'
 import WorkshopIdeas from './components/WorkshopIdeas'
 import CleanUpChart from './components/CleanUpChart'
+import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
@@ -1157,6 +1158,8 @@ function App() {
             <CleanUpChart onBack={() => setSpecialView(null)} />
           ) : specialView === 'team-survey' ? (
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
+          ) : specialView === 'design-matrix' ? (
+            <DesignMatrix onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto space-y-6">
@@ -1228,7 +1231,14 @@ function App() {
                   <div>
                     <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Technical</h2>
                     <div className="grid gap-3">
-                      {['Design Matrix', 'Testing'].map(label => (
+                      <button
+                        onClick={() => setSpecialView('design-matrix')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Design Matrix</span>
+                        <p className="text-sm text-gray-400 mt-1">Compare designs, score options & pick a winner</p>
+                      </button>
+                      {['Testing'].map(label => (
                         <button
                           key={label}
                           className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm text-left opacity-60"

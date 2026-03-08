@@ -414,11 +414,46 @@ CREATE POLICY "Allow all access to team_accounts" ON team_accounts
 -- Add owner_team column to boards (null = Radical board, team_number = team-specific board)
 ALTER TABLE boards ADD COLUMN IF NOT EXISTS owner_team text;
 
+-- DESIGN MATRICES TABLE
+CREATE TABLE IF NOT EXISTS design_matrices (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  description text DEFAULT '',
+  options jsonb DEFAULT '[]'::jsonb,
+  criteria jsonb DEFAULT '[]'::jsonb,
+  scores jsonb DEFAULT '{}'::jsonb,
+  decision jsonb DEFAULT '{}'::jsonb,
+  created_by text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE design_matrices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to design_matrices" ON design_matrices;
+CREATE POLICY "Allow all access to design_matrices" ON design_matrices
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Storage bucket for design matrix images
+INSERT INTO storage.buckets (id, name, public) VALUES ('design-matrix-images', 'design-matrix-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow public read design-matrix-images" ON storage.objects;
+CREATE POLICY "Allow public read design-matrix-images" ON storage.objects
+  FOR SELECT USING (bucket_id = 'design-matrix-images');
+
+DROP POLICY IF EXISTS "Allow authenticated upload design-matrix-images" ON storage.objects;
+CREATE POLICY "Allow authenticated upload design-matrix-images" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'design-matrix-images');
+
+DROP POLICY IF EXISTS "Allow authenticated delete design-matrix-images" ON storage.objects;
+CREATE POLICY "Allow authenticated delete design-matrix-images" ON storage.objects
+  FOR DELETE USING (bucket_id = 'design-matrix-images');
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts','design_matrices']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables
