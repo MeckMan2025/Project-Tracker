@@ -161,8 +161,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         {/* Category Filter */}
         <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
           {[
-            { id: 'general', emoji: '🏠' },
             { id: 'technical', emoji: '🔧' },
+            { id: 'general', emoji: '🏠' },
             { id: 'business', emoji: '💼' },
           ].map(({ id, emoji }) => (
             <button
@@ -185,6 +185,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         </div>
 
         <nav className="p-2 flex-1 overflow-y-auto">
+          <hr className="my-2 border-gray-200" />
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
