@@ -619,27 +619,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'user-management'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('user-management')
-                  onToggle()
-                }}
-              >
-                <Shield size={16} className="text-pastel-orange-dark" />
-                <span className="truncate">User Management</span>
-              </div>
-            </>
-          )}
-
-          {!isGuest && (
-            <>
-              <hr className="my-2 border-gray-200" />
-
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'special-controls'
                     ? 'bg-pastel-pink text-gray-800'
                     : 'hover:bg-pastel-blue/30 text-gray-600'
