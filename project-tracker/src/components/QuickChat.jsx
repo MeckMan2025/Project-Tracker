@@ -1,10 +1,29 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Component } from 'react'
 import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
+
+class ChatErrorBoundary extends Component {
+  state = { hasError: false }
+  static getDerivedStateFromError() { return { hasError: true } }
+  componentDidCatch(err) { console.error('Chat crashed:', err) }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
+          <p className="text-gray-500">Chat ran into an error.</p>
+          <button onClick={() => this.setState({ hasError: false })} className="px-4 py-2 bg-pastel-blue rounded-lg text-sm hover:bg-pastel-blue-dark transition-colors">
+            Reload Chat
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const SENDER_COLORS = [
   { bg: '#FFCAD4', name: '#F4A3B5' }, // pastel pink
@@ -13,6 +32,7 @@ const SENDER_COLORS = [
 ]
 
 function getSenderColor(sender) {
+  if (!sender) return SENDER_COLORS[0]
   let hash = 0
   for (let i = 0; i < sender.length; i++) {
     hash = sender.charCodeAt(i) + ((hash << 5) - hash)
@@ -31,22 +51,31 @@ function QuickChat({ channel = 'all' }) {
   const [myAvatarUrl, setMyAvatarUrl] = useState('')
   const messagesEndRef = useRef(null)
   const lastPushTimestamp = useRef(0)
+  const seenIdsRef = useRef(new Set())
+  const shouldScrollRef = useRef(true)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Mark messages from other users as seen
+  // Mark messages from other users as seen (batched, deduped)
   const markMessagesAsSeen = (msgs) => {
     if (!username) return
     const unseen = msgs.filter(
       (m) => {
+        if (seenIdsRef.current.has(m.id)) return false
         const isMine = (user && m.id.startsWith(user.id + ':')) || m.sender === username || m.sender === chatName || (nickname && m.sender === nickname)
         return !isMine && !m.seen_by?.includes(username)
       }
     )
     if (unseen.length === 0) return
-    unseen.forEach((m) => {
+    // Mark as processed immediately to prevent re-patching
+    unseen.forEach(m => seenIdsRef.current.add(m.id))
+    // Batch: patch one at a time with small delay to avoid hammering
+    let i = 0
+    const patchNext = () => {
+      if (i >= unseen.length) return
+      const m = unseen[i++]
       fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${m.id}`, {
         method: 'PATCH',
         headers: {
@@ -57,7 +86,9 @@ function QuickChat({ channel = 'all' }) {
         },
         body: JSON.stringify({ seen_by: [...(m.seen_by || []), username] }),
       }).catch(err => console.error('Failed to mark message as seen:', err))
-    })
+        .finally(() => setTimeout(patchNext, 200))
+    }
+    patchNext()
   }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -133,7 +164,12 @@ function QuickChat({ channel = 'all' }) {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
         if ((payload.new.channel || 'all') !== channel) return
-        setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m))
+        setMessages(prev => {
+          const old = prev.find(m => m.id === payload.new.id)
+          // Skip re-render if only seen_by changed (prevents render storm)
+          if (old && old.content === payload.new.content && old.sender === payload.new.sender) return prev
+          return prev.map(m => m.id === payload.new.id ? payload.new : m)
+        })
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
         if (!payload.old?.id) return
@@ -144,9 +180,13 @@ function QuickChat({ channel = 'all' }) {
     return () => { supabase.removeChannel(sub) }
   }, [channel])
 
-  // Auto-scroll when new messages arrive
+  // Auto-scroll only when new messages arrive (not on seen_by updates)
+  const prevCountRef = useRef(0)
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length > prevCountRef.current) {
+      scrollToBottom()
+    }
+    prevCountRef.current = messages.length
   }, [messages])
 
   const handleSend = (e) => {
@@ -388,4 +428,6 @@ function QuickChat({ channel = 'all' }) {
   )
 }
 
-export default QuickChat
+export default function QuickChatWithBoundary(props) {
+  return <ChatErrorBoundary><QuickChat {...props} /></ChatErrorBoundary>
+}
