@@ -12,7 +12,7 @@ export function usePermissions() {
   const isPermanentCofounder = username && PERMANENT_COFOUNDERS.some(n => username.toLowerCase().includes(n))
   const tier = isPermanentCofounder ? 'teammate' : (authorityTier || 'guest')
 
-  const isGuest = tier === 'guest'
+  const isGuest = tier === 'guest' && !isTeam
 
   // Co-Founder: includes permanent co-founders + anyone with Co-Founder tag
   const isCofounder = (functionTags && functionTags.includes('Co-Founder')) || isPermanentCofounder
