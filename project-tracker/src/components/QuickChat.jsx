@@ -110,7 +110,7 @@ function QuickChat({ channel = 'all' }) {
       if (document.visibilityState === 'visible') fetchMessages()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-    const interval = setInterval(fetchMessages, 5000)
+    const interval = setInterval(fetchMessages, 15000)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
       clearInterval(interval)
@@ -136,6 +136,7 @@ function QuickChat({ channel = 'all' }) {
         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+        if (!payload.old?.id) return
         setMessages(prev => prev.filter(m => m.id !== payload.old.id))
       })
       .subscribe()
@@ -199,7 +200,7 @@ function QuickChat({ channel = 'all' }) {
                 body: truncatedMsg,
               })
             }
-          })
+          }).catch(err => console.error('Failed to fetch profiles for push:', err))
         }
       }
     }).catch(err => {
