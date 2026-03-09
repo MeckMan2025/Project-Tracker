@@ -168,11 +168,12 @@ export function usePendingRequests({ type, boardId } = {}) {
       // If approving a calendar_event with notify, send notifications to all users
       if (request.type === 'calendar_event' && request.data?.notify) {
         try {
-          const { data: profiles } = await supabase.from('profiles').select('id')
+          const { data: profiles } = await supabase.from('profiles').select('id,function_tags')
           if (profiles) {
             const body = request.data.notify_message || `New event: ${request.data.name} on ${request.data.date_key}`
             for (const p of profiles) {
               if (p.id === request.requested_by_user_id) continue
+              if ((p.function_tags || []).includes('Team')) continue
               const notifRecord = {
                 id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
                 user_id: p.id,
