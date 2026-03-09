@@ -139,7 +139,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   {[
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     ...(!isTeamAccount ? [{ icon: Calendar, label: 'Calendar', color: 'text-pastel-pink-dark', tab: 'calendar' }] : []),
-                    ...(!isTeamAccount ? [{ icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' }] : []),
+                    { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' },
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
                     ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
                     { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
@@ -171,7 +171,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         )}
 
         {/* Category Filter — hidden during comp day lock */}
-        {!compDayAllowedTabs && <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
+        {!compDayAllowedTabs && !isTeamAccount && <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
           {[
             { id: 'technical', emoji: '🔧' },
             { id: 'general', emoji: '🏠' },
