@@ -294,14 +294,6 @@ function App() {
   const flashUsername = username || localStorage.getItem('scrum-username') || ''
   const flashRequired = activeFlash && flashUsername && presentUsers.includes(flashUsername) && !completedUsers.includes(flashUsername) && !(activeFlash.exempt_users || []).includes(flashUsername)
   useBackButton()
-
-  // Default sounds off for team accounts on first login
-  if (effectiveIsTeam && !localStorage.getItem('scrum-team-defaults-set')) {
-    localStorage.setItem('scrum-sfx-enabled', 'false')
-    localStorage.setItem('scrum-music-pref', 'off')
-    localStorage.setItem('scrum-team-defaults-set', 'true')
-  }
-
   const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
     const msgs = ['Getting Radical...', 'Revving the robots...', 'Charging up the SCRUM...', 'Radical Robotics incoming...', 'Deploying radical vibes...', 'Scrumming it up...', 'Activating turbo mode...', 'Warming up the gears...']
@@ -346,6 +338,15 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
   const [compDayLock, setCompDayLock] = useState(null) // { role: 'scouting' | 'drive-team' | ... } or null
+
+  // Default sounds off for team accounts on first login
+  useEffect(() => {
+    if (effectiveIsTeam && !localStorage.getItem('scrum-team-defaults-set')) {
+      localStorage.setItem('scrum-sfx-enabled', 'false')
+      localStorage.setItem('scrum-music-pref', 'off')
+      localStorage.setItem('scrum-team-defaults-set', 'true')
+    }
+  }, [effectiveIsTeam])
 
   // Comp Day screen captivation — check if there's a live session with an active block and user has a role
   useEffect(() => {
