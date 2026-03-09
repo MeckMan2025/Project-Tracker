@@ -96,7 +96,8 @@ const TAB_ACCESS = {
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 
-function hasAccess(tab, tier) {
+function hasAccess(tab, tier, isTeam) {
+  if (isTeam) return true // team accounts have full access
   const required = TAB_ACCESS[tab]
   if (!required) return true // board tabs (dynamic) — accessible to all
   return (TIER_RANK[tier] || 0) >= (TIER_RANK[required] || 0)
@@ -1179,7 +1180,7 @@ function App() {
 
 
       {/* Main Content */}
-      {!hasAccess(activeTab, tier) ? (
+      {!hasAccess(activeTab, tier, effectiveIsTeam) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} />
