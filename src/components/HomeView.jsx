@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 
 const STATUS_STYLES = {
@@ -32,6 +33,12 @@ function HomeView({ onTabChange }) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+
+  const getAuthHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token || supabaseKey
+    return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+  }
 
   const ROLE_EMOJIS = { 'scouting': '🔍', 'pit-crew': '🔧', 'drive-team': '🎮', 'spirit': '📣', 'bag-watch': '🎒', 'break': '☕', 'strategy': '🧠', 'safety': '🦺' }
   const ROLE_LABELS = { 'scouting': 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team': 'Drive Team', 'spirit': 'Spirit', 'bag-watch': 'Bag Watch', 'break': 'Break', 'strategy': 'Strategy Lead', 'safety': 'Safety Monitor' }
@@ -182,7 +189,8 @@ function HomeView({ onTabChange }) {
   // Fetch workshop ideas
   const loadIdeas = async () => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
+      const authHeaders = await getAuthHeaders()
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers: authHeaders })
       if (res.ok) setIdeas(await res.json())
     } catch {}
   }
@@ -194,9 +202,10 @@ function HomeView({ onTabChange }) {
     if (!text) return
     setSubmitError('')
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas`, {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify({
           idea: text,
           submitted_by: username,
@@ -216,18 +225,20 @@ function HomeView({ onTabChange }) {
   }
 
   const handleReview = async (id, status) => {
+    const authHeaders = await getAuthHeaders()
     await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: { ...authHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status }),
     })
     loadIdeas()
   }
 
   const handleDeleteIdea = async (id) => {
+    const authHeaders = await getAuthHeaders()
     await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
       method: 'DELETE',
-      headers,
+      headers: authHeaders,
     })
     loadIdeas()
   }

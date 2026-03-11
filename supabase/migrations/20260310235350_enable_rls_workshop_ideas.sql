@@ -1,0 +1,1 @@
+ALTER TABLE public.workshop_ideas ENABLE ROW LEVEL SECURITY;
