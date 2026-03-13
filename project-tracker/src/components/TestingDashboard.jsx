@@ -364,14 +364,19 @@ function SpreadsheetView({ table, onBack }) {
       else if (c.type === 'passfail') rowData[c.name] = ''
       else rowData[c.name] = ''
     })
-    await fetch(`${REST_URL}/rest/v1/testing_rows`, {
+    const res = await fetch(`${REST_URL}/rest/v1/testing_rows`, {
       method: 'POST',
-      headers: REST_JSON,
+      headers: REST_JSON_RETURN,
       body: JSON.stringify({ table_id: table.id, row_data: rowData, row_order: nextOrder }),
     })
+    if (res.ok) {
+      const [created] = await res.json()
+      setRows(prev => prev.some(r => r.id === created.id) ? prev : [...prev, created])
+    }
   }
 
   const deleteRow = async (rowId) => {
+    setRows(prev => prev.filter(r => r.id !== rowId))
     await fetch(`${REST_URL}/rest/v1/testing_rows?id=eq.${rowId}`, {
       method: 'DELETE',
       headers: REST_HEADERS,
@@ -422,6 +427,22 @@ function SpreadsheetView({ table, onBack }) {
     })
   }
 
+  const convertToGraph = async () => {
+    const numericCols = columns.filter(c => c.type === 'number')
+    if (numericCols.length < 2) return
+    const xCol = numericCols[0].name
+    const yCols = numericCols.slice(1).map(c => c.name)
+    const res = await fetch(`${REST_URL}/rest/v1/testing_charts`, {
+      method: 'POST',
+      headers: REST_JSON_RETURN,
+      body: JSON.stringify({ table_id: table.id, chart_type: 'line', x_column: xCol, y_columns: yCols, title: `${table.name} Overview` }),
+    })
+    if (res.ok) {
+      const [created] = await res.json()
+      setCharts(prev => prev.some(c => c.id === created.id) ? prev : [...prev, created])
+    }
+  }
+
   const sortedRows = [...rows].sort((a, b) => a.row_order - b.row_order)
 
   return (
@@ -433,7 +454,15 @@ function SpreadsheetView({ table, onBack }) {
           </button>
           <h2 className="text-xl font-bold text-gray-700">{table.name}</h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {columns.filter(c => c.type === 'number').length >= 2 && (
+            <button
+              onClick={convertToGraph}
+              className="flex items-center gap-1 px-3 py-2 bg-pastel-blue hover:bg-pastel-blue-dark rounded-lg text-sm text-gray-700 transition-colors"
+            >
+              <BarChart3 size={16} /> Convert to Graph
+            </button>
+          )}
           <button
             onClick={() => setShowChartModal(true)}
             className="flex items-center gap-1 px-3 py-2 bg-pastel-orange hover:bg-pastel-orange-dark rounded-lg text-sm text-gray-700 transition-colors"
