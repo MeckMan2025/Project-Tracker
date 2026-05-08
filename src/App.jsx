@@ -1240,7 +1240,14 @@ function App() {
       ) : activeTab === 'suggestions' ? (
         <SuggestionsView />
       ) : activeTab === 'calendar' ? (
-        <CalendarView />
+        <CalendarView
+          tabs={tabs}
+          tasksByTab={tasksByTab}
+          onOpenTask={(task) => {
+            if (task?.board_id) setActiveTab(task.board_id)
+            setEditingTask(task)
+          }}
+        />
       ) : activeTab === 'user-management' ? (
         <UserManagement />
       ) : activeTab === 'requests' ? (

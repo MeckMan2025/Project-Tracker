@@ -5,6 +5,20 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 73,
+    date: '2026-05-08',
+    items: [
+      '📅 New Robotics Operations Calendar — 6 categories (meetings, competitions, outreach, workshops, birthdays, fundraising) with their own colors',
+      '🗂️ Month / Week / Day / Agenda views with a quick view switcher',
+      '🎯 Department filters: All · Team · Business · Programming · Technical · My Calendar',
+      '📊 Toggleable dashboard with Upcoming, Due Soon, Birthdays, and Next Competition',
+      '🔁 Recurring events — daily / weekly / monthly / yearly',
+      '🚨 Priority badges (Critical / Important / Normal) shown without overriding category color',
+      '🎂 Birthday reactions — send 🎉 🎂 🥳 🤖 💚 to teammates',
+      '📋 Tasks with due dates appear automatically; clicking jumps to the board and opens the task',
+    ],
+  },
+  {
     id: 72,
     date: '2026-03-09',
     items: [
