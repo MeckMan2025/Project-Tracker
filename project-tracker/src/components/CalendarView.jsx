@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  ChevronLeft, ChevronRight, Plus, X, Trash2,
+  ChevronLeft, ChevronRight, Plus, X, Trash2, Pencil,
   CalendarDays, CalendarRange, Calendar as CalendarIcon, List,
   ChevronDown, ChevronUp, Repeat, AlertCircle,
 } from 'lucide-react'
@@ -127,6 +127,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const [showDashboard, setShowDashboard] = useState(() => localStorage.getItem('calendar-dashboard') !== '0')
   const [openEvent, setOpenEvent] = useState(null) // event currently in modal
   const [creating, setCreating] = useState(null)   // { date_key } when add form open
+  const [editing, setEditing] = useState(null)     // event being edited
   const [selectedDay, setSelectedDay] = useState(null)
 
   useEffect(() => { localStorage.setItem('calendar-view', view) }, [view])
@@ -324,6 +325,45 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
   }
 
+  const handleUpdate = async (id, payload) => {
+    const updates = {
+      date_key: payload.date_key,
+      name: payload.name,
+      description: payload.description || '',
+      event_type: payload.category,
+      category: payload.category,
+      priority: payload.priority || 'normal',
+      department: payload.department || (CATEGORIES[payload.category]?.dept[0] || 'team'),
+      start_time: payload.start_time || '',
+      end_time: payload.end_time || '',
+      location: payload.location || '',
+      metadata: payload.metadata || {},
+      recurrence: payload.recurrence || 'none',
+      recurrence_until: payload.recurrence_until || '',
+      assigned_to: payload.assigned_to || [],
+    }
+
+    setEditing(null)
+    setOpenEvent(null)
+
+    if (!canEditContent) {
+      addToast('Only leads can edit events', 'error')
+      return
+    }
+
+    // Optimistic update
+    const prevSnapshot = events.find(e => e.id === id)
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
+    addToast('Event updated', 'success')
+
+    const { error } = await supabase.from('calendar_events').update(updates).eq('id', id)
+    if (error) {
+      console.error('Calendar update failed:', error)
+      addToast('Failed to update: ' + error.message, 'error')
+      if (prevSnapshot) setEvents(prev => prev.map(e => e.id === id ? prevSnapshot : e))
+    }
+  }
+
   const handleDelete = async (id) => {
     setEvents(prev => prev.filter(e => e.id !== id))
     setOpenEvent(null)
@@ -467,6 +507,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           event={openEvent}
           onClose={() => setOpenEvent(null)}
           onDelete={canEditContent ? handleDelete : null}
+          onEdit={canEditContent ? () => { setEditing(openEvent); setOpenEvent(null) } : null}
           reactions={reactions[openEvent.id] || []}
           onReact={(emoji) => handleReact(openEvent.id, emoji)}
           username={username}
@@ -474,10 +515,20 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       )}
 
       {creating && (
-        <CreateEventModal
+        <EventForm
           dateKey={creating.date_key}
           onClose={() => setCreating(null)}
           onSubmit={handleCreate}
+          canEdit={canEditContent}
+        />
+      )}
+
+      {editing && (
+        <EventForm
+          dateKey={editing.date_key}
+          existing={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={(payload) => handleUpdate(editing.id, payload)}
           canEdit={canEditContent}
         />
       )}
@@ -817,7 +868,7 @@ function DayPanel({ dateKey, items, onClose, onEventClick, onCreate, canCreate }
 // ---------------------------------------------------------------------------
 // Event detail modal (square overlay)
 // ---------------------------------------------------------------------------
-function EventModal({ event, onClose, onDelete, reactions, onReact, username }) {
+function EventModal({ event, onClose, onDelete, onEdit, reactions, onReact, username }) {
   const cat = CATEGORIES[event.category] || CATEGORIES[event.event_type] || CATEGORIES.meeting
   const prio = PRIORITIES[event.priority] || PRIORITIES.normal
   const meta = event.metadata || {}
@@ -939,16 +990,26 @@ function EventModal({ event, onClose, onDelete, reactions, onReact, username }) 
             )}
           </div>
 
-          <div className="flex items-center justify-between mt-5 pt-3 border-t border-gray-100">
-            <p className="text-[11px] text-gray-400">Added by {event.added_by}</p>
-            {onDelete && (
-              <button
-                onClick={() => { if (confirm('Delete this event?')) onDelete(event.id) }}
-                className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
-              >
-                <Trash2 size={12} /> Delete
-              </button>
-            )}
+          <div className="flex items-center justify-between mt-5 pt-3 border-t border-gray-100 gap-3">
+            <p className="text-[11px] text-gray-400 flex-1 truncate">Added by {event.added_by}</p>
+            <div className="flex items-center gap-2 shrink-0">
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="text-xs text-pastel-blue-dark hover:text-blue-700 flex items-center gap-1"
+                >
+                  <Pencil size={12} /> Edit
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => { if (confirm('Delete this event?')) onDelete(event.id) }}
+                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                >
+                  <Trash2 size={12} /> Delete
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -957,23 +1018,28 @@ function EventModal({ event, onClose, onDelete, reactions, onReact, username }) 
 }
 
 // ---------------------------------------------------------------------------
-// Create event modal
+// Event form (handles both create and edit)
 // ---------------------------------------------------------------------------
-function CreateEventModal({ dateKey, onClose, onSubmit, canEdit }) {
-  const [category, setCategory] = useState('meeting')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState('normal')
-  const [department, setDepartment] = useState('team')
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
-  const [location, setLocation] = useState('')
-  const [recurrence, setRecurrence] = useState('none')
-  const [recurrenceUntil, setRecurrenceUntil] = useState('')
-  const [meta, setMeta] = useState({})
+function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
+  const isEdit = !!existing
+  const [date, setDate]               = useState(existing?.date_key || dateKey)
+  const [category, setCategory]       = useState(existing?.category || existing?.event_type || 'meeting')
+  const [name, setName]               = useState(existing?.name || '')
+  const [description, setDescription] = useState(existing?.description || '')
+  const [priority, setPriority]       = useState(existing?.priority || 'normal')
+  const [department, setDepartment]   = useState(existing?.department || 'team')
+  const [startTime, setStartTime]     = useState(existing?.start_time || '')
+  const [endTime, setEndTime]         = useState(existing?.end_time || '')
+  const [location, setLocation]       = useState(existing?.location || '')
+  const [recurrence, setRecurrence]   = useState(existing?.recurrence || 'none')
+  const [recurrenceUntil, setRecurrenceUntil] = useState(existing?.recurrence_until || '')
+  const [meta, setMeta]               = useState(existing?.metadata || {})
 
-  // Sync department default with category
+  // Sync department default with category — but only on category change, not on mount
+  // (so an existing event's department isn't overridden when the form opens).
+  const isFirstRender = useRef(true)
   useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
     const cat = CATEGORIES[category]
     if (cat && !cat.dept.includes(department)) setDepartment(cat.dept[0])
   }, [category]) // eslint-disable-line
@@ -982,7 +1048,7 @@ function CreateEventModal({ dateKey, onClose, onSubmit, canEdit }) {
     e.preventDefault()
     if (!name.trim()) return
     onSubmit({
-      date_key: dateKey,
+      date_key: date,
       name: name.trim(),
       description: description.trim(),
       category,
@@ -1010,10 +1076,19 @@ function CreateEventModal({ dateKey, onClose, onSubmit, canEdit }) {
       >
         <div className="p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-800">{canEdit ? 'New Event' : 'Request Event'}</h2>
+            <h2 className="text-lg font-bold text-gray-800">
+              {isEdit ? 'Edit Event' : (canEdit ? 'New Event' : 'Request Event')}
+            </h2>
             <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
           </div>
-          <p className="text-xs text-gray-500">{formatHuman(fromKey(dateKey))}{!canEdit && ' · A lead will review your request.'}</p>
+          <p className="text-xs text-gray-500">{formatHuman(fromKey(date))}{!canEdit && !isEdit && ' · A lead will review your request.'}</p>
+
+          {isEdit && (
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1" />
+            </div>
+          )}
 
           {/* Category */}
           <div>
@@ -1136,7 +1211,7 @@ function CreateEventModal({ dateKey, onClose, onSubmit, canEdit }) {
             className={`w-full px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40`}
             style={{ background: cat.color }}
           >
-            {canEdit ? 'Create Event' : 'Submit Request'}
+            {isEdit ? 'Save Changes' : (canEdit ? 'Create Event' : 'Submit Request')}
           </button>
         </div>
       </form>
