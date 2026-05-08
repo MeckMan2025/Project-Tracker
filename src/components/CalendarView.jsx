@@ -129,7 +129,8 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         .select('*')
         .order('date_key', { ascending: true })
       if (!alive) return
-      if (error) { console.error('Failed to load events', error); return }
+      if (error) { console.error('[Calendar] load FAILED:', error); return }
+      console.log('[Calendar] loaded', (data || []).length, 'events:', data)
       setEvents(data || [])
     }
     load()
@@ -237,15 +238,19 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const eventsByDay = useMemo(() => {
     const map = {}
     const push = (key, instance) => { (map[key] = map[key] || []).push(instance) }
+    let included = 0, filtered = 0, outOfRange = 0
     events.forEach(ev => {
-      if (!eventMatches(ev)) return
+      if (!eventMatches(ev)) { filtered++; return }
       const keys = expandRecurrence(ev, viewRange.from, viewRange.to)
+      if (keys.length === 0) { outOfRange++; return }
       keys.forEach(k => push(k, { ...ev, date_key: k, _baseKey: ev.date_key }))
+      included++
     })
     taskEvents.forEach(t => { if (eventMatches(t)) push(t.date_key, t) })
     Object.values(map).forEach(list => list.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')))
+    console.log('[Calendar] eventsByDay built — total:', events.length, 'shown:', included, 'filtered:', filtered, 'out-of-range:', outOfRange, 'view:', view, 'range:', toKey(viewRange.from), '→', toKey(viewRange.to))
     return map
-  }, [events, taskEvents, filter, viewRange.from, viewRange.to, username])
+  }, [events, taskEvents, filter, viewRange.from, viewRange.to, username, view]) // eslint-disable-line
 
   // ---------------------------------------------------------------------- Handlers
   const handleCreate = async (payload) => {
