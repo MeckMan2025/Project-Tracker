@@ -75,6 +75,26 @@ const formatTime = (t) => {
   return `${hh}:${pad2(m || 0)} ${period}`
 }
 
+// Compute when a reminder for this event should fire. Returns a Date or null
+// (null = skip — no start_time + reminder.disabled, or computed time is in the past).
+function computeReminderSendAt(event) {
+  const r = event.metadata?.reminder || {}
+  if (r.disabled) return null
+  if (!event.date_key) return null
+  let sendAt
+  if (event.start_time) {
+    const minutesBefore = typeof r.minutes_before === 'number' ? r.minutes_before : 60
+    const start = new Date(`${event.date_key}T${event.start_time}:00`)
+    sendAt = new Date(start.getTime() - minutesBefore * 60_000)
+  } else {
+    // All-day: 8 AM on the date_key
+    sendAt = new Date(`${event.date_key}T08:00:00`)
+  }
+  if (Number.isNaN(sendAt.getTime())) return null
+  if (sendAt.getTime() < Date.now()) return null
+  return sendAt
+}
+
 // Expand a recurring event into concrete date_keys within [from, to] (inclusive).
 function expandRecurrence(event, from, to) {
   if (!event.date_key) return []
@@ -276,6 +296,51 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     return map
   }, [events, taskEvents, filter, viewRange.from, viewRange.to, username]) // eslint-disable-line
 
+  // ---------------------------------------------------------------------- Reminders
+  const scheduleReminder = async (event) => {
+    const sendAt = computeReminderSendAt(event)
+    if (!sendAt) return
+    const r = event.metadata?.reminder || {}
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const cat = CATEGORIES[event.category] || CATEGORIES[event.event_type] || CATEGORIES.meeting
+    const row = {
+      id: 'sn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      event_id: event.id,
+      send_at: sendAt.toISOString(),
+      title: `${cat.emoji} ${event.name}`,
+      body: r.message || (event.start_time ? `Starts at ${formatTime(event.start_time)}${event.location ? ' · ' + event.location : ''}` : `Today${event.location ? ' · ' + event.location : ''}`),
+      type: 'calendar_event',
+      force: false,
+      created_by: username,
+      created_by_user_id: user?.id || null,
+      status: 'pending',
+    }
+    try {
+      await fetch(`${url}/rest/v1/scheduled_notifications`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(row),
+      })
+    } catch (err) {
+      console.error('Failed to schedule reminder:', err)
+    }
+  }
+
+  const cancelReminders = async (eventId) => {
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    try {
+      await fetch(`${url}/rest/v1/scheduled_notifications?event_id=eq.${encodeURIComponent(eventId)}&status=eq.pending`, {
+        method: 'PATCH',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+    } catch (err) {
+      console.error('Failed to cancel reminders:', err)
+    }
+  }
+
   // ---------------------------------------------------------------------- Handlers
   const handleCreate = async (payload) => {
     const newEvent = {
@@ -331,6 +396,8 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         console.error('Calendar insert failed:', res.status, body)
         addToast('Failed to save: ' + body, 'error')
         setEvents(prev => prev.filter(e => e.id !== newEvent.id))
+      } else {
+        scheduleReminder(newEvent)
       }
     } catch (err) {
       console.error('Calendar insert threw:', err)
@@ -383,6 +450,9 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         console.error('Calendar update failed:', res.status, body)
         addToast('Failed to update: ' + body, 'error')
         if (prevSnapshot) setEvents(prev => prev.map(e => e.id === id ? prevSnapshot : e))
+      } else {
+        await cancelReminders(id)
+        scheduleReminder({ ...prevSnapshot, ...updates, id })
       }
     } catch (err) {
       console.error('Calendar update threw:', err)
@@ -408,6 +478,8 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         console.error('Calendar delete failed:', res.status, await res.text())
         addToast('Failed to delete event', 'error')
         setEvents(prevSnapshot)
+      } else {
+        cancelReminders(id)
       }
     } catch (err) {
       console.error('Calendar delete threw:', err)
@@ -1231,6 +1303,50 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
                 <option value="technical">Technical</option>
               </select>
             </div>
+          </div>
+
+          {/* Reminder */}
+          <div className="bg-gray-50 rounded-lg p-2.5 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!(meta.reminder?.disabled)}
+                onChange={(e) => setMeta(prev => ({ ...prev, reminder: { ...(prev.reminder || {}), disabled: !e.target.checked } }))}
+                className="rounded border-gray-300 text-pastel-blue-dark focus:ring-pastel-blue"
+              />
+              <span className="text-xs font-medium text-gray-700">Send reminder notification</span>
+            </label>
+            {!(meta.reminder?.disabled) && (
+              <>
+                {startTime ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Remind</span>
+                    <select
+                      value={meta.reminder?.minutes_before ?? 60}
+                      onChange={(e) => setMeta(prev => ({ ...prev, reminder: { ...(prev.reminder || {}), minutes_before: Number(e.target.value) } }))}
+                      className="flex-1 px-2 py-1 border rounded text-xs"
+                    >
+                      <option value={0}>at start time</option>
+                      <option value={5}>5 min before</option>
+                      <option value={15}>15 min before</option>
+                      <option value={30}>30 min before</option>
+                      <option value={60}>1 hour before</option>
+                      <option value={120}>2 hours before</option>
+                      <option value={1440}>1 day before</option>
+                    </select>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Reminder will fire at 8:00 AM on the day.</p>
+                )}
+                <input
+                  type="text"
+                  value={meta.reminder?.message || ''}
+                  onChange={(e) => setMeta(prev => ({ ...prev, reminder: { ...(prev.reminder || {}), message: e.target.value } }))}
+                  placeholder="Custom message (optional)"
+                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                />
+              </>
+            )}
           </div>
 
           {/* Recurrence */}

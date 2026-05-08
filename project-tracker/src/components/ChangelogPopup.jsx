@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 80,
+    date: '2026-05-08',
+    items: [
+      '🔔 Calendar events now send automatic reminder notifications — defaults to 1 hour before timed events / 8 AM on the day for all-day events; leads can change the time, write a custom message, or turn it off per event',
+    ],
+  },
+  {
     id: 79,
     date: '2026-05-08',
     items: [
