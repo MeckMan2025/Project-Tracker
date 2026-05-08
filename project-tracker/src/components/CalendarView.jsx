@@ -317,10 +317,24 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
 
     setEvents(prev => [...prev, newEvent])
     addToast('Event created', 'success')
-    const { error } = await supabase.from('calendar_events').insert(newEvent)
-    if (error) {
-      console.error('Calendar insert failed:', error)
-      addToast('Failed to save: ' + error.message, 'error')
+
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    try {
+      const res = await fetch(`${url}/rest/v1/calendar_events`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(newEvent),
+      })
+      if (!res.ok) {
+        const body = await res.text()
+        console.error('Calendar insert failed:', res.status, body)
+        addToast('Failed to save: ' + body, 'error')
+        setEvents(prev => prev.filter(e => e.id !== newEvent.id))
+      }
+    } catch (err) {
+      console.error('Calendar insert threw:', err)
+      addToast('Failed to save event', 'error')
       setEvents(prev => prev.filter(e => e.id !== newEvent.id))
     }
   }
@@ -356,18 +370,50 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
     addToast('Event updated', 'success')
 
-    const { error } = await supabase.from('calendar_events').update(updates).eq('id', id)
-    if (error) {
-      console.error('Calendar update failed:', error)
-      addToast('Failed to update: ' + error.message, 'error')
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    try {
+      const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(updates),
+      })
+      if (!res.ok) {
+        const body = await res.text()
+        console.error('Calendar update failed:', res.status, body)
+        addToast('Failed to update: ' + body, 'error')
+        if (prevSnapshot) setEvents(prev => prev.map(e => e.id === id ? prevSnapshot : e))
+      }
+    } catch (err) {
+      console.error('Calendar update threw:', err)
+      addToast('Failed to update event', 'error')
       if (prevSnapshot) setEvents(prev => prev.map(e => e.id === id ? prevSnapshot : e))
     }
   }
 
   const handleDelete = async (id) => {
-    setEvents(prev => prev.filter(e => e.id !== id))
     setOpenEvent(null)
-    await supabase.from('calendar_events').delete().eq('id', id)
+    const prevSnapshot = events
+    setEvents(prev => prev.filter(e => e.id !== id))
+    addToast('Event deleted', 'success')
+
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    try {
+      const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      })
+      if (!res.ok) {
+        console.error('Calendar delete failed:', res.status, await res.text())
+        addToast('Failed to delete event', 'error')
+        setEvents(prevSnapshot)
+      }
+    } catch (err) {
+      console.error('Calendar delete threw:', err)
+      addToast('Failed to delete event', 'error')
+      setEvents(prevSnapshot)
+    }
   }
 
   const handleReact = async (eventId, emoji) => {
