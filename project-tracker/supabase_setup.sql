@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_date text DEFAULT '',
   status text DEFAULT 'todo',
   skills jsonb DEFAULT '[]',
+  priority text DEFAULT 'medium',
   created_at text DEFAULT ''
 );
 
@@ -50,6 +51,8 @@ CREATE TABLE IF NOT EXISTS messages (
   seen_by jsonb DEFAULT '[]'
 );
 
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS channel text DEFAULT 'all';
+
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to messages" ON messages;
 CREATE POLICY "Allow all access to messages" ON messages
@@ -58,10 +61,13 @@ CREATE POLICY "Allow all access to messages" ON messages
 -- 4. SUGGESTIONS TABLE (new)
 CREATE TABLE IF NOT EXISTS suggestions (
   id text PRIMARY KEY,
-  username text NOT NULL,
-  content text NOT NULL,
+  author text NOT NULL,
+  text text NOT NULL,
+  status text DEFAULT 'pending',
   created_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS author_id uuid;
 
 ALTER TABLE suggestions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to suggestions" ON suggestions;
@@ -392,9 +398,13 @@ CREATE POLICY "Allow all access to attendance_records" ON attendance_records
 CREATE TABLE IF NOT EXISTS team_accounts (
   team_number text PRIMARY KEY,
   team_name text NOT NULL,
+  league text,
   user_id uuid,
   created_at timestamptz DEFAULT now()
 );
+
+-- Add league column if table already exists
+ALTER TABLE team_accounts ADD COLUMN IF NOT EXISTS league text;
 
 ALTER TABLE team_accounts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to team_accounts" ON team_accounts;
@@ -404,11 +414,46 @@ CREATE POLICY "Allow all access to team_accounts" ON team_accounts
 -- Add owner_team column to boards (null = Radical board, team_number = team-specific board)
 ALTER TABLE boards ADD COLUMN IF NOT EXISTS owner_team text;
 
+-- DESIGN MATRICES TABLE
+CREATE TABLE IF NOT EXISTS design_matrices (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  description text DEFAULT '',
+  options jsonb DEFAULT '[]'::jsonb,
+  criteria jsonb DEFAULT '[]'::jsonb,
+  scores jsonb DEFAULT '{}'::jsonb,
+  decision jsonb DEFAULT '{}'::jsonb,
+  created_by text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE design_matrices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to design_matrices" ON design_matrices;
+CREATE POLICY "Allow all access to design_matrices" ON design_matrices
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Storage bucket for design matrix images
+INSERT INTO storage.buckets (id, name, public) VALUES ('design-matrix-images', 'design-matrix-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow public read design-matrix-images" ON storage.objects;
+CREATE POLICY "Allow public read design-matrix-images" ON storage.objects
+  FOR SELECT USING (bucket_id = 'design-matrix-images');
+
+DROP POLICY IF EXISTS "Allow authenticated upload design-matrix-images" ON storage.objects;
+CREATE POLICY "Allow authenticated upload design-matrix-images" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'design-matrix-images');
+
+DROP POLICY IF EXISTS "Allow authenticated delete design-matrix-images" ON storage.objects;
+CREATE POLICY "Allow authenticated delete design-matrix-images" ON storage.objects
+  FOR DELETE USING (bucket_id = 'design-matrix-images');
+
 DO $$
 DECLARE
   tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts']
+  FOREACH tbl IN ARRAY ARRAY['boards','tasks','messages','suggestions','calendar_events','scouting_records','profiles','approved_emails','requests','notebook_entries','notebook_projects','notebook_entry_participants','notebook_flash','fun_quotes','scouting_schedule','scouting_periods','notifications','push_subscriptions','request_reminders','considered_teams','attendance_sessions','attendance_records','interested_teams','team_accounts','design_matrices']
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_publication_tables

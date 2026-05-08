@@ -24,12 +24,12 @@ const CATEGORIES = {
 }
 
 const DEPARTMENTS = [
-  { id: 'all',         label: 'All' },
-  { id: 'team',        label: 'Team' },
-  { id: 'business',    label: 'Business' },
-  { id: 'programming', label: 'Programming' },
-  { id: 'technical',   label: 'Technical' },
-  { id: 'mine',        label: 'My Calendar' },
+  { id: 'all',         label: 'All',         emoji: '📅' },
+  { id: 'team',        label: 'Team',        emoji: '👥' },
+  { id: 'business',    label: 'Business',    emoji: '💼' },
+  { id: 'programming', label: 'Programming', emoji: '💻' },
+  { id: 'technical',   label: 'Technical',   emoji: '🔧' },
+  { id: 'mine',        label: 'My Calendar', emoji: '⭐' },
 ]
 
 const PRIORITIES = {
@@ -77,7 +77,9 @@ const formatTime = (t) => {
 
 // Expand a recurring event into concrete date_keys within [from, to] (inclusive).
 function expandRecurrence(event, from, to) {
+  if (!event.date_key) return []
   const start = fromKey(event.date_key)
+  if (Number.isNaN(start.getTime())) return []
   if (!event.recurrence || event.recurrence === 'none') {
     return start >= from && start <= to ? [toKey(start)] : []
   }
@@ -198,7 +200,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
     if (ev.department && ev.department === filter) return true
     // Allow categories to show in their natural department even if dept is unset.
-    const cat = CATEGORIES[ev.category]
+    const cat = CATEGORIES[ev.category] || CATEGORIES[ev.event_type]
     if (cat && cat.dept.includes(filter)) return true
     return false
   }
@@ -334,64 +336,61 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-20">
-        <div className="px-4 py-3 ml-10 flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Robotics Operations Calendar
-            </h1>
-            <p className="text-xs text-gray-500">Meetings · Competitions · Outreach · Workshops · Birthdays · Fundraising</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            {canReviewRequests && <RequestsBadge type="calendar_event" />}
-          </div>
-        </div>
+        {/* Row 1: title · nav · view switcher · bell */}
+        <div className="px-4 py-2 ml-10 flex items-center gap-3 flex-wrap">
+          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent shrink-0">
+            Calendar
+          </h1>
 
-        {/* Toolbar */}
-        <div className="px-4 pb-3 ml-10 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-1">
-            <button onClick={() => shift(-1)} className="p-1.5 rounded-lg hover:bg-pastel-blue/30"><ChevronLeft size={18} /></button>
-            <button onClick={() => setCursor(new Date())} className="px-3 py-1 rounded-lg text-sm font-medium hover:bg-pastel-blue/30">Today</button>
-            <button onClick={() => shift(1)} className="p-1.5 rounded-lg hover:bg-pastel-blue/30"><ChevronRight size={18} /></button>
-            <span className="ml-2 text-base font-semibold text-gray-700 min-w-[180px]">{headerLabel}</span>
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => shift(-1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronLeft size={16} /></button>
+            <button onClick={() => setCursor(new Date())} className="px-2 py-0.5 rounded-lg text-xs font-medium hover:bg-pastel-blue/30">Today</button>
+            <button onClick={() => shift(1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronRight size={16} /></button>
+            <span className="ml-1.5 text-sm font-semibold text-gray-700">{headerLabel}</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 ml-auto">
             {VIEWS.map(v => {
               const Active = v.id === view
               return (
                 <button
                   key={v.id}
                   onClick={() => setView(v.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${Active ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${Active ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                  <v.Icon size={13} /> {v.label}
+                  <v.Icon size={12} /> {v.label}
                 </button>
               )
             })}
           </div>
+
+          <NotificationBell />
+          {canReviewRequests && <RequestsBadge type="calendar_event" />}
         </div>
 
-        {/* Department filters */}
-        <div className="px-4 pb-3 ml-10 flex items-center gap-1.5 flex-wrap">
-          {DEPARTMENTS.map(d => (
-            <button
-              key={d.id}
-              onClick={() => setFilter(d.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filter === d.id
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
+        {/* Row 2: department filters + dashboard toggle */}
+        <div className="px-4 pb-2 ml-10 flex items-center gap-1 flex-wrap">
+          {DEPARTMENTS.map(d => {
+            const active = filter === d.id
+            return (
+              <button
+                key={d.id}
+                onClick={() => setFilter(d.id)}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                  active
+                    ? 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-sm'
+                    : 'bg-white text-gray-600 hover:bg-pastel-pink/20 border border-gray-200'
+                }`}
+              >
+                <span>{d.emoji}</span>{d.label}
+              </button>
+            )
+          })}
           <button
             onClick={() => setShowDashboard(s => !s)}
-            className="ml-auto flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white border border-gray-200 hover:bg-gray-50 text-gray-600"
+            className="ml-auto flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-gray-200 hover:bg-pastel-blue/20 text-gray-600"
           >
-            {showDashboard ? <><ChevronUp size={13} /> Hide Dashboard</> : <><ChevronDown size={13} /> Show Dashboard</>}
+            {showDashboard ? <><ChevronUp size={12} /> Hide Dashboard</> : <><ChevronDown size={12} /> Show Dashboard</>}
           </button>
         </div>
       </header>
@@ -451,21 +450,28 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
 // Dashboard
 // ---------------------------------------------------------------------------
 function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
-  const todayKey = toKey(new Date())
+  const today = new Date()
+  const weekStart = startOfWeek(today)
+  const weekEnd = addDays(weekStart, 6)
+  const todayKey = toKey(today)
+  const weekEndKey = toKey(weekEnd)
+
   const all = useMemo(() => {
     const list = []
     events.forEach(ev => {
-      const keys = expandRecurrence(ev, new Date(), addDays(new Date(), 30))
+      const keys = expandRecurrence(ev, weekStart, weekEnd)
       keys.forEach(k => list.push({ ...ev, date_key: k }))
     })
-    return list.filter(e => e.date_key >= todayKey).sort((a, b) => (a.date_key + (a.start_time || '')).localeCompare(b.date_key + (b.start_time || '')))
-  }, [events])
+    return list
+      .filter(e => e.date_key >= todayKey && e.date_key <= weekEndKey)
+      .sort((a, b) => (a.date_key + (a.start_time || '')).localeCompare(b.date_key + (b.start_time || '')))
+  }, [events, todayKey, weekEndKey]) // eslint-disable-line
 
   const upcoming = all.slice(0, 4)
   const dueSoon = useMemo(() => taskEvents
-    .filter(t => t.date_key >= todayKey && (t.assignee || '').toLowerCase() === (username || '').toLowerCase() && t.status !== 'done' && t.status !== 'completed')
+    .filter(t => t.date_key >= todayKey && t.date_key <= weekEndKey && (t.assignee || '').toLowerCase() === (username || '').toLowerCase() && t.status !== 'done' && t.status !== 'completed')
     .sort((a, b) => a.date_key.localeCompare(b.date_key))
-    .slice(0, 4), [taskEvents, username, todayKey])
+    .slice(0, 4), [taskEvents, username, todayKey, weekEndKey])
   const birthdays = all.filter(e => e.category === 'birthday').slice(0, 3)
   const nextComp = all.find(e => e.category === 'competition')
 
@@ -481,8 +487,8 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-      <Card title="Upcoming" accent="#3b82f6">
-        {upcoming.length === 0 ? <p className="text-xs text-gray-400">Nothing scheduled.</p> : (
+      <Card title="This Week" accent="#3b82f6">
+        {upcoming.length === 0 ? <p className="text-xs text-gray-400">Nothing scheduled this week.</p> : (
           <ul className="space-y-1">
             {upcoming.map(e => (
               <li key={e.id + e.date_key} onClick={() => onOpenEvent(e)} className="text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5 truncate">
@@ -494,8 +500,8 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
           </ul>
         )}
       </Card>
-      <Card title="Due Soon" accent="#f97316">
-        {dueSoon.length === 0 ? <p className="text-xs text-gray-400">No assigned tasks due.</p> : (
+      <Card title="Due This Week" accent="#f97316">
+        {dueSoon.length === 0 ? <p className="text-xs text-gray-400">Nothing due this week.</p> : (
           <ul className="space-y-1">
             {dueSoon.map(t => (
               <li key={t.id} onClick={() => onOpenTask?.(t.task)} className="text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5 truncate">
@@ -507,8 +513,8 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
           </ul>
         )}
       </Card>
-      <Card title="Birthdays" accent="#ec4899">
-        {birthdays.length === 0 ? <p className="text-xs text-gray-400">No upcoming birthdays.</p> : (
+      <Card title="Birthdays This Week" accent="#ec4899">
+        {birthdays.length === 0 ? <p className="text-xs text-gray-400">No birthdays this week.</p> : (
           <ul className="space-y-1">
             {birthdays.map(b => (
               <li key={b.id + b.date_key} onClick={() => onOpenEvent(b)} className="text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5 truncate">
@@ -519,8 +525,8 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
           </ul>
         )}
       </Card>
-      <Card title="Next Competition" accent="#ef4444">
-        {!nextComp ? <p className="text-xs text-gray-400">None scheduled.</p> : (
+      <Card title="Competition This Week" accent="#ef4444">
+        {!nextComp ? <p className="text-xs text-gray-400">None this week.</p> : (
           <div onClick={() => onOpenEvent(nextComp)} className="cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
             <p className="text-sm font-semibold text-gray-700 truncate">🏆 {nextComp.name}</p>
             <p className="text-xs text-gray-500">{formatHuman(fromKey(nextComp.date_key))}{nextComp.location ? ` · ${nextComp.location}` : ''}</p>
@@ -549,7 +555,7 @@ function EventBubble({ ev, onClick, dense = false }) {
       </button>
     )
   }
-  const cat = CATEGORIES[ev.category] || CATEGORIES.meeting
+  const cat = CATEGORIES[ev.category] || CATEGORIES[ev.event_type] || CATEGORIES.meeting
   const prio = PRIORITIES[ev.priority] || PRIORITIES.normal
   return (
     <button
@@ -773,7 +779,7 @@ function DayPanel({ dateKey, items, onClose, onEventClick, onCreate, canCreate }
 // Event detail modal (square overlay)
 // ---------------------------------------------------------------------------
 function EventModal({ event, onClose, onDelete, reactions, onReact, username }) {
-  const cat = CATEGORIES[event.category] || CATEGORIES.meeting
+  const cat = CATEGORIES[event.category] || CATEGORIES[event.event_type] || CATEGORIES.meeting
   const prio = PRIORITIES[event.priority] || PRIORITIES.normal
   const meta = event.metadata || {}
   const date = fromKey(event.date_key)
