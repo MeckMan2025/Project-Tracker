@@ -124,14 +124,20 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   useEffect(() => {
     let alive = true
     async function load() {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .order('date_key', { ascending: true })
-      if (!alive) return
-      if (error) { console.error('[Calendar] load FAILED:', error); return }
-      console.log('[Calendar] loaded', (data || []).length, 'events:', data)
-      setEvents(data || [])
+      console.log('[Calendar] load() starting…')
+      try {
+        const { data, error } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .order('date_key', { ascending: true })
+        console.log('[Calendar] load() response — data length:', data?.length, 'error:', error)
+        if (!alive) { console.log('[Calendar] load() aborted (component unmounted)'); return }
+        if (error) { console.error('[Calendar] load FAILED:', error); return }
+        console.log('[Calendar] loaded', (data || []).length, 'events:', data)
+        setEvents(data || [])
+      } catch (err) {
+        console.error('[Calendar] load() THREW:', err)
+      }
     }
     load()
     // Patch state in place instead of refetching — avoids races that wipe
