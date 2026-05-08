@@ -650,6 +650,48 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           canEdit={canEditContent}
         />
       )}
+
+      <button
+        onClick={async () => {
+          if (!user?.id) { addToast('No user — sign in first', 'error'); return }
+          const notif = {
+            id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+            user_id: user.id,
+            type: 'calendar_event',
+            title: '🔔 Test notification',
+            body: `Hi ${username || 'there'} — if you can see this, notifications work!`,
+            force: true,
+          }
+          const url = import.meta.env.VITE_SUPABASE_URL
+          const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+          try {
+            const res = await fetch(`${url}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify(notif),
+            })
+            if (!res.ok) {
+              const body = await res.text()
+              console.error('Test notification insert failed:', res.status, body)
+              addToast('In-app insert failed: ' + body, 'error')
+            }
+            // Web push (best-effort — may fail if user hasn't subscribed)
+            await fetch(`${url}/functions/v1/send-push`, {
+              method: 'POST',
+              headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ record: notif }),
+            }).catch(() => {})
+            addToast('Test sent — check your bell 🔔 (and browser if push is enabled)', 'success')
+          } catch (err) {
+            console.error('Test notification failed:', err)
+            addToast('Test failed: ' + err.message, 'error')
+          }
+        }}
+        className="fixed bottom-4 right-4 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-lg hover:shadow-xl transition-shadow z-30 flex items-center gap-1.5"
+        title="Send a test notification to yourself"
+      >
+        🔔 Test Notification
+      </button>
     </div>
   )
 }
