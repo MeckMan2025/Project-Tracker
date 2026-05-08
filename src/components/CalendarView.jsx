@@ -109,8 +109,20 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
 
   const [view, setView] = useState(() => localStorage.getItem('calendar-view') || 'month')
   const [cursor, setCursor] = useState(new Date())
-  const [events, setEvents] = useState([])         // raw event records
-  const [reactions, setReactions] = useState({})   // { event_id: [{username, emoji}] }
+  const [events, setEvents] = useState(() => {
+    // Hydrate from localStorage so the calendar paints instantly while the
+    // fresh fetch happens in the background.
+    try {
+      const cached = localStorage.getItem('calendar-events-cache')
+      return cached ? JSON.parse(cached) : []
+    } catch { return [] }
+  })
+  const [reactions, setReactions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('calendar-reactions-cache')
+      return cached ? JSON.parse(cached) : {}
+    } catch { return {} }
+  })
   const [filter, setFilter] = useState('all')      // all | team | business | programming | technical | mine
   const [showDashboard, setShowDashboard] = useState(() => localStorage.getItem('calendar-dashboard') !== '0')
   const [openEvent, setOpenEvent] = useState(null) // event currently in modal
@@ -124,22 +136,18 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   useEffect(() => {
     let alive = true
     async function load() {
-      // Use raw REST fetch (same pattern as HomeView) — supabase JS client was
-      // hanging silently for unknown reasons; raw fetch is reliable.
       const url = import.meta.env.VITE_SUPABASE_URL
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-      console.log('[Calendar v3] load() starting via REST…')
       try {
         const res = await fetch(`${url}/rest/v1/calendar_events?order=date_key.asc&select=*`, {
           headers: { apikey: key, Authorization: `Bearer ${key}` },
         })
         const data = await res.json()
-        console.log('[Calendar v3] loaded', Array.isArray(data) ? data.length : 'NOT-ARRAY', 'events')
-        if (!alive) return
-        if (Array.isArray(data)) setEvents(data)
-        else console.error('[Calendar v3] unexpected response shape:', data)
+        if (!alive || !Array.isArray(data)) return
+        setEvents(data)
+        try { localStorage.setItem('calendar-events-cache', JSON.stringify(data)) } catch {}
       } catch (err) {
-        console.error('[Calendar v3] load failed:', err)
+        console.error('Calendar load failed:', err)
       }
     }
     load()
@@ -163,14 +171,24 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   useEffect(() => {
     let alive = true
     async function load() {
-      const { data } = await supabase.from('calendar_birthday_reactions').select('*')
-      if (!alive || !data) return
-      const grouped = {}
-      data.forEach(r => {
-        if (!grouped[r.event_id]) grouped[r.event_id] = []
-        grouped[r.event_id].push({ id: r.id, username: r.username, emoji: r.emoji })
-      })
-      setReactions(grouped)
+      const url = import.meta.env.VITE_SUPABASE_URL
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+      try {
+        const res = await fetch(`${url}/rest/v1/calendar_birthday_reactions?select=*`, {
+          headers: { apikey: key, Authorization: `Bearer ${key}` },
+        })
+        const data = await res.json()
+        if (!alive || !Array.isArray(data)) return
+        const grouped = {}
+        data.forEach(r => {
+          if (!grouped[r.event_id]) grouped[r.event_id] = []
+          grouped[r.event_id].push({ id: r.id, username: r.username, emoji: r.emoji })
+        })
+        setReactions(grouped)
+        try { localStorage.setItem('calendar-reactions-cache', JSON.stringify(grouped)) } catch {}
+      } catch (err) {
+        console.error('Calendar reactions load failed:', err)
+      }
     }
     load()
     const channel = supabase
@@ -247,19 +265,15 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const eventsByDay = useMemo(() => {
     const map = {}
     const push = (key, instance) => { (map[key] = map[key] || []).push(instance) }
-    let included = 0, filtered = 0, outOfRange = 0
     events.forEach(ev => {
-      if (!eventMatches(ev)) { filtered++; return }
+      if (!eventMatches(ev)) return
       const keys = expandRecurrence(ev, viewRange.from, viewRange.to)
-      if (keys.length === 0) { outOfRange++; return }
       keys.forEach(k => push(k, { ...ev, date_key: k, _baseKey: ev.date_key }))
-      included++
     })
     taskEvents.forEach(t => { if (eventMatches(t)) push(t.date_key, t) })
     Object.values(map).forEach(list => list.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')))
-    console.log('[Calendar] eventsByDay built — total:', events.length, 'shown:', included, 'filtered:', filtered, 'out-of-range:', outOfRange, 'view:', view, 'range:', toKey(viewRange.from), '→', toKey(viewRange.to))
     return map
-  }, [events, taskEvents, filter, viewRange.from, viewRange.to, username, view]) // eslint-disable-line
+  }, [events, taskEvents, filter, viewRange.from, viewRange.to, username]) // eslint-disable-line
 
   // ---------------------------------------------------------------------- Handlers
   const handleCreate = async (payload) => {

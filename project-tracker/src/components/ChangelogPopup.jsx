@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 78,
+    date: '2026-05-08',
+    items: [
+      '⚡ Calendar paints instantly from cache while fresh data loads in the background',
+      '🐛 Fixed missing calendar events — the supabase JS client was hanging on the load query; now uses raw REST',
+    ],
+  },
+  {
     id: 77,
     date: '2026-05-08',
     items: [
