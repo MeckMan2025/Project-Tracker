@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 76,
+    date: '2026-05-08',
+    items: [
+      '↩️ Calendar filter pills moved back to their own row below the title',
+    ],
+  },
+  {
     id: 75,
     date: '2026-05-08',
     items: [
