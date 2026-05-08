@@ -125,18 +125,35 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     let alive = true
     async function load() {
       console.log('[Calendar] load() starting…')
+      // Race the query against a 5s timeout so a hung call surfaces visibly.
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT after 5s')), 5000))
       try {
-        const { data, error } = await supabase
+        const query = supabase
           .from('calendar_events')
-          .select('*')
+          .select('id,date_key,name,description,added_by,event_type,category,priority,department,start_time,end_time,location,metadata,recurrence,recurrence_until,assigned_to')
           .order('date_key', { ascending: true })
+        const { data, error } = await Promise.race([query, timeout])
         console.log('[Calendar] load() response — data length:', data?.length, 'error:', error)
         if (!alive) { console.log('[Calendar] load() aborted (component unmounted)'); return }
         if (error) { console.error('[Calendar] load FAILED:', error); return }
         console.log('[Calendar] loaded', (data || []).length, 'events:', data)
         setEvents(data || [])
       } catch (err) {
-        console.error('[Calendar] load() THREW:', err)
+        console.error('[Calendar] load() THREW or TIMED OUT:', err.message || err)
+        // Fallback: raw REST call with anon key (same pattern HomeView uses)
+        try {
+          const url = import.meta.env.VITE_SUPABASE_URL
+          const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+          console.log('[Calendar] trying REST fallback…')
+          const res = await fetch(`${url}/rest/v1/calendar_events?order=date_key.asc&select=*`, {
+            headers: { apikey: key, Authorization: `Bearer ${key}` },
+          })
+          const data = await res.json()
+          console.log('[Calendar] REST fallback got', data?.length, 'events')
+          if (alive && Array.isArray(data)) setEvents(data)
+        } catch (err2) {
+          console.error('[Calendar] REST fallback ALSO failed:', err2)
+        }
       }
     }
     load()
