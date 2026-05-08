@@ -258,6 +258,9 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       assigned_to: payload.assigned_to || [],
     }
 
+    // Close the modal immediately — never block the UI on the network round-trip.
+    setCreating(null)
+
     if (!canEditContent) {
       const request = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
@@ -267,23 +270,20 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         requested_by_user_id: user?.id,
         status: 'pending',
       }
-      const { error } = await supabase.from('requests').insert(request)
-      if (error) { console.error(error); addToast('Could not submit request', 'error'); return }
       addToast('Request sent! A lead will review it.', 'success')
-      setCreating(null)
+      const { error } = await supabase.from('requests').insert(request)
+      if (error) { console.error(error); addToast('Could not submit request: ' + error.message, 'error') }
       return
     }
 
     setEvents(prev => [...prev, newEvent])
+    addToast('Event created', 'success')
     const { error } = await supabase.from('calendar_events').insert(newEvent)
     if (error) {
-      console.error(error)
-      addToast('Failed to save event', 'error')
+      console.error('Calendar insert failed:', error)
+      addToast('Failed to save: ' + error.message, 'error')
       setEvents(prev => prev.filter(e => e.id !== newEvent.id))
-      return
     }
-    addToast('Event created', 'success')
-    setCreating(null)
   }
 
   const handleDelete = async (id) => {
@@ -336,62 +336,65 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-20">
-        {/* Row 1: title · nav · view switcher · bell */}
-        <div className="px-4 py-2 ml-10 flex items-center gap-3 flex-wrap">
+        <div className="px-4 py-2 ml-10 flex items-center gap-2 flex-wrap">
           <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent shrink-0">
             Calendar
           </h1>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 shrink-0">
             <button onClick={() => shift(-1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronLeft size={16} /></button>
             <button onClick={() => setCursor(new Date())} className="px-2 py-0.5 rounded-lg text-xs font-medium hover:bg-pastel-blue/30">Today</button>
             <button onClick={() => shift(1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronRight size={16} /></button>
-            <span className="ml-1.5 text-sm font-semibold text-gray-700">{headerLabel}</span>
+            <span className="ml-1.5 text-sm font-semibold text-gray-700 whitespace-nowrap">{headerLabel}</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 ml-auto">
-            {VIEWS.map(v => {
-              const Active = v.id === view
+          {/* Department filters — same row as May 2026 */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {DEPARTMENTS.map(d => {
+              const active = filter === d.id
               return (
                 <button
-                  key={v.id}
-                  onClick={() => setView(v.id)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${Active ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  key={d.id}
+                  onClick={() => setFilter(d.id)}
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
+                    active
+                      ? 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-sm'
+                      : 'bg-white text-gray-600 hover:bg-pastel-pink/20 border border-gray-200'
+                  }`}
                 >
-                  <v.Icon size={12} /> {v.label}
+                  <span className="leading-none">{d.emoji}</span>
+                  <span>{d.label}</span>
                 </button>
               )
             })}
           </div>
 
-          <NotificationBell />
-          {canReviewRequests && <RequestsBadge type="calendar_event" />}
-        </div>
-
-        {/* Row 2: department filters + dashboard toggle */}
-        <div className="px-4 pb-2 ml-10 flex items-center gap-1 flex-wrap">
-          {DEPARTMENTS.map(d => {
-            const active = filter === d.id
-            return (
-              <button
-                key={d.id}
-                onClick={() => setFilter(d.id)}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
-                  active
-                    ? 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-sm'
-                    : 'bg-white text-gray-600 hover:bg-pastel-pink/20 border border-gray-200'
-                }`}
-              >
-                <span>{d.emoji}</span>{d.label}
-              </button>
-            )
-          })}
-          <button
-            onClick={() => setShowDashboard(s => !s)}
-            className="ml-auto flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-gray-200 hover:bg-pastel-blue/20 text-gray-600"
-          >
-            {showDashboard ? <><ChevronUp size={12} /> Hide Dashboard</> : <><ChevronDown size={12} /> Show Dashboard</>}
-          </button>
+          <div className="flex items-center gap-1 ml-auto shrink-0">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+              {VIEWS.map(v => {
+                const Active = v.id === view
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => setView(v.id)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${Active ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    <v.Icon size={12} /> {v.label}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setShowDashboard(s => !s)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white border border-gray-200 hover:bg-pastel-blue/20 text-gray-600 whitespace-nowrap"
+              title={showDashboard ? 'Hide dashboard' : 'Show dashboard'}
+            >
+              {showDashboard ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              Dashboard
+            </button>
+            <NotificationBell />
+            {canReviewRequests && <RequestsBadge type="calendar_event" />}
+          </div>
         </div>
       </header>
 
