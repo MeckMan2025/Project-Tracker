@@ -687,12 +687,13 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           let pushSentTotal = 0
           let bellSentTotal = 0
           for (const uid of profileIds) {
+            const sender = username || 'A teammate'
             const notif = {
               id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + uid.slice(0, 4),
               user_id: uid,
               type: 'calendar_event',
-              title: `🔔 Test from ${username || 'a teammate'}`,
-              body: 'If you see this, notifications are working!',
+              title: `🔔 Test from ${sender}`,
+              body: `${sender} sent a test notification — if you see this, notifications are working!`,
               force: true,
             }
             // In-app
