@@ -57,17 +57,32 @@ export function usePushNotifications() {
     'PushManager' in window &&
     'Notification' in window
 
-  // Check current state on mount and sync browser subscription to DB
+  // Check current state on mount and sync browser subscription to DB.
+  // Self-heal: if iOS evicted the subscription but permission is still granted,
+  // silently re-subscribe so we don't go quiet over time.
   useEffect(() => {
     if (!isSupported) return
     setPermission(Notification.permission)
 
     navigator.serviceWorker.ready.then(async (reg) => {
-      const sub = await reg.pushManager.getSubscription()
+      let sub = await reg.pushManager.getSubscription()
+
+      if (!sub && Notification.permission === 'granted' && user) {
+        try {
+          const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+            'BOsf982V29Nx1vB0xFyqlvwxhAux35ugOfmbfBsEldZmelFCgkL4Wt0yp7Xr3aip8oWMH5os_D8HoQLXDH1byJ4'
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+          })
+          console.log('[Push] auto-resubscribed (subscription was missing)')
+        } catch (err) {
+          console.warn('[Push] auto-resubscribe failed:', err)
+        }
+      }
+
       setIsSubscribed(!!sub)
 
-      // If browser has a subscription but user is logged in, ensure it's in the DB
-      // (covers case where table didn't exist when user first subscribed)
       if (sub && user) {
         const subJson = sub.toJSON()
         restUpsertSubscription({
