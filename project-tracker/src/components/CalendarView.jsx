@@ -691,16 +691,15 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
             console.warn('In-app insert threw:', err)
           }
 
-          // Step 2: web push (the part the user actually cares about for testing)
+          // Step 2: web push — use supabase.functions.invoke() which packages
+          // the call in a way that survives the platform's JWT preflight check.
           try {
-            const pushRes = await fetch(`${url}/functions/v1/send-push`, {
-              method: 'POST',
-              headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ record: notif }),
+            const { data: pushBody, error: invokeErr } = await supabase.functions.invoke('send-push', {
+              body: { record: notif },
             })
-            const pushBody = await pushRes.json().catch(() => ({}))
-            if (pushBody.sent > 0) addToast(`Push sent to ${pushBody.sent} device${pushBody.sent === 1 ? '' : 's'} 🎉`, 'success')
-            else if (pushBody.skipped) addToast(`Push skipped: ${pushBody.reason || 'no subscribed devices'}`, 'error')
+            if (invokeErr) throw invokeErr
+            if (pushBody?.sent > 0) addToast(`Push sent to ${pushBody.sent} device${pushBody.sent === 1 ? '' : 's'} 🎉`, 'success')
+            else if (pushBody?.skipped) addToast(`Push skipped: ${pushBody.reason || 'no subscribed devices'}`, 'error')
             else if (inAppOk) addToast('Test sent — check your bell 🔔', 'success')
             else addToast('Push had no effect — try again or check console', 'error')
           } catch (err) {
