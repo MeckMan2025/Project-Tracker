@@ -42,6 +42,7 @@ import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
 import CompDayView from './components/CompDayView'
+import TestingDashboard from './components/TestingDashboard'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -51,6 +52,7 @@ import { useBackButton } from './hooks/useBackButton'
 import RestrictedAccess from './components/RestrictedAccess'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
+import { useNativePush } from './hooks/useNativePush'
 import { supabase } from './supabase'
 
 // REST API helpers (avoids Supabase JS client auth token issues)
@@ -289,6 +291,7 @@ function App() {
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
+  useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashUsername = username || localStorage.getItem('scrum-username') || ''
@@ -1296,6 +1299,8 @@ function App() {
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
             <DesignMatrix onBack={() => setSpecialView(null)} />
+          ) : specialView === 'testing' ? (
+            <TestingDashboard onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto space-y-6">
@@ -1374,16 +1379,13 @@ function App() {
                         <span className="text-lg font-semibold text-gray-700">Design Matrix</span>
                         <p className="text-sm text-gray-400 mt-1">Compare designs, score options & pick a winner</p>
                       </button>
-                      {['Testing'].map(label => (
-                        <button
-                          key={label}
-                          className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm text-left opacity-60"
-                          disabled
-                        >
-                          <span className="text-lg font-semibold text-gray-700">{label}</span>
-                          <p className="text-sm text-gray-400 mt-1">Coming soon</p>
-                        </button>
-                      ))}
+                      <button
+                        onClick={() => setSpecialView('testing')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Testing</span>
+                        <p className="text-sm text-gray-400 mt-1">Create test tables, log results & visualize data</p>
+                      </button>
                     </div>
                   </div>
                 )}

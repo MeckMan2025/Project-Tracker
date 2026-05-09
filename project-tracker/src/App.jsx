@@ -52,6 +52,7 @@ import { useBackButton } from './hooks/useBackButton'
 import RestrictedAccess from './components/RestrictedAccess'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
+import { useNativePush } from './hooks/useNativePush'
 import { supabase } from './supabase'
 
 // REST API helpers (avoids Supabase JS client auth token issues)
@@ -290,6 +291,7 @@ function App() {
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
+  useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashUsername = username || localStorage.getItem('scrum-username') || ''

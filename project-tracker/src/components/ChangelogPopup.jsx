@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 82,
+    date: '2026-05-08',
+    items: [
+      '📱 Native iOS app foundations — plumbing for real APNs notifications via TestFlight (one-time Apple-portal setup required, see IOS_APP_SETUP.md)',
+      '🪟 Notification bell on mobile now opens as a centered modal with blurred background instead of a cut-off corner dropdown',
+    ],
+  },
+  {
     id: 81,
     date: '2026-05-08',
     items: [
