@@ -2,6 +2,38 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
+// Raw REST upsert/delete — supabase JS client hangs silently in some cases.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function restUpsertSubscription(row) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?on_conflict=user_id,endpoint`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal,resolution=merge-duplicates',
+    },
+    body: JSON.stringify(row),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error('upsert failed: ' + res.status + ' ' + body)
+  }
+}
+
+async function restDeleteSubscription(userId, endpoint) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?user_id=eq.${encodeURIComponent(userId)}&endpoint=eq.${encodeURIComponent(endpoint)}`, {
+    method: 'DELETE',
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error('delete failed: ' + res.status + ' ' + body)
+  }
+}
+
 function urlBase64ToUint8Array(base64String) {
   const cleaned = base64String.trim().replace(/\s/g, '')
   const padding = '='.repeat((4 - (cleaned.length % 4)) % 4)
@@ -38,14 +70,12 @@ export function usePushNotifications() {
       // (covers case where table didn't exist when user first subscribed)
       if (sub && user) {
         const subJson = sub.toJSON()
-        supabase.from('push_subscriptions').upsert({
+        restUpsertSubscription({
           user_id: user.id,
           endpoint: subJson.endpoint,
           p256dh: subJson.keys.p256dh,
           auth: subJson.keys.auth,
-        }, { onConflict: 'user_id,endpoint' }).then(({ error }) => {
-          if (error) console.warn('Failed to sync push subscription to DB:', error)
-        })
+        }).catch((err) => console.warn('Failed to sync push subscription to DB:', err))
       }
     })
   }, [isSupported, user])
@@ -76,15 +106,15 @@ export function usePushNotifications() {
       console.log('[Push] Browser subscription created')
 
       const subJson = sub.toJSON()
-      const { error } = await supabase.from('push_subscriptions').upsert({
-        user_id: user.id,
-        endpoint: subJson.endpoint,
-        p256dh: subJson.keys.p256dh,
-        auth: subJson.keys.auth,
-      }, { onConflict: 'user_id,endpoint' })
-
-      if (error) {
-        console.error('[Push] DB save failed:', error)
+      try {
+        await restUpsertSubscription({
+          user_id: user.id,
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys.p256dh,
+          auth: subJson.keys.auth,
+        })
+      } catch (err) {
+        console.error('[Push] DB save failed:', err)
         return false
       }
 
@@ -106,10 +136,7 @@ export function usePushNotifications() {
       if (sub) {
         const endpoint = sub.endpoint
         await sub.unsubscribe()
-        await supabase.from('push_subscriptions')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('endpoint', endpoint)
+        await restDeleteSubscription(user.id, endpoint).catch((err) => console.warn('DB delete failed:', err))
       }
       setIsSubscribed(false)
       return true
