@@ -676,15 +676,23 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           }
           const url = import.meta.env.VITE_SUPABASE_URL
           const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+          // Step 1: in-app insert (best effort — don't let it block push test)
+          let inAppOk = false
           try {
-            // 2. In-app notification (writes to bell)
-            await fetch(`${url}/rest/v1/notifications`, {
+            const res = await fetch(`${url}/rest/v1/notifications`, {
               method: 'POST',
               headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify(notif),
             })
+            inAppOk = res.ok
+            if (!res.ok) console.warn('In-app insert', res.status, await res.text())
+          } catch (err) {
+            console.warn('In-app insert threw:', err)
+          }
 
-            // 3. Web push — fires to every subscribed device on this account
+          // Step 2: web push (the part the user actually cares about for testing)
+          try {
             const pushRes = await fetch(`${url}/functions/v1/send-push`, {
               method: 'POST',
               headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -693,10 +701,12 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
             const pushBody = await pushRes.json().catch(() => ({}))
             if (pushBody.sent > 0) addToast(`Push sent to ${pushBody.sent} device${pushBody.sent === 1 ? '' : 's'} 🎉`, 'success')
             else if (pushBody.skipped) addToast(`Push skipped: ${pushBody.reason || 'no subscribed devices'}`, 'error')
-            else addToast('Test sent — check your bell 🔔', 'success')
+            else if (inAppOk) addToast('Test sent — check your bell 🔔', 'success')
+            else addToast('Push had no effect — try again or check console', 'error')
           } catch (err) {
-            console.error('Test notification failed:', err)
-            addToast('Test failed: ' + err.message, 'error')
+            console.error('Push send threw:', err)
+            if (inAppOk) addToast('Bell updated, but push failed: ' + (err.message || err), 'error')
+            else addToast('Test failed (push): ' + (err.message || err), 'error')
           }
         }}
         className="fixed bottom-4 right-4 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-lg hover:shadow-xl transition-shadow z-30 flex items-center gap-1.5"
