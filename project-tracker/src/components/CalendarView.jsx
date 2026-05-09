@@ -656,60 +656,65 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       <button
         onClick={async () => {
           if (!user?.id) { addToast('No user — sign in first', 'error'); return }
+          if (!confirm('This will send a test notification to EVERYONE on the team. Continue?')) return
 
           // 1. Subscribe this device if we haven't yet
           if (pushSupported && !pushSubscribed) {
             addToast('Asking for permission on this device…', 'success')
-            const ok = await pushSubscribe()
-            if (!ok) {
-              addToast('Push not enabled on this device — sending in-app only', 'error')
-            }
+            await pushSubscribe()
           }
 
-          const notif = {
-            id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-            user_id: user.id,
-            type: 'calendar_event',
-            title: '🔔 Test notification',
-            body: `Hi ${username || 'there'} — if you can see this, notifications work!`,
-            force: true,
-          }
           const url = import.meta.env.VITE_SUPABASE_URL
           const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-          // Step 1: in-app insert (best effort — don't let it block push test)
-          let inAppOk = false
+          // Fetch every profile id so we can broadcast
+          let profileIds = []
           try {
-            const res = await fetch(`${url}/rest/v1/notifications`, {
-              method: 'POST',
-              headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-              body: JSON.stringify(notif),
+            const res = await fetch(`${url}/rest/v1/profiles?select=id`, {
+              headers: { apikey: key, Authorization: `Bearer ${key}` },
             })
-            inAppOk = res.ok
-            if (!res.ok) console.warn('In-app insert', res.status, await res.text())
+            const data = await res.json()
+            if (Array.isArray(data)) profileIds = data.map(r => r.id).filter(Boolean)
           } catch (err) {
-            console.warn('In-app insert threw:', err)
+            console.error('Profile fetch failed:', err)
+            addToast('Could not load team list', 'error')
+            return
           }
 
-          // Step 2: web push — use supabase.functions.invoke() which packages
-          // the call in a way that survives the platform's JWT preflight check.
-          try {
-            const { data: pushBody, error: invokeErr } = await supabase.functions.invoke('send-push', {
-              body: { record: notif },
-            })
-            if (invokeErr) throw invokeErr
-            if (pushBody?.sent > 0) addToast(`Push sent to ${pushBody.sent} device${pushBody.sent === 1 ? '' : 's'} 🎉`, 'success')
-            else if (pushBody?.skipped) addToast(`Push skipped: ${pushBody.reason || 'no subscribed devices'}`, 'error')
-            else if (inAppOk) addToast('Test sent — check your bell 🔔', 'success')
-            else addToast('Push had no effect — try again or check console', 'error')
-          } catch (err) {
-            console.error('Push send threw:', err)
-            if (inAppOk) addToast('Bell updated, but push failed: ' + (err.message || err), 'error')
-            else addToast('Test failed (push): ' + (err.message || err), 'error')
+          if (profileIds.length === 0) { addToast('No profiles found', 'error'); return }
+          addToast(`Sending test to ${profileIds.length} teammates…`, 'success')
+
+          let pushSentTotal = 0
+          let bellSentTotal = 0
+          for (const uid of profileIds) {
+            const notif = {
+              id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + uid.slice(0, 4),
+              user_id: uid,
+              type: 'calendar_event',
+              title: `🔔 Test from ${username || 'a teammate'}`,
+              body: 'If you see this, notifications are working!',
+              force: true,
+            }
+            // In-app
+            try {
+              const res = await fetch(`${url}/rest/v1/notifications`, {
+                method: 'POST',
+                headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+                body: JSON.stringify(notif),
+              })
+              if (res.ok) bellSentTotal++
+            } catch {}
+            // Push
+            try {
+              const { data: pushBody } = await supabase.functions.invoke('send-push', { body: { record: notif } })
+              if (pushBody?.sent) pushSentTotal += pushBody.sent
+            } catch {}
           }
+
+          addToast(`Done — bell: ${bellSentTotal} users · push: ${pushSentTotal} devices 🎉`, 'success')
         }}
         className="fixed bottom-4 right-4 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-lg hover:shadow-xl transition-shadow z-30 flex items-center gap-1.5"
-        title="Subscribe this device + send a test push to all your devices"
+        title="Send a test notification to the whole team"
       >
         🔔 Test Notification
       </button>
