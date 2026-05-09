@@ -127,8 +127,18 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 z-50">
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+        <>
+          {/* Mobile backdrop — blurs background, click to close */}
+          <div
+            className="sm:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+            onClick={() => setOpen(false)}
+          />
+          <div className="
+            fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md max-h-[80vh]
+            sm:absolute sm:left-auto sm:top-full sm:translate-x-0 sm:translate-y-0 sm:right-0 sm:mt-2 sm:w-80 sm:max-h-96
+            overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 z-50
+          ">
+          <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
             <h3 className="text-sm font-semibold text-gray-700">
               Notifications
             </h3>
@@ -176,7 +186,8 @@ export default function NotificationBell() {
               ))}
             </div>
           )}
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
