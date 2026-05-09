@@ -7,6 +7,7 @@ import {
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 import NotificationBell from './NotificationBell'
 import { useToast } from './ToastProvider'
 import RequestsBadge from './RequestsBadge'
@@ -126,6 +127,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const { username, user } = useUser()
   const { canEditContent, canReviewRequests, isGuest } = usePermissions()
   const { addToast } = useToast()
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe } = usePushNotifications()
 
   const [view, setView] = useState(() => localStorage.getItem('calendar-view') || 'month')
   const [cursor, setCursor] = useState(new Date())
@@ -654,6 +656,16 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       <button
         onClick={async () => {
           if (!user?.id) { addToast('No user — sign in first', 'error'); return }
+
+          // 1. Subscribe this device if we haven't yet
+          if (pushSupported && !pushSubscribed) {
+            addToast('Asking for permission on this device…', 'success')
+            const ok = await pushSubscribe()
+            if (!ok) {
+              addToast('Push not enabled on this device — sending in-app only', 'error')
+            }
+          }
+
           const notif = {
             id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
             user_id: user.id,
@@ -665,30 +677,30 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           const url = import.meta.env.VITE_SUPABASE_URL
           const key = import.meta.env.VITE_SUPABASE_ANON_KEY
           try {
-            const res = await fetch(`${url}/rest/v1/notifications`, {
+            // 2. In-app notification (writes to bell)
+            await fetch(`${url}/rest/v1/notifications`, {
               method: 'POST',
               headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify(notif),
             })
-            if (!res.ok) {
-              const body = await res.text()
-              console.error('Test notification insert failed:', res.status, body)
-              addToast('In-app insert failed: ' + body, 'error')
-            }
-            // Web push (best-effort — may fail if user hasn't subscribed)
-            await fetch(`${url}/functions/v1/send-push`, {
+
+            // 3. Web push — fires to every subscribed device on this account
+            const pushRes = await fetch(`${url}/functions/v1/send-push`, {
               method: 'POST',
               headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ record: notif }),
-            }).catch(() => {})
-            addToast('Test sent — check your bell 🔔 (and browser if push is enabled)', 'success')
+            })
+            const pushBody = await pushRes.json().catch(() => ({}))
+            if (pushBody.sent > 0) addToast(`Push sent to ${pushBody.sent} device${pushBody.sent === 1 ? '' : 's'} 🎉`, 'success')
+            else if (pushBody.skipped) addToast(`Push skipped: ${pushBody.reason || 'no subscribed devices'}`, 'error')
+            else addToast('Test sent — check your bell 🔔', 'success')
           } catch (err) {
             console.error('Test notification failed:', err)
             addToast('Test failed: ' + err.message, 'error')
           }
         }}
         className="fixed bottom-4 right-4 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-lg hover:shadow-xl transition-shadow z-30 flex items-center gap-1.5"
-        title="Send a test notification to yourself"
+        title="Subscribe this device + send a test push to all your devices"
       >
         🔔 Test Notification
       </button>
