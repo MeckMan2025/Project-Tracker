@@ -90,7 +90,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       {!isOpen && (
         <button
           onClick={onToggle}
-          className="fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
+          className="fixed left-4 z-50 p-2 bg-white rounded-lg shadow-md top-[calc(env(safe-area-inset-top,0px)+1rem)]"
         >
           <Menu size={20} />
         </button>

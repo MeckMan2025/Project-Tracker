@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+project-tracker/ios/build/
+project-tracker/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
 
 # Local env files
 .env
