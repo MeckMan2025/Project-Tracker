@@ -656,105 +656,61 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       <button
         onClick={async () => {
           if (!user?.id) { addToast('No user — sign in first', 'error'); return }
+          if (!confirm('This will send a test notification to EVERYONE on the team. Continue?')) return
 
-          const lines = []
-          const log = (s) => { lines.push(s); console.log('[TestNotif]', s) }
-
-          // ─── Client environment ───────────────────────────────
-          const isStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches ||
-            window.navigator.standalone === true
-          log('Mode: ' + (isStandalone ? 'standalone/PWA' : 'browser tab'))
-          log('UA: ' + (navigator.userAgent.match(/iPhone|iPad|Android|Mac|Windows/)?.[0] || 'unknown'))
-          log('Notification.permission: ' + (typeof Notification !== 'undefined' ? Notification.permission : 'no API'))
-          log('pushSupported: ' + pushSupported)
-          log('pushSubscribed (state): ' + pushSubscribed)
-
-          // Inspect the actual SW subscription
-          let myEndpointTail = null
-          if ('serviceWorker' in navigator) {
-            try {
-              const reg = await navigator.serviceWorker.ready
-              const sub = await reg.pushManager.getSubscription()
-              if (sub) {
-                myEndpointTail = sub.endpoint.slice(-16)
-                log('SW sub endpoint …' + myEndpointTail)
-              } else {
-                log('SW has NO active subscription on this device')
-              }
-            } catch (err) {
-              log('SW lookup failed: ' + (err?.message || err))
-            }
-          } else {
-            log('serviceWorker not in navigator')
-          }
-
-          // ─── If we're not subscribed, try now ─────────────────
           if (pushSupported && !pushSubscribed) {
-            log('Attempting subscribe…')
-            const ok = await pushSubscribe()
-            log('subscribe() returned: ' + ok)
+            addToast('Asking for permission on this device…', 'success')
+            await pushSubscribe()
           }
 
-          // ─── Check DB row count for THIS user ─────────────────
           const url = import.meta.env.VITE_SUPABASE_URL
           const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+          let profileIds = []
           try {
-            const r = await fetch(`${url}/rest/v1/push_subscriptions?user_id=eq.${user.id}&select=endpoint`, {
+            const res = await fetch(`${url}/rest/v1/profiles?select=id`, {
               headers: { apikey: key, Authorization: `Bearer ${key}` },
             })
-            const rows = await r.json()
-            log(`DB push_subscriptions rows for me: ${Array.isArray(rows) ? rows.length : '?'}`)
-          } catch (err) {
-            log('DB sub fetch failed: ' + err.message)
-          }
-          try {
-            const r = await fetch(`${url}/rest/v1/apns_tokens?user_id=eq.${user.id}&select=id`, {
-              headers: { apikey: key, Authorization: `Bearer ${key}` },
-            })
-            const rows = await r.json()
-            log(`DB apns_tokens rows for me: ${Array.isArray(rows) ? rows.length : '?'}`)
-          } catch (err) {
-            log('DB apns fetch failed: ' + err.message)
+            const data = await res.json()
+            if (Array.isArray(data)) profileIds = data.map(r => r.id).filter(Boolean)
+          } catch {
+            addToast('Could not load team list', 'error')
+            return
           }
 
-          // ─── Invoke send-push targeting ONLY me ───────────────
-          const notif = {
-            id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-            user_id: user.id,
-            type: 'calendar_event',
-            title: '🔔 Diagnostic test',
-            body: 'If you see this, push delivery is working.',
-            force: true,
-          }
-          // In-app bell
-          try {
-            const res = await fetch(`${url}/rest/v1/notifications`, {
-              method: 'POST',
-              headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-              body: JSON.stringify(notif),
-            })
-            log('in-app insert: HTTP ' + res.status)
-          } catch (err) {
-            log('in-app insert error: ' + err.message)
-          }
-          // Push via edge function
-          try {
-            const { data: pushBody, error } = await supabase.functions.invoke('send-push', { body: { record: notif } })
-            if (error) {
-              log('send-push error: ' + (error.message || JSON.stringify(error)))
-            } else {
-              log('send-push response: ' + JSON.stringify(pushBody))
+          if (profileIds.length === 0) { addToast('No profiles found', 'error'); return }
+          addToast(`Sending test to ${profileIds.length} teammates…`, 'success')
+
+          let pushSentTotal = 0
+          let bellSentTotal = 0
+          for (const uid of profileIds) {
+            const sender = username || 'A teammate'
+            const notif = {
+              id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + uid.slice(0, 4),
+              user_id: uid,
+              type: 'calendar_event',
+              title: `🔔 Test from ${sender}`,
+              body: `${sender} sent a test notification — if you see this, notifications are working!`,
+              force: true,
             }
-          } catch (err) {
-            log('send-push threw: ' + err.message)
+            try {
+              const res = await fetch(`${url}/rest/v1/notifications`, {
+                method: 'POST',
+                headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+                body: JSON.stringify(notif),
+              })
+              if (res.ok) bellSentTotal++
+            } catch {}
+            try {
+              const { data: pushBody } = await supabase.functions.invoke('send-push', { body: { record: notif } })
+              if (pushBody?.sent) pushSentTotal += pushBody.sent
+            } catch {}
           }
 
-          const summary = lines.join('\n')
-          console.log('[TestNotif] === SUMMARY ===\n' + summary)
-          alert('NOTIFICATION DIAGNOSTIC\n\n' + summary)
+          addToast(`Done — bell: ${bellSentTotal} users · push: ${pushSentTotal} devices 🎉`, 'success')
         }}
         className="fixed bottom-4 right-4 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-lg hover:shadow-xl transition-shadow z-30 flex items-center gap-1.5"
-        title="Send a diagnostic test notification to this device"
+        title="Send a test notification to the whole team"
       >
         🔔 Test Notification
       </button>

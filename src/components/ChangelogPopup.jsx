@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 84,
+    date: '2026-05-16',
+    items: [
+      '🔔 Push notifications actually deliver now! Found the VAPID key pair was mismatched; rolled fresh keys and added a one-time auto-migration so all devices self-repair their stale subscriptions on next open',
+    ],
+  },
+  {
     id: 83,
     date: '2026-05-16',
     items: [
