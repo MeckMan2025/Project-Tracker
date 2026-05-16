@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 const MOODS = [
@@ -37,6 +37,12 @@ function todayKey() {
 }
 
 export default function DailyPulsePopup({ userId, onClose, onComplete }) {
+  // Mark "popup already shown today" the moment it actually mounts on screen.
+  // Even if the user backgrounds the app without answering, we won't re-prompt.
+  useEffect(() => {
+    try { localStorage.setItem(`pulse_skipped_${todayKey()}`, '1') } catch {}
+  }, [])
+
   const [slide, setSlide] = useState(0)
   const [mood, setMood] = useState(null)
   const [moodNote, setMoodNote] = useState('')
@@ -53,6 +59,9 @@ export default function DailyPulsePopup({ userId, onClose, onComplete }) {
   const submit = async () => {
     if (!userId) { onClose(); return }
     setSubmitting(true)
+    // Lock the device down immediately — even if the DB insert fails for any
+    // reason (offline, server error), we don't want the popup to reappear today.
+    try { localStorage.setItem(`pulse_skipped_${todayKey()}`, '1') } catch {}
     const row = {
       id: 'pulse_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
       user_id: userId,
