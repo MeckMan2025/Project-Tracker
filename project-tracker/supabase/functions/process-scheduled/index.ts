@@ -67,10 +67,10 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Send in-app + push notifications to all users except creator
+      // Send in-app + push notifications to all users (including the creator —
+      // they scheduled it, but they still want their own reminder)
       if (profiles) {
         for (const p of profiles) {
-          if (p.id === sn.created_by_user_id) continue;
 
           const notifId =
             String(Date.now()) +
