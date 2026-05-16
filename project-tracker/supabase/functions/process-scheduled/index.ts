@@ -77,12 +77,17 @@ Deno.serve(async (req: Request) => {
             Math.random().toString(36).slice(2) +
             p.id.slice(0, 4);
 
+          const baseBody = sn.body || "";
+          const bodyWithSender = sn.created_by
+            ? (baseBody ? `${baseBody} · scheduled by ${sn.created_by}` : `Scheduled by ${sn.created_by}`)
+            : baseBody;
+
           const notifRecord = {
             id: notifId,
             user_id: p.id,
             type: sn.type || "calendar_event",
             title: sn.title,
-            body: sn.body || "",
+            body: bodyWithSender,
             force: sn.force || false,
           };
 
