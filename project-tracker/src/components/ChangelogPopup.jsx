@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 83,
+    date: '2026-05-16',
+    items: [
+      '🔍 Test Notification button is now a diagnostic — shows device state, DB subscription counts, and the raw edge-function response so we can see exactly why a push fails to deliver',
+    ],
+  },
+  {
     id: 82,
     date: '2026-05-08',
     items: [
