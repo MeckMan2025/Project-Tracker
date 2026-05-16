@@ -64,18 +64,46 @@ export function usePushNotifications() {
     if (!isSupported) return
     setPermission(Notification.permission)
 
+    const VAPID_PUBLIC_KEY = 'BBLs33t6ED59L7rMEJqQ_NgAkEBmo6V8n7K7PPguDD4WvVSI1Zj2HFhLgK1mybMHzZtB6gkaSRGaergqRX-r0Zw'
+
+    // Convert a subscription's applicationServerKey (ArrayBuffer) to base64url
+    // so we can compare it against the current VAPID public key string.
+    const subKeyToBase64Url = (sub) => {
+      try {
+        const buf = sub.options?.applicationServerKey
+        if (!buf) return null
+        const bytes = new Uint8Array(buf)
+        let bin = ''
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      } catch { return null }
+    }
+
     navigator.serviceWorker.ready.then(async (reg) => {
       let sub = await reg.pushManager.getSubscription()
 
+      // If the existing subscription was made with a stale VAPID key, nuke it
+      // so we can re-subscribe with the current one.
+      if (sub) {
+        const subKey = subKeyToBase64Url(sub)
+        if (subKey && subKey !== VAPID_PUBLIC_KEY) {
+          console.warn('[Push] VAPID key mismatch — unsubscribing and re-subscribing')
+          const oldEndpoint = sub.endpoint
+          try { await sub.unsubscribe() } catch {}
+          if (user) {
+            await restDeleteSubscription(user.id, oldEndpoint).catch(() => {})
+          }
+          sub = null
+        }
+      }
+
       if (!sub && Notification.permission === 'granted' && user) {
         try {
-          const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
-            'BOsf982V29Nx1vB0xFyqlvwxhAux35ugOfmbfBsEldZmelFCgkL4Wt0yp7Xr3aip8oWMH5os_D8HoQLXDH1byJ4'
           sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
           })
-          console.log('[Push] auto-resubscribed (subscription was missing)')
+          console.log('[Push] auto-resubscribed')
         } catch (err) {
           console.warn('[Push] auto-resubscribe failed:', err)
         }
@@ -108,11 +136,7 @@ export function usePushNotifications() {
 
       const reg = await navigator.serviceWorker.ready
       console.log('[Push] Service worker ready')
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || 'BOsf982V29Nx1vB0xFyqlvwxhAux35ugOfmbfBsEldZmelFCgkL4Wt0yp7Xr3aip8oWMH5os_D8HoQLXDH1byJ4'
-      if (!vapidPublicKey) {
-        console.error('[Push] VITE_VAPID_PUBLIC_KEY not set')
-        return false
-      }
+      const vapidPublicKey = 'BBLs33t6ED59L7rMEJqQ_NgAkEBmo6V8n7K7PPguDD4WvVSI1Zj2HFhLgK1mybMHzZtB6gkaSRGaergqRX-r0Zw'
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,

@@ -121,12 +121,21 @@ Deno.serve(async (req: Request) => {
     }
 
     const { user_id, type, title, body, force } = record;
+    const debug: Record<string, unknown> = {
+      user_id,
+      hasServiceRoleKey: !!serviceRoleKey,
+      hasVapidPublic: !!vapidPublicKey,
+      hasVapidPrivate: !!vapidPrivateKey,
+      vapidPublicTail: vapidPublicKey ? vapidPublicKey.slice(-8) : null,
+      vapidSubject,
+    };
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("notification_prefs")
       .eq("id", user_id)
       .single();
+    if (profileError) debug.profileError = profileError.message;
     const prefs = profile?.notification_prefs || { enabled: true, calendar: true, chat: true };
 
     if (!force) {
@@ -155,14 +164,20 @@ Deno.serve(async (req: Request) => {
     // ─── Web Push ───────────────────────────────────────────────────────
     let webSent = 0;
     const webExpired: string[] = [];
-    const { data: webSubs } = await supabaseAdmin
+    const webErrors: string[] = [];
+    const { data: webSubs, error: webSubsError } = await supabaseAdmin
       .from("push_subscriptions")
       .select("*")
       .eq("user_id", user_id);
+    debug.webSubsCount = Array.isArray(webSubs) ? webSubs.length : null;
+    if (webSubsError) debug.webSubsError = webSubsError.message;
 
     if (webSubs && webSubs.length > 0) {
       const payload = JSON.stringify(messagePayload);
       for (const sub of webSubs) {
+        const host = (() => {
+          try { return new URL(sub.endpoint).host; } catch { return "?"; }
+        })();
         try {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -170,23 +185,32 @@ Deno.serve(async (req: Request) => {
           );
           webSent++;
         } catch (err: any) {
-          if (err.statusCode === 410 || err.statusCode === 404) webExpired.push(sub.id);
-          else console.error("Web push error:", err.statusCode, err.message);
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            webExpired.push(sub.id);
+            webErrors.push(`${host} → ${err.statusCode} expired`);
+          } else {
+            webErrors.push(`${host} → ${err.statusCode || "?"}: ${String(err.message || err).slice(0, 200)}`);
+          }
         }
       }
       if (webExpired.length > 0) {
         await supabaseAdmin.from("push_subscriptions").delete().in("id", webExpired);
       }
     }
+    debug.webExpired = webExpired.length;
+    if (webErrors.length > 0) debug.webErrors = webErrors.slice(0, 5);
 
     // ─── APNs Push ──────────────────────────────────────────────────────
     let apnsSent = 0;
     const apnsExpired: string[] = [];
+    debug.apnsConfigured = !!(apnsKeyId && apnsTeamId && apnsP8);
     if (apnsKeyId && apnsTeamId && apnsP8) {
-      const { data: apnsRows } = await supabaseAdmin
+      const { data: apnsRows, error: apnsRowsError } = await supabaseAdmin
         .from("apns_tokens")
         .select("*")
         .eq("user_id", user_id);
+      debug.apnsRowsCount = Array.isArray(apnsRows) ? apnsRows.length : null;
+      if (apnsRowsError) debug.apnsRowsError = apnsRowsError.message;
 
       if (apnsRows && apnsRows.length > 0) {
         try {
@@ -207,15 +231,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const totalSent = webSent + apnsSent;
+    debug.webSent = webSent;
+    debug.apnsSent = apnsSent;
     if (totalSent === 0) {
-      return new Response(JSON.stringify({ skipped: true, reason: "no subscriptions" }), {
+      return new Response(JSON.stringify({ skipped: true, reason: "no subscriptions", debug }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     return new Response(
-      JSON.stringify({ sent: totalSent, web: webSent, apns: apnsSent, expired: webExpired.length + apnsExpired.length }),
+      JSON.stringify({ sent: totalSent, web: webSent, apns: apnsSent, expired: webExpired.length + apnsExpired.length, debug }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: any) {
