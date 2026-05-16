@@ -681,10 +681,8 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           if (profileIds.length === 0) { addToast('No profiles found', 'error'); return }
           addToast(`Sending test to ${profileIds.length} teammates…`, 'success')
 
-          let pushSentTotal = 0
-          let bellSentTotal = 0
-          for (const uid of profileIds) {
-            const sender = username || 'A teammate'
+          const sender = username || 'A teammate'
+          const results = await Promise.all(profileIds.map(async (uid) => {
             const notif = {
               id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + uid.slice(0, 4),
               user_id: uid,
@@ -693,20 +691,30 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
               body: `${sender} sent a test notification — if you see this, notifications are working!`,
               force: true,
             }
+            let bell = 0
+            let push = 0
             try {
               const res = await fetch(`${url}/rest/v1/notifications`, {
                 method: 'POST',
                 headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
                 body: JSON.stringify(notif),
               })
-              if (res.ok) bellSentTotal++
+              if (res.ok) bell = 1
             } catch {}
             try {
-              const { data: pushBody } = await supabase.functions.invoke('send-push', { body: { record: notif } })
-              if (pushBody?.sent) pushSentTotal += pushBody.sent
+              const pushRes = await fetch(`${url}/functions/v1/send-push`, {
+                method: 'POST',
+                headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ record: notif }),
+              })
+              const pushBody = await pushRes.json().catch(() => null)
+              if (pushBody?.sent) push = pushBody.sent
             } catch {}
-          }
+            return { bell, push }
+          }))
 
+          const bellSentTotal = results.reduce((s, r) => s + r.bell, 0)
+          const pushSentTotal = results.reduce((s, r) => s + r.push, 0)
           addToast(`Done — bell: ${bellSentTotal} users · push: ${pushSentTotal} devices 🎉`, 'success')
         }}
         className="fixed bottom-4 right-4 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-lg hover:shadow-xl transition-shadow z-30 flex items-center gap-1.5"
