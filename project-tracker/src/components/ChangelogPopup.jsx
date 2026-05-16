@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 88,
+    date: '2026-05-16',
+    items: [
+      '💛 Daily Team Pulse — a quick 15-second check-in once a day on mood, focus, and what\'s frustrating. Responses are anonymous. Leaders can see trends under Special Controls → Team Pulse. Turn it off any time in Settings',
+    ],
+  },
+  {
     id: 87,
     date: '2026-05-16',
     items: [

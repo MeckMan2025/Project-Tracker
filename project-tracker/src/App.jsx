@@ -38,6 +38,8 @@ import WorkshopIdeas from './components/WorkshopIdeas'
 import CleanUpChart from './components/CleanUpChart'
 import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
+import DailyPulsePopup from './components/DailyPulsePopup'
+import TeamPulseDashboard from './components/TeamPulseDashboard'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
@@ -341,6 +343,7 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
   const [compDayLock, setCompDayLock] = useState(null) // { role: 'scouting' | 'drive-team' | ... } or null
+  const [showPulse, setShowPulse] = useState(false)
 
   // Default sounds off for team accounts on first login
   useEffect(() => {
@@ -350,6 +353,36 @@ function App() {
       localStorage.setItem('scrum-team-defaults-set', 'true')
     }
   }, [effectiveIsTeam])
+
+  // Daily Pulse trigger — once per day per user, skippable, disable-able in settings
+  useEffect(() => {
+    if (!user?.id || effectiveIsTeam || isLoading) return
+    const d = new Date()
+    const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    if (localStorage.getItem(`pulse_skipped_${todayKey}`)) return
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const headers = { apikey: key, Authorization: `Bearer ${key}` }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [prefRes, pulseRes] = await Promise.all([
+          fetch(`${url}/rest/v1/profiles?id=eq.${user.id}&select=notification_prefs`, { headers }),
+          fetch(`${url}/rest/v1/daily_pulse?user_id=eq.${user.id}&pulse_date=eq.${todayKey}&select=id&limit=1`, { headers }),
+        ])
+        if (cancelled) return
+        const prefs = (await prefRes.json())[0]?.notification_prefs || {}
+        if (prefs.pulse === false) return
+        const existing = await pulseRes.json()
+        if (Array.isArray(existing) && existing.length > 0) return
+        // Slight delay so it doesn't fight the loading screen / changelog popup
+        setTimeout(() => { if (!cancelled) setShowPulse(true) }, 1500)
+      } catch {
+        // Silent — don't block app on a non-essential prompt
+      }
+    })()
+    return () => { cancelled = true }
+  }, [user?.id, effectiveIsTeam, isLoading])
 
   // Comp Day screen captivation — check if there's a live session with an active block and user has a role
   useEffect(() => {
@@ -1149,6 +1182,7 @@ function App() {
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {!isLoading && !effectiveIsTeam && <ChangelogPopup />}
+      {showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
           username={flashUsername}
@@ -1301,6 +1335,8 @@ function App() {
             <DesignMatrix onBack={() => setSpecialView(null)} />
           ) : specialView === 'testing' ? (
             <TestingDashboard onBack={() => setSpecialView(null)} />
+          ) : specialView === 'team-pulse' ? (
+            <TeamPulseDashboard onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
               <div className="max-w-md mx-auto space-y-6">
@@ -1333,6 +1369,15 @@ function App() {
                       <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
                       <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
                     </button>
+                    {hasLeadTag && (
+                      <button
+                        onClick={() => setSpecialView('team-pulse')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Team Pulse</span>
+                        <p className="text-sm text-gray-400 mt-1">Anonymous mood, focus, and frustration trends</p>
+                      </button>
+                    )}
                   </div>
                 </div>
 

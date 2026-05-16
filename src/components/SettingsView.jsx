@@ -156,6 +156,28 @@ export default function SettingsView() {
         )}
       </section>
 
+      {/* ─── Daily Pulse ─── */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 className="font-semibold text-gray-700 mb-1 flex items-center gap-2">
+          <Bell size={16} className="text-pastel-pink-dark" />
+          Daily Team Pulse
+        </h3>
+        <p className="text-xs text-gray-400 mb-3">A quick 15-second check-in once a day. Your responses are anonymous to leaders.</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-gray-700">Show daily pulse popup</p>
+          <button
+            onClick={() => setNotifPrefs(prev => ({ ...prev, pulse: prev.pulse === false }))}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              notifPrefs.pulse !== false ? 'bg-pastel-pink-dark' : 'bg-gray-300'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              notifPrefs.pulse !== false ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </div>
+      </section>
+
       {/* ─── Startup Music ─── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
