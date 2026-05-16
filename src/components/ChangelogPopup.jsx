@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 87,
+    date: '2026-05-16',
+    items: [
+      '📆 Recurring meetings can now be edited per-occurrence — change the room, description, or time for a single date without touching the rest of the series; same for deleting just one date',
+    ],
+  },
+  {
     id: 86,
     date: '2026-05-16',
     items: [

@@ -101,16 +101,18 @@ function expandRecurrence(event, from, to) {
   if (!event.date_key) return []
   const start = fromKey(event.date_key)
   if (Number.isNaN(start.getTime())) return []
+  const exceptions = new Set(event.exception_dates || [])
   if (!event.recurrence || event.recurrence === 'none') {
-    return start >= from && start <= to ? [toKey(start)] : []
+    if (start < from || start > to) return []
+    return exceptions.has(toKey(start)) ? [] : [toKey(start)]
   }
   const until = event.recurrence_until ? fromKey(event.recurrence_until) : to
   const stop = until < to ? until : to
   const keys = []
   let cursor = new Date(start)
-  // Cap iterations defensively.
   for (let i = 0; i < 366 * 5 && cursor <= stop; i++) {
-    if (cursor >= from) keys.push(toKey(cursor))
+    const k = toKey(cursor)
+    if (cursor >= from && !exceptions.has(k)) keys.push(k)
     if (event.recurrence === 'daily')   cursor = addDays(cursor, 1)
     else if (event.recurrence === 'weekly')  cursor = addDays(cursor, 7)
     else if (event.recurrence === 'monthly') cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, cursor.getDate())
@@ -361,6 +363,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       metadata: payload.metadata || {},
       recurrence: payload.recurrence || 'none',
       recurrence_until: payload.recurrence_until || '',
+      exception_dates: [],
       assigned_to: payload.assigned_to || [],
     }
 
@@ -408,7 +411,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
   }
 
-  const handleUpdate = async (id, payload) => {
+  const handleUpdate = async (id, payload, scope = 'all', instanceDate = null) => {
     const updates = {
       date_key: payload.date_key,
       name: payload.name,
@@ -434,13 +437,54 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       return
     }
 
-    // Optimistic update
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    if (scope === 'single' && instanceDate) {
+      const parent = events.find(e => e.id === id)
+      const detached = {
+        ...updates,
+        id: 'evt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        date_key: instanceDate,
+        recurrence: 'none',
+        recurrence_until: '',
+        exception_dates: [],
+        added_by: parent?.added_by || username,
+        series_id: id,
+      }
+      const newExceptions = [...new Set([...(parent?.exception_dates || []), instanceDate])]
+
+      setEvents(prev => [
+        ...prev.map(e => e.id === id ? { ...e, exception_dates: newExceptions } : e),
+        detached,
+      ])
+      addToast('This occurrence updated', 'success')
+
+      try {
+        const r1 = await fetch(`${url}/rest/v1/calendar_events`, {
+          method: 'POST',
+          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(detached),
+        })
+        if (!r1.ok) throw new Error(await r1.text())
+        const r2 = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ exception_dates: newExceptions }),
+        })
+        if (!r2.ok) throw new Error(await r2.text())
+        scheduleReminder(detached)
+      } catch (err) {
+        console.error('Detach update failed:', err)
+        addToast('Failed to save: ' + err.message, 'error')
+      }
+      return
+    }
+
     const prevSnapshot = events.find(e => e.id === id)
     setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
     addToast('Event updated', 'success')
 
-    const url = import.meta.env.VITE_SUPABASE_URL
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
     try {
       const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
         method: 'PATCH',
@@ -463,14 +507,33 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, scope = 'all', instanceDate = null) => {
     setOpenEvent(null)
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    if (scope === 'single' && instanceDate) {
+      const parent = events.find(e => e.id === id)
+      const newExceptions = [...new Set([...(parent?.exception_dates || []), instanceDate])]
+      setEvents(prev => prev.map(e => e.id === id ? { ...e, exception_dates: newExceptions } : e))
+      addToast('This occurrence removed', 'success')
+      try {
+        const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ exception_dates: newExceptions }),
+        })
+        if (!res.ok) throw new Error(await res.text())
+      } catch (err) {
+        console.error('Single-occurrence delete failed:', err)
+        addToast('Failed to remove occurrence', 'error')
+      }
+      return
+    }
+
     const prevSnapshot = events
     setEvents(prev => prev.filter(e => e.id !== id))
     addToast('Event deleted', 'success')
-
-    const url = import.meta.env.VITE_SUPABASE_URL
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
     try {
       const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -627,7 +690,18 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           event={openEvent}
           onClose={() => setOpenEvent(null)}
           onDelete={canEditContent ? handleDelete : null}
-          onEdit={canEditContent ? () => { setEditing(openEvent); setOpenEvent(null) } : null}
+          onEdit={canEditContent ? () => {
+            const isRecurring = openEvent.recurrence && openEvent.recurrence !== 'none'
+            let scope = 'all'
+            if (isRecurring) {
+              const pickSingle = confirm(
+                'This is a recurring event.\n\nOK — edit just THIS date only\nCancel — edit the whole series'
+              )
+              scope = pickSingle ? 'single' : 'all'
+            }
+            setEditing({ ...openEvent, _editScope: scope, _instanceDate: openEvent.date_key })
+            setOpenEvent(null)
+          } : null}
           reactions={reactions[openEvent.id] || []}
           onReact={(emoji) => handleReact(openEvent.id, emoji)}
           username={username}
@@ -648,7 +722,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           dateKey={editing.date_key}
           existing={editing}
           onClose={() => setEditing(null)}
-          onSubmit={(payload) => handleUpdate(editing.id, payload)}
+          onSubmit={(payload) => handleUpdate(editing.id, payload, editing._editScope || 'all', editing._instanceDate || null)}
           canEdit={canEditContent}
         />
       )}
@@ -1193,7 +1267,21 @@ function EventModal({ event, onClose, onDelete, onEdit, reactions, onReact, user
               )}
               {onDelete && (
                 <button
-                  onClick={() => { if (confirm('Delete this event?')) onDelete(event.id) }}
+                  onClick={() => {
+                    const isRecurring = event.recurrence && event.recurrence !== 'none'
+                    if (isRecurring) {
+                      const pickSingle = confirm(
+                        'This is a recurring event.\n\nOK — delete just THIS date only\nCancel — ask about the whole series'
+                      )
+                      if (pickSingle) {
+                        onDelete(event.id, 'single', event.date_key)
+                      } else if (confirm('Delete the ENTIRE recurring series?')) {
+                        onDelete(event.id, 'all')
+                      }
+                    } else if (confirm('Delete this event?')) {
+                      onDelete(event.id, 'all')
+                    }
+                  }}
                   className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                 >
                   <Trash2 size={12} /> Delete
