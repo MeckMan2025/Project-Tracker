@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
+import { getSideStyle } from '../utils/sideColors'
+import { ROLE_GUIDE } from '../data/roleGuide'
 
 const ALL_ROLES = [
   'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
@@ -43,12 +45,24 @@ const ROLE_DESCRIPTIONS = {
 }
 
 
-function UserManagement() {
+function UserManagement({ onViewProfile }) {
   const { user, username } = useUser()
   const { canManageUsers, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
-  const [activeSection, setActiveSection] = useState(canManageUsers ? 'whitelist' : 'members')
+  const [activeSection, setActiveSection] = useState('radmems') // 'radmems' | 'teamro' | 'pasmems'
+  // Direct "Add Member" (no whitelist) — creates the account and sets roles at once
+  const [showAddMember, setShowAddMember] = useState(false)
+  const [addEmail, setAddEmail] = useState('')
+  const [addName, setAddName] = useState('')
+  const [addPassword, setAddPassword] = useState('')
+  const [addTier, setAddTier] = useState('teammate')
+  const [addRoles, setAddRoles] = useState([])
+  const [addError, setAddError] = useState('')
+  const [addSuccess, setAddSuccess] = useState('')
+  const [addSubmitting, setAddSubmitting] = useState(false)
+  // Past members archive
+  const [pastMembers, setPastMembers] = useState([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [newEmail, setNewEmail] = useState('')
@@ -70,6 +84,7 @@ function UserManagement() {
   const [createSuccess, setCreateSuccess] = useState('')
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [showRoleInfo, setShowRoleInfo] = useState(false)
+  const [openGuideRole, setOpenGuideRole] = useState(null)
   const [rolePickerOpen, setRolePickerOpen] = useState(null)
   const [roleRequestOpen, setRoleRequestOpen] = useState(false)
   const [roleRequestSubmitting, setRoleRequestSubmitting] = useState(false)
@@ -99,12 +114,31 @@ function UserManagement() {
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
   // Use the user's JWT so RLS policies (auth.uid()) are satisfied.
-  // getSession() can hang if the auth lock is stuck, so race with a timeout.
+  // Read the token SYNCHRONOUSLY from localStorage: supabase.auth.getSession()
+  // takes an async auth lock that can hang for seconds after a hard refresh,
+  // which made both loading and every delete slow. The token is kept fresh in
+  // localStorage by autoRefreshToken, so this is normally instant.
   const getAuthHeaders = async () => {
+    try {
+      const ref = supabaseUrl.split('//')[1].split('.')[0]
+      const raw = window.localStorage.getItem(`sb-${ref}-auth-token`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const token = parsed?.access_token
+        const expMs = (parsed?.expires_at || 0) * 1000
+        // Use it if present and not within 10s of expiry.
+        if (token && Date.now() < expMs - 10000) {
+          return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+        }
+      }
+    } catch { /* fall through to getSession */ }
+
+    // Fallback (token missing/expired): let getSession refresh it, with a short
+    // timeout so a stuck lock can't hang the UI, then anon key as last resort.
     try {
       const { data: { session } } = await Promise.race([
         supabase.auth.getSession(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), 3000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), 1500))
       ])
       const token = session?.access_token || supabaseKey
       return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
@@ -113,9 +147,9 @@ function UserManagement() {
     }
   }
 
-  const fetchTable = async (table, columns) => {
+  const fetchTable = async (table, columns, headers) => {
     const url = `${supabaseUrl}/rest/v1/${table}?select=${encodeURIComponent(columns)}`
-    const headers = await getAuthHeaders()
+    if (!headers) headers = await getAuthHeaders()
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 10000)
     try {
@@ -139,34 +173,39 @@ function UserManagement() {
     console.log('[UserMgmt] loadData started')
 
     try {
-      try {
-        const data = await fetchTable('approved_emails', 'id,email,role,created_at')
-        msg += 'Whitelist: ' + data.length + ' rows | '
-        console.log('[UserMgmt] Whitelist loaded:', data.length, 'rows')
-        setWhitelistedEmails(data)
-      } catch (e) {
-        msg += 'Whitelist error: ' + e.message + ' | '
-        console.error('[UserMgmt] Whitelist exception:', e)
+      // Resolve the auth token ONCE (getSession can hang up to 3s after a
+      // refresh), then fetch all tables in parallel so the timeout isn't
+      // paid per-table and the fetches overlap instead of stacking.
+      const headers = await getAuthHeaders()
+
+      const [emailsRes, membersRes, teamsRes] = await Promise.allSettled([
+        fetchTable('approved_emails', 'id,email,role,created_at', headers),
+        fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
+        fetchTable('team_accounts', 'team_number,team_name,user_id,created_at', headers),
+      ])
+
+      if (emailsRes.status === 'fulfilled') {
+        msg += 'Whitelist: ' + emailsRes.value.length + ' rows | '
+        setWhitelistedEmails(emailsRes.value)
+      } else {
+        msg += 'Whitelist error: ' + emailsRes.reason?.message + ' | '
+        console.error('[UserMgmt] Whitelist exception:', emailsRes.reason)
       }
 
-      try {
-        const data = await fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin')
-        msg += 'Members: ' + data.length + ' rows'
-        console.log('[UserMgmt] Members loaded:', data.length, 'rows')
-        setRegisteredMembers(data)
-      } catch (e) {
-        msg += 'Members error: ' + e.message
-        console.error('[UserMgmt] Members exception:', e)
+      if (membersRes.status === 'fulfilled') {
+        msg += 'Members: ' + membersRes.value.length + ' rows'
+        setRegisteredMembers(membersRes.value)
+      } else {
+        msg += 'Members error: ' + membersRes.reason?.message
+        console.error('[UserMgmt] Members exception:', membersRes.reason)
       }
 
-      try {
-        const data = await fetchTable('team_accounts', 'team_number,team_name,user_id,created_at')
-        msg += ' | Teams: ' + data.length + ' rows'
-        console.log('[UserMgmt] Teams loaded:', data.length, 'rows')
-        setTeams(data)
-      } catch (e) {
-        msg += ' | Teams error: ' + e.message
-        console.error('[UserMgmt] Teams exception:', e)
+      if (teamsRes.status === 'fulfilled') {
+        msg += ' | Teams: ' + teamsRes.value.length + ' rows'
+        setTeams(teamsRes.value)
+      } else {
+        msg += ' | Teams error: ' + teamsRes.reason?.message
+        console.error('[UserMgmt] Teams exception:', teamsRes.reason)
       }
 
       console.log('[UserMgmt] loadData finished:', msg)
@@ -179,6 +218,20 @@ function UserManagement() {
   // Fetch data once on mount
   useEffect(() => {
     loadData()
+  }, [])
+
+  // Load Past Members archive (best-effort; table may not exist yet)
+  useEffect(() => {
+    (async () => {
+      try {
+        const headers = await getAuthHeaders()
+        const res = await fetch(`${supabaseUrl}/rest/v1/past_members?select=*&order=removed_at.desc`, { headers })
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data)) setPastMembers(data)
+        }
+      } catch { /* table may not exist yet — ignore */ }
+    })()
   }, [])
 
   // Realtime: listen for whitelist changes
@@ -569,6 +622,29 @@ function UserManagement() {
     setDeleteSubmitting(true)
     try {
       const headers = await getAuthHeaders()
+      // Archive to Past Members first (best-effort; skips silently if the
+      // past_members table hasn't been created yet).
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/past_members`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            original_id: deleteTarget.id,
+            display_name: deleteTarget.display_name,
+            function_tags: deleteTarget.function_tags || [],
+            avatar_url: deleteTarget.avatar_url || '',
+            removed_by: username,
+          }),
+        })
+        setPastMembers(prev => [{
+          id: `local-${deleteTarget.id}`,
+          display_name: deleteTarget.display_name,
+          function_tags: deleteTarget.function_tags || [],
+          avatar_url: deleteTarget.avatar_url || '',
+          removed_at: new Date().toISOString(),
+        }, ...prev])
+      } catch { /* table may not exist yet — ignore */ }
+
       const res = await fetch(`${supabaseUrl}/functions/v1/admin-delete-user`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -629,6 +705,58 @@ function UserManagement() {
     }
   }
 
+  const toggleAddRole = (role) => {
+    setAddRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role])
+  }
+
+  // Direct add: create the account AND assign roles in one step (no whitelist).
+  const handleAddMemberDirect = async (e) => {
+    e?.preventDefault?.()
+    setAddError(''); setAddSuccess('')
+    if (!addEmail.trim() || !addName.trim()) { setAddError('Email and name are required'); return }
+    if (addPassword.length < 6) { setAddError('Password must be at least 6 characters'); return }
+    setAddSubmitting(true)
+    try {
+      const headers = await getAuthHeaders()
+      const tier = addRoles.includes('Guest') ? 'guest' : 'teammate'
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addEmail.trim().toLowerCase(),
+          password: addPassword,
+          displayName: addName.trim(),
+          role: tier === 'guest' ? 'guest' : 'member',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.statusText)
+      if (data?.error) throw new Error(data.error)
+      // Assign the chosen roles/tags on the freshly created profile
+      if (addRoles.length > 0) {
+        await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ function_tags: addRoles, authority_tier: tier }),
+        })
+      }
+      setRegisteredMembers(prev => [{
+        id: data.userId,
+        display_name: addName.trim(),
+        function_tags: addRoles,
+        authority_tier: tier,
+        avatar_url: '',
+        created_at: new Date().toISOString(),
+      }, ...prev])
+      setAddSuccess(`Added ${addName.trim()}. Tell them their temporary password to log in.`)
+      setAddEmail(''); setAddName(''); setAddPassword(''); setAddRoles([]); setAddTier('teammate')
+    } catch (err) {
+      setAddError(err.message)
+    } finally {
+      setAddSubmitting(false)
+    }
+  }
+
   const bulkCount = bulkText.split(/[\n,;\s]+/).filter(l => l.trim() && l.includes('@')).length
 
   const tagColors = [
@@ -674,28 +802,27 @@ function UserManagement() {
         </div>
         {canManageUsers && (
           <div className="flex border-t">
-            <button
-              onClick={() => setActiveSection('whitelist')}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                activeSection === 'whitelist'
-                  ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Shield size={14} className="inline mr-1" />
-              Whitelist ({whitelistedEmails.length + teams.length})
-            </button>
-            <button
-              onClick={() => setActiveSection('members')}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                activeSection === 'members'
-                  ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Users size={14} className="inline mr-1" />
-              Members ({registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length})
-            </button>
+            {[
+              { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length },
+              { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
+              { id: 'pasmems', label: 'PasMems', icon: Trash2, count: pastMembers.length },
+            ].map(t => {
+              const TabIcon = t.icon
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveSection(t.id)}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    activeSection === t.id
+                      ? 'text-pastel-pink-dark border-b-2 border-pastel-pink-dark'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <TabIcon size={14} className="inline mr-1" />
+                  {t.label} ({t.count})
+                </button>
+              )
+            })}
           </div>
         )}
       </header>
@@ -748,29 +875,10 @@ function UserManagement() {
             </div>
           )}
 
-          {activeSection === 'whitelist' && canManageUsers ? (
+          {activeSection === 'teamro' && canManageUsers ? (
             <>
-              {/* Sub-section toggle */}
-              <div className="flex rounded-lg bg-gray-100 p-0.5 mb-4">
-                <button
-                  onClick={() => setWhitelistSubSection('members')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    whitelistSubSection === 'members' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Radical Members ({whitelistedEmails.length})
-                </button>
-                <button
-                  onClick={() => setWhitelistSubSection('teams')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    whitelistSubSection === 'teams' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Teams ({teams.length})
-                </button>
-              </div>
-
-              {whitelistSubSection === 'members' ? (
+              {/* Team Roster (whitelist email block removed; kept dead behind false) */}
+              {false ? (
                 <>
                   <div className="flex gap-2 mb-4">
                     <button
@@ -995,8 +1103,72 @@ function UserManagement() {
                 </>
               )}
             </>
+          ) : activeSection === 'pasmems' && canManageUsers ? (
+            <div className="space-y-2">
+              {pastMembers.length === 0 ? (
+                <p className="text-center text-gray-400 mt-10">No past members yet. Removed members are archived here.</p>
+              ) : (
+                pastMembers.map((pm) => (
+                  <div key={pm.id || pm.original_id} className="flex items-center gap-2.5 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                    <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle(pm.function_tags)}>
+                      {pm.avatar_url ? (
+                        <img src={pm.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-white" />
+                      ) : (
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
+                          {(pm.display_name || '?').charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{pm.display_name}</p>
+                      <p className="text-xs text-gray-400">Removed{pm.removed_at ? ` · ${new Date(pm.removed_at).toLocaleDateString()}` : ''}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           ) : (
             <div className="space-y-2">
+              {canManageUsers && (
+                <div className="mb-4">
+                  {addSuccess && <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{addSuccess}</div>}
+                  {!showAddMember ? (
+                    <button
+                      onClick={() => { setShowAddMember(true); setAddError(''); setAddSuccess('') }}
+                      className="flex items-center gap-2 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm text-gray-700"
+                    >
+                      <UserPlus size={16} />
+                      Add Member
+                    </button>
+                  ) : (
+                    <form onSubmit={handleAddMemberDirect} className="bg-white rounded-xl shadow-sm border p-4 space-y-3">
+                      <input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="Email address" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" autoFocus required />
+                      <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Display name" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" required />
+                      <PasswordInput value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="Temporary password (min 6 chars)" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" />
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5">Roles (decides their side &amp; access)</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ALL_ROLES.map(role => (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => toggleAddRole(role)}
+                              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${addRoles.includes(role) ? getTagColor(role) : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                            >
+                              {role}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {addError && <p className="text-sm text-red-500">{addError}</p>}
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => { setShowAddMember(false); setAddError(''); setAddEmail(''); setAddName(''); setAddPassword(''); setAddRoles([]) }} className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button type="submit" disabled={addSubmitting} className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700">{addSubmitting ? 'Adding...' : 'Add Member'}</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
               {loadingData ? (
                 <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
               ) : registeredMembers.length === 0 ? (
@@ -1024,10 +1196,25 @@ function UserManagement() {
                     return (
                       <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium text-gray-700 truncate">{member.display_name}</span>
+                          <button
+                            type="button"
+                            onClick={() => onViewProfile?.(member.id)}
+                            className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity"
+                            title="View profile"
+                          >
+                            {/* Tie-dye ring showing the member's side(s) */}
+                            <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle(member.function_tags)}>
+                              {member.avatar_url ? (
+                                <img src={member.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-white" />
+                              ) : (
+                                <span className="w-8 h-8 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
+                                  {(member.display_name || '?').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-sm font-medium text-gray-700 truncate hover:underline">{member.display_name}</span>
                             {isSelf && <span className="text-xs text-gray-400">(you)</span>}
-                          </div>
+                          </button>
                           {canManageUsers && (
                             <div className="flex items-center gap-1 shrink-0">
                               <button
@@ -1058,27 +1245,13 @@ function UserManagement() {
                           {memberRoles.filter(r => !(memberIsCofounder && r === 'Co-Founder')).map(role => (
                             <span
                               key={role}
-                              className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${getTagColor(role)}`}
+                              className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor(role)}`}
                             >
                               {role}
-                              {canChangeRoles && !isSelf && (
-                                <button
-                                  onClick={() => handleToggleRole(member.id, role)}
-                                  className="hover:opacity-70 transition-opacity"
-                                  title={`Remove ${role}`}
-                                >
-                                  <X size={12} />
-                                </button>
-                              )}
                             </span>
                           ))}
-                          {canChangeRoles && !isSelf && (
-                            <button
-                              onClick={() => setRolePickerOpen(rolePickerOpen === member.id ? null : member.id)}
-                              className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
-                            >
-                              <Plus size={12} /> Add
-                            </button>
+                          {memberRoles.length === 0 && !memberIsCofounder && (
+                            <span className="text-xs text-gray-400">No roles — open profile to assign</span>
                           )}
                         </div>
                       </div>
@@ -1330,19 +1503,64 @@ function UserManagement() {
 
       {/* Role Descriptions Modal */}
       {showRoleInfo && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-700">Roles</h3>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowRoleInfo(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white rounded-t-xl">
+              <div>
+                <h3 className="font-semibold text-gray-700">Roles &amp; What They Do</h3>
+                <p className="text-xs text-gray-400">Tap a role to see its objectives.</p>
+              </div>
               <button onClick={() => setShowRoleInfo(false)} className="p-1 rounded hover:bg-gray-100">
                 <X size={16} className="text-gray-400" />
               </button>
             </div>
-            <div className="space-y-2">
-              {ALL_ROLES.map(role => (
-                <div key={role} className="flex items-start gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${getTagColor(role)}`}>{role}</span>
-                  <p className="text-sm text-gray-600">{ROLE_DESCRIPTIONS[role]}</p>
+            <div className="p-5 space-y-5 overflow-y-auto">
+              {ROLE_GUIDE.map(group => (
+                <div key={group.category}>
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{group.category}</h4>
+                  <div className="space-y-2">
+                    {group.roles.map(r => {
+                      const open = openGuideRole === r.name
+                      return (
+                        <div key={r.name} className="border border-gray-100 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() => setOpenGuideRole(open ? null : r.name)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors"
+                          >
+                            <ChevronRight size={14} className={`text-gray-400 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${getTagColor(r.name)}`}>{r.name}</span>
+                            <span className="text-xs text-gray-500 truncate">{r.summary}</span>
+                          </button>
+                          {open && (
+                            <div className="px-3 pb-3 pt-1 space-y-3">
+                              <p className="text-sm text-gray-600">{r.summary}</p>
+                              {r.objectives?.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-500 mb-1">Common objectives</p>
+                                  <ul className="list-disc list-inside space-y-0.5 text-sm text-gray-600">
+                                    {r.objectives.map((o, i) => <li key={i}>{o}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+                              {r.sources?.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-500 mb-1">Objectives come from</p>
+                                  <ul className="list-disc list-inside space-y-0.5 text-sm text-gray-600">
+                                    {r.sources.map((s, i) => <li key={i}>{s}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+                              {r.example && (
+                                <p className="text-sm text-gray-500 italic bg-gray-50 rounded-lg p-2">
+                                  <span className="font-semibold not-italic text-gray-600">Example: </span>{r.example}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               ))}
             </div>

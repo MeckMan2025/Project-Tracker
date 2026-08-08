@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
+import NotebookGallery from './NotebookGallery'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -10,7 +12,18 @@ const STATUS_STYLES = {
   denied: 'bg-red-100 text-red-600',
 }
 
-function HomeView({ onTabChange }) {
+// Season kickoff date — change this to your real kickoff date/time.
+const SEASON_KICKOFF = new Date('2026-09-06T09:00:00')
+
+// Cleanup assignment status styling (mirrors CleanUpChart)
+const CLEANUP_STATUS = {
+  assigned: { label: 'Assigned', cls: 'bg-blue-100 text-blue-700' },
+  pending_confirmation: { label: 'Pending', cls: 'bg-yellow-100 text-yellow-700' },
+  confirmed: { label: 'Confirmed', cls: 'bg-green-100 text-green-700' },
+  denied: { label: 'Denied', cls: 'bg-red-100 text-red-700' },
+}
+
+function HomeView({ onTabChange, onOpenTask }) {
   const { username, user } = useUser()
   const { isGuest, hasLeadTag } = usePermissions()
 
@@ -28,13 +41,68 @@ function HomeView({ onTabChange }) {
   const [photoIndex, setPhotoIndex] = useState(0)
   const fileInputRef = useRef(null)
   const scrollRef = useRef(null)
+  const [now, setNow] = useState(() => new Date())
+  const [myTasks, setMyTasks] = useState([])
+  const [cleanupRows, setCleanupRows] = useState([])
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
+  const getAuthHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token || supabaseKey
+    return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+  }
+
   const ROLE_EMOJIS = { 'scouting': '🔍', 'pit-crew': '🔧', 'drive-team': '🎮', 'spirit': '📣', 'bag-watch': '🎒', 'break': '☕', 'strategy': '🧠', 'safety': '🦺' }
   const ROLE_LABELS = { 'scouting': 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team': 'Drive Team', 'spirit': 'Spirit', 'bag-watch': 'Bag Watch', 'break': 'Break', 'strategy': 'Strategy Lead', 'safety': 'Safety Monitor' }
+
+  // Live-ticking clock for the season kickoff countdown
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Load the tasks assigned to me from the Scrum board (active tasks only)
+  useEffect(() => {
+    async function loadMyTasks() {
+      if (!username) { setMyTasks([]); return }
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${encodeURIComponent(username)}&select=*`, { headers })
+        if (!res.ok) return
+        const data = await res.json()
+        const active = (Array.isArray(data) ? data : []).filter(t => t.status !== 'done' && t.status !== 'completed')
+        setMyTasks(active)
+      } catch (err) {
+        console.error('Failed to load assigned tasks:', err)
+      }
+    }
+    loadMyTasks()
+  }, [username])
+
+  // Load the latest cleanup session's assignments for the homepage chart
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sess, asg, jobs] = await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/cleanup_sessions?select=id&order=created_at.desc&limit=1`, { headers }).then(r => r.ok ? r.json() : []),
+          fetch(`${supabaseUrl}/rest/v1/cleanup_assignments?select=*`, { headers }).then(r => r.ok ? r.json() : []),
+          fetch(`${supabaseUrl}/rest/v1/cleanup_jobs?select=id,name`, { headers }).then(r => r.ok ? r.json() : []),
+        ])
+        const latestId = Array.isArray(sess) && sess[0] ? sess[0].id : null
+        const jobName = (id) => (Array.isArray(jobs) ? jobs.find(j => j.id === id)?.name : null) || 'Cleanup job'
+        const rows = latestId
+          ? (Array.isArray(asg) ? asg : [])
+              .filter(a => a.cleanup_session_id === latestId)
+              .map(a => ({ id: a.id, job: jobName(a.job_id), who: a.assigned_username, status: a.status }))
+          : []
+        setCleanupRows(rows)
+      } catch (err) {
+        console.error('Failed to load cleanup chart:', err)
+      }
+    })()
+  }, [])
 
   // Check for active/upcoming comp day session + role preview
   useEffect(() => {
@@ -182,7 +250,8 @@ function HomeView({ onTabChange }) {
   // Fetch workshop ideas
   const loadIdeas = async () => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers })
+      const authHeaders = await getAuthHeaders()
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers: authHeaders })
       if (res.ok) setIdeas(await res.json())
     } catch {}
   }
@@ -194,9 +263,10 @@ function HomeView({ onTabChange }) {
     if (!text) return
     setSubmitError('')
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas`, {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify({
           idea: text,
           submitted_by: username,
@@ -216,18 +286,20 @@ function HomeView({ onTabChange }) {
   }
 
   const handleReview = async (id, status) => {
+    const authHeaders = await getAuthHeaders()
     await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: { ...authHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status }),
     })
     loadIdeas()
   }
 
   const handleDeleteIdea = async (id) => {
+    const authHeaders = await getAuthHeaders()
     await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?id=eq.${id}`, {
       method: 'DELETE',
-      headers,
+      headers: authHeaders,
     })
     loadIdeas()
   }
@@ -271,13 +343,23 @@ function HomeView({ onTabChange }) {
   const canReview = hasLeadTag
   const canSubmit = !isGuest
 
+  // Season kickoff countdown
+  const kickoffMs = SEASON_KICKOFF - now
+  const kickoffPassed = kickoffMs <= 0
+  const countdown = {
+    days: Math.max(0, Math.floor(kickoffMs / 86400000)),
+    hours: Math.max(0, Math.floor((kickoffMs % 86400000) / 3600000)),
+    mins: Math.max(0, Math.floor((kickoffMs % 3600000) / 60000)),
+    secs: Math.max(0, Math.floor((kickoffMs % 60000) / 1000)),
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 ml-14 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Off-Season HQ
+              Home Page
             </h1>
             <p className="text-sm text-gray-500">Welcome back{username ? `, ${username}` : ''}!</p>
           </div>
@@ -286,6 +368,35 @@ function HomeView({ onTabChange }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
+        {/* Season Timeline (top of the Home Page) */}
+
+        {/* Cleanup Chart — current cleanup duty assignments */}
+        {cleanupRows.length > 0 && (
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 size={18} className="text-pastel-blue-dark" />
+              <h2 className="font-semibold text-gray-700">Cleanup Duty</h2>
+              <span className="text-xs text-gray-400">
+                · {cleanupRows.filter(r => r.status === 'confirmed').length}/{cleanupRows.length} done
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {cleanupRows.map(r => {
+                const s = CLEANUP_STATUS[r.status] || { label: r.status, cls: 'bg-gray-100 text-gray-500' }
+                return (
+                  <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{r.job}</p>
+                      <p className="text-xs text-gray-400 truncate">{r.who || 'Unassigned'}</p>
+                    </div>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${s.cls}`}>{s.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Comp Day Banner */}
         {compDayActive && (
           <button
@@ -375,175 +486,133 @@ function HomeView({ onTabChange }) {
           </div>
         </div>
 
-        {/* 1. Next Event Card */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar size={18} className="text-pastel-pink-dark" />
-            <h2 className="font-semibold text-gray-700">
-              {nextEvent
-                ? nextEvent.event_type === 'meeting' ? 'Next Meeting'
-                : nextEvent.event_type === 'competition' ? 'Next Competition'
-                : 'Next Event'
-                : 'Next Event'}
-            </h2>
-          </div>
-          {eventLoading ? (
-            <p className="text-sm text-gray-400 animate-pulse">Loading...</p>
-          ) : nextEvent ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-gray-800">{nextEvent.title || nextEvent.name}</p>
-                {nextEvent.description && (
-                  <p className="text-sm text-gray-500">{nextEvent.description}</p>
-                )}
-                <p className="text-sm text-gray-500 mt-1">{formatDate(nextEvent.date_key)}</p>
+        {/* Sticky-note board: Assigned Objective (big notebook) + Season Kickoff + Next Meeting */}
+        <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start pt-2">
+
+          {/* BIG notebook-paper sticky note — My Assigned Objective */}
+          <div className="relative w-full md:flex-1 -rotate-[0.4deg]">
+            {/* piece of tape */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-amber-200/50 border border-amber-100/70 rotate-2 shadow-sm rounded-[2px] z-10" />
+            <div
+              className="relative rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
+              style={{ background: '#ffffff' }}
+            >
+              {/* pink margin line */}
+              <div className="absolute top-0 bottom-0 left-9 w-[2px] bg-pink-300/60" />
+              <div className="flex items-center gap-2 mb-2">
+                <Target size={20} className="text-pastel-blue-dark" />
+                <h2 className="text-3xl leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
+                  My Assigned Objective
+                </h2>
               </div>
-              <div className="flex items-center gap-3">
-                {daysUntil !== null && (
-                  <div className="text-center px-4 py-2 bg-pastel-pink/30 rounded-lg">
-                    <p className="text-2xl font-bold text-pastel-pink-dark">{daysUntil}</p>
-                    <p className="text-xs text-gray-500">{daysUntil === 1 ? 'day' : 'days'} away</p>
+              <div className="mt-1">
+                {myTasks.length === 0 && (
+                  <div className="flex items-center h-9" style={{ borderBottom: '1px solid rgba(59,130,246,0.45)' }}>
+                    <span className="text-2xl text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>Nothing assigned yet…</span>
                   </div>
                 )}
-                <button
-                  onClick={() => onTabChange('calendar')}
-                  className="flex items-center gap-1 px-3 py-2 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg text-sm text-gray-600 transition-colors"
-                >
-                  View Calendar <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">No upcoming events scheduled</p>
-          )}
-        </div>
-
-        {/* 2. Season Photos */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Camera size={18} className="text-pastel-orange-dark" />
-              <h2 className="font-semibold text-gray-700">Season Highlights</h2>
-            </div>
-            {canSubmit && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="flex items-center gap-1 px-3 py-1.5 bg-pastel-orange/30 hover:bg-pastel-orange/50 rounded-lg text-sm text-gray-600 transition-colors disabled:opacity-50"
-              >
-                <Plus size={14} />
-                {uploading ? 'Uploading...' : 'Add Photo'}
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleUpload}
-              className="hidden"
-            />
-          </div>
-
-          {photos.length === 0 ? (
-            <div
-              className="flex items-center justify-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
-              onClick={() => canSubmit && fileInputRef.current?.click()}
-            >
-              <p className="text-gray-400 text-sm">{canSubmit ? 'Tap to add the first photo!' : 'No photos yet'}</p>
-            </div>
-          ) : (
-            <div className="relative">
-              <div
-                ref={scrollRef}
-                className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {photos.map((photo, i) => (
+                {myTasks.map((task, i) => (
                   <div
-                    key={photo.id}
-                    className="flex-shrink-0 w-64 h-48 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity snap-center"
-                    onClick={() => { setSelectedPhoto(photo); setPhotoIndex(i) }}
+                    key={task.id}
+                    className="flex items-center gap-2.5 h-9"
+                    style={{ borderBottom: `1px solid ${i % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
                   >
-                    <img
-                      src={photo.url}
-                      alt={photo.caption || 'Season photo'}
-                      className="w-full h-full object-cover"
-                    />
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-pastel-blue-dark shrink-0" />
+                    <span
+                      className="flex-1 text-2xl text-gray-700 truncate"
+                      style={{ fontFamily: "'Kalam', cursive" }}
+                    >
+                      {task.title}
+                    </span>
+                    <button
+                      onClick={() => onOpenTask?.(task.board_id, task.id)}
+                      className="shrink-0 flex items-center gap-0.5 text-sm font-semibold text-pastel-blue-dark hover:underline"
+                    >
+                      View <ArrowRight size={13} />
+                    </button>
                   </div>
                 ))}
-              </div>
-              {photos.length > 1 && (
-                <div className="flex justify-center gap-1.5 mt-2">
-                  {photos.map((_, i) => (
+                {/* filler ruled lines so it always looks like notebook paper */}
+                {Array.from({ length: Math.max(0, (myTasks.length === 0 ? 5 : 6) - myTasks.length) }).map((_, i) => {
+                  const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
+                  return (
                     <div
-                      key={i}
-                      className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIndex ? 'bg-pastel-pink-dark' : 'bg-gray-300'}`}
+                      key={`filler-${i}`}
+                      className="h-9"
+                      style={{ borderBottom: `1px solid ${idx % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
                     />
-                  ))}
-                </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT column — two smaller sticky notes */}
+          <div className="w-full md:w-56 flex flex-col gap-5 shrink-0">
+
+            {/* Season Kickoff sticky note (blue→pink→orange ombre) */}
+            <div
+              className="relative rounded-md shadow-[0_6px_18px_rgba(0,0,0,0.12)] rotate-1 p-4 text-center"
+              style={{ background: 'linear-gradient(140deg, #dbeafe 0%, #fce7f3 55%, #ffedd5 100%)' }}
+            >
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white/50 border border-white/60 -rotate-3 rounded-[2px]" />
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Rocket size={15} className="text-pastel-blue-dark" />
+                <p className="text-lg leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>Season Kickoff</p>
+              </div>
+              {kickoffPassed ? (
+                <p className="text-xl text-gray-700 py-2" style={{ fontFamily: "'Kalam', cursive" }}>🎉 Kicked off!</p>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold text-gray-700 tabular-nums leading-tight" style={{ fontFamily: "'Kalam', cursive" }}>
+                    {countdown.days}
+                  </p>
+                  <p className="text-xs text-gray-500 -mt-1">
+                    {countdown.days === 1 ? 'day' : 'days'} · {String(countdown.hours).padStart(2, '0')}:{String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
+                  </p>
+                </>
               )}
+              <p className="text-[11px] text-gray-500 mt-2">
+                {SEASON_KICKOFF.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
             </div>
-          )}
-        </div>
 
-        {/* 3. Request Workshops */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Lightbulb size={18} className="text-pastel-blue-dark" />
-            <h2 className="font-semibold text-gray-700">Request Workshops</h2>
-          </div>
-
-          {canSubmit && (
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={newIdea}
-                onChange={(e) => setNewIdea(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmitIdea()}
-                placeholder="Suggest a workshop idea..."
-                className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
-              />
-              <button
-                onClick={handleSubmitIdea}
-                className="p-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors"
-              >
-                <Send size={16} className="text-gray-700" />
-              </button>
-            </div>
-          )}
-          {submitError && <p className="text-xs text-red-500 mb-2">{submitError}</p>}
-
-          <div className="space-y-2">
-            {ideas.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">No workshop ideas yet. Be the first to suggest one!</p>
-            ) : (
-              ideas.map(idea => (
-                <div key={idea.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[idea.status] || STATUS_STYLES.pending}`}>
-                    {idea.status}
-                  </span>
-                  <span className="flex-1 text-sm text-gray-700 truncate">{idea.idea}</span>
-                  <span className="text-xs text-gray-400 shrink-0">{idea.submitted_by}</span>
-                  {canReview && idea.status === 'pending' && (
-                    <>
-                      <button onClick={() => handleReview(idea.id, 'approved')} className="p-1 hover:bg-green-100 rounded">
-                        <Check size={14} className="text-green-600" />
-                      </button>
-                      <button onClick={() => handleReview(idea.id, 'denied')} className="p-1 hover:bg-red-100 rounded">
-                        <X size={14} className="text-red-500" />
-                      </button>
-                    </>
+            {/* Next Meeting sticky note (blue→pink→orange ombre) */}
+            <button
+              onClick={() => onTabChange('calendar')}
+              className="relative rounded-md shadow-[0_6px_18px_rgba(0,0,0,0.12)] -rotate-1 p-4 text-left w-full hover:brightness-[0.98] transition-all"
+              style={{ background: 'linear-gradient(140deg, #dbeafe 0%, #fce7f3 55%, #ffedd5 100%)' }}
+            >
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white/50 border border-white/60 rotate-3 rounded-[2px]" />
+              <div className="flex items-center gap-1.5 mb-1">
+                <Calendar size={15} className="text-pastel-pink-dark" />
+                <p className="text-lg leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
+                  {nextEvent?.event_type === 'competition' ? 'Next Competition' : 'Next Meeting'}
+                </p>
+              </div>
+              {eventLoading ? (
+                <p className="text-sm text-gray-500 animate-pulse">Loading…</p>
+              ) : nextEvent ? (
+                <>
+                  <p className="text-xl text-gray-800 leading-tight truncate" style={{ fontFamily: "'Kalam', cursive" }}>
+                    {nextEvent.title || nextEvent.name}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{formatDate(nextEvent.date_key)}</p>
+                  {daysUntil !== null && (
+                    <p className="text-2xl font-bold text-gray-700 leading-tight mt-1" style={{ fontFamily: "'Kalam', cursive" }}>
+                      {daysUntil === 0 ? 'Today!' : <>{daysUntil} <span className="text-lg font-normal">{daysUntil === 1 ? 'day' : 'days'} away</span></>}
+                    </p>
                   )}
-                  {(canReview || idea.user_id === user?.id) && (
-                    <button onClick={() => handleDeleteIdea(idea.id)} className="p-1 hover:bg-red-50 rounded">
-                      <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500" style={{ fontFamily: "'Kalam', cursive" }}>No meetings scheduled</p>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Engineering Notebook photo gallery */}
+        <NotebookGallery onTabChange={onTabChange} />
 
         {/* 4. Random Quote Footer */}
         {!isGuest && (

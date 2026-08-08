@@ -50,25 +50,6 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeav
         )}
       </div>
 
-      {task.description && (
-        <p className="text-sm text-gray-500 mb-2 line-clamp-2">
-          {task.description}
-        </p>
-      )}
-
-      {task.skills && task.skills.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {task.skills.map((skill, i) => (
-            <span
-              key={i}
-              className="text-xs px-2 py-0.5 bg-pastel-orange/50 text-gray-600 rounded-full"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className="flex items-center justify-between text-xs text-gray-400">
         <div className="flex items-center gap-3">
           {isUpForGrabs ? (

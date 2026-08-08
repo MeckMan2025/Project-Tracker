@@ -4,6 +4,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
+import { getSideStyle, getSideLabel, getSides, SIDE_HEX, SIDE_LABEL } from '../utils/sideColors'
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
@@ -53,6 +54,11 @@ const PERMISSION_OPTIONS = [
 ]
 
 
+const ROLE_OPTIONS = [
+  'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
+  'Website', 'Build', 'CAD', 'Scouting', 'Business', 'Communications', 'Programming', 'Guest',
+]
+
 const DEFAULT_PROFILE_DATA = {
   discipline: '',
   timezone: '',
@@ -72,7 +78,7 @@ const DEFAULT_PROFILE_DATA = {
 function ProfileView({ viewingProfileId, onClearViewing }) {
   const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio, isTeam, teamNumber } = useUser()
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin } = usePermissions()
+  const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin, canChangeRoles } = usePermissions()
   const isViewingOther = viewingProfileId && viewingProfileId !== user?.id
   const [viewedProfile, setViewedProfile] = useState(null)
   const [viewedLoading, setViewedLoading] = useState(false)
@@ -101,6 +107,53 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       .catch(() => {})
       .finally(() => setViewedLoading(false))
   }, [viewingProfileId])
+
+  const [roleSaving, setRoleSaving] = useState('')
+
+  // Read the auth token synchronously from localStorage (avoids getSession hangs)
+  // so RLS is satisfied when an admin edits another member's roles.
+  const getAuthHeaders = () => {
+    try {
+      const ref = supabaseUrl.split('//')[1].split('.')[0]
+      const raw = window.localStorage.getItem(`sb-${ref}-auth-token`)
+      const token = raw ? JSON.parse(raw)?.access_token : null
+      if (token) return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+    } catch { /* fall through */ }
+    return { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  }
+
+  // Admin: toggle a role on the profile currently being viewed.
+  const toggleViewedRole = async (roleName) => {
+    if (!viewedProfile) return
+    const current = viewedProfile.function_tags || []
+    const wasAdded = !current.includes(roleName)
+    let updated
+    if (roleName === 'Guest') {
+      updated = wasAdded ? ['Guest'] : []
+    } else {
+      updated = wasAdded ? [...current.filter(r => r !== 'Guest'), roleName] : current.filter(r => r !== roleName)
+    }
+    const newTier = updated.length === 0 || (updated.length === 1 && updated[0] === 'Guest') ? 'guest' : 'teammate'
+    // Optimistic update
+    setViewedProfile(prev => ({ ...prev, function_tags: updated, authority_tier: newTier }))
+    setRoleSaving(roleName)
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${viewingProfileId}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify({ function_tags: updated, authority_tier: newTier }),
+      })
+      if (!res.ok) throw new Error(await res.text() || res.statusText)
+      const rows = await res.json()
+      if (!rows || rows.length === 0) throw new Error('Update did not affect any rows')
+    } catch (err) {
+      // Rollback
+      setViewedProfile(prev => ({ ...prev, function_tags: current }))
+      alert('Failed to save role: ' + err.message)
+    } finally {
+      setRoleSaving('')
+    }
+  }
 
   // Load profile data via direct fetch
   useEffect(() => {
@@ -332,7 +385,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
             <div className="py-4 px-4 flex items-center justify-between">
-              <button onClick={onClearViewing} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">&larr; Back</button>
+              <button onClick={onClearViewing} className="ml-10 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">&larr; Back</button>
               <div className="flex-1 text-center">
                 <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">Profile</h1>
               </div>
@@ -375,18 +428,35 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             {/* Identity */}
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start gap-4">
-                {vp.avatar_url ? (
-                  <img src={vp.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
-                    <span className="text-2xl font-bold text-white">{(vp.display_name || '?').charAt(0).toUpperCase()}</span>
-                  </div>
-                )}
+                {/* Avatar wrapped in a tie-dye ring showing the member's side(s) */}
+                <div className="shrink-0 rounded-full p-[3px]" style={getSideStyle(vpTags)}>
+                  {vp.avatar_url ? (
+                    <img src={vp.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full object-cover ring-2 ring-white" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center ring-2 ring-white">
+                      <span className="text-2xl font-bold text-white">{(vp.display_name || '?').charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-bold text-gray-800">{vp.display_name || 'Unknown'}</h2>
                   {vp.primary_role_label && <p className="text-sm text-gray-600 font-medium">{vp.primary_role_label}</p>}
+                  {/* Side badge(s) */}
+                  {getSides(vpTags).length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      {getSides(vpTags).map(side => (
+                        <span
+                          key={side}
+                          className="text-xs px-2 py-0.5 rounded-full font-semibold text-white"
+                          style={{ backgroundColor: SIDE_HEX[side] }}
+                        >
+                          {SIDE_LABEL[side]}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {vpTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {vpTags.map(tag => (
                         <span key={tag} className="text-xs px-2 py-0.5 rounded-full font-medium bg-pastel-pink/30 text-pastel-pink-dark">{tag}</span>
                       ))}
@@ -408,6 +478,48 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                 </div>
               )}
             </section>
+
+            {/* Admin role editor — the ONLY place a member's roles are changed */}
+            {canChangeRoles && (
+              <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 className="font-semibold text-gray-700 mb-1">Roles</h3>
+                <p className="text-xs text-gray-400 mb-3">Add a role from the dropdown, or remove one below. This sets their side colors and access.</p>
+
+                {/* Assigned roles as removable chips */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {(vpTags || []).length === 0 ? (
+                    <span className="text-xs text-gray-400">No roles assigned</span>
+                  ) : (
+                    (vpTags || []).map(r => (
+                      <span key={r} className="text-xs px-2.5 py-1 rounded-full font-medium bg-pastel-pink text-gray-800 inline-flex items-center gap-1">
+                        {r}
+                        <button
+                          type="button"
+                          disabled={roleSaving === r}
+                          onClick={() => toggleViewedRole(r)}
+                          className="hover:opacity-70 transition-opacity disabled:opacity-50"
+                          title={`Remove ${r}`}
+                        >
+                          <XCircle size={12} />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Dropdown to add a role */}
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) toggleViewedRole(e.target.value) }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                >
+                  <option value="">+ Add a role…</option>
+                  {ROLE_OPTIONS.filter(r => !(vpTags || []).includes(r)).map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </section>
+            )}
 
             {/* Systems Owned */}
             {vpSystemsOwned.length > 0 && (

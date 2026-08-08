@@ -126,8 +126,9 @@ function expandRecurrence(event, from, to) {
 // Top-level component
 // ---------------------------------------------------------------------------
 function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
-  const { username, user } = useUser()
+  const { username, user, functionTags } = useUser()
   const { canEditContent, canReviewRequests, isGuest } = usePermissions()
+  const isCofounder = (functionTags || []).includes('Co-Founder')
   const { addToast } = useToast()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe } = usePushNotifications()
 
@@ -411,9 +412,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
   }
 
-  // scope: 'all' (default) updates the parent row in place;
-  // 'single' detaches this one date into a brand-new standalone event row and
-  // adds the date to the parent's exception_dates so it doesn't double up.
   const handleUpdate = async (id, payload, scope = 'all', instanceDate = null) => {
     const updates = {
       date_key: payload.date_key,
@@ -444,8 +442,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
     if (scope === 'single' && instanceDate) {
-      // Detach: create a standalone (non-recurring) event for just this date,
-      // and exclude that date from the parent series.
       const parent = events.find(e => e.id === id)
       const detached = {
         ...updates,
@@ -486,7 +482,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       return
     }
 
-    // scope === 'all' — update the parent row in place
     const prevSnapshot = events.find(e => e.id === id)
     setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
     addToast('Event updated', 'success')
@@ -513,8 +508,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
   }
 
-  // scope: 'all' deletes the parent row entirely (whole series);
-  // 'single' just adds the instanceDate to the parent's exception_dates.
   const handleDelete = async (id, scope = 'all', instanceDate = null) => {
     setOpenEvent(null)
     const url = import.meta.env.VITE_SUPABASE_URL
@@ -735,6 +728,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         />
       )}
 
+      {isCofounder && (
       <button
         onClick={async () => {
           if (!user?.id) { addToast('No user — sign in first', 'error'); return }
@@ -804,6 +798,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       >
         🔔 Test Notification
       </button>
+      )}
     </div>
   )
 }

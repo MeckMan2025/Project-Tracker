@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { Plus, Download, Upload } from 'lucide-react'
+import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2 } from 'lucide-react'
 import { downloadCSV } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
 import TaskModal from './components/TaskModal'
@@ -330,6 +330,7 @@ function App() {
   }, [effectiveIsTeam])
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
 
@@ -339,6 +340,7 @@ function App() {
   const [loadError, setLoadError] = useState(null)
   const [landingChoice, setLandingChoice] = useState(null)
   const [viewingProfileId, setViewingProfileId] = useState(null)
+  const [profileReturnTab, setProfileReturnTab] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
@@ -375,11 +377,8 @@ function App() {
         if (prefs.pulse === false) return
         const existing = await pulseRes.json()
         if (Array.isArray(existing) && existing.length > 0) return
-        // Slight delay so it doesn't fight the loading screen / changelog popup
         setTimeout(() => { if (!cancelled) setShowPulse(true) }, 1500)
-      } catch {
-        // Silent — don't block app on a non-essential prompt
-      }
+      } catch {}
     })()
     return () => { cancelled = true }
   }, [user?.id, effectiveIsTeam, isLoading])
@@ -677,6 +676,14 @@ function App() {
 
   const tasks = tasksByTab[activeTab] || []
 
+  // Open a specific task on its Scrum board (used by the Home "My Assigned Objective" View buttons)
+  const openTaskFromHome = (boardId, taskId) => {
+    if (boardId) setActiveTab(boardId)
+    const list = tasksByTab[boardId] || []
+    const task = list.find(t => String(t.id) === String(taskId))
+    if (task) setEditingTask(task)
+  }
+
   const handleAddTab = async (name) => {
     const newId = String(Date.now()) + Math.random().toString(36).slice(2)
     // Update UI immediately (optimistic)
@@ -842,6 +849,10 @@ function App() {
       .filter(task => task.status === status)
       .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
   }
+
+  const completedTasks = tasks
+    .filter(task => task.status === 'completed')
+    .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
 
   const handleAddTask = async (newTask) => {
     const task = {
@@ -1229,7 +1240,7 @@ function App() {
       {!hasAccess(activeTab, tier, effectiveIsTeam) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
@@ -1286,11 +1297,14 @@ function App() {
           }}
         />
       ) : activeTab === 'user-management' ? (
-        <UserManagement />
+        <UserManagement onViewProfile={(id) => { setViewingProfileId(id); setProfileReturnTab('user-management'); setActiveTab('profile') }} />
       ) : activeTab === 'requests' ? (
         <RequestsView tabs={tabs} />
       ) : activeTab === 'profile' ? (
-        <ProfileView viewingProfileId={viewingProfileId} onClearViewing={() => setViewingProfileId(null)} />
+        <ProfileView
+          viewingProfileId={viewingProfileId}
+          onClearViewing={() => { setViewingProfileId(null); if (profileReturnTab) { setActiveTab(profileReturnTab); setProfileReturnTab(null) } }}
+        />
       ) : activeTab === 'settings' ? (
         <SettingsView />
       ) : activeTab === 'data' ? (
@@ -1603,6 +1617,61 @@ function App() {
               ))}
             </div>
           </DragDropContext>
+
+          {/* Completed tasks — archived out of the board via "Mark Done" */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowCompleted(prev => !prev)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white/90 rounded-lg font-semibold text-gray-700 transition-colors"
+            >
+              <ChevronRight size={16} className={`transition-transform ${showCompleted ? 'rotate-90' : ''}`} />
+              <CheckCircle size={16} className="text-green-500" />
+              Completed
+              <span className="text-sm font-normal text-gray-500">({completedTasks.length})</span>
+            </button>
+
+            {showCompleted && (
+              completedTasks.length === 0 ? (
+                <p className="text-sm text-gray-400 mt-3 ml-2">No completed tasks yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
+                  {completedTasks.map(task => (
+                    <div
+                      key={task.id}
+                      className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-l-green-400"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-medium text-gray-800 text-sm">{task.title}</h3>
+                        {canEditContent && (
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="text-gray-300 hover:text-red-400 shrink-0"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                        {task.assignee && task.assignee !== '__up_for_grabs__' && (
+                          <span className="flex items-center gap-1">
+                            <User size={11} />
+                            {task.assignee}
+                          </span>
+                        )}
+                        {task.dueDate && (
+                          <span className="flex items-center gap-1">
+                            <Calendar size={11} />
+                            {task.dueDate}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
         </main>
       </div>
       )}

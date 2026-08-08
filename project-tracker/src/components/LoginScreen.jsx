@@ -452,15 +452,8 @@ function LoginScreen({ sessionExpired, onBack, initialMode }) {
             </button>
           </p>
 
-          <p className="text-sm text-center text-gray-500">
-            No account?{' '}
-            <button
-              type="button"
-              onClick={() => { setMode('signup'); resetSignupState() }}
-              className="text-pastel-pink-dark font-semibold hover:underline"
-            >
-              Sign Up
-            </button>
+          <p className="text-xs text-center text-gray-400">
+            No account? Ask a team lead to add you.
           </p>
 
           <p className="text-sm text-center text-gray-500">
