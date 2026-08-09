@@ -13,8 +13,44 @@ const DEFAULT_CONSIDERED = []
 // Per-team scouting stats (cleared for new season; populated live from scouting_records)
 const SCOUT_STATS = {}
 
-// Competition teams (cleared for new season)
-const ALL_TEAMS = []
+// Machu Picchu League (Iowa) — loaded with blank data for the new season.
+const BLANK = { rank: null, rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0 }
+const ALL_TEAMS = [
+  { number: '367', name: 'Organized Chaos', ...BLANK },
+  { number: '4177', name: 'Finger Tightans', ...BLANK },
+  { number: '4237', name: 'Cyberhawks', ...BLANK },
+  { number: '5062', name: 'Mechanaries', ...BLANK },
+  { number: '6072', name: 'Wildbot Robotics', ...BLANK },
+  { number: '6093', name: 'Deviation From The Norm', ...BLANK },
+  { number: '6458', name: 'Burgbots', ...BLANK },
+  { number: '6545', name: 'Knight Riders', ...BLANK },
+  { number: '6603', name: 'Guild of Gears', ...BLANK },
+  { number: '7196', name: "Everything That's Radical", ...BLANK },
+  { number: '8588', name: 'Finger Puppet Mafia', ...BLANK },
+  { number: '8672', name: 'UBett', ...BLANK },
+  { number: '8696', name: 'Trobotix', ...BLANK },
+  { number: '8743', name: 'Raw Bacon', ...BLANK },
+  { number: '8813', name: 'The Winter Soldiers', ...BLANK },
+  { number: '8988', name: 'Bellevue Blockheads', ...BLANK },
+  { number: '10082', name: 'Mechanicats', ...BLANK },
+  { number: '10139', name: 'Glitch Mob', ...BLANK },
+  { number: '10602', name: 'Pioneer Robotics', ...BLANK },
+  { number: '11721', name: 'Central Processing Units', ...BLANK },
+  { number: '12745', name: 'Long John Launchers', ...BLANK },
+  { number: '13532', name: 'EagleBots FTC 13532', ...BLANK },
+  { number: '15050', name: 'Lightning Bots', ...BLANK },
+  { number: '15055', name: 'DeDucktive Thinkers', ...BLANK },
+  { number: '18482', name: 'Mechanical Soup', ...BLANK },
+  { number: '20097', name: 'Robo Raptors', ...BLANK },
+  { number: '22064', name: 'ThunderBots', ...BLANK },
+  { number: '22479', name: 'Royal Robots', ...BLANK },
+  { number: '23971', name: 'Trobotix JV', ...BLANK },
+  { number: '24296', name: 'TopBot', ...BLANK },
+  { number: '25656', name: 'Pioneer Robotics', ...BLANK },
+  { number: '25788', name: 'Byte Brawlers', ...BLANK },
+  { number: '31541', name: 'Davenport West', ...BLANK },
+  { number: '32494', name: 'Screw Ups-Washington Middle School', ...BLANK },
+]
 
 // Delete permission now handled by usePermissions hook (canDeleteScouting)
 
