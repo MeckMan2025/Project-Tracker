@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { usePermissions } from '../hooks/usePermissions'
-import { Calendar, MapPin, Clock, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Calendar, MapPin, Clock, Plus, Pencil, Trash2, X, ChevronRight } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import ScoutingDaySetup from './ScoutingDaySetup'
 
 // Scouting Schedule = a list of scheduled scouting dates.
 // Coaches / Mentors / Leads / Co-Founders (hasLeadTag) can add, edit, and
@@ -18,6 +19,7 @@ export default function ScoutingSchedule() {
   const [dates, setDates] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // date object being edited, or {new:true}
+  const [openDate, setOpenDate] = useState(null) // date whose setup screen is open
   const [form, setForm] = useState(EMPTY)
   const fullData = useRef({}) // preserve the rest of the schedule doc (groups, etc.)
 
@@ -89,6 +91,18 @@ export default function ScoutingSchedule() {
   }
   const isPast = (dateStr) => dateStr && new Date(dateStr + 'T23:59:59') < new Date()
 
+  // When a date is opened, show the original scouting-setup screen for it.
+  if (openDate) {
+    return (
+      <ScoutingDaySetup
+        scheduleId={`day-${openDate.id}`}
+        dateTitle={openDate.title}
+        dateSubtitle={fmt(openDate.date) + (openDate.time ? ` · ${openDate.time}` : '') + (openDate.location ? ` · ${openDate.location}` : '')}
+        onBack={() => setOpenDate(null)}
+      />
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -97,7 +111,7 @@ export default function ScoutingSchedule() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Scouting Schedule
             </h1>
-            <p className="text-sm text-gray-500">{canManage ? 'Add, edit, and remove scouting dates' : 'Upcoming scouting dates'}</p>
+            <p className="text-sm text-gray-500">Tap a date to open its setup{canManage ? ' · add, edit & remove dates' : ''}</p>
           </div>
           <NotificationBell />
         </div>
@@ -120,7 +134,7 @@ export default function ScoutingSchedule() {
           </div>
         ) : (
           dates.map((d) => (
-            <div key={d.id} className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 ${isPast(d.date) ? 'opacity-60' : ''}`}>
+            <div key={d.id} onClick={() => setOpenDate(d)} className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 cursor-pointer hover:shadow-md hover:border-pastel-blue/40 transition-all ${isPast(d.date) ? 'opacity-60' : ''}`}>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pastel-blue to-pastel-pink flex flex-col items-center justify-center shrink-0 text-white">
                 <span className="text-[10px] font-bold uppercase leading-none">{d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }) : '—'}</span>
                 <span className="text-lg font-black leading-none">{d.date ? new Date(d.date + 'T00:00:00').getDate() : ''}</span>
@@ -134,11 +148,13 @@ export default function ScoutingSchedule() {
                 </div>
                 {d.notes && <p className="text-sm text-gray-600 mt-2">{d.notes}</p>}
               </div>
-              {canManage && (
+              {canManage ? (
                 <div className="flex flex-col gap-1 shrink-0">
-                  <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg hover:bg-pastel-blue/20" title="Edit"><Pencil size={15} className="text-gray-400 hover:text-pastel-blue-dark" /></button>
-                  <button onClick={() => remove(d.id)} className="p-1.5 rounded-lg hover:bg-red-50" title="Delete"><Trash2 size={15} className="text-gray-400 hover:text-red-400" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(d) }} className="p-1.5 rounded-lg hover:bg-pastel-blue/20" title="Edit"><Pencil size={15} className="text-gray-400 hover:text-pastel-blue-dark" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); remove(d.id) }} className="p-1.5 rounded-lg hover:bg-red-50" title="Delete"><Trash2 size={15} className="text-gray-400 hover:text-red-400" /></button>
                 </div>
+              ) : (
+                <ChevronRight size={18} className="text-gray-300 shrink-0 self-center" />
               )}
             </div>
           ))
