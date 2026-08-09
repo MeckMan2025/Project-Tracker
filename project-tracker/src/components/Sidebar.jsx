@@ -90,7 +90,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       {!isOpen && (
         <button
           onClick={onToggle}
-          className="fixed left-4 z-50 p-2 bg-white rounded-lg shadow-md top-[calc(env(safe-area-inset-top,0px)+1rem)]"
+          className="fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
         >
           <Menu size={20} />
         </button>
@@ -171,12 +171,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
         )}
 
         {/* Category Filter — hidden during comp day lock */}
-        {!compDayAllowedTabs && !isTeamAccount && <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
+        {!compDayAllowedTabs && !isTeamAccount && <div className="px-2 pt-1 pb-1 flex gap-1.5">
           {[
-            { id: 'technical', emoji: '🔧' },
-            { id: 'general', emoji: '🏠' },
-            { id: 'business', emoji: '💼' },
-          ].map(({ id, emoji }) => (
+            { id: 'technical', emoji: '🔧', active: 'bg-pastel-blue text-gray-800', idle: 'bg-pastel-blue/25 hover:bg-pastel-blue/40' },
+            { id: 'general', emoji: '🏠', active: 'bg-pastel-pink text-gray-800', idle: 'bg-pastel-pink/25 hover:bg-pastel-pink/40' },
+            { id: 'business', emoji: '💼', active: 'bg-pastel-orange text-gray-800', idle: 'bg-pastel-orange/25 hover:bg-pastel-orange/40' },
+          ].map(({ id, emoji, active, idle }) => (
             <button
               key={id}
               onClick={() => {
@@ -184,10 +184,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 setNavFilter(val)
                 localStorage.setItem('scrum-nav-filter', val)
               }}
-              className={`px-3 py-1.5 rounded-lg text-lg transition-colors ${
-                navFilter === id
-                  ? 'bg-pastel-pink shadow-sm scale-110'
-                  : 'bg-gray-100 hover:bg-gray-200'
+              className={`flex-1 py-1 rounded-md text-sm text-center transition-colors ${
+                navFilter === id ? `${active} shadow-sm` : idle
               }`}
               title={id.charAt(0).toUpperCase() + id.slice(1)}
             >
@@ -196,7 +194,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           ))}
         </div>}
 
-        <nav className="p-2 flex-1 overflow-y-auto">
+        <nav className="px-2 pt-1 pb-2 flex-1 overflow-y-auto">
           {/* ─── Comp Day Locked Nav ─── */}
           {compDayAllowedTabs ? (<>
             <div className="mb-2 px-2 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
@@ -280,6 +278,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>)}
           </>) : (<>
           {/* ─── Normal Nav ─── */}
+          <hr className="mb-1.5 border-gray-300" />
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -296,7 +295,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Home</span>
           </div>
 
-          <hr className="my-2 border-gray-200" />
+          <hr className="my-1.5 border-gray-300" />
 
           {/* Chat Tab */}
           <div

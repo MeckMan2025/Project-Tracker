@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, Zap, Users } from 'lucide-react'
+import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2 } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { ACTIVE_SEASON, seasonOf } from '../data/season'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 
@@ -72,6 +73,7 @@ export default function EngineeringNotebook() {
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [submitFeedback, setSubmitFeedback] = useState(null)
   const [showTeamEntries, setShowTeamEntries] = useState(false)
+  const [filterSeason, setFilterSeason] = useState(ACTIVE_SEASON)
   const [filterStudent, setFilterStudent] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterProject, setFilterProject] = useState('')
@@ -80,21 +82,18 @@ export default function EngineeringNotebook() {
   const [expandedProject, setExpandedProject] = useState(null)
   const [showRequestProjectModal, setShowRequestProjectModal] = useState(false)
   const [requestProjectName, setRequestProjectName] = useState('')
-  const [participants, setParticipants] = useState([])
 
   // Load data via direct fetch
   useEffect(() => {
     const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
     async function load() {
       try {
-        const [eRes, pRes, partRes] = await Promise.all([
+        const [eRes, pRes] = await Promise.all([
           fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=*&order=created_at.desc`, { headers }),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&order=created_at.desc`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/notebook_entry_participants?select=*`, { headers }),
         ])
         if (eRes.ok) setEntries(await eRes.json())
         if (pRes.ok) setProjects(await pRes.json())
-        if (partRes.ok) setParticipants(await partRes.json())
       } catch (err) {
         console.error('Failed to load notebook data:', err)
       }
@@ -124,12 +123,6 @@ export default function EngineeringNotebook() {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_projects' }, (payload) => {
         setProjects(prev => prev.filter(p => p.id !== payload.old.id))
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notebook_entry_participants' }, (payload) => {
-        setParticipants(prev => prev.some(p => p.id === payload.new.id) ? prev : [...prev, payload.new])
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_entry_participants' }, (payload) => {
-        setParticipants(prev => prev.filter(p => p.id !== payload.old.id))
-      })
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])
@@ -158,6 +151,7 @@ export default function EngineeringNotebook() {
       project_id: formData.projectId,
       project_link: formData.projectLink.trim(),
       photo_url: formData.photoUrl.trim(),
+      season: ACTIVE_SEASON,
     }
 
     // Close form immediately, save in background
@@ -254,31 +248,24 @@ export default function EngineeringNotebook() {
     }).catch(err => console.error('Failed to delete project:', err))
   }
 
-  // Build a set of entry IDs this user participates in (for group entries)
-  const myParticipantEntryIds = useMemo(() => {
-    return new Set(participants.filter(p => p.username === username).map(p => p.entry_id))
-  }, [participants, username])
-
-  // Build a map of entry_id -> participant usernames for display
-  const participantsByEntry = useMemo(() => {
-    const map = {}
-    participants.forEach(p => {
-      if (!map[p.entry_id]) map[p.entry_id] = []
-      map[p.entry_id].push(p.username)
-    })
-    return map
-  }, [participants])
-
   // Filtered entries
   const filteredEntries = useMemo(() => {
     let result = entries
-    if (!isLead) result = result.filter(e => e.username === username || myParticipantEntryIds.has(e.id))
+    if (filterSeason) result = result.filter(e => seasonOf(e) === filterSeason)
+    if (!isLead) result = result.filter(e => e.username === username)
     if (filterStudent) result = result.filter(e => e.username === filterStudent)
     if (filterCategory) result = result.filter(e => e.category === filterCategory)
     if (filterProject) result = result.filter(e => e.project_id === filterProject)
     if (filterEngagement) result = result.filter(e => e.engagement === filterEngagement)
     return result
-  }, [entries, showTeamEntries, isLead, username, myParticipantEntryIds, filterStudent, filterCategory, filterProject, filterEngagement])
+  }, [entries, showTeamEntries, isLead, username, filterSeason, filterStudent, filterCategory, filterProject, filterEngagement])
+
+  // Seasons available in the data (plus the active one), newest first
+  const availableSeasons = useMemo(() => {
+    const set = new Set([ACTIVE_SEASON])
+    entries.forEach(e => set.add(seasonOf(e)))
+    return Array.from(set).sort().reverse()
+  }, [entries])
 
   // Group by date
   const groupedEntries = useMemo(() => {
@@ -331,8 +318,10 @@ export default function EngineeringNotebook() {
       result = entries.filter(e => e.project_id === projectId)
     }
     if (!isLead) {
-      result = result.filter(e => e.username === username || myParticipantEntryIds.has(e.id))
+      result = result.filter(e => e.username === username)
     }
+    // Only show entries from the selected season (so archived seasons don't leak into the folders)
+    result = result.filter(e => seasonOf(e) === filterSeason)
     return result
   }
 
@@ -423,6 +412,19 @@ export default function EngineeringNotebook() {
                 </button>
               )
             })}
+          </div>
+          {/* Season selector — view the current season or an archived one */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-gray-400">Season</span>
+            <select
+              value={filterSeason}
+              onChange={e => setFilterSeason(e.target.value)}
+              className="border rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+            >
+              {availableSeasons.map(s => (
+                <option key={s} value={s}>{s}{s === ACTIVE_SEASON ? ' (current)' : ' — archive'}</option>
+              ))}
+            </select>
           </div>
           </div>
           <NotificationBell />
@@ -562,18 +564,8 @@ export default function EngineeringNotebook() {
                                             </a>
                                           )}
                                         </div>
-                                        <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center gap-2 flex-wrap">
+                                        <div className="mt-2 pt-1.5 border-t border-gray-100">
                                           <span className="text-xs text-gray-400 font-medium">{entry.username}</span>
-                                          {entry.flash_id && (
-                                            <span className="inline-flex items-center gap-0.5 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-medium">
-                                              <Zap size={10} /> Flash
-                                            </span>
-                                          )}
-                                          {participantsByEntry[entry.id] && participantsByEntry[entry.id].length > 1 && (
-                                            <span className="inline-flex items-center gap-0.5 text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">
-                                              <Users size={10} /> {participantsByEntry[entry.id].join(', ')}
-                                            </span>
-                                          )}
                                         </div>
                                       </div>
                                     )

@@ -124,7 +124,7 @@ export default function AttendanceView() {
                 return (
                   <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
                     <span className="text-sm text-gray-700">
-                      {new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClass}`}>
                       {status}
@@ -195,7 +195,7 @@ export default function AttendanceView() {
                 return (
                   <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
                     <span className="text-sm text-gray-700">
-                      {new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClass}`}>
                       {status}

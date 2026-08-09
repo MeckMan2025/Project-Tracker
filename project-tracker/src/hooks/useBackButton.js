@@ -1,14 +1,12 @@
 import { useEffect } from 'react'
+import { isNative } from '../utils/platform'
 
 export function useBackButton(onBack) {
-  // Capacitor back button handling — only active in native builds
-  // Web builds skip this entirely since @capacitor/app is not available
   useEffect(() => {
-    if (!window.Capacitor?.isNativePlatform?.()) return
+    if (!isNative) return
 
     let App
-    const capModule = '@capaci' + 'tor/app'
-    import(/* @vite-ignore */ capModule).then(mod => {
+    import('@capacitor/app').then(mod => {
       App = mod.App
       App.addListener('backButton', ({ canGoBack }) => {
         if (canGoBack) {
@@ -19,7 +17,7 @@ export function useBackButton(onBack) {
           App.minimizeApp()
         }
       })
-    }).catch(() => {})
+    })
 
     return () => {
       if (App) App.removeAllListeners()

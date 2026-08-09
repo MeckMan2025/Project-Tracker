@@ -14,8 +14,7 @@ function genId() {
 }
 
 function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return new Date().toISOString().slice(0, 10)
 }
 
 const STATUS_COLORS = {
@@ -33,7 +32,6 @@ export default function AttendanceManager({ onBack }) {
   const [profiles, setProfiles] = useState([])
   const [selectedSession, setSelectedSession] = useState(null)
   const [editing, setEditing] = useState(false)
-  const [editingDate, setEditingDate] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
   // Fetch all sessions, records, and profiles
@@ -250,23 +248,6 @@ export default function AttendanceManager({ onBack }) {
     }
   }
 
-  const handleChangeDate = async (newDate) => {
-    if (!newDate || !selectedSession) return
-    const updated = { ...selectedSession, session_date: newDate }
-    setSelectedSession(updated)
-    setSessions(prev => prev.map(s => s.id === updated.id ? updated : s))
-    setEditingDate(false)
-    try {
-      await fetch(`${REST_URL}/rest/v1/attendance_sessions?id=eq.${selectedSession.id}`, {
-        method: 'PATCH', headers: REST_JSON,
-        body: JSON.stringify({ session_date: newDate }),
-      })
-      showFeedback('Date updated.')
-    } catch (err) {
-      console.error('Failed to update date:', err)
-    }
-  }
-
   const sessionRecords = selectedSession
     ? records.filter(r => r.session_id === selectedSession.id).sort((a, b) => a.username.localeCompare(b.username))
     : []
@@ -289,7 +270,7 @@ export default function AttendanceManager({ onBack }) {
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-lg mx-auto space-y-4">
           <button
-            onClick={() => { setSelectedSession(null); setEditing(false); setEditingDate(false); setAddingUser(false) }}
+            onClick={() => { setSelectedSession(null); setEditing(false); setAddingUser(false) }}
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             <ArrowLeft size={14} /> Back to Sessions
@@ -297,24 +278,10 @@ export default function AttendanceManager({ onBack }) {
 
           <div className="flex items-center justify-between">
             <div>
-              {editing && editingDate ? (
-                <input
-                  type="date"
-                  defaultValue={selectedSession.session_date}
-                  onChange={(e) => handleChangeDate(e.target.value)}
-                  onBlur={() => setEditingDate(false)}
-                  className="text-lg font-bold text-gray-800 border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                  autoFocus
-                />
-              ) : (
-                <h2
-                  className={`text-lg font-bold text-gray-800 ${editing ? 'cursor-pointer hover:underline' : ''}`}
-                  onClick={() => editing && setEditingDate(true)}
-                >
-                  {new Date(selectedSession.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
-                </h2>
-              )}
-              <p className="text-xs text-gray-400">Created by {selectedSession.created_by}{editing && !editingDate && ' — tap date to change'}</p>
+              <h2 className="text-lg font-bold text-gray-800">
+                {new Date(selectedSession.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+              </h2>
+              <p className="text-xs text-gray-400">Created by {selectedSession.created_by}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -455,7 +422,7 @@ export default function AttendanceManager({ onBack }) {
                 >
                   <div>
                     <p className="text-sm font-medium text-gray-700">
-                      {new Date(s.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                     </p>
                     <p className="text-xs text-gray-400">by {s.created_by}</p>
                   </div>
