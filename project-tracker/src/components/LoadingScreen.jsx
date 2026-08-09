@@ -1,12 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 
 function LoadingScreen({ onComplete, onMusicStart }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
-  const [shown, setShown] = useState(false)
   const tappedRef = useRef(false)
-
-  useEffect(() => { const t = setTimeout(() => setShown(true), 60); return () => clearTimeout(t) }, [])
 
   const startMusic = () => {
     const pref = localStorage.getItem('scrum-music-pref') || 'off'
@@ -25,7 +22,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
 
   const finishLoading = useCallback(() => {
     setIsFading(true)
-    setTimeout(() => { setIsVisible(false); onComplete() }, 500)
+    setTimeout(() => { setIsVisible(false); onComplete() }, 600)
   }, [onComplete])
 
   const handleTap = () => {
@@ -37,36 +34,58 @@ function LoadingScreen({ onComplete, onMusicStart }) {
 
   if (!isVisible) return null
 
-  const rise = (delay = 0) => ({
-    opacity: shown ? 1 : 0,
-    transform: shown ? 'translateY(0)' : 'translateY(16px)',
-    transition: `opacity .6s ease ${delay}ms, transform .6s cubic-bezier(.2,.8,.2,1) ${delay}ms`,
-  })
-
   return (
     <div
       onClick={handleTap}
-      className={`fixed inset-0 z-50 transition-opacity duration-500 cursor-pointer overflow-hidden ${isFading ? 'opacity-0' : 'opacity-100'}`}
-      style={{ backgroundImage: 'url("/Background.png")', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+      className={`fixed inset-0 z-50 cursor-pointer overflow-hidden transition-opacity duration-[600ms] ${isFading ? 'opacity-0' : 'opacity-100'}`}
+      style={{ background: 'radial-gradient(circle at 50% 38%, #191225 0%, #0a0710 55%, #05040a 100%)' }}
     >
-      {/* scrim so content always reads well over the photo */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/15 to-slate-900/55" />
+      <style>{`
+        @keyframes glowUp {
+          0%   { opacity: 0; transform: translateY(8px) scale(1.28); filter: blur(10px); text-shadow: none; }
+          55%  { opacity: 1; filter: blur(0); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0);
+                 text-shadow: 0 0 10px rgba(255,255,255,.95), 0 0 26px rgba(255,110,70,.95), 0 0 54px rgba(255,80,60,.75), 0 0 90px rgba(255,80,60,.45); }
+        }
+        @keyframes titlePulse {
+          0%,100% { filter: drop-shadow(0 0 12px rgba(255,90,60,.45)); }
+          50%     { filter: drop-shadow(0 0 30px rgba(255,130,90,.9)); }
+        }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        @keyframes sweep { 0% { transform: translateX(-160%) skewX(-18deg); } 100% { transform: translateX(160%) skewX(-18deg); } }
+        .pre { animation: fadeUp .9s ease .15s both; }
+        .scrum { animation: titlePulse 3.4s ease-in-out 2s infinite; position: relative; }
+        .scrum .ltr { display: inline-block; opacity: 0; color: #fff; animation: glowUp 1.1s cubic-bezier(.2,.8,.2,1) forwards; }
+        .shine { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .shine::after { content: ''; position: absolute; top: -20%; bottom: -20%; width: 45%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+          animation: sweep 2.4s ease-in-out 1.7s infinite; }
+        .sub { animation: fadeUp 1s ease 2s both; }
+        .cta { animation: fadeUp 1s ease 2.6s both; }
+      `}</style>
 
-      <div className="relative h-full flex flex-col items-center justify-center px-5">
-        <div className="flex flex-col items-center text-center pointer-events-none" style={rise(0)}>
-          <div className="mb-4 w-24 h-24 rounded-[28px] bg-white/15 backdrop-blur-md ring-1 ring-white/40 flex items-center justify-center shadow-2xl">
-            <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-16 h-16 drop-shadow-lg" />
-          </div>
-          <h1 className="text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
-            Everything That's Scrum
-          </h1>
-          <p className="text-sm text-white/85 mt-2 font-semibold tracking-[0.15em] uppercase">Team 7196 · Radical Robotics</p>
-        </div>
+      {/* subtle drifting starfield vignette */}
+      <div className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1px 1px at 40% 80%, #fff, transparent), radial-gradient(1px 1px at 85% 25%, #fff, transparent)' }} />
 
-        {/* Tap to start */}
-        <div className="absolute bottom-14 left-1/2 -translate-x-1/2" style={rise(400)}>
-          <span className="animate-pulse text-sm font-bold text-slate-800 bg-white/90 backdrop-blur px-7 py-3 rounded-full shadow-2xl ring-1 ring-white/60">
-            Tap anywhere to start ✨
+      <div className="relative h-full flex flex-col items-center justify-center px-6 text-center">
+        <p className="pre text-white/60 tracking-[0.55em] text-xs sm:text-sm font-semibold uppercase mb-3 ml-[0.55em]">
+          Everything That's
+        </p>
+
+        <h1 className="scrum text-[19vw] sm:text-8xl font-black leading-none tracking-tight">
+          <span className="shine" />
+          {'SCRUM'.split('').map((ch, i) => (
+            <span key={i} className="ltr" style={{ animationDelay: `${0.4 + i * 0.16}s` }}>{ch}</span>
+          ))}
+        </h1>
+
+        <p className="sub text-white/70 tracking-[0.35em] text-xs sm:text-sm font-semibold uppercase mt-5">
+          Team 7196 · Radical Robotics
+        </p>
+
+        <div className="cta absolute bottom-14 left-1/2 -translate-x-1/2">
+          <span className="text-sm font-bold text-white/90 tracking-widest uppercase border border-white/25 px-6 py-2.5 rounded-full backdrop-blur-sm animate-pulse">
+            Tap to enter
           </span>
         </div>
       </div>
