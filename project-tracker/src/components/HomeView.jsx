@@ -368,51 +368,7 @@ function HomeView({ onTabChange, onOpenTask }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
-        {/* Hero */}
-        <section className="relative overflow-hidden rounded-2xl p-5 shadow-lg text-white bg-gradient-to-br from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark">
-          <div className="absolute -right-8 -top-10 w-40 h-40 rounded-full bg-white/10" />
-          <div className="absolute -left-10 -bottom-12 w-44 h-44 rounded-full bg-white/10" />
-          <div className="relative">
-            <p className="text-white/80 text-sm">Welcome back{username ? `, ${username}` : ''} 👋</p>
-            <h1 className="text-2xl font-extrabold leading-tight mt-0.5">Everything That's Radical</h1>
-            <p className="text-white/70 text-xs font-medium">FTC Team 7196 · Let's build something radical</p>
-            <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-3 flex items-center gap-3">
-              <Rocket size={22} className="text-white shrink-0" />
-              {kickoffPassed ? (
-                <div><p className="font-bold">Season is live! 🎉</p><p className="text-white/70 text-xs">Go get 'em.</p></div>
-              ) : (
-                <div className="flex-1">
-                  <p className="text-white/70 text-[11px] uppercase tracking-wide font-semibold">Season kickoff in</p>
-                  <div className="flex gap-3 mt-1">
-                    {[['days', countdown.days], ['hrs', countdown.hours], ['min', countdown.mins], ['sec', countdown.secs]].map(([l, v]) => (
-                      <div key={l} className="text-center">
-                        <div className="text-2xl font-extrabold tabular-nums leading-none">{String(v).padStart(2, '0')}</div>
-                        <div className="text-[10px] text-white/60 uppercase">{l}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Quick access tiles */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { id: 'tasks', emoji: '🗂️', label: 'Scrum', c: 'from-blue-400 to-blue-500' },
-            { id: 'calendar', emoji: '📅', label: 'Calendar', c: 'from-pink-400 to-pink-500' },
-            { id: 'scouting', emoji: '🔭', label: 'Scouting', c: 'from-orange-400 to-orange-500' },
-            { id: 'notebook', emoji: '📓', label: 'Notebook', c: 'from-emerald-400 to-emerald-500' },
-            { id: 'workshops', emoji: '🛠️', label: 'Workshops', c: 'from-violet-400 to-violet-500' },
-            { id: 'data', emoji: '📊', label: 'Data', c: 'from-cyan-400 to-cyan-500' },
-          ].map((t) => (
-            <button key={t.id} onClick={() => onTabChange(t.id)} className={`rounded-2xl p-3 text-white shadow-sm bg-gradient-to-br ${t.c} flex flex-col items-center gap-1 hover:brightness-105 active:scale-95 transition`}>
-              <span className="text-2xl">{t.emoji}</span>
-              <span className="text-xs font-bold">{t.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* Season Timeline (top of the Home Page) */}
 
         {/* Cleanup Chart — current cleanup duty assignments */}
         {cleanupRows.length > 0 && (
@@ -530,26 +486,130 @@ function HomeView({ onTabChange, onOpenTask }) {
           </div>
         </div>
 
-        {/* Next event */}
-        <button onClick={() => onTabChange('calendar')} className="w-full text-left bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pastel-pink to-pastel-orange flex items-center justify-center shrink-0">
-            <Calendar size={22} className="text-white" />
+        {/* Sticky-note board: Assigned Objective (big notebook) + Season Kickoff + Next Meeting */}
+        <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start pt-2">
+
+          {/* BIG notebook-paper sticky note — My Assigned Objective */}
+          <div className="relative w-full md:flex-1 -rotate-[0.4deg]">
+            {/* piece of tape */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-amber-200/50 border border-amber-100/70 rotate-2 shadow-sm rounded-[2px] z-10" />
+            <div
+              className="relative rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
+              style={{ background: '#ffffff' }}
+            >
+              {/* pink margin line */}
+              <div className="absolute top-0 bottom-0 left-9 w-[2px] bg-pink-300/60" />
+              <div className="flex items-center gap-2 mb-2">
+                <Target size={20} className="text-pastel-blue-dark" />
+                <h2 className="text-3xl leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
+                  My Assigned Objective
+                </h2>
+              </div>
+              <div className="mt-1">
+                {myTasks.length === 0 && (
+                  <div className="flex items-center h-9" style={{ borderBottom: '1px solid rgba(59,130,246,0.45)' }}>
+                    <span className="text-2xl text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>Nothing assigned yet…</span>
+                  </div>
+                )}
+                {myTasks.map((task, i) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-2.5 h-9"
+                    style={{ borderBottom: `1px solid ${i % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-pastel-blue-dark shrink-0" />
+                    <span
+                      className="flex-1 text-2xl text-gray-700 truncate"
+                      style={{ fontFamily: "'Kalam', cursive" }}
+                    >
+                      {task.title}
+                    </span>
+                    <button
+                      onClick={() => onOpenTask?.(task.board_id, task.id)}
+                      className="shrink-0 flex items-center gap-0.5 text-sm font-semibold text-pastel-blue-dark hover:underline"
+                    >
+                      View <ArrowRight size={13} />
+                    </button>
+                  </div>
+                ))}
+                {/* filler ruled lines so it always looks like notebook paper */}
+                {Array.from({ length: Math.max(0, (myTasks.length === 0 ? 5 : 6) - myTasks.length) }).map((_, i) => {
+                  const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
+                  return (
+                    <div
+                      key={`filler-${i}`}
+                      className="h-9"
+                      style={{ borderBottom: `1px solid ${idx % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
+                    />
+                  )
+                })}
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{nextEvent?.event_type === 'competition' ? 'Next Competition' : 'Next Meeting'}</p>
-            {eventLoading ? (
-              <p className="text-sm text-gray-400 animate-pulse">Loading…</p>
-            ) : nextEvent ? (
-              <>
-                <p className="font-bold text-gray-800 truncate">{nextEvent.title || nextEvent.name}</p>
-                <p className="text-xs text-gray-500">{formatDate(nextEvent.date_key)}{daysUntil !== null ? ` · ${daysUntil === 0 ? 'Today!' : daysUntil + (daysUntil === 1 ? ' day away' : ' days away')}` : ''}</p>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">No meetings scheduled</p>
-            )}
+
+          {/* RIGHT column — two smaller sticky notes */}
+          <div className="w-full md:w-56 flex flex-col gap-5 shrink-0">
+
+            {/* Season Kickoff sticky note (blue→pink→orange ombre) */}
+            <div
+              className="relative rounded-md shadow-[0_6px_18px_rgba(0,0,0,0.12)] rotate-1 p-4 text-center"
+              style={{ background: 'linear-gradient(140deg, #dbeafe 0%, #fce7f3 55%, #ffedd5 100%)' }}
+            >
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white/50 border border-white/60 -rotate-3 rounded-[2px]" />
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Rocket size={15} className="text-pastel-blue-dark" />
+                <p className="text-lg leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>Season Kickoff</p>
+              </div>
+              {kickoffPassed ? (
+                <p className="text-xl text-gray-700 py-2" style={{ fontFamily: "'Kalam', cursive" }}>🎉 Kicked off!</p>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold text-gray-700 tabular-nums leading-tight" style={{ fontFamily: "'Kalam', cursive" }}>
+                    {countdown.days}
+                  </p>
+                  <p className="text-xs text-gray-500 -mt-1">
+                    {countdown.days === 1 ? 'day' : 'days'} · {String(countdown.hours).padStart(2, '0')}:{String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
+                  </p>
+                </>
+              )}
+              <p className="text-[11px] text-gray-500 mt-2">
+                {SEASON_KICKOFF.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+
+            {/* Next Meeting sticky note (blue→pink→orange ombre) */}
+            <button
+              onClick={() => onTabChange('calendar')}
+              className="relative rounded-md shadow-[0_6px_18px_rgba(0,0,0,0.12)] -rotate-1 p-4 text-left w-full hover:brightness-[0.98] transition-all"
+              style={{ background: 'linear-gradient(140deg, #dbeafe 0%, #fce7f3 55%, #ffedd5 100%)' }}
+            >
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white/50 border border-white/60 rotate-3 rounded-[2px]" />
+              <div className="flex items-center gap-1.5 mb-1">
+                <Calendar size={15} className="text-pastel-pink-dark" />
+                <p className="text-lg leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
+                  {nextEvent?.event_type === 'competition' ? 'Next Competition' : 'Next Meeting'}
+                </p>
+              </div>
+              {eventLoading ? (
+                <p className="text-sm text-gray-500 animate-pulse">Loading…</p>
+              ) : nextEvent ? (
+                <>
+                  <p className="text-xl text-gray-800 leading-tight truncate" style={{ fontFamily: "'Kalam', cursive" }}>
+                    {nextEvent.title || nextEvent.name}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{formatDate(nextEvent.date_key)}</p>
+                  {daysUntil !== null && (
+                    <p className="text-2xl font-bold text-gray-700 leading-tight mt-1" style={{ fontFamily: "'Kalam', cursive" }}>
+                      {daysUntil === 0 ? 'Today!' : <>{daysUntil} <span className="text-lg font-normal">{daysUntil === 1 ? 'day' : 'days'} away</span></>}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500" style={{ fontFamily: "'Kalam', cursive" }}>No meetings scheduled</p>
+              )}
+            </button>
           </div>
-          <ArrowRight size={18} className="text-gray-300 shrink-0" />
-        </button>
+        </div>
 
         {/* Engineering Notebook photo gallery */}
         <NotebookGallery onTabChange={onTabChange} />
