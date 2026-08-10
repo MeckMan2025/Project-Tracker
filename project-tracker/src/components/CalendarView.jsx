@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { ROLE_NAMES } from '../data/roleTrackers'
 import { usePermissions } from '../hooks/usePermissions'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import NotificationBell from './NotificationBell'
@@ -127,7 +128,13 @@ function expandRecurrence(event, from, to) {
 // ---------------------------------------------------------------------------
 function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const { username, user, functionTags } = useUser()
-  const { canEditContent, canReviewRequests, isGuest, canAddEvents } = usePermissions()
+  const { canEditContent, canReviewRequests, isGuest, canAddEvents, hasLeadTag } = usePermissions()
+  // A non-lead's events are tagged with the functional role that let them
+  // create it — Outreach can only add Outreach events. Leads create team-wide
+  // events (role stays null).
+  const eventRole = hasLeadTag
+    ? null
+    : (functionTags || []).find(t => ROLE_NAMES.includes(t)) || null
   const isCofounder = (functionTags || []).includes('Co-Founder')
   const { addToast } = useToast()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe } = usePushNotifications()
@@ -366,6 +373,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       recurrence_until: payload.recurrence_until || '',
       exception_dates: [],
       assigned_to: payload.assigned_to || [],
+      role: eventRole,
     }
 
     // Close the modal immediately — never block the UI on the network round-trip.
