@@ -422,14 +422,14 @@ function HomeView({ onTabChange, onOpenTask }) {
         {/* Role dashboard(s) for the current user */}
         <MyDashboard />
         {/* Sticky-note board: Assigned Objective (big notebook) + Season Kickoff + Next Meeting */}
-        <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start pt-2">
+        <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch pt-2">
 
           {/* BIG notebook-paper sticky note — My Assigned Objective */}
-          <div className="relative w-full md:flex-1 -rotate-[0.4deg]">
+          <div className="relative w-full md:flex-1 flex -rotate-[0.4deg]">
             {/* piece of tape */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-amber-200/50 border border-amber-100/70 rotate-2 shadow-sm rounded-[2px] z-10" />
             <div
-              className="relative rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
+              className="relative flex-1 rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
               style={{ background: '#ffffff' }}
             >
               {/* pink margin line */}
@@ -482,7 +482,7 @@ function HomeView({ onTabChange, onOpenTask }) {
             </div>
           </div>
 
-          {/* RIGHT column — two smaller sticky notes */}
+          {/* RIGHT column — smaller sticky notes */}
           <div className="w-full md:w-56 flex flex-col gap-5 shrink-0">
 
             {/* Season Kickoff sticky note (blue→pink→orange ombre) */}
