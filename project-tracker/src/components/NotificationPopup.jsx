@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 // Emoji per role — pick something that fits the job.
@@ -82,7 +83,7 @@ export default function NotificationPopup({ notification, onClose }) {
   // ── Celebration modal ──
   if (isCelebration) {
     const role = data.role || 'team member'
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <style>{`
           @keyframes celebrate-pop {
@@ -110,12 +111,13 @@ export default function NotificationPopup({ notification, onClose }) {
             Let’s go! 🎉
           </button>
         </div>
-      </div>
+      </div>,
+      document.body
     )
   }
 
   // ── Small card (other notifications) ──
-  return (
+  return createPortal(
     <div className="fixed z-[100] top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 w-[calc(100%-2rem)] sm:w-80 animate-slide-in-right">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 flex items-start gap-3">
         <div className="text-3xl leading-none shrink-0 mt-0.5">{pickEmoji(notification)}</div>
@@ -127,6 +129,7 @@ export default function NotificationPopup({ notification, onClose }) {
           <X size={16} className="text-gray-400" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
