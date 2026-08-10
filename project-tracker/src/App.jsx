@@ -226,17 +226,17 @@ function getCachedData() {
 }
 
 const ROLE_EMOJIS = {
-  'Website': { emoji: '💻', label: 'Web Developer' },
-  'Build': { emoji: '🔧', label: 'Builder' },
+  'Communications': { emoji: '📣', label: 'Communications' },
+  'Finance': { emoji: '💰', label: 'Finance' },
+  'Outreach': { emoji: '🌍', label: 'Outreach' },
   'CAD': { emoji: '📐', label: 'CAD Designer' },
-  'Scouting': { emoji: '🔍', label: 'Scout' },
-  'Business': { emoji: '🤝', label: 'Business Specialist' },
-  'Communications': { emoji: '📣', label: 'Communications Lead' },
+  'Build': { emoji: '🔧', label: 'Builder' },
   'Programming': { emoji: '⌨️', label: 'Programmer' },
+  'Scouting': { emoji: '🔍', label: 'Scout' },
   'Co-Founder': { emoji: '👑', label: 'Co-Founder' },
   'Mentor': { emoji: '🎓', label: 'Mentor' },
   'Coach': { emoji: '🏆', label: 'Coach' },
-  'Team Lead': { emoji: '🚀', label: 'Team Lead' },
+  'Project Manager': { emoji: '🚀', label: 'Project Manager' },
   'Business Lead': { emoji: '💼', label: 'Business Lead' },
   'Technical Lead': { emoji: '⚙️', label: 'Technical Lead' },
 }
@@ -1263,24 +1263,13 @@ function App() {
               <NotificationBell />
             </div>
           </header>
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-4">
-          <div className="text-center">
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent mb-2">
-              AI Manual
-            </h1>
-            <p className="text-gray-500">Ask questions about the FTC Competition Manual</p>
-          </div>
-          <a
-            href="https://ftc-cmchatbot.firstinspires.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 bg-pastel-pink hover:bg-pastel-pink-dark rounded-xl font-semibold text-gray-700 shadow-md transition-colors text-lg"
-          >
-            Open FTC AI Chatbot
-          </a>
-          <p className="text-xs text-gray-400 text-center max-w-sm">
-            Powered by FIRST. Trained on the current Competition Manual — always verify answers against the official manual.
-          </p>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div className="text-7xl mb-5 animate-bounce">🚧</div>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-700 mb-2">Under Construction</h2>
+            <p className="text-gray-500 max-w-sm">
+              <span className="font-semibold text-pastel-blue-dark">Kayden</span> and{' '}
+              <span className="font-semibold text-pastel-pink-dark">Yukti</span> are working on it 🛠️
+            </p>
           </div>
         </div>
       ) : activeTab === 'org-chart' ? (

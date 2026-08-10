@@ -10,11 +10,21 @@ import { getSideStyle } from '../utils/sideColors'
 import { ROLE_GUIDE } from '../data/roleGuide'
 
 const ALL_ROLES = [
-  'Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
-  'Website', 'Build', 'CAD', 'Scouting', 'Business', 'Communications', 'Programming', 'Guest',
+  'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead',
+  'Communications', 'Finance', 'Outreach',
+  'CAD', 'Build', 'Programming', 'Scouting', 'Guest',
 ]
 
 const PERMANENT_COFOUNDER_NAMES = ['yukti', 'kayden']
+
+// Permanent accounts that NO ONE can delete (protected in the UI + delete guard).
+// everythingthatsscrum@gmail.com is the team's permanent Co-Founder account ("ETS").
+const PROTECTED_MEMBER_IDS = ['0c5bee06-ac67-42a0-a43b-50be4b20d984']
+const PROTECTED_MEMBER_NAMES = ['ets', 'everythingthatsscrum']
+const isPermanentMember = (m) => !!m && (
+  PROTECTED_MEMBER_IDS.includes(m.id) ||
+  PROTECTED_MEMBER_NAMES.includes((m.display_name || '').trim().toLowerCase())
+)
 
 const LEAGUES = [
   'Machu Picchu League',
@@ -31,16 +41,16 @@ const ROLE_DESCRIPTIONS = {
   'Co-Founder': 'Team co-founder with full administrative access',
   'Mentor': 'Adult mentor providing guidance and oversight',
   'Coach': 'Team coach supervising strategy and development',
-  'Team Lead': 'Overall team lead coordinating all sub-teams',
+  'Project Manager': 'Coordinates timelines, tasks, and all sub-teams',
   'Business Lead': 'Leads business plan, outreach, and fundraising',
   'Technical Lead': 'Leads robot design, build, and programming',
-  'Website': 'Manages the team website and online presence',
-  'Build': 'Builds and assembles the physical robot',
+  'Communications': 'Team communications, the team website, and social media',
+  'Finance': 'Manages the budget, fundraising, and reimbursements',
+  'Outreach': 'Runs community events and STEM outreach',
   'CAD': 'Creates 3D models and technical drawings',
-  'Scouting': 'Collects and analyzes match data at competitions',
-  'Business': 'Manages outreach, partnerships, and business operations',
-  'Communications': 'Handles social media and team communications',
+  'Build': 'Builds and assembles the physical robot',
   'Programming': 'Writes and maintains robot control software',
+  'Scouting': 'Collects and analyzes match data at competitions',
   'Guest': 'Limited access — can view boards, tasks, and calendar only',
 }
 
@@ -619,6 +629,10 @@ function UserManagement({ onViewProfile }) {
 
   const handleDeleteMember = async () => {
     setDeleteError('')
+    if (isPermanentMember(deleteTarget)) {
+      setDeleteError('This is a permanent account and cannot be deleted.')
+      return
+    }
     setDeleteSubmitting(true)
     try {
       const headers = await getAuthHeaders()
@@ -1177,7 +1191,6 @@ function UserManagement({ onViewProfile }) {
                 (() => {
                   const isTeamAccount = (m) => (m.function_tags || []).includes('Team')
                   const regularMembers = registeredMembers.filter(m => !isTeamAccount(m))
-                  const teamMembers = registeredMembers.filter(m => isTeamAccount(m))
 
                   // Sort co-founders first
                   const isCofounder = (m) => PERMANENT_COFOUNDER_NAMES.some(n => m.display_name?.toLowerCase().includes(n))
@@ -1224,7 +1237,14 @@ function UserManagement({ onViewProfile }) {
                               >
                                 <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
                               </button>
-                              {!isSelf && (
+                              {!isSelf && isPermanentMember(member) ? (
+                                <span
+                                  title="Permanent account — cannot be deleted"
+                                  className="p-1.5 rounded-lg"
+                                >
+                                  <Shield size={14} className="text-pastel-pink-dark" />
+                                </span>
+                              ) : !isSelf && (
                                 <button
                                   onClick={() => { setDeleteTarget(member); setDeleteError('') }}
                                   title="Delete member"
@@ -1258,17 +1278,10 @@ function UserManagement({ onViewProfile }) {
                     )
                   }
 
+                  // Team accounts live in the TeamRo tab, not under RadMems.
                   return (
                     <>
                       {sorted.map(renderMember)}
-                      {teamMembers.length > 0 && (
-                        <>
-                          <div className="mt-6 mb-2">
-                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Team Accounts ({teamMembers.length})</h3>
-                          </div>
-                          {teamMembers.map(renderMember)}
-                        </>
-                      )}
                     </>
                   )
                 })()

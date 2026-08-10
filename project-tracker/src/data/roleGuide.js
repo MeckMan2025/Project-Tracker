@@ -90,31 +90,14 @@ export const ROLE_GUIDE = [
         ],
       },
       {
-        name: 'Website',
-        summary: "Maintains the team's public website and keeps its information accurate, useful, and current.",
-        objectives: [
-          'Update team member, sponsor, event, and robot information.',
-          'Publish outreach and competition updates.',
-          'Make the site easy to navigate and mobile-friendly.',
-          'Protect private student information.',
-          'Check links, forms, and pages for problems.',
-        ],
-        sources: [
-          'Business and communications leads',
-          'Outreach and competition results',
-          'Sponsor-recognition agreements',
-          'Branding and student privacy guidelines',
-          'Information submitted by team members',
-        ],
-      },
-      {
-        name: 'Communication',
-        summary: 'Manages important written communication within the team and with outside organizations.',
+        name: 'Communications',
+        summary: 'Manages written communication and the team website, keeping team info accurate and current.',
         objectives: [
           'Share schedules, deadlines, and team announcements.',
           'Write professional emails and thank-you messages.',
           'Contact sponsors, event organizers, and community partners.',
           'Maintain consistent team messaging.',
+          'Update the team website with member, sponsor, event, and robot info.',
           'Keep records of important conversations and commitments.',
         ],
         sources: [

@@ -14,7 +14,8 @@ function TasksView({ tasksByTab, tabs }) {
   const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
   const filteredTasksByTab = {}
   for (const tab of boardTabs) {
-    const tasks = tasksByTab[tab.id] || []
+    // Hide completed/done tasks here — they live in each board's own Completed section.
+    const tasks = (tasksByTab[tab.id] || []).filter(t => t.status !== 'done' && t.status !== 'completed')
     const filtered = filter === 'mine'
       ? tasks.filter(t => t.assignee && t.assignee.toLowerCase() === username?.toLowerCase())
       : tasks

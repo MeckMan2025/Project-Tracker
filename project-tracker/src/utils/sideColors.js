@@ -2,9 +2,9 @@
 // marbled color style when they belong to more than one side.
 //
 // Sides:
-//   pink   = Leadership / Mentorship (Mentor, Coach, Co-Founder, Team Lead)
-//   orange = Business                (Business, Business Lead, Outreach)
-//   blue   = Technical               (Technical Lead, Programming, CAD, Build, Website, Scouting)
+//   pink   = Leadership / Mentorship (Mentor, Coach, Co-Founder, Project Manager)
+//   orange = Business                (Business, Business Lead, Outreach, Communications, Social Media)
+//   blue   = Technical               (Technical Lead, Programming, CAD, Build, Scouting)
 
 export const SIDE_HEX = {
   pink: '#ec4899',
@@ -22,15 +22,16 @@ const TAG_SIDE = {
   'Mentor': 'pink',
   'Coach': 'pink',
   'Co-Founder': 'pink',
-  'Team Lead': 'pink',
+  'Project Manager': 'pink',
   'Business': 'orange',
   'Business Lead': 'orange',
+  'Communications': 'orange',
+  'Finance': 'orange',
   'Outreach': 'orange',
   'Technical Lead': 'blue',
-  'Programming': 'blue',
   'CAD': 'blue',
   'Build': 'blue',
-  'Website': 'blue',
+  'Programming': 'blue',
   'Scouting': 'blue',
 }
 
