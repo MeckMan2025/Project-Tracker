@@ -2,12 +2,18 @@
 //
 // Each role has a set of trackers. A tracker has:
 //   id, role, name, type, visibility, value, (unit?, target?)
-//   type:        'number' | 'progress' | 'checklist' | 'note'
+//   type:        'number' | 'progress' | 'checklist' | 'note' | 'event'
 //   visibility:  'public'  -> shown in the Data tab's role subtab (everyone)
 //                'role'    -> shown only on the dashboard (Home) of that role
 //   value:       number (number/progress) | string (note) | [{text, done}] (checklist)
+//                | {title, date, location, details} (event)
 //
 // Trackers are stored in one JSON doc so no new table/migration is needed.
+
+// Bump this whenever SEED_TRACKERS gains new entries. On load, any seed whose id
+// isn't in the saved doc gets appended once, then the doc records the new version
+// so a tracker a lead later deletes stays deleted instead of coming back.
+export const SEED_VERSION = 2
 
 export const DASHBOARD_ROLES = [
   { role: 'Communications', side: 'business' },
@@ -44,8 +50,11 @@ export const SEED_TRACKERS = [
   { id: 'fin-expenses', role: 'Finance', name: 'Expense Log', type: 'checklist', value: [], visibility: 'role' },
 
   // Outreach
-  { id: 'out-events', role: 'Outreach', name: 'Events Held', type: 'number', value: 0, visibility: 'public' },
+  { id: 'out-events', role: 'Outreach', name: 'Events This Season', type: 'number', value: 0, visibility: 'public' },
   { id: 'out-reached', role: 'Outreach', name: 'People Reached', type: 'number', value: 0, visibility: 'public' },
+  { id: 'out-hours', role: 'Outreach', name: 'Outreach Hours', type: 'number', unit: 'hrs', value: 0, visibility: 'public' },
+  { id: 'out-orgs', role: 'Outreach', name: 'Organizations Worked With', type: 'number', value: 0, visibility: 'public' },
+  { id: 'out-next', role: 'Outreach', name: 'Next Outreach Event', type: 'event', value: { title: '', date: '', location: '', details: '' }, visibility: 'public' },
   { id: 'out-upcoming', role: 'Outreach', name: 'Upcoming Events', type: 'checklist', value: [], visibility: 'role' },
 
   // CAD

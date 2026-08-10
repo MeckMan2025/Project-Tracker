@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
-import { SEED_TRACKERS } from '../data/roleTrackers'
+import { SEED_TRACKERS, SEED_VERSION } from '../data/roleTrackers'
 
 // All role trackers live in one JSON doc (scouting_schedule row id='role_trackers')
 // so the feature needs no new table or migration. Anon REST + realtime.
@@ -21,8 +21,16 @@ export function useRoleTrackers() {
         const res = await fetch(`${url}/rest/v1/scouting_schedule?id=eq.${DOC_ID}&select=data`, { headers })
         if (res.ok) {
           const rows = await res.json()
-          const t = rows?.[0]?.data?.trackers
-          apply(Array.isArray(t) && t.length ? t : SEED_TRACKERS)
+          const saved = rows?.[0]?.data?.trackers
+          if (!Array.isArray(saved) || !saved.length) { apply(SEED_TRACKERS); return }
+          // Append seeds added since the doc was last written, once.
+          const savedVersion = rows?.[0]?.data?.seedVersion || 1
+          if (savedVersion >= SEED_VERSION) { apply(saved); return }
+          const have = new Set(saved.map(t => t.id))
+          const merged = [...saved, ...SEED_TRACKERS.filter(t => !have.has(t.id))]
+          apply(merged)
+          // Write back so the merge (and the new seedVersion) is recorded once.
+          persist(merged)
         } else apply(SEED_TRACKERS)
       } catch { apply(SEED_TRACKERS) }
     })()
@@ -41,7 +49,7 @@ export function useRoleTrackers() {
       await fetch(`${url}/rest/v1/scouting_schedule`, {
         method: 'POST',
         headers: { ...headers, Prefer: 'resolution=merge-duplicates, return=minimal' },
-        body: JSON.stringify({ id: DOC_ID, data: { trackers: next } }),
+        body: JSON.stringify({ id: DOC_ID, data: { trackers: next, seedVersion: SEED_VERSION } }),
       })
     } catch { /* ignore */ }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

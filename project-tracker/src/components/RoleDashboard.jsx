@@ -121,6 +121,94 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
         )
       })()}
 
+      {/* EVENT — a single upcoming event with details + days-until countdown */}
+      {tracker.type === 'event' && (() => {
+        const ev = (draft && typeof draft === 'object' && !Array.isArray(draft)) ? draft : {}
+        const set = (k, v) => setDraft({ ...ev, [k]: v })
+        const commitEvent = () => commit(ev)
+        // Date is a discrete pick, so save it right away instead of waiting for blur.
+        const setDate = (v) => { const next = { ...ev, date: v }; setDraft(next); commit(next) }
+
+        // Parse the date-only string by hand so the local timezone can't shift the day.
+        const parsed = (() => {
+          const [y, m, d] = (ev.date || '').split('-').map(Number)
+          return (y && m && d) ? new Date(y, m - 1, d) : null
+        })()
+
+        const countdown = (() => {
+          if (!parsed) return null
+          const now = new Date()
+          const days = Math.round((parsed - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000)
+          if (days === 0) return { label: 'Today', cls: 'bg-green-100 text-green-700' }
+          if (days === 1) return { label: 'Tomorrow', cls: 'bg-green-100 text-green-700' }
+          if (days < 0) return { label: `${Math.abs(days)}d ago`, cls: 'bg-gray-100 text-gray-500' }
+          return { label: `in ${days}d`, cls: 'bg-orange-100 text-orange-700' }
+        })()
+
+        const pretty = parsed
+          ? parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+          : ''
+
+        if (editable) {
+          return (
+            <div className="space-y-1.5">
+              <input
+                value={ev.title || ''}
+                onChange={e => set('title', e.target.value)}
+                onBlur={commitEvent}
+                placeholder="Event name"
+                className="w-full text-sm font-semibold border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              />
+              <div className="flex gap-1.5">
+                <input
+                  type="date"
+                  value={ev.date || ''}
+                  onChange={e => setDate(e.target.value)}
+                  className="flex-1 min-w-0 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                />
+                {countdown && (
+                  <span className={`shrink-0 self-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${countdown.cls}`}>
+                    {countdown.label}
+                  </span>
+                )}
+              </div>
+              <input
+                value={ev.location || ''}
+                onChange={e => set('location', e.target.value)}
+                onBlur={commitEvent}
+                placeholder="Location"
+                className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              />
+              <textarea
+                rows={2}
+                value={ev.details || ''}
+                onChange={e => set('details', e.target.value)}
+                onBlur={commitEvent}
+                placeholder="Details — who's going, what to bring…"
+                className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
+              />
+            </div>
+          )
+        }
+
+        if (!ev.title && !ev.date) return <p className="text-sm italic text-gray-300">Nothing scheduled</p>
+        return (
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-bold text-gray-800 leading-tight">{ev.title || 'Untitled event'}</p>
+              {countdown && (
+                <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${countdown.cls}`}>
+                  {countdown.label}
+                </span>
+              )}
+            </div>
+            {pretty && <p className="text-xs text-gray-500 mt-0.5">{pretty}</p>}
+            {ev.location && <p className="text-xs text-gray-400">{ev.location}</p>}
+            {ev.details && <p className="text-sm text-gray-600 whitespace-pre-wrap mt-1.5">{ev.details}</p>}
+          </div>
+        )
+      })()}
+
       {/* NOTE */}
       {tracker.type === 'note' && (
         editable ? (
@@ -146,6 +234,7 @@ const TYPES = [
   { value: 'progress', label: 'Progress bar' },
   { value: 'checklist', label: 'Checklist' },
   { value: 'note', label: 'Note' },
+  { value: 'event', label: 'Event + details' },
 ]
 function AddTracker({ role, onAdd, onCancel }) {
   const [name, setName] = useState('')
@@ -160,6 +249,7 @@ function AddTracker({ role, onAdd, onCancel }) {
     if (type === 'number') { t.value = 0; if (unit) t.unit = unit }
     else if (type === 'progress') { t.value = 0; t.target = Number(target) || 100; if (unit) t.unit = unit }
     else if (type === 'checklist') t.value = []
+    else if (type === 'event') t.value = { title: '', date: '', location: '', details: '' }
     else t.value = ''
     onAdd(t)
   }
