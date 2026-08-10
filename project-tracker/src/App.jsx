@@ -22,7 +22,7 @@ import RequestsView from './components/RequestsView'
 import RequestsBadge from './components/RequestsBadge'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
-import RoleDataView from './components/RoleDataView'
+import RoleSpec from './components/RoleSpec'
 import TeamScoutingData from './components/TeamScoutingData'
 import TeamHomeView from './components/TeamHomeView'
 import EngineeringNotebook from './components/EngineeringNotebook'
@@ -41,6 +41,7 @@ import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
 import DailyPulsePopup from './components/DailyPulsePopup'
 import TeamPulseDashboard from './components/TeamPulseDashboard'
+import { useAppSettings } from './hooks/useAppSettings'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
@@ -339,6 +340,7 @@ function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [specialView, setSpecialView] = useState(null)
+  const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings()
   const [loadError, setLoadError] = useState(null)
   const [landingChoice, setLandingChoice] = useState(null)
   const [viewingProfileId, setViewingProfileId] = useState(null)
@@ -361,6 +363,7 @@ function App() {
   // Daily Pulse trigger — once per day per user, skippable, disable-able in settings
   useEffect(() => {
     if (!user?.id || effectiveIsTeam || isLoading) return
+    if (appSettings.teamPulseEnabled === false) return // team-wide off switch (Special Controls)
     const d = new Date()
     const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     if (localStorage.getItem(`pulse_skipped_${todayKey}`)) return
@@ -383,7 +386,7 @@ function App() {
       } catch {}
     })()
     return () => { cancelled = true }
-  }, [user?.id, effectiveIsTeam, isLoading])
+  }, [user?.id, effectiveIsTeam, isLoading, appSettings.teamPulseEnabled])
 
   // Comp Day screen captivation — check if there's a live session with an active block and user has a role
   useEffect(() => {
@@ -1300,8 +1303,8 @@ function App() {
         <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
-      ) : activeTab.startsWith('role-data:') ? (
-        <RoleDataView role={activeTab.slice('role-data:'.length)} />
+      ) : activeTab === 'role-spec' ? (
+        <RoleSpec />
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
@@ -1377,13 +1380,26 @@ function App() {
                       <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
                     </button>
                     {hasLeadTag && (
-                      <button
-                        onClick={() => setSpecialView('team-pulse')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                      >
-                        <span className="text-lg font-semibold text-gray-700">Team Pulse</span>
-                        <p className="text-sm text-gray-400 mt-1">Anonymous mood, focus, and frustration trends</p>
-                      </button>
+                      <div className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
+                        <button onClick={() => setSpecialView('team-pulse')} className="text-left w-full hover:opacity-80 transition-opacity">
+                          <span className="text-lg font-semibold text-gray-700">Team Pulse</span>
+                          <p className="text-sm text-gray-400 mt-1">Anonymous mood, focus, and frustration trends</p>
+                        </button>
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Daily Pulse check-in</p>
+                            <p className="text-xs text-gray-400">{appSettings.teamPulseEnabled === false ? 'Off — no one gets the popup' : 'On — members get the daily popup'}</p>
+                          </div>
+                          <button
+                            onClick={() => updateAppSettings({ teamPulseEnabled: appSettings.teamPulseEnabled === false })}
+                            role="switch"
+                            aria-checked={appSettings.teamPulseEnabled !== false}
+                            className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${appSettings.teamPulseEnabled === false ? 'bg-gray-300' : 'bg-green-400'}`}
+                          >
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${appSettings.teamPulseEnabled === false ? '' : 'translate-x-6'}`} />
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1499,7 +1515,7 @@ function App() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
           <div className="px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4 ml-10">
+            <div className="flex items-center gap-4 ml-14">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
                   Everything That's Scrum

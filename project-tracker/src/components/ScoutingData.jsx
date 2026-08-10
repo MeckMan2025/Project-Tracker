@@ -476,7 +476,7 @@ function ScoutingData() {
     {addTeamModal}
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4 ml-10 flex items-center justify-between">
+        <div className="px-4 py-4 ml-14 flex items-center justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Scouting Data

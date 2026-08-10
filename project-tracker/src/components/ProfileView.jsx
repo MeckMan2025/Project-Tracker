@@ -386,7 +386,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
             <div className="py-4 px-4 flex items-center justify-between">
-              <button onClick={onClearViewing} className="ml-10 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">&larr; Back</button>
+              <button onClick={onClearViewing} className="ml-14 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">&larr; Back</button>
               <div className="flex-1 text-center">
                 <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">Profile</h1>
               </div>
@@ -413,7 +413,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
           <div className="py-4 px-4 flex items-center justify-between">
-            <button onClick={onClearViewing} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">&larr; Back</button>
+            <button onClick={onClearViewing} className="ml-14 md:ml-0 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">&larr; Back</button>
             <div className="flex-1 text-center">
               <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
                 {vp.display_name || 'Profile'}

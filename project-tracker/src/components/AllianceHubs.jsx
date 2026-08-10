@@ -248,7 +248,7 @@ function AllianceHubs() {
     return (
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-          <div className="py-4 px-4 flex items-center gap-3">
+          <div className="py-4 px-4 pl-14 md:pl-4 flex items-center gap-3">
             <button onClick={() => setActiveHub(null)} className="p-1 hover:bg-gray-100 rounded-lg">
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
