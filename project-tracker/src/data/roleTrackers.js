@@ -67,42 +67,42 @@ export const sideForRole = (role) => (DASHBOARD_ROLES.find(r => r.role === role)
 // Starter trackers — shown until leads customize them in-app.
 export const SEED_TRACKERS = [
   // Communications
-  { id: 'com-sponsors', role: 'Communications', name: 'Sponsors Contacted', type: 'number', value: 0, visibility: 'public' },
-  { id: 'com-posts', role: 'Communications', name: 'Social Posts', type: 'number', value: 0, visibility: 'public' },
-  { id: 'com-todo', role: 'Communications', name: 'To Post / Update', type: 'checklist', value: [], visibility: 'role' },
+  { id: 'com-sponsors', icon: '🤝', role: 'Communications', name: 'Sponsors Contacted', type: 'number', value: 0, visibility: 'public' },
+  { id: 'com-posts', icon: '📣', role: 'Communications', name: 'Social Posts', type: 'number', value: 0, visibility: 'public' },
+  { id: 'com-todo', icon: '📝', role: 'Communications', name: 'To Post / Update', type: 'checklist', value: [], visibility: 'role' },
 
   // Finance
-  { id: 'fin-budget', role: 'Finance', name: 'Budget Remaining', type: 'progress', unit: '$', target: 3000, value: 3000, visibility: 'public' },
-  { id: 'fin-raised', role: 'Finance', name: 'Funds Raised', type: 'number', unit: '$', value: 0, visibility: 'public' },
-  { id: 'fin-expenses', role: 'Finance', name: 'Expense Log', type: 'checklist', value: [], visibility: 'role' },
+  { id: 'fin-budget', icon: '💰', role: 'Finance', name: 'Budget Remaining', type: 'progress', unit: '$', target: 3000, value: 3000, visibility: 'public' },
+  { id: 'fin-raised', icon: '📈', role: 'Finance', name: 'Funds Raised', type: 'number', unit: '$', value: 0, visibility: 'public' },
+  { id: 'fin-expenses', icon: '🧾', role: 'Finance', name: 'Expense Log', type: 'checklist', value: [], visibility: 'role' },
 
   // Outreach
-  { id: 'out-events', role: 'Outreach', name: 'Events This Season', type: 'number', value: 0, visibility: 'public' },
-  { id: 'out-reached', role: 'Outreach', name: 'People Reached', type: 'number', value: 0, visibility: 'public' },
-  { id: 'out-hours', role: 'Outreach', name: 'Outreach Hours', type: 'number', unit: 'hrs', value: 0, visibility: 'public' },
-  { id: 'out-orgs', role: 'Outreach', name: 'Organizations Worked With', type: 'number', value: 0, visibility: 'public' },
+  { id: 'out-events', icon: '🎪', role: 'Outreach', name: 'Events This Season', type: 'number', value: 0, visibility: 'public' },
+  { id: 'out-reached', icon: '🙌', role: 'Outreach', name: 'People Reached', type: 'number', value: 0, visibility: 'public' },
+  { id: 'out-hours', icon: '⏱️', role: 'Outreach', name: 'Outreach Hours', type: 'number', unit: 'hrs', value: 0, visibility: 'public' },
+  { id: 'out-orgs', icon: '🏢', role: 'Outreach', name: 'Organizations Worked With', type: 'number', value: 0, visibility: 'public' },
   // No event entry here — events get their own tab. See RETIRED_SEED_IDS.
 
   // CAD
-  { id: 'cad-parts', role: 'CAD', name: 'Parts Designed', type: 'number', value: 0, visibility: 'public' },
-  { id: 'cad-todo', role: 'CAD', name: 'CAD To-Do', type: 'checklist', value: [], visibility: 'role' },
+  { id: 'cad-parts', icon: '📐', role: 'CAD', name: 'Parts Designed', type: 'number', value: 0, visibility: 'public' },
+  { id: 'cad-todo', icon: '📝', role: 'CAD', name: 'CAD To-Do', type: 'checklist', value: [], visibility: 'role' },
 
   // Assembly/Building
-  { id: 'asm-progress', role: 'Assembly/Building', name: 'Build Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
-  { id: 'asm-subsystems', role: 'Assembly/Building', name: 'Subsystems', type: 'checklist', value: [], visibility: 'role' },
+  { id: 'asm-progress', icon: '🔧', role: 'Assembly/Building', name: 'Build Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
+  { id: 'asm-subsystems', icon: '🧩', role: 'Assembly/Building', name: 'Subsystems', type: 'checklist', value: [], visibility: 'role' },
 
   // Wiring
-  { id: 'wir-progress', role: 'Wiring', name: 'Wiring Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
-  { id: 'wir-todo', role: 'Wiring', name: 'Wiring Checklist', type: 'checklist', value: [], visibility: 'role' },
+  { id: 'wir-progress', icon: '🔌', role: 'Wiring', name: 'Wiring Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
+  { id: 'wir-todo', icon: '📝', role: 'Wiring', name: 'Wiring Checklist', type: 'checklist', value: [], visibility: 'role' },
 
   // Programming
-  { id: 'prg-auto', role: 'Programming', name: 'Autonomous Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
-  { id: 'prg-opmodes', role: 'Programming', name: 'OpModes Done', type: 'number', value: 0, visibility: 'public' },
-  { id: 'prg-todo', role: 'Programming', name: 'Code To-Do', type: 'checklist', value: [], visibility: 'role' },
+  { id: 'prg-auto', icon: '🤖', role: 'Programming', name: 'Autonomous Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
+  { id: 'prg-opmodes', icon: '💻', role: 'Programming', name: 'OpModes Done', type: 'number', value: 0, visibility: 'public' },
+  { id: 'prg-todo', icon: '📝', role: 'Programming', name: 'Code To-Do', type: 'checklist', value: [], visibility: 'role' },
 
   // Scouting
-  { id: 'sco-teams', role: 'Scouting', name: 'Teams Scouted', type: 'number', value: 0, visibility: 'public' },
-  { id: 'sco-matches', role: 'Scouting', name: 'Matches Logged', type: 'number', value: 0, visibility: 'public' },
+  { id: 'sco-teams', icon: '🔍', role: 'Scouting', name: 'Teams Scouted', type: 'number', value: 0, visibility: 'public' },
+  { id: 'sco-matches', icon: '📊', role: 'Scouting', name: 'Matches Logged', type: 'number', value: 0, visibility: 'public' },
 ]
 
 export const uid = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)

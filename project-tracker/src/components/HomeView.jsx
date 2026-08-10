@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -15,6 +15,7 @@ const STATUS_STYLES = {
 
 // Season kickoff date — change this to your real kickoff date/time.
 const SEASON_KICKOFF = new Date('2026-09-06T09:00:00')
+const FIRST_MEET = new Date('2026-10-19T09:00:00')
 
 // Cleanup assignment status styling (mirrors CleanUpChart)
 const CLEANUP_STATUS = {
@@ -347,6 +348,10 @@ function HomeView({ onTabChange, onOpenTask }) {
   // Season kickoff countdown
   const kickoffMs = SEASON_KICKOFF - now
   const kickoffPassed = kickoffMs <= 0
+
+  // First meet countdown — whole days, so it doesn't tick like the kickoff clock.
+  const firstMeetDays = Math.ceil((FIRST_MEET - now) / 86400000)
+  const firstMeetPassed = firstMeetDays < 0
   const countdown = {
     days: Math.max(0, Math.floor(kickoffMs / 86400000)),
     hours: Math.max(0, Math.floor((kickoffMs % 86400000) / 3600000)),
@@ -414,6 +419,8 @@ function HomeView({ onTabChange, onOpenTask }) {
           </div>
         </div>
 
+        {/* Role dashboard(s) for the current user */}
+        <MyDashboard />
         {/* Sticky-note board: Assigned Objective (big notebook) + Season Kickoff + Next Meeting */}
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start pt-2">
 
@@ -505,6 +512,31 @@ function HomeView({ onTabChange, onOpenTask }) {
               </p>
             </div>
 
+            {/* First Meet sticky note — same for everyone, fixed date */}
+            <div
+              className="relative rounded-md shadow-[0_6px_18px_rgba(0,0,0,0.12)] -rotate-1 p-4 text-center"
+              style={{ background: 'linear-gradient(140deg, #ffedd5 0%, #fce7f3 55%, #dbeafe 100%)' }}
+            >
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white/50 border border-white/60 rotate-2 rounded-[2px]" />
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Trophy size={15} className="text-pastel-orange-dark" />
+                <p className="text-lg leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>First Meet</p>
+              </div>
+              {firstMeetPassed ? (
+                <p className="text-xl text-gray-700 py-2" style={{ fontFamily: "'Kalam', cursive" }}>🏆 It happened!</p>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold text-gray-700 tabular-nums leading-tight" style={{ fontFamily: "'Kalam', cursive" }}>
+                    {firstMeetDays}
+                  </p>
+                  <p className="text-xs text-gray-500 -mt-1">{firstMeetDays === 1 ? 'day away' : 'days away'}</p>
+                </>
+              )}
+              <p className="text-[11px] text-gray-500 mt-2">
+                {FIRST_MEET.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+
             {/* Next Meeting sticky note (blue→pink→orange ombre) */}
             <button
               onClick={() => onTabChange('calendar')}
@@ -539,8 +571,6 @@ function HomeView({ onTabChange, onOpenTask }) {
           </div>
         </div>
 
-        {/* Role dashboard(s) for the current user */}
-        <MyDashboard />
         {/* Season Timeline (top of the Home Page) */}
 
         {/* Cleanup Chart — current cleanup duty assignments */}

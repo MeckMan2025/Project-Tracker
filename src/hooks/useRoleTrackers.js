@@ -29,6 +29,16 @@ export function useRoleTrackers() {
           let next = saved.filter(t => !RETIRED_SEED_IDS.includes(t.id))
           let changed = next.length !== saved.length
 
+          // Backfill fields added to a seed after the doc was written (icons, for
+          // one). The id merge only appends new trackers, so existing rows would
+          // otherwise never pick these up. Never overwrites a value someone set.
+          const seedById = new Map(SEED_TRACKERS.map(t => [t.id, t]))
+          next = next.map(t => {
+            const seed = seedById.get(t.id)
+            if (seed?.icon && !t.icon) { changed = true; return { ...t, icon: seed.icon } }
+            return t
+          })
+
           // Append seeds added since the doc was last written, once.
           const savedVersion = rows?.[0]?.data?.seedVersion || 1
           if (savedVersion < SEED_VERSION) {

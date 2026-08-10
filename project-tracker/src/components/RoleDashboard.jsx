@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, X, ChevronDown, Eye, EyeOff } from 'lucide-react'
-import { SIDE_THEME, sideForRole, uid } from '../data/roleTrackers'
+import { Trash2, X, ChevronDown, Eye, EyeOff } from 'lucide-react'
+import { SIDE_THEME, sideForRole } from '../data/roleTrackers'
 
 // Trackers are laid out by FORM, not in one flat grid: headline numbers become a
 // tight row of stat tiles, ratios become meters, and only the trackers that carry
@@ -55,7 +55,10 @@ function StatTile({ tracker, editable, onChange, onDelete, theme }) {
   return (
     <div className={`group rounded-xl px-3 py-2.5 ${theme.tile}`}>
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-500 leading-tight">{tracker.name}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-500 leading-tight">
+          {tracker.icon && <span className="mr-1 not-italic">{tracker.icon}</span>}
+          {tracker.name}
+        </p>
         {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
       </div>
       {editable ? (
@@ -91,7 +94,10 @@ function Meter({ tracker, editable, onChange, onDelete, theme }) {
   return (
     <div className="group bg-white rounded-xl border border-gray-100 px-3 py-2.5">
       <div className="flex items-start justify-between gap-1 mb-1.5">
-        <p className="text-[11px] font-semibold text-gray-400 leading-tight">{tracker.name}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-500 leading-tight">
+          {tracker.icon && <span className="mr-1">{tracker.icon}</span>}
+          {tracker.name}
+        </p>
         {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
       </div>
       <div className="flex items-baseline justify-between mb-1">
@@ -129,7 +135,10 @@ function ContentCard({ tracker, editable, onChange, onDelete }) {
   return (
     <div className="group bg-white rounded-xl border border-gray-100 p-3.5">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h4 className="text-sm font-bold text-gray-700 leading-tight">{tracker.name}</h4>
+        <h4 className="text-sm font-bold text-gray-700 leading-tight">
+          {tracker.icon && <span className="mr-1">{tracker.icon}</span>}
+          {tracker.name}
+        </h4>
         {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
       </div>
 
@@ -274,64 +283,9 @@ function ContentCard({ tracker, editable, onChange, onDelete }) {
   )
 }
 
-// ── Add-tracker form ──
-const TYPES = [
-  { value: 'number', label: 'Number' },
-  { value: 'progress', label: 'Progress bar' },
-  { value: 'checklist', label: 'Checklist' },
-  { value: 'note', label: 'Note' },
-  // No 'event' option — event entry belongs in its own tab, not on a dashboard.
-  // The renderer below is kept so any event tracker already saved still displays
-  // instead of rendering as an empty card.
-]
-function AddTracker({ role, onAdd, onCancel }) {
-  const [name, setName] = useState('')
-  const [type, setType] = useState('number')
-  const [visibility, setVisibility] = useState('public')
-  const [unit, setUnit] = useState('')
-  const [target, setTarget] = useState(100)
-
-  const submit = () => {
-    if (!name.trim()) return
-    const t = { id: uid(), role, name: name.trim(), type, visibility }
-    if (type === 'number') { t.value = 0; if (unit) t.unit = unit }
-    else if (type === 'progress') { t.value = 0; t.target = Number(target) || 100; if (unit) t.unit = unit }
-    else if (type === 'checklist') t.value = []
-    else if (type === 'event') t.value = { title: '', date: '', location: '', details: '' }
-    else t.value = ''
-    onAdd(t)
-  }
-
-  return (
-    <div className="bg-white rounded-xl border p-3.5 shadow-sm space-y-2">
-      <input value={name} onChange={e => setName(e.target.value)} placeholder="Tracker name" autoFocus className="w-full text-sm border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
-      <div className="flex gap-2">
-        <select value={type} onChange={e => setType(e.target.value)} className="flex-1 text-sm border rounded-lg px-2 py-1.5 bg-white">
-          {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-        <select value={visibility} onChange={e => setVisibility(e.target.value)} className="flex-1 text-sm border rounded-lg px-2 py-1.5 bg-white">
-          <option value="public">Public (Data tab)</option>
-          <option value="role">Role-only (dashboard)</option>
-        </select>
-      </div>
-      {(type === 'number' || type === 'progress') && (
-        <div className="flex gap-2">
-          <input value={unit} onChange={e => setUnit(e.target.value)} placeholder="Unit (e.g. $, %)" className="flex-1 text-sm border rounded-lg px-2 py-1.5" />
-          {type === 'progress' && <input type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="Target" className="w-24 text-sm border rounded-lg px-2 py-1.5" />}
-        </div>
-      )}
-      <div className="flex gap-2 pt-1">
-        <button onClick={onCancel} className="flex-1 text-sm border rounded-lg py-1.5 hover:bg-gray-50">Cancel</button>
-        <button onClick={submit} disabled={!name.trim()} className="flex-1 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg py-1.5 font-semibold text-gray-700">Add</button>
-      </div>
-    </div>
-  )
-}
-
 // ── A role's dashboard section ──
 export default function RoleDashboard({ role, trackers, upsertTracker, removeTracker, editable = false, publicOnly = false, collapsible = false, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
-  const [adding, setAdding] = useState(false)
   const theme = SIDE_THEME[sideForRole(role)]
 
   let list = trackers.filter(t => t.role === role)
@@ -355,22 +309,11 @@ export default function RoleDashboard({ role, trackers, upsertTracker, removeTra
         </button>
         {/* Hairline rule carries the eye across — reads as a section header, not a card title. */}
         <div className={`flex-1 h-px ${theme.rule}`} />
-        {editable && open && (
-          <button onClick={() => setAdding(a => !a)} className="shrink-0 flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">
-            <Plus size={13} /> Tracker
-          </button>
-        )}
       </div>
 
       {open && (
         <>
-          {adding && editable && (
-            <div className="mb-3">
-              <AddTracker role={role} onAdd={(t) => { upsertTracker(t); setAdding(false) }} onCancel={() => setAdding(false)} />
-            </div>
-          )}
-
-          {list.length === 0 && !adding ? (
+          {list.length === 0 ? (
             <p className="text-sm text-gray-400 mb-2">{publicOnly ? 'No public trackers yet.' : 'No trackers yet.'}</p>
           ) : (
             <div className="space-y-3">

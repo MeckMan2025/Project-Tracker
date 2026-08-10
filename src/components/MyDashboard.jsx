@@ -15,7 +15,7 @@ export default function MyDashboard() {
   if (myRoles.length === 0) return null
 
   return (
-    <div className="mb-8">
+    <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-4">
       <div className="flex items-center gap-2 mb-4">
         <LayoutDashboard size={16} className="text-gray-400" />
         <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">My Dashboard</h2>
