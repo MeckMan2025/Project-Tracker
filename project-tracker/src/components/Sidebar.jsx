@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Inbox, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -672,26 +672,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           {!isTeamAccount && <>
 
-          {!isGuest && (
-            <>
-              <hr className="my-2 border-gray-200" />
-
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'requests'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('requests')
-                  onToggle()
-                }}
-              >
-                <Inbox size={16} className="text-pastel-pink-dark" />
-                <span className="truncate">Requests</span>
-              </div>
-            </>
-          )}
+          {/* Requests is not a nav item — it's the row under the notification
+              bell, so there's one way in for everyone. */}
 
           {canViewSpecialControls && (
             <>
