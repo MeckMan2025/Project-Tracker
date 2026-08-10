@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock, Briefcase, Cpu, ClipboardList, GraduationCap, Crown } from 'lucide-react'
+import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock, Briefcase, Cpu, ClipboardList, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import { BUSINESS_ROLES, TECHNICAL_ROLES, TECHNICAL_GROUPS, LEADERSHIP_TAGS, ROLE_DESC } from '../data/orgRoles'
@@ -435,8 +435,7 @@ function OrgChart({ onViewProfile }) {
   const businessLeads = profiles.filter(p => hasTag(p, 'Business Lead'))
   const technicalLeads = profiles.filter(p => hasTag(p, 'Technical Lead'))
   const projectManagers = profiles.filter(p => hasTag(p, 'Project Manager') || hasTag(p, 'Team Lead'))
-  const founders = profiles.filter(p => hasTag(p, 'Co-Founder'))
-  const mentorsCoaches = profiles.filter(p => !hasTag(p, 'Co-Founder') && (hasTag(p, 'Mentor') || hasTag(p, 'Coach')))
+  const mentorsCoaches = profiles.filter(p => hasTag(p, 'Mentor') || hasTag(p, 'Coach'))
 
   const handleCardClick = (profile) => setSelectedProfile(profile)
 
@@ -474,9 +473,6 @@ function OrgChart({ onViewProfile }) {
 
               {/* Project Managers — ombre sticky note, its own box */}
               <ProjectManagerNote people={projectManagers} onClick={handleCardClick} />
-
-              {/* Founders */}
-              <LeaderSection title="Founders" icon={Crown} people={founders} onClick={handleCardClick} accent="text-pink-500" />
 
               {/* Mentors & Coaches */}
               <LeaderSection title="Mentors & Coaches" icon={GraduationCap} people={mentorsCoaches} onClick={handleCardClick} accent="text-purple-500" />
