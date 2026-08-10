@@ -84,8 +84,15 @@ export default function NotificationPopup({ notification, onClose }) {
     const role = data.role || 'team member'
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <style>{`
+          @keyframes celebrate-pop {
+            0%   { opacity: 0; transform: scale(.8); }
+            60%  { opacity: 1; transform: scale(1.03); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
         <Confetti />
-        <div className="relative z-[102] bg-white rounded-3xl shadow-2xl w-[92%] max-w-md min-h-[58vh] flex flex-col items-center justify-center text-center px-8 py-12 animate-slide-in-right">
+        <div className="relative z-[102] bg-white rounded-3xl shadow-2xl w-[92%] max-w-md min-h-[58vh] mx-auto flex flex-col items-center justify-center text-center px-8 py-12" style={{ animation: 'celebrate-pop .4s cubic-bezier(.2,.8,.2,1) both' }}>
           <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-gray-100" title="Dismiss">
             <X size={20} className="text-gray-400" />
           </button>
