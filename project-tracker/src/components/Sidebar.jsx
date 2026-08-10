@@ -661,27 +661,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           </>}
 
-          <hr className="my-2 border-gray-200" />
-
-          {/* Engineering Notebook — hidden for guests and team accounts */}
-          {!isGuest && !isTeamAccount && (
-            <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'notebook'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('notebook')
-                  onToggle()
-                }}
-              >
-                <BookOpen size={16} className="text-pastel-blue-dark" />
-                <span className="truncate">Engineering Notebook</span>
-              </div>
-            </>
-          )}
+          {/* Engineering Notebook is not a nav tab — it's reached from the
+              gallery button on Home, so everyone gets to it the same way. */}
 
           {!isTeamAccount && <>
 

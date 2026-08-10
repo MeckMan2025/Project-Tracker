@@ -44,11 +44,13 @@ export default function NotebookGallery({ onTabChange }) {
           <BookOpen size={18} className="text-pastel-orange-dark" />
           <h2 className="font-semibold text-gray-700">Engineering Notebook</h2>
         </div>
+        {/* The only way into the notebook now that it isn't a nav tab, so it
+            reads as a real button rather than a quiet link. */}
         <button
           onClick={() => onTabChange && onTabChange('notebook')}
-          className="flex items-center gap-1 px-3 py-1.5 bg-pastel-orange/30 hover:bg-pastel-orange/50 rounded-lg text-sm text-gray-600 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-pastel-orange-dark hover:brightness-95 rounded-lg text-sm font-semibold text-gray-800 shadow-sm transition-all"
         >
-          View Notebook <ArrowRight size={14} />
+          <BookOpen size={15} /> Open Notebook <ArrowRight size={14} />
         </button>
       </div>
 
