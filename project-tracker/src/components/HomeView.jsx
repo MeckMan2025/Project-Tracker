@@ -467,8 +467,10 @@ function HomeView({ onTabChange, onOpenTask }) {
                     </button>
                   </div>
                 ))}
-                {/* filler ruled lines so it always looks like notebook paper */}
-                {Array.from({ length: Math.max(0, (myTasks.length === 0 ? 5 : 6) - myTasks.length) }).map((_, i) => {
+                {/* Filler ruled lines. Generous count rather than an exact fit: the
+                    paper stretches to the sticky-note column, and it's overflow-hidden,
+                    so surplus lines clip instead of leaving the page half-blank. */}
+                {Array.from({ length: Math.max(0, 16 - myTasks.length) }).map((_, i) => {
                   const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
                   return (
                     <div
@@ -503,7 +505,7 @@ function HomeView({ onTabChange, onOpenTask }) {
                     {countdown.days}
                   </p>
                   <p className="text-xs text-gray-500 -mt-1">
-                    {countdown.days === 1 ? 'day' : 'days'} · {String(countdown.hours).padStart(2, '0')}:{String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
+                    {countdown.days === 1 ? 'day' : 'days'} + {countdown.hours}h {countdown.mins}m {countdown.secs}s
                   </p>
                 </>
               )}

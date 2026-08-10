@@ -17,6 +17,10 @@ export function usePermissions() {
   // Co-Founder: includes permanent co-founders + anyone with Co-Founder tag
   const isCofounder = (functionTags && functionTags.includes('Co-Founder')) || isPermanentCofounder
 
+  // Outreach is excluded from Special Controls; a lead who also holds Outreach
+  // keeps it.
+  const hasOutreachRole = !!(functionTags && functionTags.includes('Outreach'))
+
   // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
 
@@ -66,6 +70,8 @@ export function usePermissions() {
 
     // Co-Founders only
     canReviewSuggestions: isCofounder,
+
+    canViewSpecialControls: !isGuest && (hasLeadTag || !hasOutreachRole),
 
     // Nobody
     canEditScouting: false,

@@ -6,7 +6,7 @@ import { useToast } from './ToastProvider'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
-  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder } = usePermissions()
+  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -269,10 +269,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Home</span>
           </div>
 
-          <hr className="my-1.5 border-gray-300" />
-
-          {/* Chat is co-founder only for now. */}
+          {/* Chat is co-founder only for now. The rule lives inside the block so
+              hiding chat doesn't leave two separators stacked under Home. */}
           {isCofounder && (<>
+          <hr className="my-1.5 border-gray-300" />
           {/* Chat Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -662,7 +662,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
-          {!isGuest && (
+          {canViewSpecialControls && (
             <>
               <hr className="my-2 border-gray-200" />
 

@@ -102,11 +102,10 @@ const TAB_ACCESS = {
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 
-const COFOUNDER_ONLY_TABS = ['chat-all', 'chat-alliances', 'chat-leagues']
-
-function hasAccess(tab, tier, isTeam, isCofounder) {
-  // Checked before the team-account bypass so chat stays shut for them too.
-  if (COFOUNDER_ONLY_TABS.includes(tab)) return !!isCofounder
+function hasAccess(tab, tier, isTeam, blockedTabs) {
+  // Checked before the team-account bypass, which would otherwise hand team
+  // accounts everything.
+  if (blockedTabs && blockedTabs.includes(tab)) return false
   if (isTeam) return true // team accounts have full access
   const required = TAB_ACCESS[tab]
   if (!required) return true // board tabs (dynamic) — accessible to all
@@ -298,7 +297,12 @@ function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls } = usePermissions()
+
+  // Tabs this user can't reach, whatever their tier.
+  const blockedTabs = []
+  if (!isCofounder) blockedTabs.push('chat-all', 'chat-alliances', 'chat-leagues')
+  if (!canViewSpecialControls) blockedTabs.push('special-controls')
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -1246,7 +1250,7 @@ function App() {
 
 
       {/* Main Content */}
-      {!hasAccess(activeTab, tier, effectiveIsTeam, isCofounder) ? (
+      {!hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
