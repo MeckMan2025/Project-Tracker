@@ -12,7 +12,16 @@ import { ROLE_GUIDE } from '../data/roleGuide'
 const ALL_ROLES = [
   'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead',
   'Communications', 'Finance', 'Outreach',
-  'CAD', 'Build', 'Programming', 'Scouting', 'Guest',
+  'CAD', 'Assembly/Building', 'Wiring', 'Programming', 'Scouting', 'Guest',
+]
+
+// Roles grouped by department (mirrors the Org Chart) for the role pickers.
+const ROLE_GROUPS = [
+  { label: 'Leadership', roles: ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead'] },
+  { label: 'Business', roles: ['Communications', 'Finance', 'Outreach'] },
+  { label: 'Technical · Hardware', roles: ['CAD', 'Assembly/Building', 'Wiring'] },
+  { label: 'Technical · Software', roles: ['Programming', 'Scouting'] },
+  { label: 'Access', roles: ['Guest'] },
 ]
 
 const PERMANENT_COFOUNDER_NAMES = ['yukti', 'kayden']
@@ -48,7 +57,8 @@ const ROLE_DESCRIPTIONS = {
   'Finance': 'Manages the budget, fundraising, and reimbursements',
   'Outreach': 'Runs community events and STEM outreach',
   'CAD': 'Creates 3D models and technical drawings',
-  'Build': 'Builds and assembles the physical robot',
+  'Assembly/Building': 'Builds and assembles the physical robot',
+  'Wiring': 'Wires motors, sensors, and manages the electronics',
   'Programming': 'Writes and maintains robot control software',
   'Scouting': 'Collects and analyzes match data at competitions',
   'Guest': 'Limited access — can view boards, tasks, and calendar only',
@@ -1161,16 +1171,23 @@ function UserManagement({ onViewProfile }) {
                       <PasswordInput value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="Temporary password (min 6 chars)" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" />
                       <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1.5">Roles (decides their side &amp; access)</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {ALL_ROLES.map(role => (
-                            <button
-                              key={role}
-                              type="button"
-                              onClick={() => toggleAddRole(role)}
-                              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${addRoles.includes(role) ? getTagColor(role) : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                            >
-                              {role}
-                            </button>
+                        <div className="space-y-2.5">
+                          {ROLE_GROUPS.map(group => (
+                            <div key={group.label}>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{group.label}</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {group.roles.map(role => (
+                                  <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => toggleAddRole(role)}
+                                    className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${addRoles.includes(role) ? getTagColor(role) : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                                  >
+                                    {role}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1311,18 +1328,27 @@ function UserManagement({ onViewProfile }) {
                 <p className="text-sm text-gray-400 px-4 py-6 text-center">All roles assigned</p>
               ) : (
                 <div className="py-1">
-                  {available.map(role => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        handleToggleRole(member.id, role)
-                        setRolePickerOpen(null)
-                      }}
-                      className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-blue/20 active:bg-pastel-blue/30 transition-colors text-gray-600 border-b border-gray-50"
-                    >
-                      {role}
-                    </button>
-                  ))}
+                  {ROLE_GROUPS.map(group => {
+                    const roles = group.roles.filter(r => available.includes(r))
+                    if (roles.length === 0) return null
+                    return (
+                      <div key={group.label}>
+                        <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{group.label}</p>
+                        {roles.map(role => (
+                          <button
+                            key={role}
+                            onClick={() => {
+                              handleToggleRole(member.id, role)
+                              setRolePickerOpen(null)
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-blue/20 active:bg-pastel-blue/30 transition-colors text-gray-600 border-b border-gray-50"
+                          >
+                            {role}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -1346,17 +1372,26 @@ function UserManagement({ onViewProfile }) {
                 <p className="text-sm text-gray-400 px-4 py-6 text-center">You have all available roles</p>
               ) : (
                 <div className="py-1">
-                  {available.map(role => (
-                    <button
-                      key={role}
-                      disabled={roleRequestSubmitting}
-                      onClick={() => handleRequestRole(role)}
-                      className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-blue/20 active:bg-pastel-blue/30 transition-colors text-gray-600 border-b border-gray-50 disabled:opacity-50"
-                    >
-                      {role}
-                      <span className="block text-xs text-gray-400 mt-0.5">{ROLE_DESCRIPTIONS[role]}</span>
-                    </button>
-                  ))}
+                  {ROLE_GROUPS.map(group => {
+                    const roles = group.roles.filter(r => available.includes(r))
+                    if (roles.length === 0) return null
+                    return (
+                      <div key={group.label}>
+                        <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{group.label}</p>
+                        {roles.map(role => (
+                          <button
+                            key={role}
+                            disabled={roleRequestSubmitting}
+                            onClick={() => handleRequestRole(role)}
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-pastel-blue/20 active:bg-pastel-blue/30 transition-colors text-gray-600 border-b border-gray-50 disabled:opacity-50"
+                          >
+                            {role}
+                            <span className="block text-xs text-gray-400 mt-0.5">{ROLE_DESCRIPTIONS[role]}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })()}

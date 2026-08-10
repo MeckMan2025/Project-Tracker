@@ -57,7 +57,7 @@ const PERMISSION_OPTIONS = [
 const ROLE_OPTIONS = [
   'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead',
   'Communications', 'Finance', 'Outreach',
-  'CAD', 'Build', 'Programming', 'Scouting', 'Guest',
+  'CAD', 'Assembly/Building', 'Wiring', 'Programming', 'Scouting', 'Guest',
 ]
 
 const DEFAULT_PROFILE_DATA = {

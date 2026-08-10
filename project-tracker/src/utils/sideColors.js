@@ -30,7 +30,8 @@ const TAG_SIDE = {
   'Outreach': 'orange',
   'Technical Lead': 'blue',
   'CAD': 'blue',
-  'Build': 'blue',
+  'Assembly/Building': 'blue',
+  'Wiring': 'blue',
   'Programming': 'blue',
   'Scouting': 'blue',
 }

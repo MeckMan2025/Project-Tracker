@@ -14,7 +14,8 @@ export const TECHNICAL_GROUPS = [
     key: 'hardware', label: 'Hardware', color: 'blue',
     roles: [
       { tag: 'CAD', desc: 'Designs robot parts and assemblies in 3D CAD.' },
-      { tag: 'Build', desc: 'Fabricates and assembles the physical robot.' },
+      { tag: 'Assembly/Building', desc: 'Fabricates and assembles the physical robot.' },
+      { tag: 'Wiring', desc: 'Wires motors, sensors, and manages the electronics.' },
     ],
   },
   {

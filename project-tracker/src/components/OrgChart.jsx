@@ -145,7 +145,8 @@ function TechnicalDepartment({ groups, leads, membersByTag, onClick }) {
           const theme = THEME[g.color] || THEME.blue
           return (
             <div key={g.key} className={`flex flex-col rounded-xl border-2 p-3 ${theme.box}`}>
-              <h3 className={`text-sm font-black text-center mb-2 ${theme.title}`}>{g.label}</h3>
+              <h3 className={`text-sm font-black text-center ${theme.title}`}>{g.label}</h3>
+              <p className="text-[10px] uppercase tracking-wider text-gray-400 text-center mb-2">Sub-roles</p>
               <div className="grid grid-cols-1 gap-2.5 flex-1">
                 {g.roles.map(role => (
                   <RoleBox key={role.tag} role={role} people={membersByTag(role.tag)} theme={theme} onClick={onClick} />
