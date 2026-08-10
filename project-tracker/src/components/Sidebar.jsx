@@ -3,6 +3,7 @@ import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineC
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
+import { DASHBOARD_ROLES } from '../data/roleTrackers'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
@@ -82,7 +83,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && !(activeTab || '').startsWith('role-data:')
 
   return (
     <>
@@ -429,7 +430,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {!isTeamAccount && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'data' || activeTab === 'attendance'
+              activeTab === 'data' || activeTab === 'attendance' || (activeTab || '').startsWith('role-data:')
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
@@ -447,12 +448,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             {!isGuest && (
               <ChevronRight
                 size={14}
-                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' ? 'rotate-90' : ''}`}
+                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' || (activeTab || '').startsWith('role-data:') ? 'rotate-90' : ''}`}
               />
             )}
           </div>
 
-          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance') && (
+          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance' || (activeTab || '').startsWith('role-data:')) && (
             <div className="ml-4 mt-1 space-y-1">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
@@ -478,6 +479,21 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
                 <span className="truncate">Attendance</span>
               </div>
+              {DASHBOARD_ROLES.map(({ role }) => {
+                const id = `role-data:${role}`
+                return (
+                  <div
+                    key={id}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === id ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => { onTabChange(id); onToggle() }}
+                  >
+                    <ChevronRight size={14} className={activeTab === id ? 'rotate-90' : ''} />
+                    <span className="truncate">{role}</span>
+                  </div>
+                )
+              })}
             </div>
           )}
 

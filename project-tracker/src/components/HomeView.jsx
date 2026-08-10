@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import NotebookGallery from './NotebookGallery'
+import MyDashboard from './MyDashboard'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -368,6 +369,8 @@ function HomeView({ onTabChange, onOpenTask }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
+        {/* Role dashboard(s) for the current user */}
+        <MyDashboard />
         {/* Season Timeline (top of the Home Page) */}
 
         {/* Cleanup Chart — current cleanup duty assignments */}

@@ -2,7 +2,7 @@ import { useUser } from '../contexts/UserContext'
 
 const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
-const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
+const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead']
 
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam } = useUser()
@@ -17,7 +17,7 @@ export function usePermissions() {
   // Co-Founder: includes permanent co-founders + anyone with Co-Founder tag
   const isCofounder = (functionTags && functionTags.includes('Co-Founder')) || isPermanentCofounder
 
-  // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Team Lead, etc.)
+  // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
 
   return {
@@ -47,7 +47,7 @@ export function usePermissions() {
     canDragOwnTask: !isGuest,
     canImport: !isGuest,
 
-    // Lead tags (Co-Founder, Mentor, Coach, Team Lead, Business Lead, Technical Lead)
+    // Lead tags (Co-Founder, Mentor, Coach, Project Manager, Business Lead, Technical Lead)
     // Team accounts can also edit their own boards directly
     canEditContent: hasLeadTag || isTeam,
     canReviewRequests: hasLeadTag,

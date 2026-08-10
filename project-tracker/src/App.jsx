@@ -22,6 +22,7 @@ import RequestsView from './components/RequestsView'
 import RequestsBadge from './components/RequestsBadge'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
+import RoleDataView from './components/RoleDataView'
 import TeamScoutingData from './components/TeamScoutingData'
 import TeamHomeView from './components/TeamHomeView'
 import EngineeringNotebook from './components/EngineeringNotebook'
@@ -1299,6 +1300,8 @@ function App() {
         <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
+      ) : activeTab.startsWith('role-data:') ? (
+        <RoleDataView role={activeTab.slice('role-data:'.length)} />
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
