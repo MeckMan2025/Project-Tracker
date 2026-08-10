@@ -14,7 +14,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [boardsOpen, setBoardsOpen] = useState(isTeamAccount)
   const [dataOpen, setDataOpen] = useState(false)
   const [scoutingOpen, setScoutingOpen] = useState(false)
-  const [tasksOpen, setTasksOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [navFilter, setNavFilter] = useState(() => localStorage.getItem('scrum-nav-filter') || 'general')
 
@@ -25,7 +24,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       setBoardsOpen(false)
       setDataOpen(false)
       setScoutingOpen(false)
-      setTasksOpen(false)
       setChatOpen(false)
       setIsAdding(false)
       setNewTabName('')
@@ -621,45 +619,18 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {!isTeamAccount && <>
           <hr className="my-2 border-gray-200" />
 
-          {/* Tasks Tab — dropdown with Scrum + Workshops */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'tasks' || activeTab === 'workshops'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => setTasksOpen(prev => !prev)}
-          >
-            <ClipboardEdit size={16} className="text-pastel-blue-dark" />
-            <span className="truncate flex-1">Tasks</span>
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${tasksOpen || activeTab === 'tasks' || activeTab === 'workshops' ? 'rotate-90' : ''}`}
-            />
-          </div>
-
-          {(tasksOpen || activeTab === 'tasks' || activeTab === 'workshops') && (
-            <div className="ml-4 mt-1 space-y-1">
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'tasks' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => { onTabChange('tasks'); onToggle() }}
-              >
-                <ChevronRight size={14} className={activeTab === 'tasks' ? 'rotate-90' : ''} />
-                <span className="truncate">Scrum</span>
-              </div>
-              {!isGuest && (
-                <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                    activeTab === 'workshops' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                  }`}
-                  onClick={() => { onTabChange('workshops'); onToggle() }}
-                >
-                  <ChevronRight size={14} className={activeTab === 'workshops' ? 'rotate-90' : ''} />
-                  <span className="truncate">Workshops</span>
-                </div>
-              )}
+          {/* Workshops — flat nav item; the Tasks dropdown (Scrum + Workshops) is gone. */}
+          {!isGuest && (
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === 'workshops'
+                  ? 'bg-pastel-pink text-gray-800'
+                  : 'hover:bg-pastel-blue/30 text-gray-600'
+              }`}
+              onClick={() => { onTabChange('workshops'); onToggle() }}
+            >
+              <ClipboardEdit size={16} className="text-pastel-blue-dark" />
+              <span className="truncate">Workshops</span>
             </div>
           )}
 
