@@ -102,7 +102,11 @@ const TAB_ACCESS = {
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 
-function hasAccess(tab, tier, isTeam) {
+const COFOUNDER_ONLY_TABS = ['chat-all', 'chat-alliances', 'chat-leagues']
+
+function hasAccess(tab, tier, isTeam, isCofounder) {
+  // Checked before the team-account bypass so chat stays shut for them too.
+  if (COFOUNDER_ONLY_TABS.includes(tab)) return !!isCofounder
   if (isTeam) return true // team accounts have full access
   const required = TAB_ACCESS[tab]
   if (!required) return true // board tabs (dynamic) — accessible to all
@@ -1242,7 +1246,7 @@ function App() {
 
 
       {/* Main Content */}
-      {!hasAccess(activeTab, tier, effectiveIsTeam) ? (
+      {!hasAccess(activeTab, tier, effectiveIsTeam, isCofounder) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />

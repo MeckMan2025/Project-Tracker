@@ -6,7 +6,7 @@ import { useToast } from './ToastProvider'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
-  const { isGuest, canEditContent, canRequestContent, hasLeadTag } = usePermissions()
+  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -223,7 +223,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <span className="truncate">Scouting Data</span>
               </div>
             )}
-            {compDayAllowedTabs.includes('chat-all') && (<>
+            {isCofounder && compDayAllowedTabs.includes('chat-all') && (<>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues'
@@ -273,6 +273,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           <hr className="my-1.5 border-gray-300" />
 
+          {/* Chat is co-founder only for now. */}
+          {isCofounder && (<>
           {/* Chat Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -306,6 +308,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               ))}
             </div>
           )}
+
+          </>)}
 
           <hr className="my-2 border-gray-200" />
 

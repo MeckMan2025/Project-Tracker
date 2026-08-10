@@ -40,7 +40,8 @@ export function usePermissions() {
     canSubmitScouting: !isGuest,
     canSubmitNotebook: !isGuest,
     canSelfCheckIn: !isGuest,
-    canUseChat: !isGuest,
+    // Chat is closed to everyone but co-founders for now.
+    canUseChat: isCofounder,
     canDeleteOwnMessages: !isGuest,
     canViewOwnAttendance: !isGuest,
     canSubmitSuggestions: true,
