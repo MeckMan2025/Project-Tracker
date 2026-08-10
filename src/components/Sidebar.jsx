@@ -6,7 +6,7 @@ import { useToast } from './ToastProvider'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
-  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls } = usePermissions()
+  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -635,8 +635,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </div>
           )}
 
-          {/* Log Reach + Portfolio — placeholder views for now. */}
-          {!isGuest && (
+          {/* Outreach-only top-level tabs. Placeholder views for now. */}
+          {canViewOutreachTabs && (
             <>
               <hr className="my-2 border-gray-200" />
               <div
@@ -661,6 +661,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <Briefcase size={16} className="text-pastel-blue-dark" />
                 <span className="truncate">Portfolio</span>
               </div>
+              <hr className="my-2 border-gray-200" />
             </>
           )}
 

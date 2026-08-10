@@ -78,6 +78,9 @@ export function usePermissions() {
     // deleting events, and every other kind of content, stay with leads.
     canAddEvents: hasLeadTag || isTeam || hasOutreachRole,
 
+    // Log Reach and Portfolio belong to Outreach and nobody else.
+    canViewOutreachTabs: hasOutreachRole,
+
     // Nobody
     canEditScouting: false,
 
