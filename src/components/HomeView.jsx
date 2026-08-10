@@ -370,82 +370,6 @@ function HomeView({ onTabChange, onOpenTask }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
-        {/* Role dashboard(s) for the current user */}
-        <MyDashboard />
-        {/* Season Timeline (top of the Home Page) */}
-        <SeasonTimeline />
-
-        {/* Cleanup Chart — current cleanup duty assignments */}
-        {cleanupRows.length > 0 && (
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Trash2 size={18} className="text-pastel-blue-dark" />
-              <h2 className="font-semibold text-gray-700">Cleanup Duty</h2>
-              <span className="text-xs text-gray-400">
-                · {cleanupRows.filter(r => r.status === 'confirmed').length}/{cleanupRows.length} done
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {cleanupRows.map(r => {
-                const s = CLEANUP_STATUS[r.status] || { label: r.status, cls: 'bg-gray-100 text-gray-500' }
-                return (
-                  <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">{r.job}</p>
-                      <p className="text-xs text-gray-400 truncate">{r.who || 'Unassigned'}</p>
-                    </div>
-                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${s.cls}`}>{s.label}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Comp Day Banner */}
-        {compDayActive && (
-          <button
-            onClick={() => onTabChange('comp-day')}
-            className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold flex items-center gap-2">
-                  <span className="animate-pulse">🏁</span> Competition Day is LIVE
-                </p>
-                <p className="text-white/80 text-sm">Tap to see your role assignment</p>
-              </div>
-              <ArrowRight size={20} />
-            </div>
-          </button>
-        )}
-
-        {/* Comp Day Role Preview */}
-        {!compDayActive && compDayPreview && !isGuest && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Comp Day Roles</h3>
-              <span className="text-xs text-gray-400">{compDayPreview.sessionName}</span>
-            </div>
-            <div className="space-y-1.5">
-              {compDayPreview.roles.map((r, i) => (
-                <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
-                  <span className="text-sm text-gray-600">{r.blockName}</span>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-700">
-                    {r.emoji} {r.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => onTabChange('comp-day')}
-              className="w-full mt-3 py-2 rounded-lg bg-pastel-pink/50 hover:bg-pastel-pink text-gray-700 text-sm font-medium transition-colors"
-            >
-              View Competition Day
-            </button>
-          </div>
-        )}
-
         {/* Mini Week Calendar */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
           <div className="flex items-center justify-between mb-2">
@@ -615,6 +539,82 @@ function HomeView({ onTabChange, onOpenTask }) {
             </button>
           </div>
         </div>
+
+        {/* Role dashboard(s) for the current user */}
+        <MyDashboard />
+        {/* Season Timeline (top of the Home Page) */}
+        <SeasonTimeline />
+
+        {/* Cleanup Chart — current cleanup duty assignments */}
+        {cleanupRows.length > 0 && (
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 size={18} className="text-pastel-blue-dark" />
+              <h2 className="font-semibold text-gray-700">Cleanup Duty</h2>
+              <span className="text-xs text-gray-400">
+                · {cleanupRows.filter(r => r.status === 'confirmed').length}/{cleanupRows.length} done
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {cleanupRows.map(r => {
+                const s = CLEANUP_STATUS[r.status] || { label: r.status, cls: 'bg-gray-100 text-gray-500' }
+                return (
+                  <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{r.job}</p>
+                      <p className="text-xs text-gray-400 truncate">{r.who || 'Unassigned'}</p>
+                    </div>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${s.cls}`}>{s.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Comp Day Banner */}
+        {compDayActive && (
+          <button
+            onClick={() => onTabChange('comp-day')}
+            className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg font-bold flex items-center gap-2">
+                  <span className="animate-pulse">🏁</span> Competition Day is LIVE
+                </p>
+                <p className="text-white/80 text-sm">Tap to see your role assignment</p>
+              </div>
+              <ArrowRight size={20} />
+            </div>
+          </button>
+        )}
+
+        {/* Comp Day Role Preview */}
+        {!compDayActive && compDayPreview && !isGuest && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Comp Day Roles</h3>
+              <span className="text-xs text-gray-400">{compDayPreview.sessionName}</span>
+            </div>
+            <div className="space-y-1.5">
+              {compDayPreview.roles.map((r, i) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                  <span className="text-sm text-gray-600">{r.blockName}</span>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-700">
+                    {r.emoji} {r.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => onTabChange('comp-day')}
+              className="w-full mt-3 py-2 rounded-lg bg-pastel-pink/50 hover:bg-pastel-pink text-gray-700 text-sm font-medium transition-colors"
+            >
+              View Competition Day
+            </button>
+          </div>
+        )}
 
         {/* Engineering Notebook photo gallery */}
         <NotebookGallery onTabChange={onTabChange} />

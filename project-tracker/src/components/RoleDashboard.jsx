@@ -2,90 +2,136 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, X, ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { SIDE_THEME, sideForRole, uid } from '../data/roleTrackers'
 
-// ── Single tracker card ──
-function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
+// Trackers are laid out by FORM, not in one flat grid: headline numbers become a
+// tight row of stat tiles, ratios become meters, and only the trackers that carry
+// body content (checklist / note / event) get a full card. Giving every tracker
+// equal weight is what made this feel overwhelming.
+
+// 1284 -> 1,284 · 12900 -> 12.9K · 4200000 -> 4.2M
+const compact = (n) => {
+  const v = Number(n) || 0
+  const abs = Math.abs(v)
+  if (abs >= 1_000_000) return (v / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
+  if (abs >= 10_000) return (v / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
+  return v.toLocaleString()
+}
+
+const withUnit = (val, unit) =>
+  unit === '$' ? `$${val}` : unit ? `${val} ${unit}` : `${val}`
+
+// ── Admin affordances: visibility toggle + delete ──
+// Icon-only and faint, so six trackers don't add up to a wall of pills and
+// buttons. Fades in on hover/focus of the parent card.
+function Chrome({ tracker, onChange, onDelete }) {
+  const isPublic = tracker.visibility === 'public'
+  const Icon = isPublic ? Eye : EyeOff
+  return (
+    <div className="flex items-center gap-0.5 shrink-0 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      <button
+        onClick={() => onChange({ ...tracker, visibility: isPublic ? 'role' : 'public' })}
+        title={isPublic ? 'Public — everyone sees this in RoleSpec. Click to make role-only.' : 'Role-only — just your dashboard. Click to make public.'}
+        className="p-1 rounded hover:bg-gray-100"
+      >
+        <Icon size={12} className="text-gray-400" />
+      </button>
+      <button
+        onClick={() => onDelete(tracker.id)}
+        title="Delete tracker"
+        className="p-1 rounded hover:bg-red-50"
+      >
+        <Trash2 size={12} className="text-gray-300 hover:text-red-400" />
+      </button>
+    </div>
+  )
+}
+
+// ── Stat tile — the form for a headline number ──
+// Proportional figures on purpose: tabular-nums makes a value like 121 look loose
+// at display size. Reserve that for columns of numbers.
+function StatTile({ tracker, editable, onChange, onDelete, theme }) {
+  const [draft, setDraft] = useState(tracker.value)
+  useEffect(() => { setDraft(tracker.value) }, [tracker.value])
+
+  return (
+    <div className={`group rounded-xl px-3 py-2.5 ${theme.tile}`}>
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-500 leading-tight">{tracker.name}</p>
+        {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
+      </div>
+      {editable ? (
+        <div className="flex items-baseline gap-1 mt-1">
+          {tracker.unit === '$' && <span className="text-xl font-semibold text-gray-400">$</span>}
+          <input
+            type="number"
+            value={draft}
+            onChange={e => setDraft(e.target.value === '' ? '' : Number(e.target.value))}
+            onBlur={() => onChange({ ...tracker, value: Number(draft) || 0 })}
+            className="w-full min-w-0 text-[26px] leading-none font-semibold text-gray-800 bg-transparent focus:outline-none"
+          />
+          {tracker.unit && tracker.unit !== '$' && <span className="text-xs text-gray-400 shrink-0">{tracker.unit}</span>}
+        </div>
+      ) : (
+        <p className="text-[26px] leading-none font-semibold text-gray-800 mt-1">
+          {withUnit(compact(tracker.value), tracker.unit)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Meter — a single ratio against a limit ──
+function Meter({ tracker, editable, onChange, onDelete, theme }) {
+  const [draft, setDraft] = useState(tracker.value)
+  useEffect(() => { setDraft(tracker.value) }, [tracker.value])
+
+  const target = tracker.target || 100
+  const val = Number(tracker.value) || 0
+  const pct = Math.max(0, Math.min(100, Math.round((val / target) * 100)))
+
+  return (
+    <div className="group bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-1 mb-1.5">
+        <p className="text-[11px] font-semibold text-gray-400 leading-tight">{tracker.name}</p>
+        {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
+      </div>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-lg font-semibold text-gray-800">
+          {withUnit(compact(val), tracker.unit)}
+          <span className="text-xs font-normal text-gray-400"> / {withUnit(compact(target), tracker.unit)}</span>
+        </span>
+        <span className="text-xs text-gray-400">{pct}%</span>
+      </div>
+      {/* Track is a lighter step of the bar's own hue, not gray. */}
+      <div className={`h-2 rounded-full overflow-hidden ${theme.track}`}>
+        <div className={`h-full rounded-full ${theme.bar} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      {editable && (
+        <input
+          type="number"
+          value={draft}
+          onChange={e => setDraft(e.target.value === '' ? '' : Number(e.target.value))}
+          onBlur={() => onChange({ ...tracker, value: Number(draft) || 0 })}
+          placeholder="Update"
+          className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Content card — checklist / note / event ──
+function ContentCard({ tracker, editable, onChange, onDelete }) {
   const [draft, setDraft] = useState(tracker.value)
   useEffect(() => { setDraft(tracker.value) }, [tracker.value])
 
   const commit = (val) => onChange({ ...tracker, value: val })
 
-  const badge = tracker.visibility === 'public'
-    ? { label: 'Public', cls: 'bg-green-100 text-green-700', Icon: Eye }
-    : { label: 'Role', cls: 'bg-gray-100 text-gray-500', Icon: EyeOff }
-
-  const toggleVisibility = () => onChange({ ...tracker, visibility: tracker.visibility === 'public' ? 'role' : 'public' })
-
   return (
-    <div className={`bg-white rounded-xl border p-3.5 shadow-sm ${theme.ring}`}>
+    <div className="group bg-white rounded-xl border border-gray-100 p-3.5">
       <div className="flex items-start justify-between gap-2 mb-2">
         <h4 className="text-sm font-bold text-gray-700 leading-tight">{tracker.name}</h4>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={editable ? toggleVisibility : undefined}
-            disabled={!editable}
-            title={editable ? 'Toggle Public / Role-only' : badge.label}
-            className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${badge.cls} ${editable ? 'hover:opacity-80' : ''}`}
-          >
-            <badge.Icon size={10} /> {badge.label}
-          </button>
-          {editable && (
-            <button onClick={() => onDelete(tracker.id)} className="p-1 rounded hover:bg-red-50" title="Delete tracker">
-              <Trash2 size={13} className="text-gray-300 hover:text-red-400" />
-            </button>
-          )}
-        </div>
+        {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
       </div>
-
-      {/* NUMBER */}
-      {tracker.type === 'number' && (
-        editable ? (
-          <div className="flex items-baseline gap-1">
-            {tracker.unit === '$' && <span className="text-lg font-black text-gray-400">$</span>}
-            <input
-              type="number"
-              value={draft}
-              onChange={e => setDraft(e.target.value === '' ? '' : Number(e.target.value))}
-              onBlur={() => commit(Number(draft) || 0)}
-              className="w-24 text-2xl font-black text-gray-800 border-b border-gray-200 focus:border-pastel-blue focus:outline-none"
-            />
-            {tracker.unit && tracker.unit !== '$' && <span className="text-sm text-gray-400">{tracker.unit}</span>}
-          </div>
-        ) : (
-          <p className="text-2xl font-black text-gray-800">
-            {tracker.unit === '$' ? '$' : ''}{tracker.value}{tracker.unit && tracker.unit !== '$' ? ` ${tracker.unit}` : ''}
-          </p>
-        )
-      )}
-
-      {/* PROGRESS */}
-      {tracker.type === 'progress' && (() => {
-        const target = tracker.target || 100
-        const val = Number(tracker.value) || 0
-        const pct = Math.max(0, Math.min(100, Math.round((val / target) * 100)))
-        return (
-          <div>
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="text-sm font-bold text-gray-700">
-                {tracker.unit === '$' ? '$' : ''}{val}{tracker.unit === '%' ? '' : tracker.unit === '$' ? '' : ''} / {tracker.unit === '$' ? '$' : ''}{target}{tracker.unit === '%' ? '%' : ''}
-              </span>
-              <span className="text-xs text-gray-400">{pct}%</span>
-            </div>
-            <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
-              <div className={`h-full rounded-full ${theme.bar} transition-all`} style={{ width: `${pct}%` }} />
-            </div>
-            {editable && (
-              <input
-                type="number"
-                value={draft}
-                onChange={e => setDraft(e.target.value === '' ? '' : Number(e.target.value))}
-                onBlur={() => commit(Number(draft) || 0)}
-                className="mt-2 w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                placeholder="Update value"
-              />
-            )}
-          </div>
-        )
-      })()}
 
       {/* CHECKLIST */}
       {tracker.type === 'checklist' && (() => {
@@ -99,11 +145,11 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
             {items.length > 0 && <p className="text-[11px] text-gray-400 mb-1.5">{done}/{items.length} done</p>}
             <div className="space-y-1">
               {items.map((it, i) => (
-                <div key={i} className="flex items-center gap-2 group">
+                <div key={i} className="flex items-center gap-2 group/item">
                   <input type="checkbox" checked={!!it.done} disabled={!editable} onChange={() => toggle(i)} className="accent-pastel-pink-dark shrink-0" />
                   <span className={`text-sm flex-1 ${it.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{it.text}</span>
                   {editable && (
-                    <button onClick={() => removeItem(i)} className="opacity-0 group-hover:opacity-100 p-0.5"><X size={12} className="text-gray-300 hover:text-red-400" /></button>
+                    <button onClick={() => removeItem(i)} className="opacity-0 group-hover/item:opacity-100 p-0.5"><X size={12} className="text-gray-300 hover:text-red-400" /></button>
                   )}
                 </div>
               ))}
@@ -114,14 +160,30 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
                 type="text"
                 placeholder="+ Add item, press Enter"
                 onKeyDown={e => { if (e.key === 'Enter') { addItem(e.target.value); e.target.value = '' } }}
-                className="mt-2 w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
               />
             )}
           </div>
         )
       })()}
 
-      {/* EVENT — a single upcoming event with details + days-until countdown */}
+      {/* NOTE */}
+      {tracker.type === 'note' && (
+        editable ? (
+          <textarea
+            rows={3}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={() => commit(draft)}
+            placeholder="Write an update…"
+            className="w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
+          />
+        ) : (
+          <p className="text-sm text-gray-600 whitespace-pre-wrap">{tracker.value || <span className="italic text-gray-300">No update yet</span>}</p>
+        )
+      )}
+
+      {/* EVENT */}
       {tracker.type === 'event' && (() => {
         const ev = (draft && typeof draft === 'object' && !Array.isArray(draft)) ? draft : {}
         const set = (k, v) => setDraft({ ...ev, [k]: v })
@@ -157,14 +219,14 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
                 onChange={e => set('title', e.target.value)}
                 onBlur={commitEvent}
                 placeholder="Event name"
-                className="w-full text-sm font-semibold border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                className="w-full text-sm font-semibold border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
               />
               <div className="flex gap-1.5">
                 <input
                   type="date"
                   value={ev.date || ''}
                   onChange={e => setDate(e.target.value)}
-                  className="flex-1 min-w-0 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                  className="flex-1 min-w-0 text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                 />
                 {countdown && (
                   <span className={`shrink-0 self-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${countdown.cls}`}>
@@ -177,7 +239,7 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
                 onChange={e => set('location', e.target.value)}
                 onBlur={commitEvent}
                 placeholder="Location"
-                className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                className="w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
               />
               <textarea
                 rows={2}
@@ -185,7 +247,7 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
                 onChange={e => set('details', e.target.value)}
                 onBlur={commitEvent}
                 placeholder="Details — who's going, what to bring…"
-                className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
+                className="w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
               />
             </div>
           )
@@ -208,22 +270,6 @@ function TrackerCard({ tracker, editable, onChange, onDelete, theme }) {
           </div>
         )
       })()}
-
-      {/* NOTE */}
-      {tracker.type === 'note' && (
-        editable ? (
-          <textarea
-            rows={3}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={() => commit(draft)}
-            placeholder="Write an update…"
-            className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
-          />
-        ) : (
-          <p className="text-sm text-gray-600 whitespace-pre-wrap">{tracker.value || <span className="italic text-gray-300">No update yet</span>}</p>
-        )
-      )}
     </div>
   )
 }
@@ -234,7 +280,9 @@ const TYPES = [
   { value: 'progress', label: 'Progress bar' },
   { value: 'checklist', label: 'Checklist' },
   { value: 'note', label: 'Note' },
-  { value: 'event', label: 'Event + details' },
+  // No 'event' option — event entry belongs in its own tab, not on a dashboard.
+  // The renderer below is kept so any event tracker already saved still displays
+  // instead of rendering as an empty card.
 ]
 function AddTracker({ role, onAdd, onCancel }) {
   const [name, setName] = useState('')
@@ -289,19 +337,26 @@ export default function RoleDashboard({ role, trackers, upsertTracker, removeTra
   let list = trackers.filter(t => t.role === role)
   if (publicOnly) list = list.filter(t => t.visibility === 'public')
 
+  // Split by form so each tier gets the weight it deserves.
+  const stats = list.filter(t => t.type === 'number')
+  const meters = list.filter(t => t.type === 'progress')
+  const content = list.filter(t => t.type === 'checklist' || t.type === 'note' || t.type === 'event')
+
   return (
     <section>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-3 mb-3">
         <button
           onClick={collapsible ? () => setOpen(o => !o) : undefined}
-          className={`flex items-center gap-2 ${collapsible ? 'cursor-pointer' : 'cursor-default'}`}
+          className={`flex items-center gap-2 shrink-0 ${collapsible ? 'cursor-pointer' : 'cursor-default'}`}
         >
           {collapsible && <ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? '' : '-rotate-90'}`} />}
-          <h3 className={`text-base font-black ${theme.text}`}>{role}</h3>
-          <span className="text-xs text-gray-400">({list.length})</span>
+          <span className={`w-1 h-4 rounded-full ${theme.dot}`} />
+          <h3 className={`text-xs font-bold uppercase tracking-[0.12em] ${theme.text}`}>{role}</h3>
         </button>
+        {/* Hairline rule carries the eye across — reads as a section header, not a card title. */}
+        <div className={`flex-1 h-px ${theme.rule}`} />
         {editable && open && (
-          <button onClick={() => setAdding(a => !a)} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">
+          <button onClick={() => setAdding(a => !a)} className="shrink-0 flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">
             <Plus size={13} /> Tracker
           </button>
         )}
@@ -314,13 +369,35 @@ export default function RoleDashboard({ role, trackers, upsertTracker, removeTra
               <AddTracker role={role} onAdd={(t) => { upsertTracker(t); setAdding(false) }} onCancel={() => setAdding(false)} />
             </div>
           )}
+
           {list.length === 0 && !adding ? (
             <p className="text-sm text-gray-400 mb-2">{publicOnly ? 'No public trackers yet.' : 'No trackers yet.'}</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {list.map(t => (
-                <TrackerCard key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} onDelete={removeTracker} />
-              ))}
+            <div className="space-y-3">
+              {/* Headline numbers — a tight KPI row, denser than the cards below */}
+              {stats.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {stats.map(t => (
+                    <StatTile key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} onDelete={removeTracker} />
+                  ))}
+                </div>
+              )}
+
+              {meters.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {meters.map(t => (
+                    <Meter key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} onDelete={removeTracker} />
+                  ))}
+                </div>
+              )}
+
+              {content.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {content.map(t => (
+                    <ContentCard key={t.id} tracker={t} editable={editable} onChange={upsertTracker} onDelete={removeTracker} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>

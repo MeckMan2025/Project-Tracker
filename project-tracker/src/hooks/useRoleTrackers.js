@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
-import { SEED_TRACKERS, SEED_VERSION } from '../data/roleTrackers'
+import { SEED_TRACKERS, SEED_VERSION, RETIRED_SEED_IDS } from '../data/roleTrackers'
 
 // All role trackers live in one JSON doc (scouting_schedule row id='role_trackers')
 // so the feature needs no new table or migration. Anon REST + realtime.
@@ -23,14 +23,23 @@ export function useRoleTrackers() {
           const rows = await res.json()
           const saved = rows?.[0]?.data?.trackers
           if (!Array.isArray(saved) || !saved.length) { apply(SEED_TRACKERS); return }
+
+          // Strip withdrawn seeds every load — a doc that already saved one would
+          // otherwise keep it forever.
+          let next = saved.filter(t => !RETIRED_SEED_IDS.includes(t.id))
+          let changed = next.length !== saved.length
+
           // Append seeds added since the doc was last written, once.
           const savedVersion = rows?.[0]?.data?.seedVersion || 1
-          if (savedVersion >= SEED_VERSION) { apply(saved); return }
-          const have = new Set(saved.map(t => t.id))
-          const merged = [...saved, ...SEED_TRACKERS.filter(t => !have.has(t.id))]
-          apply(merged)
-          // Write back so the merge (and the new seedVersion) is recorded once.
-          persist(merged)
+          if (savedVersion < SEED_VERSION) {
+            const have = new Set(next.map(t => t.id))
+            const additions = SEED_TRACKERS.filter(t => !have.has(t.id))
+            if (additions.length) { next = [...next, ...additions]; changed = true }
+          }
+
+          apply(next)
+          // Write back so the merge, the removals, and the new seedVersion stick.
+          if (changed || savedVersion < SEED_VERSION) persist(next)
         } else apply(SEED_TRACKERS)
       } catch { apply(SEED_TRACKERS) }
     })()

@@ -17,11 +17,8 @@ export default function MyDashboard() {
   return (
     <div className="mb-8">
       <div className="flex items-center gap-2 mb-4">
-        <LayoutDashboard size={20} className="text-pastel-pink-dark" />
-        <h2 className="text-lg font-black bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-          My Dashboard
-        </h2>
-        <span className="text-xs text-gray-400">{myRoles.length > 1 ? `${myRoles.length} roles` : myRoles[0]}</span>
+        <LayoutDashboard size={16} className="text-gray-400" />
+        <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">My Dashboard</h2>
       </div>
       {loading ? (
         <p className="text-sm text-gray-400 animate-pulse">Loading trackers…</p>

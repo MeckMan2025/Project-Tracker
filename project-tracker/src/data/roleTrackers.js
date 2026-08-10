@@ -13,7 +13,15 @@
 // Bump this whenever SEED_TRACKERS gains new entries. On load, any seed whose id
 // isn't in the saved doc gets appended once, then the doc records the new version
 // so a tracker a lead later deletes stays deleted instead of coming back.
-export const SEED_VERSION = 2
+export const SEED_VERSION = 3
+
+// Seed trackers that have been withdrawn. Removing an entry from SEED_TRACKERS is
+// not enough — docs that already saved it would keep it forever — so these ids get
+// stripped on load and never re-added.
+//
+// Event entry lives in its own tab, not on a role dashboard, so the dashboard no
+// longer collects events.
+export const RETIRED_SEED_IDS = ['out-next', 'out-upcoming']
 
 export const DASHBOARD_ROLES = [
   { role: 'Communications', side: 'business' },
@@ -29,10 +37,29 @@ export const DASHBOARD_ROLES = [
 export const ROLE_NAMES = DASHBOARD_ROLES.map(r => r.role)
 
 // Color per side (matches the org chart)
+// Fills use the pastel brand tokens so dashboards read as part of the app rather
+// than generic Tailwind. Text stays on a darker step — pastel on white doesn't
+// clear contrast. `track` is a lighter step of `bar`'s own hue, since a gray
+// unfilled track reads as "disabled". `tile` is the stat-tile wash.
 export const SIDE_THEME = {
-  business: { text: 'text-orange-700', chip: 'bg-orange-100 text-orange-700', bar: 'bg-orange-400', ring: 'border-orange-200' },
-  hardware: { text: 'text-blue-700', chip: 'bg-blue-100 text-blue-700', bar: 'bg-blue-400', ring: 'border-blue-200' },
-  software: { text: 'text-green-700', chip: 'bg-green-100 text-green-700', bar: 'bg-green-400', ring: 'border-green-200' },
+  business: {
+    text: 'text-orange-700', chip: 'bg-pastel-orange/40 text-orange-700',
+    bar: 'bg-pastel-orange-dark', track: 'bg-pastel-orange/40',
+    dot: 'bg-pastel-orange-dark', tile: 'bg-pastel-orange/[0.18]',
+    rule: 'bg-pastel-orange-dark/30', ring: 'border-pastel-orange',
+  },
+  hardware: {
+    text: 'text-blue-700', chip: 'bg-pastel-blue/40 text-blue-700',
+    bar: 'bg-pastel-blue-dark', track: 'bg-pastel-blue/40',
+    dot: 'bg-pastel-blue-dark', tile: 'bg-pastel-blue/[0.18]',
+    rule: 'bg-pastel-blue-dark/30', ring: 'border-pastel-blue',
+  },
+  software: {
+    text: 'text-pink-700', chip: 'bg-pastel-pink/40 text-pink-700',
+    bar: 'bg-pastel-pink-dark', track: 'bg-pastel-pink/40',
+    dot: 'bg-pastel-pink-dark', tile: 'bg-pastel-pink/[0.18]',
+    rule: 'bg-pastel-pink-dark/30', ring: 'border-pastel-pink',
+  },
 }
 
 export const sideForRole = (role) => (DASHBOARD_ROLES.find(r => r.role === role)?.side) || 'business'
@@ -54,8 +81,7 @@ export const SEED_TRACKERS = [
   { id: 'out-reached', role: 'Outreach', name: 'People Reached', type: 'number', value: 0, visibility: 'public' },
   { id: 'out-hours', role: 'Outreach', name: 'Outreach Hours', type: 'number', unit: 'hrs', value: 0, visibility: 'public' },
   { id: 'out-orgs', role: 'Outreach', name: 'Organizations Worked With', type: 'number', value: 0, visibility: 'public' },
-  { id: 'out-next', role: 'Outreach', name: 'Next Outreach Event', type: 'event', value: { title: '', date: '', location: '', details: '' }, visibility: 'public' },
-  { id: 'out-upcoming', role: 'Outreach', name: 'Upcoming Events', type: 'checklist', value: [], visibility: 'role' },
+  // No event entry here — events get their own tab. See RETIRED_SEED_IDS.
 
   // CAD
   { id: 'cad-parts', role: 'CAD', name: 'Parts Designed', type: 'number', value: 0, visibility: 'public' },
