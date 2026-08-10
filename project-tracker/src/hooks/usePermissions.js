@@ -81,6 +81,9 @@ export function usePermissions() {
     // Log Reach and Portfolio belong to Outreach and nobody else.
     canViewOutreachTabs: hasOutreachRole,
 
+    // An Outreach member's Requests tab carries event requests and nothing else.
+    outreachEventRequestsOnly: hasOutreachRole && !hasLeadTag,
+
     // Nobody
     canEditScouting: false,
 

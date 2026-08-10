@@ -23,7 +23,7 @@ const typeCategories = [
 
 function RequestsView({ tabs = [] }) {
   const { username, user } = useUser()
-  const { canReviewRequests, hasLeadTag } = usePermissions()
+  const { canReviewRequests, hasLeadTag, outreachEventRequestsOnly } = usePermissions()
   const { requests, handleApprove, handleDeny, handleRemind } = usePendingRequests()
   const { addToast } = useToast()
   const [history, setHistory] = useState([])
@@ -54,9 +54,14 @@ function RequestsView({ tabs = [] }) {
   }, [requests, canReviewRequests, user])
 
   // Filter pending requests for teammates (only their own)
-  const visibleRequests = canReviewRequests
+  const ownRequests = canReviewRequests
     ? requests
     : requests.filter(r => r.requested_by_user_id === user?.id || r.requested_by === username)
+
+  // Outreach only deals in event requests — hide every other type from them.
+  const visibleRequests = outreachEventRequestsOnly
+    ? ownRequests.filter(r => r.type === 'calendar_event')
+    : ownRequests
 
   // Combine and filter based on toggle
   const filteredRequests = filter === 'pending'
