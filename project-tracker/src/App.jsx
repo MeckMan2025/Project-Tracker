@@ -54,6 +54,7 @@ import { usePresence } from './hooks/usePresence'
 import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
 import RestrictedAccess from './components/RestrictedAccess'
+import WorkingOnIt from './components/WorkingOnIt'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
 import { useNativePush } from './hooks/useNativePush'
@@ -96,6 +97,7 @@ const TAB_ACCESS = {
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
+  'log-reach': 'teammate', 'portfolio': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
@@ -1254,6 +1256,10 @@ function App() {
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
+      ) : activeTab === 'log-reach' ? (
+        <WorkingOnIt title="Log Reach" blurb="Logging outreach reach lands here." />
+      ) : activeTab === 'portfolio' ? (
+        <WorkingOnIt title="Portfolio" blurb="The team portfolio lands here." />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
