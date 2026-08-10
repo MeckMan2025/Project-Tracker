@@ -126,8 +126,9 @@ function expandRecurrence(event, from, to) {
 // Top-level component
 // ---------------------------------------------------------------------------
 function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
-  const { username, user } = useUser()
+  const { username, user, functionTags } = useUser()
   const { canEditContent, canReviewRequests, isGuest } = usePermissions()
+  const isCofounder = (functionTags || []).includes('Co-Founder')
   const { addToast } = useToast()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe } = usePushNotifications()
 
@@ -598,7 +599,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-20">
         {/* Row 1: title · nav · view switcher · bell */}
-        <div className="px-4 py-2 ml-10 flex items-center gap-3 flex-wrap">
+        <div className="px-4 py-2 ml-14 flex items-center gap-3 flex-wrap">
           <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent shrink-0">
             Calendar
           </h1>
@@ -630,7 +631,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         </div>
 
         {/* Row 2: department filters + dashboard toggle */}
-        <div className="px-4 pb-2 ml-10 flex items-center gap-1 flex-wrap">
+        <div className="px-4 pb-2 ml-14 flex items-center gap-1 flex-wrap">
           {DEPARTMENTS.map(d => {
             const active = filter === d.id
             return (
@@ -727,6 +728,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         />
       )}
 
+      {isCofounder && (
       <button
         onClick={async () => {
           if (!user?.id) { addToast('No user — sign in first', 'error'); return }
@@ -796,6 +798,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       >
         🔔 Test Notification
       </button>
+      )}
     </div>
   )
 }

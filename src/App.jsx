@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { Plus, Download, Upload } from 'lucide-react'
+import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2 } from 'lucide-react'
 import { downloadCSV } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
 import TaskModal from './components/TaskModal'
@@ -22,6 +22,7 @@ import RequestsView from './components/RequestsView'
 import RequestsBadge from './components/RequestsBadge'
 import ProfileView from './components/ProfileView'
 import ScoutingData from './components/ScoutingData'
+import RoleSpec from './components/RoleSpec'
 import TeamScoutingData from './components/TeamScoutingData'
 import TeamHomeView from './components/TeamHomeView'
 import EngineeringNotebook from './components/EngineeringNotebook'
@@ -40,6 +41,7 @@ import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
 import DailyPulsePopup from './components/DailyPulsePopup'
 import TeamPulseDashboard from './components/TeamPulseDashboard'
+import { useAppSettings } from './hooks/useAppSettings'
 import NotebookFlashRequired from './components/NotebookFlashRequired'
 import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
@@ -226,17 +228,18 @@ function getCachedData() {
 }
 
 const ROLE_EMOJIS = {
-  'Website': { emoji: '💻', label: 'Web Developer' },
-  'Build': { emoji: '🔧', label: 'Builder' },
+  'Communications': { emoji: '📣', label: 'Communications' },
+  'Finance': { emoji: '💰', label: 'Finance' },
+  'Outreach': { emoji: '🌍', label: 'Outreach' },
   'CAD': { emoji: '📐', label: 'CAD Designer' },
-  'Scouting': { emoji: '🔍', label: 'Scout' },
-  'Business': { emoji: '🤝', label: 'Business Specialist' },
-  'Communications': { emoji: '📣', label: 'Communications Lead' },
+  'Assembly/Building': { emoji: '🔧', label: 'Assembly / Building' },
+  'Wiring': { emoji: '🔌', label: 'Wiring' },
   'Programming': { emoji: '⌨️', label: 'Programmer' },
+  'Scouting': { emoji: '🔍', label: 'Scout' },
   'Co-Founder': { emoji: '👑', label: 'Co-Founder' },
   'Mentor': { emoji: '🎓', label: 'Mentor' },
   'Coach': { emoji: '🏆', label: 'Coach' },
-  'Team Lead': { emoji: '🚀', label: 'Team Lead' },
+  'Project Manager': { emoji: '🚀', label: 'Project Manager' },
   'Business Lead': { emoji: '💼', label: 'Business Lead' },
   'Technical Lead': { emoji: '⚙️', label: 'Technical Lead' },
 }
@@ -330,15 +333,18 @@ function App() {
   }, [effectiveIsTeam])
   const [tasksByTab, setTasksByTab] = useState(() => cachedData.current?.tasksByTab || {})
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
 
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [specialView, setSpecialView] = useState(null)
+  const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings()
   const [loadError, setLoadError] = useState(null)
   const [landingChoice, setLandingChoice] = useState(null)
   const [viewingProfileId, setViewingProfileId] = useState(null)
+  const [profileReturnTab, setProfileReturnTab] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
@@ -357,6 +363,7 @@ function App() {
   // Daily Pulse trigger — once per day per user, skippable, disable-able in settings
   useEffect(() => {
     if (!user?.id || effectiveIsTeam || isLoading) return
+    if (appSettings.teamPulseEnabled === false) return // team-wide off switch (Special Controls)
     const d = new Date()
     const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     if (localStorage.getItem(`pulse_skipped_${todayKey}`)) return
@@ -379,7 +386,7 @@ function App() {
       } catch {}
     })()
     return () => { cancelled = true }
-  }, [user?.id, effectiveIsTeam, isLoading])
+  }, [user?.id, effectiveIsTeam, isLoading, appSettings.teamPulseEnabled])
 
   // Comp Day screen captivation — check if there's a live session with an active block and user has a role
   useEffect(() => {
@@ -674,6 +681,14 @@ function App() {
 
   const tasks = tasksByTab[activeTab] || []
 
+  // Open a specific task on its Scrum board (used by the Home "My Assigned Objective" View buttons)
+  const openTaskFromHome = (boardId, taskId) => {
+    if (boardId) setActiveTab(boardId)
+    const list = tasksByTab[boardId] || []
+    const task = list.find(t => String(t.id) === String(taskId))
+    if (task) setEditingTask(task)
+  }
+
   const handleAddTab = async (name) => {
     const newId = String(Date.now()) + Math.random().toString(36).slice(2)
     // Update UI immediately (optimistic)
@@ -839,6 +854,10 @@ function App() {
       .filter(task => task.status === status)
       .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
   }
+
+  const completedTasks = tasks
+    .filter(task => task.status === 'completed')
+    .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
 
   const handleAddTask = async (newTask) => {
     const task = {
@@ -1226,7 +1245,7 @@ function App() {
       {!hasAccess(activeTab, tier, effectiveIsTeam) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
@@ -1249,24 +1268,13 @@ function App() {
               <NotificationBell />
             </div>
           </header>
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-4">
-          <div className="text-center">
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent mb-2">
-              AI Manual
-            </h1>
-            <p className="text-gray-500">Ask questions about the FTC Competition Manual</p>
-          </div>
-          <a
-            href="https://ftc-cmchatbot.firstinspires.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 bg-pastel-pink hover:bg-pastel-pink-dark rounded-xl font-semibold text-gray-700 shadow-md transition-colors text-lg"
-          >
-            Open FTC AI Chatbot
-          </a>
-          <p className="text-xs text-gray-400 text-center max-w-sm">
-            Powered by FIRST. Trained on the current Competition Manual — always verify answers against the official manual.
-          </p>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div className="text-7xl mb-5 animate-bounce">🚧</div>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-700 mb-2">Under Construction</h2>
+            <p className="text-gray-500 max-w-sm">
+              <span className="font-semibold text-pastel-blue-dark">Kayden</span> and{' '}
+              <span className="font-semibold text-pastel-pink-dark">Yukti</span> are working on it 🛠️
+            </p>
           </div>
         </div>
       ) : activeTab === 'org-chart' ? (
@@ -1283,15 +1291,20 @@ function App() {
           }}
         />
       ) : activeTab === 'user-management' ? (
-        <UserManagement />
+        <UserManagement onViewProfile={(id) => { setViewingProfileId(id); setProfileReturnTab('user-management'); setActiveTab('profile') }} />
       ) : activeTab === 'requests' ? (
         <RequestsView tabs={tabs} />
       ) : activeTab === 'profile' ? (
-        <ProfileView viewingProfileId={viewingProfileId} onClearViewing={() => setViewingProfileId(null)} />
+        <ProfileView
+          viewingProfileId={viewingProfileId}
+          onClearViewing={() => { setViewingProfileId(null); if (profileReturnTab) { setActiveTab(profileReturnTab); setProfileReturnTab(null) } }}
+        />
       ) : activeTab === 'settings' ? (
         <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
+      ) : activeTab === 'role-spec' ? (
+        <RoleSpec />
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
@@ -1367,13 +1380,26 @@ function App() {
                       <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
                     </button>
                     {hasLeadTag && (
-                      <button
-                        onClick={() => setSpecialView('team-pulse')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                      >
-                        <span className="text-lg font-semibold text-gray-700">Team Pulse</span>
-                        <p className="text-sm text-gray-400 mt-1">Anonymous mood, focus, and frustration trends</p>
-                      </button>
+                      <div className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
+                        <button onClick={() => setSpecialView('team-pulse')} className="text-left w-full hover:opacity-80 transition-opacity">
+                          <span className="text-lg font-semibold text-gray-700">Team Pulse</span>
+                          <p className="text-sm text-gray-400 mt-1">Anonymous mood, focus, and frustration trends</p>
+                        </button>
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Daily Pulse check-in</p>
+                            <p className="text-xs text-gray-400">{appSettings.teamPulseEnabled === false ? 'Off — no one gets the popup' : 'On — members get the daily popup'}</p>
+                          </div>
+                          <button
+                            onClick={() => updateAppSettings({ teamPulseEnabled: appSettings.teamPulseEnabled === false })}
+                            role="switch"
+                            aria-checked={appSettings.teamPulseEnabled !== false}
+                            className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${appSettings.teamPulseEnabled === false ? 'bg-gray-300' : 'bg-green-400'}`}
+                          >
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${appSettings.teamPulseEnabled === false ? '' : 'translate-x-6'}`} />
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1489,7 +1515,7 @@ function App() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
           <div className="px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4 ml-10">
+            <div className="flex items-center gap-4 ml-14">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
                   Everything That's Scrum
@@ -1600,6 +1626,61 @@ function App() {
               ))}
             </div>
           </DragDropContext>
+
+          {/* Completed tasks — archived out of the board via "Mark Done" */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowCompleted(prev => !prev)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white/90 rounded-lg font-semibold text-gray-700 transition-colors"
+            >
+              <ChevronRight size={16} className={`transition-transform ${showCompleted ? 'rotate-90' : ''}`} />
+              <CheckCircle size={16} className="text-green-500" />
+              Completed
+              <span className="text-sm font-normal text-gray-500">({completedTasks.length})</span>
+            </button>
+
+            {showCompleted && (
+              completedTasks.length === 0 ? (
+                <p className="text-sm text-gray-400 mt-3 ml-2">No completed tasks yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
+                  {completedTasks.map(task => (
+                    <div
+                      key={task.id}
+                      className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-l-green-400"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-medium text-gray-800 text-sm">{task.title}</h3>
+                        {canEditContent && (
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="text-gray-300 hover:text-red-400 shrink-0"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                        {task.assignee && task.assignee !== '__up_for_grabs__' && (
+                          <span className="flex items-center gap-1">
+                            <User size={11} />
+                            {task.assignee}
+                          </span>
+                        )}
+                        {task.dueDate && (
+                          <span className="flex items-center gap-1">
+                            <Calendar size={11} />
+                            {task.dueDate}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
         </main>
       </div>
       )}

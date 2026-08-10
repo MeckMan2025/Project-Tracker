@@ -295,7 +295,7 @@ function TeamInfoPage({ onBack }) {
 
             <LeaderCard
               name="Harshita"
-              role="Team Lead"
+              role="Project Manager"
               emoji="🚀"
               color="text-pastel-orange-dark"
               photo="/leaders/harshita.jpg"

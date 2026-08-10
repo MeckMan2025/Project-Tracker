@@ -2,18 +2,35 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import NotificationPopup from './NotificationPopup'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 const restHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
+// Shared across every mounted bell so an incoming notification only pops once.
+const poppedIds = new Set()
+
+// Ask for OS notification permission (best-effort; ignored if already decided).
+function requestNotifPermission() {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {})
+    }
+  } catch { /* ignore */ }
+}
+
 export default function NotificationBell() {
   const { user } = useUser()
+  const [popup, setPopup] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
   const unreadCount = notifications.filter(n => !n.read).length
+
+  // Ask for OS notification permission once so real notifications can fire.
+  useEffect(() => { requestNotifPermission() }, [])
 
   // Load notifications via direct REST (bypasses JS client auth token issues)
   useEffect(() => {
@@ -43,15 +60,20 @@ export default function NotificationBell() {
           if (prev.some(n => n.id === payload.new.id)) return prev
           return [payload.new, ...prev].slice(0, 20)
         })
-        // Show foreground browser notification if permission granted
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          try {
-            new Notification(payload.new.title || 'Notification', {
-              body: payload.new.body || '',
-              icon: '/icon-192.png',
-            })
-          } catch (e) {
-            // Ignore — may fail on mobile or if SW is handling it
+        // Pop it on screen once (cute white card + OS notification)
+        if (!poppedIds.has(payload.new.id)) {
+          poppedIds.add(payload.new.id)
+          setPopup(payload.new)
+          // Foreground OS notification if permission granted
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try {
+              new Notification(payload.new.title || 'Notification', {
+                body: payload.new.body || '',
+                icon: '/icon-192.png',
+              })
+            } catch (e) {
+              // Ignore — may fail on mobile or if SW is handling it
+            }
           }
         }
       })
@@ -113,8 +135,9 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
+      <NotificationPopup notification={popup} onClose={() => setPopup(null)} />
       <button
-        onClick={() => setOpen(prev => !prev)}
+        onClick={() => { requestNotifPermission(); setOpen(prev => !prev) }}
         className="relative p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors"
         title="Notifications"
       >

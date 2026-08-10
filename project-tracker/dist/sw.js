@@ -1,21 +1,24 @@
 // Service Worker — Push notification receiver only (no caching/offline)
 
+const ICON = '/ScrumLogo.png'
+
 self.addEventListener('push', (event) => {
-  let data = { title: 'New Notification', body: '', icon: '/icon-192.png' }
+  let data = { title: 'New Notification', body: '', icon: ICON }
   try {
     if (event.data) {
       data = { ...data, ...event.data.json() }
     }
   } catch (e) {
-    // If not JSON, use text as body
     if (event.data) data.body = event.data.text()
   }
 
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon || '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: data.icon || ICON,
+      badge: ICON,
+      tag: data.tag || data.title,
+      renotify: true,
       data: data,
     })
   )

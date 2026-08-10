@@ -1,48 +1,19 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
-
-const TEAM_GOALS = [
-  'Create 1 social media post per week to connect with our community and spread FIRST throughout the season',
-  'By January 1st, have at least 250 hours of outreach as a team by participating in at least 8 outreach events',
-  'Participate in the final tournament at the league qualifiers',
-  'Help strengthen and uplift other FIRST Teams by volunteering and collaborating with FLL teams and at least 3 other FTC teams',
-  'Have a successful intake system by the first comp — human player can load balls and cycle within 15 seconds',
-  'Keep an active engineering notebook the entire season — everyone at the meeting every night updates it with their tasks',
-  'Score over 60 points per match individually (across Auto, TeleOp, and End Game)',
-  'Have each team member rotate once a week across business, technical, and programming so everyone can confidently work in each department by end of season',
-  'By February 14th, drivers need to score 100 on a rules test and get at least 1 hour of driver practice per meeting, 2–3 times a week',
-  'Try to save money by not going below 25% of our budget by end of season',
-  'Win over 4 matches per competition',
-]
-
-function pickRandomGoals(arr, count) {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
-}
+import { useState, useRef, useCallback } from 'react'
 
 function LoadingScreen({ onComplete, onMusicStart }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
   const tappedRef = useRef(false)
-  const randomGoals = useMemo(() => pickRandomGoals(TEAM_GOALS, 3), [])
 
   const startMusic = () => {
     const pref = localStorage.getItem('scrum-music-pref') || 'off'
     if (pref === 'off') return
-
-    const SONG_MAP = {
-      'intro': '/intro.mp3',
-      'radical-robotics': '/radical-robotics.mp3',
-      'radical-theme': '/radical-theme.mp3',
-    }
-
+    const SONG_MAP = { 'intro': '/intro.mp3', 'radical-robotics': '/radical-robotics.mp3', 'radical-theme': '/radical-theme.mp3' }
     let src
     if (pref === 'random' || !SONG_MAP[pref]) {
       const songs = Object.values(SONG_MAP)
       src = songs[Math.floor(Math.random() * songs.length)]
-    } else {
-      src = SONG_MAP[pref]
-    }
-
+    } else { src = SONG_MAP[pref] }
     const audio = new Audio(src)
     audio.volume = 1
     audio.play().catch(() => {})
@@ -51,10 +22,7 @@ function LoadingScreen({ onComplete, onMusicStart }) {
 
   const finishLoading = useCallback(() => {
     setIsFading(true)
-    setTimeout(() => {
-      setIsVisible(false)
-      onComplete()
-    }, 500)
+    setTimeout(() => { setIsVisible(false); onComplete() }, 600)
   }, [onComplete])
 
   const handleTap = () => {
@@ -68,56 +36,58 @@ function LoadingScreen({ onComplete, onMusicStart }) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 transition-opacity duration-500 flex flex-col items-center justify-center ${
-        isFading ? 'opacity-0' : 'opacity-100'
-      }`}
-      style={{
-        backgroundImage: 'url("/Background.png")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
+      onClick={handleTap}
+      className={`fixed inset-0 z-50 cursor-pointer overflow-hidden transition-opacity duration-[600ms] ${isFading ? 'opacity-0' : 'opacity-100'}`}
+      style={{ background: 'linear-gradient(140deg, #eef7fb 0%, #fdeef3 52%, #fff6ea 100%)' }}
     >
-      {!isFading && (
-        <div
-          onClick={handleTap}
-          className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
-        >
-          <div className="flex flex-col items-center gap-5 px-4 w-full max-w-sm pointer-events-none">
-            {/* Logo + Title */}
-            <div className="text-center">
-              <img src="/ScrumLogo-transparent.png" alt="Logo" className="w-16 h-16 mx-auto mb-2 drop-shadow-lg" />
-              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent drop-shadow-sm">
-                Everything That's Scrum
-              </h1>
-              <p className="text-xs text-gray-500 mt-1 font-medium">Team 7196 — Radical Robotics</p>
-            </div>
+      <style>{`
+        @keyframes reveal {
+          0%   { opacity: 0; transform: scale(1.22); letter-spacing: .18em; filter: blur(8px); }
+          60%  { opacity: 1; filter: blur(0); }
+          100% { opacity: 1; transform: scale(1); letter-spacing: -.02em; filter: blur(0); }
+        }
+        @keyframes ombre { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        @keyframes sweep { 0% { transform: translateX(-160%) skewX(-18deg); } 100% { transform: translateX(160%) skewX(-18deg); } }
+        .pre { animation: fadeUp .9s ease .15s both; }
+        .scrum {
+          background: linear-gradient(100deg, #7EC8E3 0%, #F4A3B5 45%, #FFBB70 90%, #7EC8E3 130%);
+          background-size: 220% auto;
+          -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+          animation: reveal 1.2s cubic-bezier(.2,.8,.2,1) both, ombre 6s linear 1.2s infinite, floaty 5s ease-in-out 1.2s infinite;
+          filter: drop-shadow(0 8px 22px rgba(244,163,181,.35));
+          position: relative;
+        }
+        .shine { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .shine::after { content: ''; position: absolute; top: -20%; bottom: -20%; width: 40%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+          animation: sweep 3s ease-in-out 1.6s infinite; }
+        .sub { animation: fadeUp 1s ease 1.7s both; }
+        .cta { animation: fadeUp 1s ease 2.2s both; }
+      `}</style>
 
-            {/* Goals card */}
-            <div className="w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden">
-              <div className="bg-gradient-to-r from-pastel-blue/40 via-pastel-pink/40 to-pastel-orange/40 px-4 py-2">
-                <p className="text-xs font-bold text-gray-600 uppercase tracking-widest text-center">Team Goals</p>
-              </div>
-              <div className="p-4 space-y-3">
-                {randomGoals.map((goal, i) => (
-                  <div key={i} className="flex gap-3 items-start">
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-pastel-pink to-pastel-orange flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                      {i + 1}
-                    </span>
-                    <p className="text-sm text-gray-700 leading-snug pt-0.5">{goal}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+      <div className="relative h-full flex flex-col items-center justify-center px-6 text-center">
+        <p className="pre text-gray-400 tracking-[0.5em] text-xs sm:text-sm font-bold uppercase mb-2 ml-[0.5em]">
+          Everything That's
+        </p>
 
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-            <span className="pointer-events-none text-sm font-semibold animate-pulse bg-pastel-pink/80 text-gray-700 px-6 py-2.5 rounded-full shadow-lg">
-              Tap to start
-            </span>
-          </div>
+        <h1 className="scrum text-[20vw] sm:text-9xl font-black leading-none">
+          SCRUM
+          <span className="shine" />
+        </h1>
+
+        <p className="sub text-gray-400 tracking-[0.3em] text-xs sm:text-sm font-bold uppercase mt-4">
+          Team 7196 · Radical Robotics
+        </p>
+
+        <div className="cta absolute bottom-14 left-1/2 -translate-x-1/2">
+          <span className="text-sm font-bold text-white tracking-widest uppercase px-7 py-3 rounded-full shadow-lg animate-pulse"
+                style={{ background: 'linear-gradient(90deg, #7EC8E3, #F4A3B5, #FFBB70)' }}>
+            Tap to enter
+          </span>
         </div>
-      )}
+      </div>
     </div>
   )
 }

@@ -82,7 +82,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec'
 
   return (
     <>
@@ -170,33 +170,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </>
         )}
 
-        {/* Category Filter — hidden during comp day lock */}
-        {!compDayAllowedTabs && !isTeamAccount && <div className="px-4 pt-3 pb-1 flex gap-2 justify-center">
-          {[
-            { id: 'technical', emoji: '🔧' },
-            { id: 'general', emoji: '🏠' },
-            { id: 'business', emoji: '💼' },
-          ].map(({ id, emoji }) => (
-            <button
-              key={id}
-              onClick={() => {
-                const val = navFilter === id ? 'general' : id
-                setNavFilter(val)
-                localStorage.setItem('scrum-nav-filter', val)
-              }}
-              className={`px-3 py-1.5 rounded-lg text-lg transition-colors ${
-                navFilter === id
-                  ? 'bg-pastel-pink shadow-sm scale-110'
-                  : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-              title={id.charAt(0).toUpperCase() + id.slice(1)}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>}
-
-        <nav className="p-2 flex-1 overflow-y-auto">
+        <nav className="px-2 pt-1 pb-2 flex-1 overflow-y-auto">
           {/* ─── Comp Day Locked Nav ─── */}
           {compDayAllowedTabs ? (<>
             <div className="mb-2 px-2 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
@@ -280,6 +254,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>)}
           </>) : (<>
           {/* ─── Normal Nav ─── */}
+          <hr className="mb-1.5 border-gray-300" />
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -296,7 +271,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Home</span>
           </div>
 
-          <hr className="my-2 border-gray-200" />
+          <hr className="my-1.5 border-gray-300" />
 
           {/* Chat Tab */}
           <div
@@ -454,7 +429,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {!isTeamAccount && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'data' || activeTab === 'attendance'
+              activeTab === 'data' || activeTab === 'attendance' || activeTab === 'role-spec'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
@@ -472,12 +447,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             {!isGuest && (
               <ChevronRight
                 size={14}
-                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' ? 'rotate-90' : ''}`}
+                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'role-spec' ? 'rotate-90' : ''}`}
               />
             )}
           </div>
 
-          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance') && (
+          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'role-spec') && (
             <div className="ml-4 mt-1 space-y-1">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
@@ -502,6 +477,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               >
                 <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
                 <span className="truncate">Attendance</span>
+              </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === 'role-spec' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => { onTabChange('role-spec'); onToggle() }}
+              >
+                <ChevronRight size={14} className={activeTab === 'role-spec' ? 'rotate-90' : ''} />
+                <span className="truncate">RoleSpec</span>
               </div>
             </div>
           )}

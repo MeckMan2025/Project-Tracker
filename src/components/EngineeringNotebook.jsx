@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2 } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { ACTIVE_SEASON, seasonOf } from '../data/season'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 
@@ -72,6 +73,7 @@ export default function EngineeringNotebook() {
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [submitFeedback, setSubmitFeedback] = useState(null)
   const [showTeamEntries, setShowTeamEntries] = useState(false)
+  const [filterSeason, setFilterSeason] = useState(ACTIVE_SEASON)
   const [filterStudent, setFilterStudent] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterProject, setFilterProject] = useState('')
@@ -149,6 +151,7 @@ export default function EngineeringNotebook() {
       project_id: formData.projectId,
       project_link: formData.projectLink.trim(),
       photo_url: formData.photoUrl.trim(),
+      season: ACTIVE_SEASON,
     }
 
     // Close form immediately, save in background
@@ -248,13 +251,21 @@ export default function EngineeringNotebook() {
   // Filtered entries
   const filteredEntries = useMemo(() => {
     let result = entries
+    if (filterSeason) result = result.filter(e => seasonOf(e) === filterSeason)
     if (!isLead) result = result.filter(e => e.username === username)
     if (filterStudent) result = result.filter(e => e.username === filterStudent)
     if (filterCategory) result = result.filter(e => e.category === filterCategory)
     if (filterProject) result = result.filter(e => e.project_id === filterProject)
     if (filterEngagement) result = result.filter(e => e.engagement === filterEngagement)
     return result
-  }, [entries, showTeamEntries, isLead, username, filterStudent, filterCategory, filterProject, filterEngagement])
+  }, [entries, showTeamEntries, isLead, username, filterSeason, filterStudent, filterCategory, filterProject, filterEngagement])
+
+  // Seasons available in the data (plus the active one), newest first
+  const availableSeasons = useMemo(() => {
+    const set = new Set([ACTIVE_SEASON])
+    entries.forEach(e => set.add(seasonOf(e)))
+    return Array.from(set).sort().reverse()
+  }, [entries])
 
   // Group by date
   const groupedEntries = useMemo(() => {
@@ -309,6 +320,8 @@ export default function EngineeringNotebook() {
     if (!isLead) {
       result = result.filter(e => e.username === username)
     }
+    // Only show entries from the selected season (so archived seasons don't leak into the folders)
+    result = result.filter(e => seasonOf(e) === filterSeason)
     return result
   }
 
@@ -399,6 +412,19 @@ export default function EngineeringNotebook() {
                 </button>
               )
             })}
+          </div>
+          {/* Season selector — view the current season or an archived one */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-gray-400">Season</span>
+            <select
+              value={filterSeason}
+              onChange={e => setFilterSeason(e.target.value)}
+              className="border rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+            >
+              {availableSeasons.map(s => (
+                <option key={s} value={s}>{s}{s === ACTIVE_SEASON ? ' (current)' : ' — archive'}</option>
+              ))}
+            </select>
           </div>
           </div>
           <NotificationBell />
