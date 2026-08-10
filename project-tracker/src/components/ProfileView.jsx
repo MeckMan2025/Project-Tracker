@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { getSideStyle, getSideLabel, getSides, SIDE_HEX, SIDE_LABEL } from '../utils/sideColors'
+import { triggerPush } from '../utils/pushHelper'
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
@@ -147,6 +148,23 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       if (!res.ok) throw new Error(await res.text() || res.statusText)
       const rows = await res.json()
       if (!rows || rows.length === 0) throw new Error('Update did not affect any rows')
+      // Notify the member their role changed (mirrors User Management)
+      const notif = {
+        id: String(Date.now()) + Math.random().toString(36).slice(2),
+        user_id: viewingProfileId,
+        type: 'role_change',
+        title: wasAdded ? 'New Role Assigned!' : 'Role Removed',
+        body: wasAdded
+          ? `${username} assigned you the "${roleName}" role!`
+          : `${username} removed your "${roleName}" role.`,
+        data: JSON.stringify({ role: roleName, action: wasAdded ? 'added' : 'removed' }),
+      }
+      fetch(`${supabaseUrl}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(notif),
+      }).catch(() => {})
+      triggerPush(notif)
     } catch (err) {
       // Rollback
       setViewedProfile(prev => ({ ...prev, function_tags: current }))
