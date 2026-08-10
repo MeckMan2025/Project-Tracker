@@ -429,7 +429,7 @@ function HomeView({ onTabChange, onOpenTask }) {
             {/* piece of tape */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-amber-200/50 border border-amber-100/70 rotate-2 shadow-sm rounded-[2px] z-10" />
             <div
-              className="relative flex-1 rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
+              className="relative flex-1 flex flex-col rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
               style={{ background: '#ffffff' }}
             >
               {/* pink margin line */}
@@ -440,7 +440,7 @@ function HomeView({ onTabChange, onOpenTask }) {
                   My Assigned Objective
                 </h2>
               </div>
-              <div className="mt-1">
+              <div className="mt-1 relative flex-1">
                 {myTasks.length === 0 && (
                   <div className="flex items-center h-9" style={{ borderBottom: '1px solid rgba(59,130,246,0.45)' }}>
                     <span className="text-2xl text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>Nothing assigned yet…</span>
@@ -467,19 +467,26 @@ function HomeView({ onTabChange, onOpenTask }) {
                     </button>
                   </div>
                 ))}
-                {/* Filler ruled lines. Generous count rather than an exact fit: the
-                    paper stretches to the sticky-note column, and it's overflow-hidden,
-                    so surplus lines clip instead of leaving the page half-blank. */}
-                {Array.from({ length: Math.max(0, 16 - myTasks.length) }).map((_, i) => {
-                  const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
-                  return (
-                    <div
-                      key={`filler-${i}`}
-                      className="h-9"
-                      style={{ borderBottom: `1px solid ${idx % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
-                    />
-                  )
-                })}
+                {/* Filler ruled lines, absolutely positioned so they paint the rest
+                    of the page without adding height — otherwise the paper would grow
+                    past the sticky-note column it's meant to line up with. Rows are
+                    h-9 (36px), so the layer starts below however many tasks rendered.
+                    Surplus lines clip against the paper's overflow-hidden. */}
+                <div
+                  className="absolute inset-x-0 bottom-0 overflow-hidden pointer-events-none"
+                  style={{ top: `${(myTasks.length === 0 ? 1 : myTasks.length) * 36}px` }}
+                >
+                  {Array.from({ length: 20 }).map((_, i) => {
+                    const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
+                    return (
+                      <div
+                        key={`filler-${i}`}
+                        className="h-9"
+                        style={{ borderBottom: `1px solid ${idx % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
+                      />
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
