@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
-import { useToast } from './ToastProvider'
+import NotificationPopup from './NotificationPopup'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -22,7 +22,7 @@ function requestNotifPermission() {
 
 export default function NotificationBell() {
   const { user } = useUser()
-  const { addToast } = useToast()
+  const [popup, setPopup] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -60,16 +60,17 @@ export default function NotificationBell() {
           if (prev.some(n => n.id === payload.new.id)) return prev
           return [payload.new, ...prev].slice(0, 20)
         })
-        // Pop it on screen once (in-app toast + OS notification)
+        // Pop it on screen once (cute white card + OS notification)
         if (!poppedIds.has(payload.new.id)) {
           poppedIds.add(payload.new.id)
-          const title = payload.new.title || 'Notification'
-          const body = payload.new.body || ''
-          addToast(body ? `${title} — ${body}` : title, 'info', 6000)
+          setPopup(payload.new)
           // Foreground OS notification if permission granted
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             try {
-              new Notification(title, { body, icon: '/icon-192.png' })
+              new Notification(payload.new.title || 'Notification', {
+                body: payload.new.body || '',
+                icon: '/icon-192.png',
+              })
             } catch (e) {
               // Ignore — may fail on mobile or if SW is handling it
             }
@@ -134,6 +135,7 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
+      <NotificationPopup notification={popup} onClose={() => setPopup(null)} />
       <button
         onClick={() => { requestNotifPermission(); setOpen(prev => !prev) }}
         className="relative p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors"

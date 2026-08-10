@@ -564,8 +564,8 @@ function UserManagement({ onViewProfile }) {
         type: 'role_change',
         title: wasAdded ? 'New Role Assigned!' : 'Role Removed',
         body: wasAdded
-          ? `${username} assigned you the "${role}" role!`
-          : `${username} removed your "${role}" role.`,
+          ? `You're now a ${role}!`
+          : `You're no longer a ${role}.`,
         data: JSON.stringify({ role, action: wasAdded ? 'added' : 'removed' }),
       }
       getAuthHeaders().then(h =>

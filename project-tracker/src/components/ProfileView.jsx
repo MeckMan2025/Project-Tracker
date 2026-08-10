@@ -155,8 +155,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         type: 'role_change',
         title: wasAdded ? 'New Role Assigned!' : 'Role Removed',
         body: wasAdded
-          ? `${username} assigned you the "${roleName}" role!`
-          : `${username} removed your "${roleName}" role.`,
+          ? `You're now a ${roleName}!`
+          : `You're no longer a ${roleName}.`,
         data: JSON.stringify({ role: roleName, action: wasAdded ? 'added' : 'removed' }),
       }
       fetch(`${supabaseUrl}/rest/v1/notifications`, {
