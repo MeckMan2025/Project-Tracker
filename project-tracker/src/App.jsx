@@ -301,6 +301,14 @@ function App() {
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs } = usePermissions()
 
+  // NotificationBell is rendered from ~30 call sites, so it asks for navigation
+  // by event rather than having onTabChange threaded down to each one.
+  useEffect(() => {
+    const go = (e) => { if (e.detail) setActiveTab(e.detail) }
+    window.addEventListener('navigate-tab', go)
+    return () => window.removeEventListener('navigate-tab', go)
+  }, [])
+
   // Tabs this user can't reach, whatever their tier.
   const blockedTabs = []
   if (!isCofounder) blockedTabs.push('chat-all', 'chat-alliances', 'chat-leagues')

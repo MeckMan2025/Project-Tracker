@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, Inbox, ChevronRight } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import NotificationPopup from './NotificationPopup'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -21,13 +22,40 @@ function requestNotifPermission() {
 }
 
 export default function NotificationBell() {
-  const { user } = useUser()
+  const { user, username } = useUser()
+  const { canReviewRequests, outreachEventRequestsOnly } = usePermissions()
+  const [pendingRequests, setPendingRequests] = useState(0)
   const [popup, setPopup] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
   const unreadCount = notifications.filter(n => !n.read).length
+
+  // Pending request count for the Requests row below. Mirrors RequestsView's
+  // rules: leads see every pending request, everyone else only their own, and
+  // Outreach only event requests.
+  useEffect(() => {
+    if (!user) { setPendingRequests(0); return }
+    let active = true
+    const load = async () => {
+      let url = `${supabaseUrl}/rest/v1/requests?status=eq.pending&select=id,type`
+      if (!canReviewRequests) url += `&requested_by_user_id=eq.${user.id}`
+      if (outreachEventRequestsOnly) url += `&type=eq.calendar_event`
+      try {
+        const res = await fetch(url, { headers: restHeaders })
+        if (!active || !res.ok) return
+        const rows = await res.json()
+        setPendingRequests(Array.isArray(rows) ? rows.length : 0)
+      } catch { /* ignore */ }
+    }
+    load()
+    const ch = supabase
+      .channel('requests-bell')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, load)
+      .subscribe()
+    return () => { active = false; supabase.removeChannel(ch) }
+  }, [user, canReviewRequests, outreachEventRequestsOnly])
 
   // Ask for OS notification permission once so real notifications can fire.
   useEffect(() => { requestNotifPermission() }, [])
@@ -184,6 +212,26 @@ export default function NotificationBell() {
               )}
             </div>
           </div>
+
+          {/* Requests lives here rather than in the nav. NotificationBell is
+              rendered from ~30 places, so it fires a navigation event instead of
+              taking an onTabChange prop through all of them. */}
+          <button
+            onClick={() => {
+              setOpen(false)
+              window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'requests' }))
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+          >
+            <Inbox size={15} className="text-pastel-pink-dark shrink-0" />
+            <span className="text-sm font-medium text-gray-700 flex-1 text-left">Requests</span>
+            {pendingRequests > 0 && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pastel-pink text-gray-700">
+                {pendingRequests}
+              </span>
+            )}
+            <ChevronRight size={14} className="text-gray-300 shrink-0" />
+          </button>
 
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-400">
