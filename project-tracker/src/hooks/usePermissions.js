@@ -73,6 +73,11 @@ export function usePermissions() {
 
     canViewSpecialControls: !isGuest && (hasLeadTag || !hasOutreachRole),
 
+    // Outreach can put events on the calendar directly instead of filing a
+    // request. Adding events is the ONLY thing the role unlocks — editing and
+    // deleting events, and every other kind of content, stay with leads.
+    canAddEvents: hasLeadTag || isTeam || hasOutreachRole,
+
     // Nobody
     canEditScouting: false,
 

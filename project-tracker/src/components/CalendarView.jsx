@@ -127,7 +127,7 @@ function expandRecurrence(event, from, to) {
 // ---------------------------------------------------------------------------
 function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const { username, user, functionTags } = useUser()
-  const { canEditContent, canReviewRequests, isGuest } = usePermissions()
+  const { canEditContent, canReviewRequests, isGuest, canAddEvents } = usePermissions()
   const isCofounder = (functionTags || []).includes('Co-Founder')
   const { addToast } = useToast()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe } = usePushNotifications()
@@ -371,7 +371,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     // Close the modal immediately — never block the UI on the network round-trip.
     setCreating(null)
 
-    if (!canEditContent) {
+    if (!canAddEvents) {
       const request = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         type: 'calendar_event',
