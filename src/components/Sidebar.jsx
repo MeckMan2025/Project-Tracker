@@ -650,8 +650,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <Megaphone size={16} className="text-pastel-orange-dark" />
                 <span className="truncate">Log Reach</span>
               </div>
+              <hr className="my-2 border-gray-200" />
               <div
-                className={`mt-1 flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'portfolio'
                     ? 'bg-pastel-pink text-gray-800'
                     : 'hover:bg-pastel-blue/30 text-gray-600'
@@ -661,7 +662,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <Briefcase size={16} className="text-pastel-blue-dark" />
                 <span className="truncate">Portfolio</span>
               </div>
-              <hr className="my-2 border-gray-200" />
             </>
           )}
 
