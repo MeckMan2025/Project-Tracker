@@ -1258,9 +1258,9 @@ function App() {
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
       ) : activeTab === 'log-reach' ? (
-        <WorkingOnIt title="Log Reach" blurb="Logging outreach reach lands here." />
+        <WorkingOnIt title="Log Reach" />
       ) : activeTab === 'portfolio' ? (
-        <WorkingOnIt title="Portfolio" blurb="The team portfolio lands here." />
+        <WorkingOnIt title="Portfolio" />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
@@ -1272,26 +1272,7 @@ function App() {
       ) : activeTab === 'workshops' ? (
         <WorkshopIdeas />
       ) : activeTab === 'ai-manual' ? (
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-            <div className="px-4 py-3 ml-14 flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-                  AI Manual
-                </h1>
-              </div>
-              <NotificationBell />
-            </div>
-          </header>
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-            <div className="text-7xl mb-5 animate-bounce">🚧</div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-700 mb-2">Under Construction</h2>
-            <p className="text-gray-500 max-w-sm">
-              <span className="font-semibold text-pastel-blue-dark">Kayden</span> and{' '}
-              <span className="font-semibold text-pastel-pink-dark">Yukti</span> are working on it 🛠️
-            </p>
-          </div>
-        </div>
+        <WorkingOnIt title="AI Manual" />
       ) : activeTab === 'org-chart' ? (
         <OrgChart onViewProfile={(profileId) => { setViewingProfileId(profileId); setActiveTab('profile') }} />
       ) : activeTab === 'suggestions' ? (
