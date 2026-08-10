@@ -170,30 +170,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </>
         )}
 
-        {/* Category Filter — hidden during comp day lock */}
-        {!compDayAllowedTabs && !isTeamAccount && <div className="px-2 pt-1 pb-1 flex gap-1.5">
-          {[
-            { id: 'technical', label: 'Technical', active: 'bg-pastel-blue text-gray-800', idle: 'bg-pastel-blue/25 hover:bg-pastel-blue/40' },
-            { id: 'general', label: 'General', active: 'bg-pastel-pink text-gray-800', idle: 'bg-pastel-pink/25 hover:bg-pastel-pink/40' },
-            { id: 'business', label: 'Business', active: 'bg-pastel-orange text-gray-800', idle: 'bg-pastel-orange/25 hover:bg-pastel-orange/40' },
-          ].map(({ id, label, active, idle }) => (
-            <button
-              key={id}
-              onClick={() => {
-                const val = navFilter === id ? 'general' : id
-                setNavFilter(val)
-                localStorage.setItem('scrum-nav-filter', val)
-              }}
-              className={`flex-1 py-1 rounded-md text-xs font-medium text-center truncate transition-colors ${
-                navFilter === id ? `${active} shadow-sm` : idle
-              }`}
-              title={label}
-            >
-              {label}
-            </button>
-          ))}
-        </div>}
-
         <nav className="px-2 pt-1 pb-2 flex-1 overflow-y-auto">
           {/* ─── Comp Day Locked Nav ─── */}
           {compDayAllowedTabs ? (<>
