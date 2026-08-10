@@ -252,7 +252,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>)}
           </>) : (<>
           {/* ─── Normal Nav ─── */}
-          <hr className="mb-1.5 border-gray-300" />
+          {/* No rule here — the sidebar header already has a border-b, and the two
+              together read as a double line above Home. */}
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
