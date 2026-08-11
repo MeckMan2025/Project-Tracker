@@ -3,12 +3,10 @@ import { X, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { StatChips } from './MeetingRecorder'
 
-// When a PM stops a meeting, everyone's app shows the recap once — what got
-// done while we met — dismissible with the X. Seen-state is per device
-// (localStorage), and recaps older than 12h never pop.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+// When a PM stops a meeting, everyone who has the app OPEN at that moment gets
+// the recap once — a live broadcast, not a stored popup. If you weren't on the
+// app when the meeting ended, you simply don't get it (history lives in
+// Special Controls -> Meeting Stats).
 
 const SEEN_KEY = 'meeting-recap-seen'
 
@@ -20,18 +18,11 @@ export default function MeetingRecapPopup() {
       const latest = doc?.history?.[0]
       if (!latest) return
       if (localStorage.getItem(SEEN_KEY) === latest.id) return
-      if (Date.now() - (latest.endAt || 0) > 12 * 60 * 60 * 1000) return
+      // Live-only: pop solely for a meeting that JUST ended (the realtime
+      // event), never for one found later.
+      if (Date.now() - (latest.endAt || 0) > 2 * 60 * 1000) return
       setSession(latest)
     }
-    ;(async () => {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.meeting_log&select=data`, { headers })
-        if (res.ok) {
-          const rows = await res.json()
-          consider(rows?.[0]?.data)
-        }
-      } catch { /* ignore */ }
-    })()
     const ch = supabase
       .channel('meeting-recap')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, (p) => {
