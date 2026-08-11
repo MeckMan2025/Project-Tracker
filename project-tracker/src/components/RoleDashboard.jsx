@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trash2, X, ChevronDown, Eye, EyeOff } from 'lucide-react'
+import { X, ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { SIDE_THEME, sideForRole } from '../data/roleTrackers'
 
 // Trackers are laid out by FORM, not in one flat grid: headline numbers become a
@@ -22,7 +22,9 @@ const withUnit = (val, unit) =>
 // ── Admin affordances: visibility toggle + delete ──
 // Icon-only and faint, so six trackers don't add up to a wall of pills and
 // buttons. Fades in on hover/focus of the parent card.
-function Chrome({ tracker, onChange, onDelete }) {
+// No delete control: trackers are shared team data, and one stray click would
+// wipe a tracker for everyone. Visibility is the only thing togglable here.
+function Chrome({ tracker, onChange }) {
   const isPublic = tracker.visibility === 'public'
   const Icon = isPublic ? Eye : EyeOff
   return (
@@ -34,13 +36,6 @@ function Chrome({ tracker, onChange, onDelete }) {
       >
         <Icon size={12} className="text-gray-400" />
       </button>
-      <button
-        onClick={() => onDelete(tracker.id)}
-        title="Delete tracker"
-        className="p-1 rounded hover:bg-red-50"
-      >
-        <Trash2 size={12} className="text-gray-300 hover:text-red-400" />
-      </button>
     </div>
   )
 }
@@ -48,7 +43,7 @@ function Chrome({ tracker, onChange, onDelete }) {
 // ── Stat tile — the form for a headline number ──
 // Proportional figures on purpose: tabular-nums makes a value like 121 look loose
 // at display size. Reserve that for columns of numbers.
-function StatTile({ tracker, editable, onChange, onDelete, theme }) {
+function StatTile({ tracker, editable, onChange, theme }) {
   const [draft, setDraft] = useState(tracker.value)
   useEffect(() => { setDraft(tracker.value) }, [tracker.value])
 
@@ -59,7 +54,7 @@ function StatTile({ tracker, editable, onChange, onDelete, theme }) {
           {tracker.icon && <span className="mr-1 not-italic">{tracker.icon}</span>}
           {tracker.name}
         </p>
-        {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
+        {editable && <Chrome tracker={tracker} onChange={onChange} />}
       </div>
       {editable ? (
         <div className="flex items-baseline gap-1 mt-1">
@@ -83,7 +78,7 @@ function StatTile({ tracker, editable, onChange, onDelete, theme }) {
 }
 
 // ── Meter — a single ratio against a limit ──
-function Meter({ tracker, editable, onChange, onDelete, theme }) {
+function Meter({ tracker, editable, onChange, theme }) {
   const [draft, setDraft] = useState(tracker.value)
   useEffect(() => { setDraft(tracker.value) }, [tracker.value])
 
@@ -98,7 +93,7 @@ function Meter({ tracker, editable, onChange, onDelete, theme }) {
           {tracker.icon && <span className="mr-1">{tracker.icon}</span>}
           {tracker.name}
         </p>
-        {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
+        {editable && <Chrome tracker={tracker} onChange={onChange} />}
       </div>
       <div className="flex items-baseline justify-between mb-1">
         <span className="text-lg font-semibold text-gray-800">
@@ -126,7 +121,7 @@ function Meter({ tracker, editable, onChange, onDelete, theme }) {
 }
 
 // ── Content card — checklist / note / event ──
-function ContentCard({ tracker, editable, onChange, onDelete }) {
+function ContentCard({ tracker, editable, onChange }) {
   const [draft, setDraft] = useState(tracker.value)
   useEffect(() => { setDraft(tracker.value) }, [tracker.value])
 
@@ -139,7 +134,7 @@ function ContentCard({ tracker, editable, onChange, onDelete }) {
           {tracker.icon && <span className="mr-1">{tracker.icon}</span>}
           {tracker.name}
         </h4>
-        {editable && <Chrome tracker={tracker} onChange={onChange} onDelete={onDelete} />}
+        {editable && <Chrome tracker={tracker} onChange={onChange} />}
       </div>
 
       {/* CHECKLIST */}
@@ -321,7 +316,7 @@ export default function RoleDashboard({ role, trackers, upsertTracker, removeTra
               {stats.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {stats.map(t => (
-                    <StatTile key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} onDelete={removeTracker} />
+                    <StatTile key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} />
                   ))}
                 </div>
               )}
@@ -329,7 +324,7 @@ export default function RoleDashboard({ role, trackers, upsertTracker, removeTra
               {meters.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {meters.map(t => (
-                    <Meter key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} onDelete={removeTracker} />
+                    <Meter key={t.id} tracker={t} editable={editable} theme={theme} onChange={upsertTracker} />
                   ))}
                 </div>
               )}
@@ -337,7 +332,7 @@ export default function RoleDashboard({ role, trackers, upsertTracker, removeTra
               {content.length > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {content.map(t => (
-                    <ContentCard key={t.id} tracker={t} editable={editable} onChange={upsertTracker} onDelete={removeTracker} />
+                    <ContentCard key={t.id} tracker={t} editable={editable} onChange={upsertTracker} />
                   ))}
                 </div>
               )}

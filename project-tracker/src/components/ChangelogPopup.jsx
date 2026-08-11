@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 97,
+    date: '2026-08-10',
+    items: [
+      '🗑️ Dashboard trackers can no longer be deleted — they\'re shared team data and one stray click wiped them for everyone',
+      '🔄 Losing a role now clears its dashboard properly; your profile is re-checked whenever you come back to the tab, so role changes don\'t sit stale',
+    ],
+  },
+  {
     id: 96,
     date: '2026-08-10',
     items: [

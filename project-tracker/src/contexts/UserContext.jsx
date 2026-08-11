@@ -312,6 +312,23 @@ export function UserProvider({ children }) {
       }
     }, 60 * 1000)
 
+    // Re-read the profile whenever the tab regains focus. Realtime below covers
+    // the live case, but it only fires if `profiles` is in the supabase_realtime
+    // publication — without this, a role removed by a lead can sit stale in an
+    // open tab until the next sign-in.
+    const refreshOnFocus = async () => {
+      if (document.visibilityState !== 'visible' || !mounted) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user && mounted) {
+          const profile = await fetchProfile(session.user.id)
+          if (mounted && profile) applyProfile(profile, session.user.email)
+        }
+      } catch { /* ignore */ }
+    }
+    document.addEventListener('visibilitychange', refreshOnFocus)
+    window.addEventListener('focus', refreshOnFocus)
+
     // Realtime subscription: pick up role/tag changes made by leads immediately
     let profileChannel = null
     const setupRealtimeSub = (userId) => {
@@ -372,6 +389,8 @@ export function UserProvider({ children }) {
       clearTimeout(timeout)
       clearInterval(interval)
       document.removeEventListener('visibilitychange', handleVisibility)
+      document.removeEventListener('visibilitychange', refreshOnFocus)
+      window.removeEventListener('focus', refreshOnFocus)
     }
   }, [])
 
