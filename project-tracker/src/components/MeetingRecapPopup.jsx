@@ -3,10 +3,14 @@ import { X, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
 import { StatChips } from './MeetingRecorder'
 
-// When a PM stops a meeting, everyone who has the app OPEN at that moment gets
-// the recap once — a live broadcast, not a stored popup. If you weren't on the
-// app when the meeting ended, you simply don't get it (history lives in
-// Special Controls -> Meeting Stats).
+// When a PM stops a meeting, everyone sees the recap ONCE — live if they have
+// the app open, otherwise the next time they open it (within 12h). Live-only
+// turned out to be fragile: it depended on a realtime event landing, so anyone
+// not looking at the app simply never saw the meeting's stats.
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
 
 const SEEN_KEY = 'meeting-recap-seen'
 
@@ -18,11 +22,21 @@ export default function MeetingRecapPopup() {
       const latest = doc?.history?.[0]
       if (!latest) return
       if (localStorage.getItem(SEEN_KEY) === latest.id) return
-      // Live-only: pop solely for a meeting that JUST ended (the realtime
-      // event), never for one found later.
-      if (Date.now() - (latest.endAt || 0) > 2 * 60 * 1000) return
+      // Still recent enough to be worth showing; the seen-key keeps it to once.
+      if (Date.now() - (latest.endAt || 0) > 12 * 60 * 60 * 1000) return
       setSession(latest)
     }
+    // Catch up on a meeting that ended while the app was closed…
+    ;(async () => {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.meeting_log&select=data`, { headers })
+        if (res.ok) {
+          const rows = await res.json()
+          consider(rows?.[0]?.data)
+        }
+      } catch { /* ignore */ }
+    })()
+    // …and pop immediately for one that ends while it's open.
     const ch = supabase
       .channel('meeting-recap')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, (p) => {

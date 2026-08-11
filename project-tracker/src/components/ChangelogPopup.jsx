@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 133,
+    date: '2026-08-11',
+    items: [
+      '🎙️ The end-of-meeting recap is back for everyone — it pops live if you\'re on the app, or the next time you open it, and still only once per person',
+    ],
+  },
+  {
     id: 132,
     date: '2026-08-11',
     items: [
