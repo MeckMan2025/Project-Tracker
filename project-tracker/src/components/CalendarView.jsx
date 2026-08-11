@@ -1294,9 +1294,9 @@ function EventModal({ event, onClose, onDelete, onEdit, reactions, onReact, user
               {onEdit && (
                 <button
                   onClick={onEdit}
-                  className="text-xs text-pastel-blue-dark hover:text-blue-700 flex items-center gap-1"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-pastel-blue/40 hover:bg-pastel-blue text-gray-700 transition-colors"
                 >
-                  <Pencil size={12} /> Edit
+                  <Pencil size={13} /> Edit
                 </button>
               )}
               {onDelete && (
@@ -1316,9 +1316,9 @@ function EventModal({ event, onClose, onDelete, onEdit, reactions, onReact, user
                       onDelete(event.id, 'all')
                     }
                   }}
-                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
                 >
-                  <Trash2 size={12} /> Delete
+                  <Trash2 size={13} /> Delete
                 </button>
               )}
             </div>
