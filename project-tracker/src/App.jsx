@@ -47,6 +47,8 @@ import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
 import CompDayView from './components/CompDayView'
 import TestingDashboard from './components/TestingDashboard'
+import MeetingRecapPopup from './components/MeetingRecapPopup'
+import { MeetingStatsView } from './components/MeetingRecorder'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
@@ -101,7 +103,7 @@ const TAB_ACCESS = {
   'log-reach': 'teammate', 'portfolio': 'teammate',
   'budget-tracker': 'teammate', 'fundraising': 'teammate', 'financial-history': 'teammate', 'expense-requests': 'teammate',
   'comms-announcements': 'teammate', 'content-studio': 'teammate', 'website-manager': 'teammate', 'marketing': 'teammate',
-  'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'testing': 'teammate',
+  'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'testing': 'teammate', 'design-matrix': 'teammate',
   'sw-design': 'teammate', 'sw-programming': 'teammate', 'sw-io': 'teammate', 'bug-tracker': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
@@ -315,7 +317,7 @@ function App() {
   if (!canViewCommsTabs) blockedTabs.push('comms-announcements', 'content-studio', 'website-manager', 'marketing')
   if (!canViewHardwareTabs) blockedTabs.push('hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical')
   if (!canViewSoftwareTabs) blockedTabs.push('sw-design', 'sw-programming', 'sw-io', 'bug-tracker')
-  if (!canViewHardwareTabs && !canViewSoftwareTabs) blockedTabs.push('testing')
+  if (!canViewHardwareTabs && !canViewSoftwareTabs) blockedTabs.push('testing', 'design-matrix')
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -1218,7 +1220,7 @@ function App() {
   return (
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-      {!isLoading && !effectiveIsTeam && <ChangelogPopup />}
+      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /></>)}
       {showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
@@ -1275,6 +1277,8 @@ function App() {
         <WorkingOnIt title="Robot I/O" />
       ) : activeTab === 'testing' ? (
         <TestingDashboard onBack={() => setActiveTab('home')} />
+      ) : activeTab === 'design-matrix' ? (
+        <DesignMatrix onBack={() => setActiveTab('home')} />
       ) : activeTab === 'bug-tracker' ? (
         <WorkingOnIt title="Bug Tracker" />
       ) : activeTab === 'hw-design' ? (
@@ -1384,6 +1388,8 @@ function App() {
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
             <DesignMatrix onBack={() => setSpecialView(null)} />
+          ) : specialView === 'meeting-stats' ? (
+            <MeetingStatsView onBack={() => setSpecialView(null)} />
           ) : specialView === 'team-pulse' ? (
             <TeamPulseDashboard onBack={() => setSpecialView(null)} />
           ) : (
@@ -1393,6 +1399,15 @@ function App() {
                 <div>
                   <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Main</h2>
                   <div className="grid gap-3">
+                    {hasLeadTag && (
+                      <button
+                        onClick={() => setSpecialView('meeting-stats')}
+                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
+                      >
+                        <span className="text-lg font-semibold text-gray-700">Meeting Stats</span>
+                        <p className="text-sm text-gray-400 mt-1">What each recorded meeting got done</p>
+                      </button>
+                    )}
                     {hasLeadTag && (
                       <button
                         onClick={() => setSpecialView('attendance')}

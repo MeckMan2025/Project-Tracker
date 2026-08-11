@@ -5,6 +5,16 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 129,
+    date: '2026-08-11',
+    items: [
+      '🎙️ Meeting recorder on the PM dashboard — Start Meeting snapshots the team\'s state, Stop diffs it: tasks made and completed, purchases, requests, notebook entries, blockers resolved, bugs fixed. All computed from what actually changed',
+      '🎉 When a meeting ends, everyone gets a recap popup of what the team got done (X to dismiss)',
+      '📊 Special Controls → Meeting Stats lists every recorded meeting with its numbers',
+      '⚖️ Design Matrix is a tab for technical members now (also still in Special Controls)',
+    ],
+  },
+  {
     id: 128,
     date: '2026-08-11',
     items: [

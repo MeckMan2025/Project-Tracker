@@ -5,6 +5,7 @@ import FinanceDashboard from './FinanceDashboard'
 import CommsDashboard from './CommsDashboard'
 import RobotDashboard from './RobotDashboard'
 import SoftwareDashboard from './SoftwareDashboard'
+import MeetingRecorder from './MeetingRecorder'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { useRobotStatus } from '../hooks/useRobotStatus'
 import { useSoftwareStatus } from '../hooks/useSoftwareStatus'
@@ -62,7 +63,7 @@ export default function MyDashboard() {
   const { ledger } = useFinanceLedger()
   const { board: comms } = useCommsBoard()
   const { functionTags } = useUser()
-  const { businessDivisionAccess, hardwareDivisionAccess, softwareDivisionAccess } = usePermissions()
+  const { businessDivisionAccess, hardwareDivisionAccess, softwareDivisionAccess, canRunMeetings } = usePermissions()
 
   // One-line summaries for collapsed rows — same data the boards render.
   const tv = (id) => trackers.find(t => t.id === id)?.value ?? 0
@@ -94,13 +95,19 @@ export default function MyDashboard() {
     ...(hardwareDivisionAccess ? ['CAD'] : []),
     ...(softwareDivisionAccess ? ['Programming', 'Scouting'] : []),
   ])
-  if (visible.size === 0) return null
+  if (visible.size === 0 && !canRunMeetings) return null
 
   const hasHardware = [...visible].some(r => HARDWARE.includes(r))
   const ownsHardware = ownRoles.some(r => HARDWARE.includes(r))
 
   // Sections in a stable order; open by default only for roles you hold.
   const sections = []
+  if (canRunMeetings) {
+    sections.push({
+      id: 'meetings', title: 'Meetings', emoji: '🎙️', side: 'hardware', defaultOpen: true,
+      body: <MeetingRecorder />,
+    })
+  }
   if (hasHardware) {
     sections.push({
       id: 'robot', title: 'Robot', emoji: '🤖', side: 'hardware', defaultOpen: ownsHardware, summary: summaries.robot,

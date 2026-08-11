@@ -100,6 +100,9 @@ export function usePermissions() {
     // Finance-only tabs, and who reviews expense requests.
     canViewFinanceTabs: hasFinanceRole || businessAccess,
     canViewCommsTabs: hasCommsRole || businessAccess,
+
+    // Meeting recorder lives on the PM dashboard.
+    canRunMeetings: (functionTags && functionTags.includes('Project Manager')) || isCofounder,
     canViewHardwareTabs: hasHardwareRole || hardwareAccess,
     canViewSoftwareTabs: hasProgrammingRole || softwareAccess,
     businessDivisionAccess: businessAccess,
