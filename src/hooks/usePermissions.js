@@ -72,7 +72,9 @@ export function usePermissions() {
     // Co-Founders only
     canReviewSuggestions: isCofounder,
 
-    canViewSpecialControls: !isGuest && (hasLeadTag || !hasOutreachRole),
+    // Functional roles (Outreach, Finance) don't get Special Controls; a lead
+    // who also holds one of those roles keeps it.
+    canViewSpecialControls: !isGuest && (hasLeadTag || (!hasOutreachRole && !hasFinanceRole)),
 
     // Outreach can put events on the calendar directly instead of filing a
     // request. Adding events is the ONLY thing the role unlocks — editing and
