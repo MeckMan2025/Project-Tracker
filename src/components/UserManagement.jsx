@@ -864,6 +864,7 @@ function UserManagement({ onViewProfile }) {
             {[
               { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length },
               { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
+              { id: 'pasmems', label: 'PasMems', icon: Trash2, count: pastMembers.length },
             ].map(t => {
               const TabIcon = t.icon
               return (
@@ -1161,6 +1162,30 @@ function UserManagement({ onViewProfile }) {
                 </>
               )}
             </>
+          ) : activeSection === 'pasmems' && canManageUsers ? (
+            <div className="space-y-2">
+              {pastMembers.length === 0 ? (
+                <p className="text-center text-gray-400 mt-10">No past members yet. Removed members are archived here.</p>
+              ) : (
+                pastMembers.map((pm) => (
+                  <div key={pm.id || pm.original_id} className="flex items-center gap-2.5 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                    <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle(pm.function_tags)}>
+                      {pm.avatar_url ? (
+                        <img src={pm.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-white" />
+                      ) : (
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
+                          {(pm.display_name || '?').charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{pm.display_name}</p>
+                      <p className="text-xs text-gray-400">Removed{pm.removed_at ? ` · ${new Date(pm.removed_at).toLocaleDateString()}` : ''}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           ) : (
             <div className="space-y-2">
               {canManageUsers && (
@@ -1306,41 +1331,9 @@ function UserManagement({ onViewProfile }) {
                   }
 
                   // Team accounts live in the TeamRo tab, not under RadMems.
-                  // Past members sit below the current roster so the whole team —
-                  // present and former — reads as one list.
                   return (
                     <>
                       {sorted.map(renderMember)}
-
-                      {canManageUsers && pastMembers.length > 0 && (
-                        <div className="pt-5">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-2">
-                            Past Members ({pastMembers.length})
-                          </p>
-                          <div className="space-y-2">
-                            {pastMembers.map((pm) => (
-                              <div key={pm.id || pm.original_id} className="flex items-center gap-2.5 bg-white/60 rounded-xl border border-gray-100 px-4 py-2.5 opacity-75">
-                                <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle(pm.function_tags)}>
-                                  {pm.avatar_url ? (
-                                    <img src={pm.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover ring-2 ring-white grayscale" />
-                                  ) : (
-                                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
-                                      {(pm.display_name || '?').charAt(0).toUpperCase()}
-                                    </span>
-                                  )}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-gray-500 truncate">{pm.display_name}</p>
-                                  <p className="text-[11px] text-gray-400">
-                                    Removed{pm.removed_at ? ` · ${new Date(pm.removed_at).toLocaleDateString()}` : ''}
-                                    {(pm.function_tags || []).length > 0 ? ` · was ${pm.function_tags.join(', ')}` : ''}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </>
                   )
                 })()

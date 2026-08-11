@@ -5,13 +5,6 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
-    id: 132,
-    date: '2026-08-11',
-    items: [
-      '👥 Past members now show at the bottom of RadMems instead of a separate tab — the whole roster, present and former, in one list',
-    ],
-  },
-  {
     id: 131,
     date: '2026-08-11',
     items: [
