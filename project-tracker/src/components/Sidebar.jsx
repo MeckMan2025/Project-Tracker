@@ -669,6 +669,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {canViewOutreachTabs && (
             <>
               <hr className="my-2 border-gray-200" />
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'log-reach'
@@ -680,7 +682,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <Megaphone size={16} className="text-pastel-orange-dark" />
                 <span className="truncate">Log Reach</span>
               </div>
-              <hr className="my-2 border-gray-200" />
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'portfolio'
@@ -692,6 +693,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <Briefcase size={16} className="text-pastel-blue-dark" />
                 <span className="truncate">Portfolio</span>
               </div>
+              </div>
             </>
           )}
 
@@ -700,13 +702,14 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {canViewFinanceTabs && (
             <>
               <hr className="my-2 border-gray-200" />
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
               {[
                 { tab: 'budget-tracker', label: 'Budget Tracker', Icon: Wallet, cls: 'text-pastel-orange-dark' },
                 { tab: 'fundraising', label: 'Fundraising', Icon: TrendingUp, cls: 'text-pastel-orange-dark' },
                 { tab: 'financial-history', label: 'Financial History', Icon: History, cls: 'text-pastel-blue-dark' },
-              ].map(({ tab, label, Icon, cls }, i) => (
+              ].map(({ tab, label, Icon, cls }) => (
                 <div key={tab}>
-                  {i > 0 && <hr className="my-2 border-gray-200" />}
                   <div
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                       activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
@@ -718,6 +721,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   </div>
                 </div>
               ))}
+              </div>
             </>
           )}
 
@@ -726,14 +730,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {canViewCommsTabs && (
             <>
               <hr className="my-2 border-gray-200" />
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
               {[
                 { tab: 'comms-announcements', label: 'Announcements', Icon: Megaphone, cls: 'text-pastel-pink-dark' },
                 { tab: 'content-studio', label: 'Content Studio', Icon: PenTool, cls: 'text-pastel-orange-dark' },
                 { tab: 'website-manager', label: 'Website', Icon: Globe, cls: 'text-pastel-blue-dark' },
                 { tab: 'marketing', label: 'Marketing', Icon: Sparkles, cls: 'text-pastel-pink-dark' },
-              ].map(({ tab, label, Icon, cls }, i) => (
+              ].map(({ tab, label, Icon, cls }) => (
                 <div key={tab}>
-                  {i > 0 && <hr className="my-2 border-gray-200" />}
                   <div
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                       activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
@@ -745,6 +750,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   </div>
                 </div>
               ))}
+              </div>
             </>
           )}
 
@@ -754,15 +760,16 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {canViewHardwareTabs && (
             <>
               <hr className="my-2 border-gray-200" />
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
               {[
                 { tab: 'hw-design', label: 'Design', Icon: Ruler, cls: 'text-pastel-blue-dark' },
                 { tab: 'hw-fabrication', label: 'Fabrication', Icon: Hammer, cls: 'text-pastel-orange-dark' },
                 { tab: 'hw-assembly', label: 'Assembly', Icon: Wrench, cls: 'text-pastel-blue-dark' },
                 { tab: 'hw-electrical', label: 'Electrical', Icon: Zap, cls: 'text-pastel-orange-dark' },
                 { tab: 'hw-testing', label: 'Testing', Icon: FlaskConical, cls: 'text-pastel-pink-dark' },
-              ].map(({ tab, label, Icon, cls }, i) => (
+              ].map(({ tab, label, Icon, cls }) => (
                 <div key={tab}>
-                  {i > 0 && <hr className="my-2 border-gray-200" />}
                   <div
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                       activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
@@ -774,6 +781,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   </div>
                 </div>
               ))}
+              </div>
             </>
           )}
 
@@ -783,15 +791,16 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {canViewSoftwareTabs && (
             <>
               <hr className="my-2 border-gray-200" />
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
               {[
                 { tab: 'sw-design', label: 'Software Design', Icon: Ruler, cls: 'text-pastel-pink-dark' },
                 { tab: 'sw-programming', label: 'Programming', Icon: Code, cls: 'text-pastel-blue-dark' },
                 { tab: 'sw-io', label: 'Robot I/O', Icon: Cable, cls: 'text-pastel-orange-dark' },
                 { tab: 'sw-testing', label: 'Code Testing', Icon: FlaskConical, cls: 'text-pastel-pink-dark' },
                 { tab: 'bug-tracker', label: 'Bug Tracker', Icon: BugIcon, cls: 'text-pastel-orange-dark' },
-              ].map(({ tab, label, Icon, cls }, i) => (
+              ].map(({ tab, label, Icon, cls }) => (
                 <div key={tab}>
-                  {i > 0 && <hr className="my-2 border-gray-200" />}
                   <div
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                       activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
@@ -803,6 +812,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   </div>
                 </div>
               ))}
+              </div>
             </>
           )}
 

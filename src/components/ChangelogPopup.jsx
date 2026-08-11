@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 120,
+    date: '2026-08-11',
+    items: [
+      '🚧 Under-construction tabs are now boxed together in the sidebar under an "In the works" label, so it\'s obvious at a glance which parts of your role area are live and which are coming',
+    ],
+  },
+  {
     id: 119,
     date: '2026-08-11',
     items: [
