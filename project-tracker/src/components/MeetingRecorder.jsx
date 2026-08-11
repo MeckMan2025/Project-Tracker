@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, Square, Clock } from 'lucide-react'
+import { Play, Square, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
@@ -165,7 +165,6 @@ export default function MeetingRecorder() {
   if (!doc) return <p className="text-sm text-gray-400 animate-pulse">Loading…</p>
 
   const active = doc.active
-  const history = doc.history || []
   const fmt = (ts) => new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
   return (
@@ -199,33 +198,27 @@ export default function MeetingRecorder() {
         </button>
       )}
 
-      {/* Past meetings */}
-      {history.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 p-3.5">
-          <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-            <Clock size={14} className="text-gray-400" /> Past Meetings
-          </h4>
-          <div className="space-y-3">
-            {history.slice(0, 5).map(m => (
-              <div key={m.id}>
-                <p className="text-[11px] text-gray-400 mb-1">
-                  {fmt(m.startAt)} · {m.stats?.durationMin ?? '?'} min · started by {m.startedBy}
-                </p>
-                {m.stats && <StatChips stats={m.stats} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
 
-// Full meeting history — surfaced under Special Controls -> Meeting Stats.
+// Full meeting history — the only place past meetings live (Special Controls ->
+// Meeting Stats). Leads can delete a recorded meeting from here.
 export function MeetingStatsView({ onBack }) {
   const [doc, setDoc] = useState(null)
   useEffect(() => { getDoc(DOC_ID).then(d => setDoc(d || { history: [] })) }, [])
   const fmt = (ts) => new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+  const remove = async (id) => {
+    if (!confirm('Delete this meeting record?')) return
+    const next = { ...(doc || {}), history: (doc?.history || []).filter(m => m.id !== id) }
+    setDoc(next)
+    await fetch(`${supabaseUrl}/rest/v1/scouting_schedule`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'resolution=merge-duplicates, return=minimal' },
+      body: JSON.stringify({ id: DOC_ID, data: next }),
+    }).catch(() => {})
+  }
   return (
     <div className="flex-1 p-6 overflow-y-auto">
       <div className="max-w-md mx-auto space-y-4">
@@ -238,10 +231,19 @@ export function MeetingStatsView({ onBack }) {
         ) : (
           <div className="space-y-4">
             {(doc.history || []).map(m => (
-              <div key={m.id} className="bg-white rounded-xl border border-gray-100 p-3.5">
-                <p className="text-[11px] text-gray-400 mb-1.5">
-                  {fmt(m.startAt)} · {m.stats?.durationMin ?? '?'} min · started by {m.startedBy}
-                </p>
+              <div key={m.id} className="group bg-white rounded-xl border border-gray-100 p-3.5">
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <p className="text-[11px] text-gray-400">
+                    {fmt(m.startAt)} · {m.stats?.durationMin ?? '?'} min · started by {m.startedBy}
+                  </p>
+                  <button
+                    onClick={() => remove(m.id)}
+                    title="Delete this meeting record"
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-red-50 shrink-0 transition-opacity"
+                  >
+                    <Trash2 size={13} className="text-gray-300 hover:text-red-400" />
+                  </button>
+                </div>
                 {m.stats && <StatChips stats={m.stats} />}
               </div>
             ))}
