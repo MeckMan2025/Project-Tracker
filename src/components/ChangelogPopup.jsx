@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 110,
+    date: '2026-08-10',
+    items: [
+      '📑 Four new Communications-only tabs: Announcements, Content Studio, Website, and Marketing (under construction)',
+    ],
+  },
+  {
     id: 109,
     date: '2026-08-10',
     items: [

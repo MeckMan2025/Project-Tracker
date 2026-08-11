@@ -100,6 +100,7 @@ const TAB_ACCESS = {
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'log-reach': 'teammate', 'portfolio': 'teammate',
   'budget-tracker': 'teammate', 'fundraising': 'teammate', 'financial-history': 'teammate', 'expense-requests': 'teammate',
+  'comms-announcements': 'teammate', 'content-studio': 'teammate', 'website-manager': 'teammate', 'marketing': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
@@ -301,7 +302,7 @@ function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs } = usePermissions()
 
   // Tabs this user can't reach, whatever their tier.
   const blockedTabs = []
@@ -309,6 +310,7 @@ function App() {
   if (!canViewSpecialControls) blockedTabs.push('special-controls')
   if (!canViewOutreachTabs) blockedTabs.push('log-reach', 'portfolio')
   if (!canViewFinanceTabs) blockedTabs.push('budget-tracker', 'fundraising', 'financial-history')
+  if (!canViewCommsTabs) blockedTabs.push('comms-announcements', 'content-studio', 'website-manager', 'marketing')
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -1260,6 +1262,14 @@ function App() {
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
+      ) : activeTab === 'comms-announcements' ? (
+        <WorkingOnIt title="Announcements" />
+      ) : activeTab === 'content-studio' ? (
+        <WorkingOnIt title="Content Studio" />
+      ) : activeTab === 'website-manager' ? (
+        <WorkingOnIt title="Website" />
+      ) : activeTab === 'marketing' ? (
+        <WorkingOnIt title="Marketing" />
       ) : activeTab === 'budget-tracker' ? (
         <WorkingOnIt title="Budget Tracker" />
       ) : activeTab === 'fundraising' ? (

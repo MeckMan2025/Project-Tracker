@@ -84,6 +84,7 @@ export function usePermissions() {
 
     // Finance-only tabs, and who reviews expense requests.
     canViewFinanceTabs: hasFinanceRole,
+    canViewCommsTabs: hasCommsRole,
     // The season budget is the Business Lead's number to enter (co-founders can too).
     canSetBudget: (functionTags && functionTags.includes('Business Lead')) || isCofounder,
     canReviewExpenseRequests: hasFinanceRole || hasLeadTag,
