@@ -5,6 +5,17 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 121,
+    date: '2026-08-11',
+    items: [
+      '🎉 Getting a new role is a moment now — when a lead gives you a role, a full-screen "Congratulations, you\'re now a ___!" celebration pops up with confetti and the role\'s own emoji, and stays until you close it',
+      '🔔 New notifications slide in as a clean white card on your screen — and the app now asks permission to send real device notifications so they can reach you even outside the tab',
+      '📨 Changing a role from someone\'s profile page notifies them too now (not just from User Management), with friendlier wording like "You\'re now a Project Manager!"',
+      '💛 Leads can switch the Daily Team Pulse on or off for the whole team right from Special Controls',
+      '🍔 Fixed the menu button covering page titles and Back buttons on several screens (Calendar, RadRank, Profile, Settings, Alliance Hubs, and the main board)',
+    ],
+  },
+  {
     id: 120,
     date: '2026-08-11',
     items: [
