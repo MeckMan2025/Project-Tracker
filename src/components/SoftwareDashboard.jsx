@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, X, Bug } from 'lucide-react'
+import AddInline from './AddInline'
 import { useSoftwareStatus } from '../hooks/useSoftwareStatus'
 import { usePermissions } from '../hooks/usePermissions'
 import { useUser } from '../contexts/UserContext'
@@ -42,8 +43,6 @@ export default function SoftwareDashboard({ editable = false, publicOnly = false
   const { software, loading, update } = useSoftwareStatus()
   const { hasLeadTag } = usePermissions()
   const { username } = useUser()
-  const [newBug, setNewBug] = useState('')
-  const [newTask, setNewTask] = useState('')
   const [newSys, setNewSys] = useState('')
   const [addingSys, setAddingSys] = useState(false)
 
@@ -215,15 +214,7 @@ export default function SoftwareDashboard({ editable = false, publicOnly = false
                 </div>
               ))}
             </div>
-            {editable && (
-              <input
-                value={newBug}
-                onChange={e => setNewBug(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { addBug(newBug); setNewBug('') } }}
-                placeholder="+ Add bug, press Enter"
-                className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              />
-            )}
+            {editable && <AddInline label="Report bug" placeholder="What's broken" onAdd={addBug} />}
           </div>
         )}
 
@@ -244,15 +235,7 @@ export default function SoftwareDashboard({ editable = false, publicOnly = false
                 </div>
               ))}
             </div>
-            {editable && (
-              <input
-                value={newTask}
-                onChange={e => setNewTask(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { addTask(newTask); setNewTask('') } }}
-                placeholder="+ Add task, press Enter"
-                className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              />
-            )}
+            {editable && <AddInline label="Add task" placeholder="What needs doing" onAdd={addTask} />}
           </div>
         )}
       </div>

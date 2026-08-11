@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, X, Check, Send } from 'lucide-react'
+import AddInline from './AddInline'
 import { useCommsBoard } from '../hooks/useCommsBoard'
 import { usePermissions } from '../hooks/usePermissions'
 import { useUser } from '../contexts/UserContext'
@@ -35,7 +36,6 @@ export default function CommsDashboard({ editable = false, publicOnly = false })
   const { username } = useUser()
 
   const [events, setEvents] = useState([])
-  const [newItem, setNewItem] = useState('')
   const [drafting, setDrafting] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftText, setDraftText] = useState('')
@@ -103,15 +103,7 @@ export default function CommsDashboard({ editable = false, publicOnly = false })
                 </div>
               ))}
             </div>
-            {editable && (
-              <input
-                value={newItem}
-                onChange={e => setNewItem(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { addQueue(newItem); setNewItem('') } }}
-                placeholder="+ Needs announcing, press Enter"
-                className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              />
-            )}
+            {editable && <AddInline label="Add announcement need" placeholder="What needs announcing" onAdd={addQueue} />}
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, X, AlertTriangle } from 'lucide-react'
+import AddInline from './AddInline'
 import { useRobotStatus } from '../hooks/useRobotStatus'
 import { usePermissions } from '../hooks/usePermissions'
 import { useUser } from '../contexts/UserContext'
@@ -35,7 +36,6 @@ export default function RobotDashboard({ editable = false, publicOnly = false })
   const { robot, loading, update } = useRobotStatus()
   const { hasLeadTag } = usePermissions()
   const { username } = useUser()
-  const [newBlocked, setNewBlocked] = useState('')
   const [newSub, setNewSub] = useState('')
   const [addingSub, setAddingSub] = useState(false)
 
@@ -192,15 +192,7 @@ export default function RobotDashboard({ editable = false, publicOnly = false })
                 </div>
               ))}
             </div>
-            {editable && (
-              <input
-                value={newBlocked}
-                onChange={e => setNewBlocked(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { addBlocked(newBlocked); setNewBlocked('') } }}
-                placeholder="+ What's stuck, press Enter"
-                className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              />
-            )}
+            {editable && <AddInline label="Add blocked item" placeholder="What's stuck" onAdd={addBlocked} />}
           </div>
         )}
       </div>

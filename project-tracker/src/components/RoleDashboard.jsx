@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, ChevronDown, Eye, EyeOff } from 'lucide-react'
+import AddInline from './AddInline'
 import { SIDE_THEME, sideForRole } from '../data/roleTrackers'
 
 // Trackers are laid out by FORM, not in one flat grid: headline numbers become a
@@ -159,14 +160,7 @@ function ContentCard({ tracker, editable, onChange }) {
               ))}
               {items.length === 0 && <p className="text-xs italic text-gray-300">Nothing yet</p>}
             </div>
-            {editable && (
-              <input
-                type="text"
-                placeholder="+ Add item, press Enter"
-                onKeyDown={e => { if (e.key === 'Enter') { addItem(e.target.value); e.target.value = '' } }}
-                className="mt-2 w-full text-sm border border-gray-100 rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              />
-            )}
+            {editable && <AddInline label="Add item" onAdd={addItem} />}
           </div>
         )
       })()}

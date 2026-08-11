@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 118,
+    date: '2026-08-11',
+    items: [
+      '➕ The always-there "type here, press Enter" boxes on dashboards are now small "+ Add" buttons that open an input when tapped — report a bug, add a task, flag a blocked item, or queue an announcement without the boards feeling busy',
+    ],
+  },
+  {
     id: 117,
     date: '2026-08-11',
     items: [
