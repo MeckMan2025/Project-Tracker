@@ -630,7 +630,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-20">
         {/* Row 1: title · nav · view switcher · bell */}
-        <div className="px-4 py-2 ml-14 flex items-center gap-3 flex-wrap">
+        <div className="pl-14 pr-3 sm:px-4 py-2 sm:ml-14 flex items-center gap-2 sm:gap-3 flex-wrap">
           <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent shrink-0">
             Calendar
           </h1>
@@ -662,7 +662,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         </div>
 
         {/* Row 2: department filters — one swipeable row on phones, wrap on desktop */}
-        <div className="px-4 pb-2 ml-14 sm:ml-14 flex items-center gap-1 overflow-x-auto flex-nowrap sm:flex-wrap sm:overflow-visible [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="px-3 sm:px-4 pb-2 sm:ml-14 flex items-center gap-1 overflow-x-auto flex-nowrap sm:flex-wrap sm:overflow-visible [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {DEPARTMENTS.map(d => {
             const active = filter === d.id
             return (
@@ -689,7 +689,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         </div>
       </header>
 
-      <main className="flex-1 p-4 overflow-auto">
+      <main className="flex-1 p-1.5 sm:p-4 overflow-auto">
         {showDashboard && (
           <Dashboard
             events={events}
@@ -986,10 +986,10 @@ function MonthView({ cursor, eventsByDay, onEventClick, onDayClick, canCreate, o
 
   return (
     <>
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1">
         {dayNames.map(d => <div key={d} className="text-center text-xs font-semibold text-gray-500 py-1">{d}</div>)}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {Array.from({ length: firstDay }).map((_, i) => <div key={'e' + i} className="min-h-[52px] sm:min-h-[110px] rounded-lg bg-gray-50/50" />)}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1
