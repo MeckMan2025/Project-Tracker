@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Settings, Bell, Music, Volume2, Lock, Sparkles, RefreshCw } from 'lucide-react'
+import { Settings, Bell, Music, Volume2, Lock, Sparkles } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePushNotifications } from '../hooks/usePushNotifications'
@@ -15,7 +15,7 @@ const MUSIC_OPTIONS = [
 ]
 
 export default function SettingsView() {
-  const { user, functionTags, profileSync, refreshProfileNow } = useUser()
+  const { user } = useUser()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
   const [showChangelog, setShowChangelog] = useState(false)
   const [notifPrefs, setNotifPrefs] = useState({ enabled: true, calendar: true, chat: true })
@@ -234,34 +234,6 @@ export default function SettingsView() {
             }`} />
           </button>
         </div>
-      </section>
-
-      {/* ─── Role sync (diagnostic) ─── */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <RefreshCw size={16} className="text-pastel-blue-dark" />
-          Role Sync
-        </h3>
-        <div className="text-sm text-gray-600 space-y-1">
-          <p>Your roles: <span className="font-semibold">{(functionTags || []).join(', ') || 'none'}</span></p>
-          <p className="text-xs text-gray-400">
-            Last profile read:{' '}
-            {profileSync?.source === 'client' && <span className="text-green-600 font-medium">OK (client)</span>}
-            {profileSync?.source === 'rest' && <span className="text-amber-600 font-medium">OK (fallback)</span>}
-            {profileSync?.source === 'failed' && <span className="text-red-500 font-medium">FAILED</span>}
-            {(!profileSync || profileSync.source === 'none') && <span className="text-gray-400">not yet</span>}
-            {profileSync?.at ? ` · ${new Date(profileSync.at).toLocaleTimeString()}` : ''}
-          </p>
-          {profileSync?.error && (
-            <p className="text-[11px] text-red-400 break-words">{profileSync.error}</p>
-          )}
-        </div>
-        <button
-          onClick={() => refreshProfileNow && refreshProfileNow()}
-          className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-pastel-blue/40 hover:bg-pastel-blue transition-colors"
-        >
-          Refresh my roles
-        </button>
       </section>
 
       {/* ─── What's New ─── */}

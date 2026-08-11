@@ -210,6 +210,7 @@ export function UserProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession()
         if (!mounted) return
         if (session?.user) {
+          localStorage.setItem('scrum-user-email', session.user.email || '')
           // A valid session with no session-start just means the bookkeeping key
           // was lost (it's only written on SIGNED_IN). Treat now as the start
           // rather than expiring — otherwise isSessionExpired() returns true and
@@ -314,6 +315,7 @@ export function UserProvider({ children }) {
           localStorage.setItem('session-start', Date.now().toString())
           setSessionExpired(false)
           setUser(session.user)
+          localStorage.setItem('scrum-user-email', session.user.email || '')
           // Immediately detect team account from email
           const userEmail = session.user.email?.toLowerCase() || ''
           const signInTeamMatch = userEmail.match(TEAM_EMAIL_REGEX)
@@ -371,10 +373,22 @@ export function UserProvider({ children }) {
     const pollProfile = async () => {
       if (!mounted || document.visibilityState !== 'visible') return
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session?.user || !mounted) return
-        const profile = await fetchProfile(session.user.id)
+        // Deliberately avoids supabase.auth.getSession(): it takes a web lock
+        // shared across tabs, and a frozen duplicate tab can hold it forever —
+        // hanging every path that waits on it while looking like nothing.
+        // Plain REST with the cached id has no lock to wait on.
+        const uid = localStorage.getItem('scrum-cached-user-id')
+        if (!uid) return
+        const restUrl = import.meta.env.VITE_SUPABASE_URL
+        const restKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+        const res = await fetch(`${restUrl}/rest/v1/profiles?id=eq.${uid}&select=*`, {
+          headers: { apikey: restKey, Authorization: `Bearer ${restKey}` },
+        })
+        if (!res.ok || !mounted) return
+        const rows = await res.json()
+        const profile = Array.isArray(rows) && rows[0] ? rows[0] : null
         if (!profile || !mounted) return
+        setProfileSync({ at: Date.now(), source: 'rest', error: '' })
         const key = JSON.stringify([
           profile.function_tags || [],
           profile.authority_tier || '',
@@ -383,7 +397,7 @@ export function UserProvider({ children }) {
         ])
         if (key === lastAccessKey) return
         lastAccessKey = key
-        applyProfile(profile, session.user.email)
+        applyProfile(profile, localStorage.getItem('scrum-user-email') || '')
       } catch { /* ignore */ }
     }
     pollProfileRef.current = pollProfile
@@ -393,15 +407,9 @@ export function UserProvider({ children }) {
     // the live case, but it only fires if `profiles` is in the supabase_realtime
     // publication — without this, a role removed by a lead can sit stale in an
     // open tab until the next sign-in.
-    const refreshOnFocus = async () => {
+    const refreshOnFocus = () => {
       if (document.visibilityState !== 'visible' || !mounted) return
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user && mounted) {
-          const profile = await fetchProfile(session.user.id)
-          if (mounted && profile) applyProfile(profile, session.user.email)
-        }
-      } catch { /* ignore */ }
+      pollProfileRef.current?.()
     }
     document.addEventListener('visibilitychange', refreshOnFocus)
     window.addEventListener('focus', refreshOnFocus)

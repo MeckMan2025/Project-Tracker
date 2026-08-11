@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 104,
+    date: '2026-08-10',
+    items: [
+      '✅ Role changes now just work — a frozen duplicate tab could silently jam the app\'s session checks, freezing your roles no matter what. Role updates now use a direct read that nothing can jam, and apply within ~5 seconds',
+      '🧹 Removed the temporary Role Sync box from Settings',
+    ],
+  },
+  {
     id: 103,
     date: '2026-08-10',
     items: [
