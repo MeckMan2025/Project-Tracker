@@ -314,6 +314,32 @@ export function UserProvider({ children }) {
       }
     }, 60 * 1000)
 
+    // Poll the profile so a role change lands within ~15s even when realtime
+    // isn't delivering. Realtime and the focus refresh are still the fast paths;
+    // this is the floor that makes access changes actually take effect.
+    // Only re-applies when something access-related moved, so it doesn't
+    // re-render or rewrite localStorage on every tick.
+    let lastAccessKey = null
+    const pollProfile = async () => {
+      if (!mounted || document.visibilityState !== 'visible') return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user || !mounted) return
+        const profile = await fetchProfile(session.user.id)
+        if (!profile || !mounted) return
+        const key = JSON.stringify([
+          profile.function_tags || [],
+          profile.authority_tier || '',
+          profile.role || '',
+          profile.is_authority_admin || false,
+        ])
+        if (key === lastAccessKey) return
+        lastAccessKey = key
+        applyProfile(profile, session.user.email)
+      } catch { /* ignore */ }
+    }
+    const profilePoll = setInterval(pollProfile, 15 * 1000)
+
     // Re-read the profile whenever the tab regains focus. Realtime below covers
     // the live case, but it only fires if `profiles` is in the supabase_realtime
     // publication — without this, a role removed by a lead can sit stale in an
@@ -419,6 +445,7 @@ export function UserProvider({ children }) {
       if (profileChannel) supabase.removeChannel(profileChannel)
       clearTimeout(timeout)
       clearInterval(interval)
+      clearInterval(profilePoll)
       document.removeEventListener('visibilitychange', handleVisibility)
       document.removeEventListener('visibilitychange', refreshOnFocus)
       window.removeEventListener('focus', refreshOnFocus)
