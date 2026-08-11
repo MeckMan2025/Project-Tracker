@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Inbox } from 'lucide-react'
+import { Bell, Inbox, Megaphone } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import NotificationPopup from './NotificationPopup'
 import { useRequestsPanel } from '../hooks/useRequestsPanel'
+import { useAnnouncementsPanel } from '../hooks/useAnnouncementsPanel'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -25,7 +26,13 @@ function requestNotifPermission() {
 export default function NotificationBell() {
   const { user } = useUser()
   const { pendingCount, panel: requestsPanel } = useRequestsPanel()
-  const [showRequests, setShowRequests] = useState(false)
+  const { freshCount, panel: announcementsPanel } = useAnnouncementsPanel()
+  // Which list the panel body shows: notifications by default, or one of the
+  // header icons' views. Only one can be active.
+  const [view, setView] = useState('notifications')
+  const showRequests = view === 'requests'
+  const showAnnouncements = view === 'announcements'
+  const setShowRequests = (fnOrVal) => setView(v => (typeof fnOrVal === 'function' ? fnOrVal(v === 'requests') : fnOrVal) ? 'requests' : 'notifications')
   const btnRef = useRef(null)
   const panelRef = useRef(null)
   const [anchor, setAnchor] = useState(null)
@@ -204,9 +211,25 @@ export default function NotificationBell() {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setView(v => v === 'announcements' ? 'notifications' : 'announcements')}
+                title={showAnnouncements ? 'Back to notifications' : 'Announcements'}
+                className={`relative p-1 rounded-lg border transition-colors ${
+                  showAnnouncements
+                    ? 'bg-pastel-orange-dark border-pastel-orange-dark'
+                    : 'border-pastel-orange-dark/50 hover:bg-pastel-orange/20'
+                }`}
+              >
+                <Megaphone size={14} className={showAnnouncements ? 'text-white' : 'text-pastel-orange-dark'} />
+                {freshCount > 0 && !showAnnouncements && (
+                  <span className="absolute -top-1 -right-1 bg-pastel-orange-dark text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                    {freshCount}
+                  </span>
+                )}
+              </button>
             </div>
             <div className="flex items-center gap-2">
-              {!showRequests && unreadCount > 0 && (
+              {view === 'notifications' && unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
                   className="text-xs text-pastel-blue-dark hover:underline"
@@ -214,7 +237,7 @@ export default function NotificationBell() {
                   Mark all read
                 </button>
               )}
-              {!showRequests && notifications.length > 0 && (
+              {view === 'notifications' && notifications.length > 0 && (
                 <button
                   onClick={clearAll}
                   className="text-xs text-red-400 hover:underline"
@@ -225,7 +248,7 @@ export default function NotificationBell() {
             </div>
           </div>
 
-          {showRequests ? requestsPanel : (
+          {showRequests ? requestsPanel : showAnnouncements ? announcementsPanel : (
           <>
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-400">
