@@ -11,7 +11,7 @@ const PRIORITY_CHIP = {
   medium: 'bg-pastel-pink/40 text-pink-700',
   low: 'bg-gray-100 text-gray-500',
 }
-const STATUS_LABEL = { todo: 'To Do', 'in-progress': 'In Progress', done: 'Done', completed: 'Done' }
+const STATUS_LABEL = { todo: 'To Do', 25: '25%', 50: '50%', 75: '75%', 'in-progress': 'In Progress', done: 'Done', completed: 'Done' }
 
 export default function TaskDetailModal({ task, onClose, onEdit, onMove }) {
   if (!task) return null
@@ -67,11 +67,11 @@ export default function TaskDetailModal({ task, onClose, onEdit, onMove }) {
             <div className="px-4 pb-3">
               <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Move to</p>
               <div className="flex gap-1.5">
-                {[['todo', 'To Do'], ['in-progress', 'In Progress'], ['done', 'Done']].map(([st, label]) => (
+                {[['todo', 'To Do'], ['25', '25%'], ['50', '50%'], ['75', '75%'], ['done', 'Done']].map(([st, label]) => (
                   <button
                     key={st}
                     onClick={() => st !== task.status && onMove(st)}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
                       task.status === st ? 'bg-pastel-blue-dark text-white' : 'bg-gray-100 text-gray-500 hover:bg-pastel-blue/40'
                     }`}
                   >
