@@ -277,6 +277,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               ))}
             </div>
           )}
+          <hr className="mb-1.5 border-gray-200" />
 
           {/* Home Tab */}
           <div
