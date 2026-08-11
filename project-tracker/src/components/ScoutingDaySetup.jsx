@@ -1,4 +1,5 @@
 import MemberPicker from './MemberPicker'
+import TeamPicker from './TeamPicker'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -260,7 +261,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                       <label className="text-[11px] font-semibold text-gray-400 uppercase">Members</label>
                       <div className="mb-2"><MemberPicker value={group.members} onChange={members => update(p => { const g = [...p.groups]; g[i] = { ...g[i], members }; return { ...p, groups: g } })} /></div>
                       <label className="text-[11px] font-semibold text-gray-400 uppercase">FTC Teams</label>
-                      <input value={csv(group.teams)} onChange={e => update(p => { const g = [...p.groups]; g[i] = { ...g[i], teams: parseCsv(e.target.value) }; return { ...p, groups: g } })} placeholder="Team #s…" className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                      <TeamPicker value={group.teams} onChange={teams => update(p => { const g = [...p.groups]; g[i] = { ...g[i], teams }; return { ...p, groups: g } })} />
                     </>
                   ) : (
                     <>

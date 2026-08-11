@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 114,
+    date: '2026-08-11',
+    items: [
+      '🔢 FTC teams are a dropdown now too — scouting day setup picks from the same team list RadRank manages, and typing a brand-new number adds it to that list for everyone',
+    ],
+  },
+  {
     id: 113,
     date: '2026-08-10',
     items: [
