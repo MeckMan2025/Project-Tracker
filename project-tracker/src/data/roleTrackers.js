@@ -13,7 +13,7 @@
 // Bump this whenever SEED_TRACKERS gains new entries. On load, any seed whose id
 // isn't in the saved doc gets appended once, then the doc records the new version
 // so a tracker a lead later deletes stays deleted instead of coming back.
-export const SEED_VERSION = 3
+export const SEED_VERSION = 4
 
 // Seed trackers that have been withdrawn. Removing an entry from SEED_TRACKERS is
 // not enough — docs that already saved it would keep it forever — so these ids get
@@ -21,7 +21,9 @@ export const SEED_VERSION = 3
 //
 // Event entry lives in its own tab, not on a role dashboard, so the dashboard no
 // longer collects events.
-export const RETIRED_SEED_IDS = ['out-next', 'out-upcoming']
+// fin-*: Finance runs on the dated ledger (FinanceDashboard) now — its tiles
+// derive from transactions instead of hand-typed numbers.
+export const RETIRED_SEED_IDS = ['out-next', 'out-upcoming', 'fin-budget', 'fin-raised', 'fin-expenses']
 
 export const DASHBOARD_ROLES = [
   { role: 'Communications', side: 'business' },
@@ -71,10 +73,7 @@ export const SEED_TRACKERS = [
   { id: 'com-posts', icon: '📣', role: 'Communications', name: 'Social Posts', type: 'number', value: 0, visibility: 'public' },
   { id: 'com-todo', icon: '📝', role: 'Communications', name: 'To Post / Update', type: 'checklist', value: [], visibility: 'role' },
 
-  // Finance
-  { id: 'fin-budget', icon: '💰', role: 'Finance', name: 'Budget Remaining', type: 'progress', unit: '$', target: 3000, value: 3000, visibility: 'public' },
-  { id: 'fin-raised', icon: '📈', role: 'Finance', name: 'Funds Raised', type: 'number', unit: '$', value: 0, visibility: 'public' },
-  { id: 'fin-expenses', icon: '🧾', role: 'Finance', name: 'Expense Log', type: 'checklist', value: [], visibility: 'role' },
+  // Finance has no seed trackers — see FinanceDashboard (dated ledger).
 
   // Outreach
   { id: 'out-events', icon: '🎪', role: 'Outreach', name: 'Events This Season', type: 'number', value: 0, visibility: 'public' },

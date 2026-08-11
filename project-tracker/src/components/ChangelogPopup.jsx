@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 106,
+    date: '2026-08-10',
+    items: [
+      '💵 Finance dashboard — Current Balance, Raised This Season, Spent This Season, and a Budget Remaining meter, all computed from a real ledger: record money in or out with a date and description, and the numbers do their own math',
+      '📅 Plus Upcoming Expenses (with amounts and due dates) and a Recent Activity feed. Leads can correct a mistaken entry; the tiles themselves can\'t be typed over',
+    ],
+  },
+  {
     id: 105,
     date: '2026-08-10',
     items: [

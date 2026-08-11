@@ -1,5 +1,6 @@
 import { LayoutDashboard } from 'lucide-react'
 import RoleDashboard from './RoleDashboard'
+import FinanceDashboard from './FinanceDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { useUser } from '../contexts/UserContext'
 import { ROLE_NAMES } from '../data/roleTrackers'
@@ -25,15 +26,17 @@ export default function MyDashboard() {
       ) : (
         <div className="space-y-6">
           {myRoles.map(role => (
-            <RoleDashboard
-              key={role}
-              role={role}
-              trackers={trackers}
-              upsertTracker={upsertTracker}
-              removeTracker={removeTracker}
-              editable
-              collapsible={myRoles.length > 1}
-            />
+            role === 'Finance'
+              ? <FinanceDashboard key={role} editable />
+              : <RoleDashboard
+                  key={role}
+                  role={role}
+                  trackers={trackers}
+                  upsertTracker={upsertTracker}
+                  removeTracker={removeTracker}
+                  editable
+                  collapsible={myRoles.length > 1}
+                />
           ))}
         </div>
       )}
