@@ -197,9 +197,24 @@ export default function NotificationBell() {
           <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
-              {/* Requests live in this same box — the icon swaps what the panel
-                  below shows rather than opening a screen. Outlined when idle,
-                  filled once it's the active view. */}
+              {/* One icon per view — bell (notifications), requests,
+                  announcements, ideas. Outlined when idle, filled when active. */}
+              <button
+                onClick={() => setView('notifications')}
+                title="Notifications"
+                className={`relative p-1 rounded-lg border transition-colors ${
+                  view === 'notifications'
+                    ? 'bg-pastel-blue-dark border-pastel-blue-dark'
+                    : 'border-pastel-blue-dark/50 hover:bg-pastel-blue/20'
+                }`}
+              >
+                <Bell size={14} className={view === 'notifications' ? 'text-white' : 'text-pastel-blue-dark'} />
+                {unreadCount > 0 && view !== 'notifications' && (
+                  <span className="absolute -top-1 -right-1 bg-pastel-blue-dark text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => setShowRequests(v => !v)}
                 title={showRequests ? 'Back to notifications' : 'Requests'}
