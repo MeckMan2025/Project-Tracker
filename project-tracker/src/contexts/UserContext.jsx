@@ -6,6 +6,9 @@ const SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
 
 export function UserProvider({ children }) {
   const [roleChangeAlert, setRoleChangeAlert] = useState(null) // kept for context API compat
+  // Diagnostic for the role-sync problem: what the last profile read did.
+  const [profileSync, setProfileSync] = useState({ at: null, source: 'none', error: '' })
+  const pollProfileRef = useRef(null)
   const [username, setUsername] = useState('')
   const [isLead, setIsLead] = useState(false)
   const [role, setRole] = useState(() => localStorage.getItem('scrum-role') || 'member')
@@ -42,7 +45,10 @@ export function UserProvider({ children }) {
       .eq('id', userId)
       .single()
 
-    if (!error) return data
+    if (!error) {
+      setProfileSync({ at: Date.now(), source: 'client', error: '' })
+      return data
+    }
     console.error('Failed to fetch profile via client:', error.message)
 
     // Fall back to the anon REST endpoint, which is how the rest of the app
@@ -54,10 +60,20 @@ export function UserProvider({ children }) {
       const res = await fetch(`${url}/rest/v1/profiles?id=eq.${userId}&select=*`, {
         headers: { apikey: key, Authorization: `Bearer ${key}` },
       })
-      if (!res.ok) return null
+      if (!res.ok) {
+        setProfileSync({ at: Date.now(), source: 'failed', error: `client: ${error.message} | rest: ${res.status}` })
+        return null
+      }
       const rows = await res.json()
-      return Array.isArray(rows) && rows[0] ? rows[0] : null
+      const row = Array.isArray(rows) && rows[0] ? rows[0] : null
+      setProfileSync({
+        at: Date.now(),
+        source: row ? 'rest' : 'failed',
+        error: row ? `client failed: ${error.message}` : `client: ${error.message} | rest: no row`,
+      })
+      return row
     } catch (e) {
+      setProfileSync({ at: Date.now(), source: 'failed', error: `client: ${error.message} | rest threw: ${e.message}` })
       console.error('Profile REST fallback failed:', e)
       return null
     }
@@ -370,7 +386,8 @@ export function UserProvider({ children }) {
         applyProfile(profile, session.user.email)
       } catch { /* ignore */ }
     }
-    const profilePoll = setInterval(pollProfile, 15 * 1000)
+    pollProfileRef.current = pollProfile
+    const profilePoll = setInterval(pollProfile, 5 * 1000)
 
     // Re-read the profile whenever the tab regains focus. Realtime below covers
     // the live case, but it only fires if `profiles` is in the supabase_realtime
@@ -558,7 +575,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, teamNumber }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
     >
       {children}
     </UserContext.Provider>

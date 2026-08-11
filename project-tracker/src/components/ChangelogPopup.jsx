@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 103,
+    date: '2026-08-10',
+    items: [
+      '🩺 Settings → Role Sync shows your current roles, whether the app can read your profile, and a "Refresh my roles" button — so a stuck role can be spotted instead of guessed at',
+      '⚡ Role changes are now checked every 5 seconds instead of 15',
+    ],
+  },
+  {
     id: 102,
     date: '2026-08-10',
     items: [
