@@ -3,6 +3,7 @@ import RoleDashboard from './RoleDashboard'
 import FinanceDashboard from './FinanceDashboard'
 import CommsDashboard from './CommsDashboard'
 import RobotDashboard from './RobotDashboard'
+import SoftwareDashboard from './SoftwareDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { useUser } from '../contexts/UserContext'
 import { ROLE_NAMES } from '../data/roleTrackers'
@@ -39,6 +40,8 @@ export default function MyDashboard() {
               ? <FinanceDashboard key={role} editable />
               : role === 'Communications'
               ? <CommsDashboard key={role} editable />
+              : role === 'Programming'
+              ? <SoftwareDashboard key={role} editable />
               : <RoleDashboard
                   key={role}
                   role={role}

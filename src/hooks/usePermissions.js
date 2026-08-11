@@ -23,6 +23,7 @@ export function usePermissions() {
   const hasFinanceRole = !!(functionTags && functionTags.includes('Finance'))
   const hasCommsRole = !!(functionTags && functionTags.includes('Communications'))
   const hasHardwareRole = !!(functionTags && ['CAD', 'Assembly/Building', 'Wiring'].some(r => functionTags.includes(r)))
+  const hasProgrammingRole = !!(functionTags && functionTags.includes('Programming'))
 
   // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
@@ -76,7 +77,7 @@ export function usePermissions() {
 
     // Functional roles (Outreach, Finance) don't get Special Controls; a lead
     // who also holds one of those roles keeps it.
-    canViewSpecialControls: !isGuest && (hasLeadTag || (!hasOutreachRole && !hasFinanceRole && !hasCommsRole && !hasHardwareRole)),
+    canViewSpecialControls: !isGuest && (hasLeadTag || (!hasOutreachRole && !hasFinanceRole && !hasCommsRole && !hasHardwareRole && !hasProgrammingRole)),
 
     // Outreach can put events on the calendar directly instead of filing a
     // request. Adding events is the ONLY thing the role unlocks — editing and
@@ -87,6 +88,7 @@ export function usePermissions() {
     canViewFinanceTabs: hasFinanceRole,
     canViewCommsTabs: hasCommsRole,
     canViewHardwareTabs: hasHardwareRole,
+    canViewSoftwareTabs: hasProgrammingRole,
     // The season budget is the Business Lead's number to enter (co-founders can too).
     canSetBudget: (functionTags && functionTags.includes('Business Lead')) || isCofounder,
     canReviewExpenseRequests: hasFinanceRole || hasLeadTag,

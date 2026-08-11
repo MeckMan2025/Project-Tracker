@@ -102,6 +102,7 @@ const TAB_ACCESS = {
   'budget-tracker': 'teammate', 'fundraising': 'teammate', 'financial-history': 'teammate', 'expense-requests': 'teammate',
   'comms-announcements': 'teammate', 'content-studio': 'teammate', 'website-manager': 'teammate', 'marketing': 'teammate',
   'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'hw-testing': 'teammate',
+  'sw-design': 'teammate', 'sw-programming': 'teammate', 'sw-io': 'teammate', 'sw-testing': 'teammate', 'bug-tracker': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
@@ -303,7 +304,7 @@ function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
 
   // Tabs this user can't reach, whatever their tier.
   const blockedTabs = []
@@ -313,6 +314,7 @@ function App() {
   if (!canViewFinanceTabs) blockedTabs.push('budget-tracker', 'fundraising', 'financial-history')
   if (!canViewCommsTabs) blockedTabs.push('comms-announcements', 'content-studio', 'website-manager', 'marketing')
   if (!canViewHardwareTabs) blockedTabs.push('hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical', 'hw-testing')
+  if (!canViewSoftwareTabs) blockedTabs.push('sw-design', 'sw-programming', 'sw-io', 'sw-testing', 'bug-tracker')
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -1264,6 +1266,16 @@ function App() {
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
+      ) : activeTab === 'sw-design' ? (
+        <WorkingOnIt title="Software Design" />
+      ) : activeTab === 'sw-programming' ? (
+        <WorkingOnIt title="Programming" />
+      ) : activeTab === 'sw-io' ? (
+        <WorkingOnIt title="Robot I/O" />
+      ) : activeTab === 'sw-testing' ? (
+        <WorkingOnIt title="Code Testing" />
+      ) : activeTab === 'bug-tracker' ? (
+        <WorkingOnIt title="Bug Tracker" />
       ) : activeTab === 'hw-design' ? (
         <WorkingOnIt title="Design" />
       ) : activeTab === 'hw-fabrication' ? (

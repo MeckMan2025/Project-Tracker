@@ -13,7 +13,7 @@
 // Bump this whenever SEED_TRACKERS gains new entries. On load, any seed whose id
 // isn't in the saved doc gets appended once, then the doc records the new version
 // so a tracker a lead later deletes stays deleted instead of coming back.
-export const SEED_VERSION = 6
+export const SEED_VERSION = 7
 
 // Seed trackers that have been withdrawn. Removing an entry from SEED_TRACKERS is
 // not enough — docs that already saved it would keep it forever — so these ids get
@@ -30,6 +30,7 @@ export const RETIRED_SEED_IDS = [
   'fin-budget', 'fin-raised', 'fin-expenses',
   'com-sponsors', 'com-posts', 'com-todo',
   'cad-parts', 'cad-todo', 'asm-progress', 'asm-subsystems', 'wir-progress', 'wir-todo',
+  'prg-auto', 'prg-opmodes', 'prg-todo',
 ]
 
 export const DASHBOARD_ROLES = [
@@ -88,10 +89,7 @@ export const SEED_TRACKERS = [
 
   // Hardware (CAD / Assembly / Wiring) shares RobotDashboard — no seeds.
 
-  // Programming
-  { id: 'prg-auto', icon: '🤖', role: 'Programming', name: 'Autonomous Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
-  { id: 'prg-opmodes', icon: '💻', role: 'Programming', name: 'OpModes Done', type: 'number', value: 0, visibility: 'public' },
-  { id: 'prg-todo', icon: '📝', role: 'Programming', name: 'Code To-Do', type: 'checklist', value: [], visibility: 'role' },
+  // Programming runs on SoftwareDashboard — no seeds.
 
   // Scouting
   { id: 'sco-teams', icon: '🔍', role: 'Scouting', name: 'Teams Scouted', type: 'number', value: 0, visibility: 'public' },
