@@ -2,7 +2,7 @@ import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle } from '
 
 const UP_FOR_GRABS = '__up_for_grabs__'
 
-function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeaveTask, onMarkDone, currentUser, isGuest }) {
+function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim, onLeaveTask, onMarkDone, currentUser, isGuest }) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
   const isUpForGrabs = task.assignee === UP_FOR_GRABS
   const isAssignedToMe = currentUser && task.assignee && task.assignee.toLowerCase() === currentUser.toLowerCase()
@@ -22,7 +22,8 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onClaim, onLeav
 
   return (
     <div
-      className={`bg-white rounded-lg p-3 mb-2 shadow-sm border-l-4 transition-shadow ${
+      onClick={onOpen}
+      className={`bg-white rounded-lg p-3 mb-2 shadow-sm border-l-4 transition-shadow cursor-pointer ${
         isDragging ? 'shadow-lg' : 'hover:shadow-md'
       } ${borderColor}`}
     >

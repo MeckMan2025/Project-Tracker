@@ -5,6 +5,7 @@ import { downloadCSV } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
 import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
+import TaskDetailModal from './components/TaskDetailModal'
 import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
 import PasswordInput from './components/PasswordInput'
@@ -363,6 +364,7 @@ function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [specialView, setSpecialView] = useState(null)
+  const [viewTask, setViewTask] = useState(null)
   const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings()
   const [loadError, setLoadError] = useState(null)
   const [landingChoice, setLandingChoice] = useState(null)
@@ -1176,6 +1178,28 @@ function App() {
     }
   }
 
+  // Move a task between columns without dragging (drag is rough on touch).
+  const moveTask = async (taskId, newStatus) => {
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(t => t.id === taskId ? { ...t, status: newStatus } : t),
+      }
+      syncCache(updated)
+      return updated
+    })
+    setViewTask(prev => prev && prev.id === taskId ? { ...prev, status: newStatus } : prev)
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      await fetch(`${supabaseUrl}/rest/v1/tasks?id=eq.${taskId}`, {
+        method: 'PATCH',
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+    } catch (err) { console.error('Failed to move task:', err) }
+  }
+
   const canDragTask = (task) => {
     if (canDragAnyTask) return true
     if (!canDragOwnTask) return false
@@ -1221,6 +1245,14 @@ function App() {
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /></>)}
+      {viewTask && (
+        <TaskDetailModal
+          task={viewTask}
+          onClose={() => setViewTask(null)}
+          onEdit={canEditContent ? () => { setEditingTask(viewTask); setViewTask(null) } : null}
+          onMove={canDragTask(viewTask) ? (st) => moveTask(viewTask.id, st) : null}
+        />
+      )}
       {showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
@@ -1652,6 +1684,7 @@ function App() {
                                 <TaskCard
                                   task={task}
                                   isDragging={snapshot.isDragging}
+                                  onOpen={() => setViewTask(task)}
                                   onEdit={() => setEditingTask(task)}
                                   onDelete={() => handleDeleteTask(task.id)}
                                   canEdit={canEditContent}

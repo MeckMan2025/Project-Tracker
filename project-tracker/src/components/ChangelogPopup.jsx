@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 130,
+    date: '2026-08-11',
+    items: [
+      '📋 Tap any task to read its full details — description, assignee, due date, priority, skills. Everyone can look; editing stays with leads',
+      '➡️ Move tasks between To Do / In Progress / Done with buttons in that popup — no more fighting drag-and-drop on your phone (leads move any task, you can move your own)',
+    ],
+  },
+  {
     id: 129,
     date: '2026-08-11',
     items: [
