@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Inbox, Megaphone, HelpCircle } from 'lucide-react'
+import { Bell, Inbox, Megaphone, HelpCircle, CheckCheck, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import NotificationPopup from './NotificationPopup'
@@ -268,25 +268,30 @@ export default function NotificationBell() {
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {view === 'notifications' && unreadCount > 0 && (
+          </div>
+
+          {/* Actions live under the tabs on their own quiet row, so they don't
+              crowd the icon switcher. */}
+          {view === 'notifications' && notifications.length > 0 && (
+            <div className="flex items-center justify-end gap-1 px-2 py-1 border-b border-gray-100 bg-gray-50/50">
+              {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="text-xs text-pastel-blue-dark hover:underline"
+                  title="Mark all read"
+                  className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 hover:text-pastel-blue-dark px-1.5 py-0.5 rounded hover:bg-white"
                 >
-                  Mark all read
+                  <CheckCheck size={12} /> Read all
                 </button>
               )}
-              {view === 'notifications' && notifications.length > 0 && (
-                <button
-                  onClick={clearAll}
-                  className="text-xs text-red-400 hover:underline"
-                >
-                  Clear all
-                </button>
-              )}
+              <button
+                onClick={clearAll}
+                title="Clear all notifications"
+                className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 hover:text-red-400 px-1.5 py-0.5 rounded hover:bg-white"
+              >
+                <Trash2 size={12} /> Clear
+              </button>
             </div>
-          </div>
+          )}
 
           {showRequests ? requestsPanel : showAnnouncements ? announcementsPanel : showIdeas ? ideasPanel : (
           <>
