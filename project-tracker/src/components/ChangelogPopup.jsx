@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 124,
+    date: '2026-08-11',
+    items: [
+      '🗓️ Removed the Repeats option from the event form — existing recurring events (like weekly meetings) keep working, but new events are one-time',
+    ],
+  },
+  {
     id: 123,
     date: '2026-08-11',
     items: [

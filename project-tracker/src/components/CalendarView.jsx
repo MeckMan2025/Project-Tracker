@@ -1545,26 +1545,9 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
             )}
           </div>
 
-          {/* Recurrence */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Repeats</label>
-              <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1">
-                <option value="none">Doesn't repeat</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
-            {recurrence !== 'none' && (
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Until (optional)</label>
-                <input type="date" value={recurrenceUntil} onChange={(e) => setRecurrenceUntil(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1" />
-              </div>
-            )}
-          </div>
-
+          {/* Repeat controls removed from the form by request. Existing recurring
+              events still render and expand — recurrence state just carries the
+              event's saved value through edits unchanged. */}
           <button type="submit" disabled={!name.trim()}
             className={`w-full px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40`}
             style={{ background: cat.color }}
