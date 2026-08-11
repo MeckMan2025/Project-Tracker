@@ -661,15 +661,15 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           {canReviewRequests && <RequestsBadge type="calendar_event" />}
         </div>
 
-        {/* Row 2: department filters + dashboard toggle */}
-        <div className="px-4 pb-2 ml-14 flex items-center gap-1 flex-wrap">
+        {/* Row 2: department filters — one swipeable row on phones, wrap on desktop */}
+        <div className="px-4 pb-2 ml-14 sm:ml-14 flex items-center gap-1 overflow-x-auto flex-nowrap sm:flex-wrap sm:overflow-visible [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {DEPARTMENTS.map(d => {
             const active = filter === d.id
             return (
               <button
                 key={d.id}
                 onClick={() => setFilter(d.id)}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
                   active
                     ? 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-sm'
                     : 'bg-white text-gray-600 hover:bg-pastel-pink/20 border border-gray-200'
