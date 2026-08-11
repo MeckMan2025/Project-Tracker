@@ -665,6 +665,58 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           )}
           </>)}
 
+          {navMode !== 'role' && (<>
+          {/* Expense Requests — every teammate can ask; Finance reviews inside. */}
+          {!isGuest && (
+            <>
+              <hr className="my-2 border-gray-200" />
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'expense-requests' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('expense-requests'); onToggle() }}
+              >
+                <Receipt size={16} className="text-pastel-orange-dark" />
+                <span className="truncate">Expense Requests</span>
+              </div>
+            </>
+          )}
+          </>)}
+
+          </>}
+
+          {/* Engineering Notebook is not a nav tab — it's reached from the
+              gallery button on Home, so everyone gets to it the same way. */}
+
+          {!isTeamAccount && navMode !== 'role' && <>
+
+          {/* Requests is not a nav item — it's the row under the notification
+              bell, so there's one way in for everyone. */}
+
+          {canViewSpecialControls && (
+            <>
+              <hr className="my-2 border-gray-200" />
+
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'special-controls'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => {
+                  onTabChange('special-controls')
+                  onToggle()
+                }}
+              >
+                <Gamepad2 size={16} className="text-pastel-pink-dark" />
+                <span className="truncate">Special Controls</span>
+              </div>
+            </>
+          )}
+          </>}
+
+          {/* In-the-works role tabs always sit at the BOTTOM of the nav. */}
+          {!isTeamAccount && (<>
           {navMode !== 'general' && (<>
           {/* Outreach-only top-level tabs. Placeholder views for now. */}
           {canViewOutreachTabs && (
@@ -818,56 +870,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           )}
 
           </>)}
-
-          {navMode !== 'role' && (<>
-          {/* Expense Requests — every teammate can ask; Finance reviews inside. */}
-          {!isGuest && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'expense-requests' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('expense-requests'); onToggle() }}
-              >
-                <Receipt size={16} className="text-pastel-orange-dark" />
-                <span className="truncate">Expense Requests</span>
-              </div>
-            </>
-          )}
           </>)}
-
-          </>}
-
-          {/* Engineering Notebook is not a nav tab — it's reached from the
-              gallery button on Home, so everyone gets to it the same way. */}
-
-          {!isTeamAccount && navMode !== 'role' && <>
-
-          {/* Requests is not a nav item — it's the row under the notification
-              bell, so there's one way in for everyone. */}
-
-          {canViewSpecialControls && (
-            <>
-              <hr className="my-2 border-gray-200" />
-
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'special-controls'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('special-controls')
-                  onToggle()
-                }}
-              >
-                <Gamepad2 size={16} className="text-pastel-pink-dark" />
-                <span className="truncate">Special Controls</span>
-              </div>
-            </>
-          )}
-          </>}
           </>)}
         </nav>
 
