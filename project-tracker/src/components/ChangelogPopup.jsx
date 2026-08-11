@@ -5,6 +5,68 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 96,
+    date: '2026-08-10',
+    items: [
+      '📥 Requests moved into the notification bell — the outlined inbox icon next to "Notifications" swaps the panel to your requests, and leads can approve or deny right there. The Requests tab is gone from the sidebar',
+    ],
+  },
+  {
+    id: 95,
+    date: '2026-08-10',
+    items: [
+      '🎪 Outreach role dashboard — Events This Season, People Reached, Outreach Hours, and Organizations Worked With, live on your Home page and editable in place',
+      '📊 Dashboards now lay out by kind: plain numbers become a compact stat row, progress bars become meters, and only checklists and notes get full cards',
+    ],
+  },
+  {
+    id: 94,
+    date: '2026-08-10',
+    items: [
+      '🗓️ Home reordered — the week calendar sits at the top, your dashboard sits under it in its own card, then the assigned-objective page and sticky notes',
+      '🏆 New First Meet sticky note counting down to October 19',
+      '📏 The assigned-objective page now stretches to line up with the sticky notes beside it, ruled lines and all',
+    ],
+  },
+  {
+    id: 93,
+    date: '2026-08-10',
+    items: [
+      '⏱️ Season kickoff countdown is clearer — it read as two separate day counts; now it says "26 days + 14h 27m 26s"',
+    ],
+  },
+  {
+    id: 92,
+    date: '2026-08-10',
+    items: [
+      '📓 Engineering Notebook is no longer a sidebar tab — open it with the button on the Home photo gallery instead, so everyone gets to it the same way',
+      '📋 Tasks dropdown replaced by a single Workshops item',
+    ],
+  },
+  {
+    id: 91,
+    date: '2026-08-10',
+    items: [
+      '📣 Outreach can add events to the calendar directly instead of filing a request for approval — events are tagged with the role that created them',
+      '🚧 Two new Outreach-only tabs, Log Reach and Portfolio, under construction for now',
+    ],
+  },
+  {
+    id: 90,
+    date: '2026-08-10',
+    items: [
+      '💬 Chat is limited to co-founders for the moment',
+      '🎮 Special Controls is hidden from Outreach',
+    ],
+  },
+  {
+    id: 89,
+    date: '2026-08-10',
+    items: [
+      '👤 Profiles slimmed down — work summary, current work, ownership, skills and tools, safety and permissions, and communication preferences are gone. Anything you already filled in is kept',
+    ],
+  },
+  {
     id: 88,
     date: '2026-05-16',
     items: [
