@@ -21,6 +21,7 @@ export function usePermissions() {
   // keeps it.
   const hasOutreachRole = !!(functionTags && functionTags.includes('Outreach'))
   const hasFinanceRole = !!(functionTags && functionTags.includes('Finance'))
+  const hasCommsRole = !!(functionTags && functionTags.includes('Communications'))
 
   // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
@@ -74,7 +75,7 @@ export function usePermissions() {
 
     // Functional roles (Outreach, Finance) don't get Special Controls; a lead
     // who also holds one of those roles keeps it.
-    canViewSpecialControls: !isGuest && (hasLeadTag || (!hasOutreachRole && !hasFinanceRole)),
+    canViewSpecialControls: !isGuest && (hasLeadTag || (!hasOutreachRole && !hasFinanceRole && !hasCommsRole)),
 
     // Outreach can put events on the calendar directly instead of filing a
     // request. Adding events is the ONLY thing the role unlocks — editing and

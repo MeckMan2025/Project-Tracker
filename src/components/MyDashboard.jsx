@@ -1,6 +1,7 @@
 import { LayoutDashboard } from 'lucide-react'
 import RoleDashboard from './RoleDashboard'
 import FinanceDashboard from './FinanceDashboard'
+import CommsDashboard from './CommsDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { useUser } from '../contexts/UserContext'
 import { ROLE_NAMES } from '../data/roleTrackers'
@@ -28,6 +29,8 @@ export default function MyDashboard() {
           {myRoles.map(role => (
             role === 'Finance'
               ? <FinanceDashboard key={role} editable />
+              : role === 'Communications'
+              ? <CommsDashboard key={role} editable />
               : <RoleDashboard
                   key={role}
                   role={role}

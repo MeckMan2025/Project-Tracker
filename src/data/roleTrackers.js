@@ -13,7 +13,7 @@
 // Bump this whenever SEED_TRACKERS gains new entries. On load, any seed whose id
 // isn't in the saved doc gets appended once, then the doc records the new version
 // so a tracker a lead later deletes stays deleted instead of coming back.
-export const SEED_VERSION = 4
+export const SEED_VERSION = 5
 
 // Seed trackers that have been withdrawn. Removing an entry from SEED_TRACKERS is
 // not enough — docs that already saved it would keep it forever — so these ids get
@@ -23,7 +23,8 @@ export const SEED_VERSION = 4
 // longer collects events.
 // fin-*: Finance runs on the dated ledger (FinanceDashboard) now — its tiles
 // derive from transactions instead of hand-typed numbers.
-export const RETIRED_SEED_IDS = ['out-next', 'out-upcoming', 'fin-budget', 'fin-raised', 'fin-expenses']
+// com-*: Communications runs on its own board (CommsDashboard) now.
+export const RETIRED_SEED_IDS = ['out-next', 'out-upcoming', 'fin-budget', 'fin-raised', 'fin-expenses', 'com-sponsors', 'com-posts', 'com-todo']
 
 export const DASHBOARD_ROLES = [
   { role: 'Communications', side: 'business' },
@@ -68,10 +69,7 @@ export const sideForRole = (role) => (DASHBOARD_ROLES.find(r => r.role === role)
 
 // Starter trackers — shown until leads customize them in-app.
 export const SEED_TRACKERS = [
-  // Communications
-  { id: 'com-sponsors', icon: '🤝', role: 'Communications', name: 'Sponsors Contacted', type: 'number', value: 0, visibility: 'public' },
-  { id: 'com-posts', icon: '📣', role: 'Communications', name: 'Social Posts', type: 'number', value: 0, visibility: 'public' },
-  { id: 'com-todo', icon: '📝', role: 'Communications', name: 'To Post / Update', type: 'checklist', value: [], visibility: 'role' },
+  // Communications has no seed trackers — see CommsDashboard.
 
   // Finance has no seed trackers — see FinanceDashboard (dated ledger).
 

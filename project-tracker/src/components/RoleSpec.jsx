@@ -2,6 +2,7 @@ import { useState } from 'react'
 import NotificationBell from './NotificationBell'
 import RoleDashboard from './RoleDashboard'
 import FinanceDashboard from './FinanceDashboard'
+import CommsDashboard from './CommsDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { usePermissions } from '../hooks/usePermissions'
 import { useUser } from '../contexts/UserContext'
@@ -52,6 +53,8 @@ export default function RoleSpec() {
             <p className="text-center text-gray-400 mt-10 animate-pulse">Loading…</p>
           ) : role === 'Finance' ? (
             <FinanceDashboard editable={canManage} publicOnly />
+          ) : role === 'Communications' ? (
+            <CommsDashboard editable={canManage} publicOnly />
           ) : (
             <RoleDashboard
               role={role}
