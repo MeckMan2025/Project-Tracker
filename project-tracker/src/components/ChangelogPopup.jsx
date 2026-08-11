@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 98,
+    date: '2026-08-10',
+    items: [
+      '✨ The full What\'s New history is readable again — "See all past updates" in the popup, or Settings → What\'s New any time. Nothing was ever deleted; the popup just only showed what was new since you last dismissed it',
+    ],
+  },
+  {
     id: 97,
     date: '2026-08-10',
     items: [
@@ -717,39 +724,31 @@ const CHANGELOG = [
 
 const LATEST_ID = CHANGELOG[0].id
 
-function ChangelogPopup() {
-  const { user } = useUser()
-  const [dismissed, setDismissed] = useState(false)
+// The full history, openable from Settings. The popup below only ever shows
+// what's new since you last dismissed it, so this is the way to read the rest.
+export function ChangelogModal({ onClose }) {
+  return <ChangelogCard entries={CHANGELOG} onClose={onClose} showingAll />
+}
 
-  if (!user?.id || dismissed) return null
-
-  const key = `changelog-last-seen-${user.id}`
-  const lastSeen = parseInt(localStorage.getItem(key) || '0', 10)
-  if (LATEST_ID <= lastSeen) return null
-
-  const newEntries = CHANGELOG.filter(e => e.id > lastSeen)
-
-  const dismiss = () => {
-    localStorage.setItem(key, String(LATEST_ID))
-    setDismissed(true)
-  }
-
+function ChangelogCard({ entries, onClose, showAll, showingAll }) {
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-[100]" onClick={dismiss} />
+      <div className="fixed inset-0 bg-black/50 z-[100]" onClick={onClose} />
       <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto animate-bounce-in overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 flex items-center gap-2 bg-pastel-orange/30">
             <Sparkles size={20} className="text-pastel-orange-dark" />
-            <span className="text-sm font-semibold text-gray-700">What's New</span>
-            <button onClick={dismiss} className="p-1 rounded hover:bg-white/50 transition-colors ml-auto">
+            <span className="text-sm font-semibold text-gray-700">
+              {showingAll ? 'What\'s New — all updates' : "What's New"}
+            </span>
+            <button onClick={onClose} className="p-1 rounded hover:bg-white/50 transition-colors ml-auto">
               <X size={16} className="text-gray-500" />
             </button>
           </div>
 
           <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-            {newEntries.map(entry => (
+            {entries.map(entry => (
               <div key={entry.id}>
                 <p className="text-xs text-gray-400 font-medium mb-1.5">{entry.date}</p>
                 <ul className="space-y-1.5">
@@ -761,17 +760,51 @@ function ChangelogPopup() {
             ))}
           </div>
 
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-5 space-y-2">
+            {showAll && (
+              <button
+                onClick={showAll}
+                className="w-full py-2 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                See all past updates
+              </button>
+            )}
             <button
-              onClick={dismiss}
+              onClick={onClose}
               className="w-full py-2.5 rounded-xl font-semibold text-gray-700 bg-pastel-orange hover:bg-pastel-orange-dark transition-colors"
             >
-              Got it!
+              {showingAll ? 'Close' : 'Got it!'}
             </button>
           </div>
         </div>
       </div>
     </>
+  )
+}
+
+function ChangelogPopup() {
+  const { user } = useUser()
+  const [dismissed, setDismissed] = useState(false)
+  const [seeAll, setSeeAll] = useState(false)
+
+  if (!user?.id || dismissed) return null
+
+  const key = `changelog-last-seen-${user.id}`
+  const lastSeen = parseInt(localStorage.getItem(key) || '0', 10)
+  if (LATEST_ID <= lastSeen) return null
+
+  const dismiss = () => {
+    localStorage.setItem(key, String(LATEST_ID))
+    setDismissed(true)
+  }
+
+  return (
+    <ChangelogCard
+      entries={seeAll ? CHANGELOG : CHANGELOG.filter(e => e.id > lastSeen)}
+      onClose={dismiss}
+      showAll={seeAll ? null : () => setSeeAll(true)}
+      showingAll={seeAll}
+    />
   )
 }
 

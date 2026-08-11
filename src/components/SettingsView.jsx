@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Settings, Bell, Music, Volume2, Lock } from 'lucide-react'
+import { Settings, Bell, Music, Volume2, Lock, Sparkles } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import PasswordInput from './PasswordInput'
+import { ChangelogModal } from './ChangelogPopup'
 
 const MUSIC_OPTIONS = [
   { id: 'random', label: 'Random', description: 'Pick a random song each time' },
@@ -16,6 +17,7 @@ const MUSIC_OPTIONS = [
 export default function SettingsView() {
   const { user } = useUser()
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
+  const [showChangelog, setShowChangelog] = useState(false)
   const [notifPrefs, setNotifPrefs] = useState({ enabled: true, calendar: true, chat: true })
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState('')
@@ -233,6 +235,25 @@ export default function SettingsView() {
           </button>
         </div>
       </section>
+
+      {/* ─── What's New ─── */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <Sparkles size={16} className="text-pastel-orange-dark" />
+          What's New
+        </h3>
+        <p className="text-sm text-gray-500 mb-3">
+          The popup only shows updates since you last dismissed it. Read the full history here.
+        </p>
+        <button
+          onClick={() => setShowChangelog(true)}
+          className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-pastel-orange/40 hover:bg-pastel-orange transition-colors"
+        >
+          See all updates
+        </button>
+      </section>
+
+      {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
 
       {/* ─── Change Password ─── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
