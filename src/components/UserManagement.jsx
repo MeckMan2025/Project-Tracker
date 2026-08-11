@@ -1331,9 +1331,38 @@ function UserManagement({ onViewProfile }) {
                   }
 
                   // Team accounts live in the TeamRo tab, not under RadMems.
+                  // Whitelisted emails listed under the roster so RadMems answers
+                  // "who's approved to be on the team", not just who has signed up.
+                  // NOTE: profiles has no email column, so there's no reliable way
+                  // to tell which of these already have accounts — the list shows
+                  // every approved email rather than claiming a signup status
+                  // that would be wrong.
+                  const pending = whitelistedEmails
+
                   return (
                     <>
                       {sorted.map(renderMember)}
+
+                      {canManageUsers && pending.length > 0 && (
+                        <div className="pt-5">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-2">
+                            Approved emails ({pending.length})
+                          </p>
+                          <div className="space-y-2">
+                            {pending.map((w) => (
+                              <div key={w.id} className="flex items-center gap-2.5 bg-white/60 rounded-xl border border-dashed border-gray-200 px-4 py-2.5">
+                                <span className="w-7 h-7 shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
+                                  {(w.email || '?').charAt(0).toUpperCase()}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm text-gray-600 truncate">{w.email}</p>
+                                  <p className="text-[11px] text-gray-400">Approved to sign up{w.role ? ` · ${w.role}` : ''}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </>
                   )
                 })()
