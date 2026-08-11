@@ -84,7 +84,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'hw-testing' && activeTab !== 'sw-design' && activeTab !== 'sw-programming' && activeTab !== 'sw-io' && activeTab !== 'sw-testing' && activeTab !== 'bug-tracker'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'testing' && activeTab !== 'sw-design' && activeTab !== 'sw-programming' && activeTab !== 'sw-io' && activeTab !== 'bug-tracker'
 
   return (
     <>
@@ -720,6 +720,21 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* In-the-works role tabs always sit at the BOTTOM of the nav. */}
           {!isTeamAccount && (<>
           {navMode !== 'general' && (<>
+          {/* Testing — live tab for hardware + software (moved out of Special Controls). */}
+          {(canViewHardwareTabs || canViewSoftwareTabs) && (
+            <>
+              <hr className="my-2 border-gray-200" />
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'testing' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('testing'); onToggle() }}
+              >
+                <FlaskConical size={16} className="text-pastel-pink-dark" />
+                <span className="truncate">Testing</span>
+              </div>
+            </>
+          )}
           {/* Outreach-only top-level tabs. Placeholder views for now. */}
           {canViewOutreachTabs && (
             <>
@@ -822,7 +837,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 { tab: 'hw-fabrication', label: 'Fabrication', Icon: Hammer, cls: 'text-pastel-orange-dark' },
                 { tab: 'hw-assembly', label: 'Assembly', Icon: Wrench, cls: 'text-pastel-blue-dark' },
                 { tab: 'hw-electrical', label: 'Electrical', Icon: Zap, cls: 'text-pastel-orange-dark' },
-                { tab: 'hw-testing', label: 'Testing', Icon: FlaskConical, cls: 'text-pastel-pink-dark' },
               ].map(({ tab, label, Icon, cls }) => (
                 <div key={tab}>
                   <div
@@ -852,7 +866,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 { tab: 'sw-design', label: 'Software Design', Icon: Ruler, cls: 'text-pastel-pink-dark' },
                 { tab: 'sw-programming', label: 'Programming', Icon: Code, cls: 'text-pastel-blue-dark' },
                 { tab: 'sw-io', label: 'Robot I/O', Icon: Cable, cls: 'text-pastel-orange-dark' },
-                { tab: 'sw-testing', label: 'Code Testing', Icon: FlaskConical, cls: 'text-pastel-pink-dark' },
                 { tab: 'bug-tracker', label: 'Bug Tracker', Icon: BugIcon, cls: 'text-pastel-orange-dark' },
               ].map(({ tab, label, Icon, cls }) => (
                 <div key={tab}>

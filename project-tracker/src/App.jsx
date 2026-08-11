@@ -101,8 +101,8 @@ const TAB_ACCESS = {
   'log-reach': 'teammate', 'portfolio': 'teammate',
   'budget-tracker': 'teammate', 'fundraising': 'teammate', 'financial-history': 'teammate', 'expense-requests': 'teammate',
   'comms-announcements': 'teammate', 'content-studio': 'teammate', 'website-manager': 'teammate', 'marketing': 'teammate',
-  'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'hw-testing': 'teammate',
-  'sw-design': 'teammate', 'sw-programming': 'teammate', 'sw-io': 'teammate', 'sw-testing': 'teammate', 'bug-tracker': 'teammate',
+  'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'testing': 'teammate',
+  'sw-design': 'teammate', 'sw-programming': 'teammate', 'sw-io': 'teammate', 'bug-tracker': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
@@ -313,8 +313,9 @@ function App() {
   if (!canViewOutreachTabs) blockedTabs.push('log-reach', 'portfolio')
   if (!canViewFinanceTabs) blockedTabs.push('budget-tracker', 'fundraising', 'financial-history')
   if (!canViewCommsTabs) blockedTabs.push('comms-announcements', 'content-studio', 'website-manager', 'marketing')
-  if (!canViewHardwareTabs) blockedTabs.push('hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical', 'hw-testing')
-  if (!canViewSoftwareTabs) blockedTabs.push('sw-design', 'sw-programming', 'sw-io', 'sw-testing', 'bug-tracker')
+  if (!canViewHardwareTabs) blockedTabs.push('hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical')
+  if (!canViewSoftwareTabs) blockedTabs.push('sw-design', 'sw-programming', 'sw-io', 'bug-tracker')
+  if (!canViewHardwareTabs && !canViewSoftwareTabs) blockedTabs.push('testing')
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -1272,8 +1273,8 @@ function App() {
         <WorkingOnIt title="Programming" />
       ) : activeTab === 'sw-io' ? (
         <WorkingOnIt title="Robot I/O" />
-      ) : activeTab === 'sw-testing' ? (
-        <WorkingOnIt title="Code Testing" />
+      ) : activeTab === 'testing' ? (
+        <TestingDashboard onBack={() => setActiveTab('home')} />
       ) : activeTab === 'bug-tracker' ? (
         <WorkingOnIt title="Bug Tracker" />
       ) : activeTab === 'hw-design' ? (
@@ -1284,8 +1285,7 @@ function App() {
         <WorkingOnIt title="Assembly" />
       ) : activeTab === 'hw-electrical' ? (
         <WorkingOnIt title="Electrical" />
-      ) : activeTab === 'hw-testing' ? (
-        <WorkingOnIt title="Testing" />
+
       ) : activeTab === 'comms-announcements' ? (
         <WorkingOnIt title="Announcements" />
       ) : activeTab === 'content-studio' ? (
@@ -1384,8 +1384,6 @@ function App() {
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
             <DesignMatrix onBack={() => setSpecialView(null)} />
-          ) : specialView === 'testing' ? (
-            <TestingDashboard onBack={() => setSpecialView(null)} />
           ) : specialView === 'team-pulse' ? (
             <TeamPulseDashboard onBack={() => setSpecialView(null)} />
           ) : (
@@ -1487,13 +1485,6 @@ function App() {
                       >
                         <span className="text-lg font-semibold text-gray-700">Design Matrix</span>
                         <p className="text-sm text-gray-400 mt-1">Compare designs, score options & pick a winner</p>
-                      </button>
-                      <button
-                        onClick={() => setSpecialView('testing')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                      >
-                        <span className="text-lg font-semibold text-gray-700">Testing</span>
-                        <p className="text-sm text-gray-400 mt-1">Create test tables, log results & visualize data</p>
                       </button>
                     </div>
                   </div>
