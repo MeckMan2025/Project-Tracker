@@ -232,6 +232,17 @@ export function UserProvider({ children }) {
               await expireSession()
               setLoading(false)
               return
+            } else {
+              // Profile unreadable but the cache matches this user. Previously we
+              // fell through and kept the cached roles, so a stale function_tags
+              // could grant access forever. Fail closed instead: no roles until
+              // the DB actually answers.
+              console.warn('[Auth] Profile unreadable — dropping cached roles')
+              setFunctionTags([])
+              setAuthorityTier('guest')
+              setIsAuthorityAdmin(false)
+              localStorage.setItem('scrum-function-tags', '[]')
+              localStorage.setItem('scrum-authority-tier', 'guest')
             }
             setupRealtimeSub(session.user.id)
             setupRoleNotifSub(session.user.id)

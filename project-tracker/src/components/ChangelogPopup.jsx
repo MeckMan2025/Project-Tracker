@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 100,
+    date: '2026-08-10',
+    items: [
+      '🔒 Fixed roles sticking around after they were removed — if the app couldn\'t read your profile it quietly fell back on a saved copy from your last visit, so old access could hang on. It now waits for the real answer instead',
+    ],
+  },
+  {
     id: 99,
     date: '2026-08-10',
     items: [
