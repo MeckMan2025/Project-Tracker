@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, Inbox } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import NotificationPopup from './NotificationPopup'
-import RequestsBell from './RequestsBell'
+import { useRequestsPanel } from '../hooks/useRequestsPanel'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -23,6 +23,8 @@ function requestNotifPermission() {
 
 export default function NotificationBell() {
   const { user } = useUser()
+  const { pendingCount, panel: requestsPanel } = useRequestsPanel()
+  const [showRequests, setShowRequests] = useState(false)
   const [popup, setPopup] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
@@ -137,12 +139,8 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="flex items-center">
+    <div className="relative" ref={ref}>
       <NotificationPopup notification={popup} onClose={() => setPopup(null)} />
-      {/* Rendered here so every header that shows the bell gets Requests too,
-          without threading it through ~30 call sites. */}
-      <RequestsBell />
-      <div className="relative" ref={ref}>
       <button
         onClick={() => { requestNotifPermission(); setOpen(prev => !prev) }}
         className="relative p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors"
@@ -169,11 +167,27 @@ export default function NotificationBell() {
             overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 z-50
           ">
           <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Notifications
-            </h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-gray-700">
+                {showRequests ? 'Requests' : 'Notifications'}
+              </h3>
+              {/* Requests live in this same box — the icon swaps what the panel
+                  below shows rather than opening a screen. */}
+              <button
+                onClick={() => setShowRequests(v => !v)}
+                title={showRequests ? 'Back to notifications' : 'Requests'}
+                className={`relative p-1 rounded-lg transition-colors ${showRequests ? 'bg-pastel-pink/40' : 'hover:bg-gray-100'}`}
+              >
+                <Inbox size={14} className="text-gray-500" />
+                {pendingCount > 0 && !showRequests && (
+                  <span className="absolute -top-1 -right-1 bg-pastel-pink-dark text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            </div>
             <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
+              {!showRequests && unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
                   className="text-xs text-pastel-blue-dark hover:underline"
@@ -181,7 +195,7 @@ export default function NotificationBell() {
                   Mark all read
                 </button>
               )}
-              {notifications.length > 0 && (
+              {!showRequests && notifications.length > 0 && (
                 <button
                   onClick={clearAll}
                   className="text-xs text-red-400 hover:underline"
@@ -192,9 +206,8 @@ export default function NotificationBell() {
             </div>
           </div>
 
-          {/* Requests lives here rather than in the nav. NotificationBell is
-              rendered from ~30 places, so it fires a navigation event instead of
-              taking an onTabChange prop through all of them. */}
+          {showRequests ? requestsPanel : (
+          <>
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-400">
               No notifications
@@ -219,10 +232,11 @@ export default function NotificationBell() {
               ))}
             </div>
           )}
+          </>
+          )}
           </div>
         </>
       )}
-      </div>
     </div>
   )
 }
