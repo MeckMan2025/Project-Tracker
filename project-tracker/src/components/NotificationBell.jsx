@@ -194,9 +194,9 @@ export default function NotificationBell() {
               sm:top-[var(--anchor-top)] sm:right-[var(--anchor-right)]
               overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 z-[101]
             ">
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
+          <div className="px-3 pt-2 pb-2 border-b border-gray-100 sticky top-0 bg-white">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 text-center mb-1.5">Notifications</h3>
+            <div className="flex items-center justify-center gap-1.5">
               {/* One icon per view — bell (notifications), requests,
                   announcements, ideas. Outlined when idle, filled when active. */}
               <button
