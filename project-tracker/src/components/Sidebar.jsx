@@ -3,6 +3,7 @@ import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineC
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
+import { notifyRequestReviewers } from '../utils/requestRouting'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
@@ -66,6 +67,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       },
       body: JSON.stringify(request),
     }).catch(err => console.error('Failed to request board:', err))
+    notifyRequestReviewers(request)
   }
 
   // Comp Day screen lock — determine which tabs are allowed per role

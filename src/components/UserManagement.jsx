@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { notifyRequestReviewers } from '../utils/requestRouting'
 import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -599,6 +600,7 @@ function UserManagement({ onViewProfile }) {
       }
       const { error } = await supabase.from('requests').insert(request)
       if (error) throw error
+      notifyRequestReviewers(request)
       setRoleRequestSuccess(`Requested "${role}" — a lead will review it.`)
       setRoleRequestOpen(false)
     } catch (err) {

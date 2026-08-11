@@ -7,6 +7,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { usePendingRequests } from '../hooks/usePendingRequests'
 import { useToast } from './ToastProvider'
 import { triggerPush } from '../utils/pushHelper'
+import { notifyRequestReviewers } from '../utils/requestRouting'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -88,6 +89,7 @@ export default function ExpenseRequests() {
       await fetch(`${supabaseUrl}/rest/v1/requests`, {
         method: 'POST', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(request),
       })
+      notifyRequestReviewers(request)
     } catch (err) { console.error('Failed to submit expense request:', err) }
     loadLists()
   }

@@ -7,6 +7,7 @@ import {
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { ROLE_NAMES } from '../data/roleTrackers'
+import { notifyRequestReviewers } from '../utils/requestRouting'
 import { usePermissions } from '../hooks/usePermissions'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import NotificationBell from './NotificationBell'
@@ -401,6 +402,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       addToast('Request sent! A lead will review it.', 'success')
       const { error } = await supabase.from('requests').insert(request)
       if (error) { console.error(error); addToast('Could not submit request: ' + error.message, 'error') }
+      else notifyRequestReviewers(request)
       return
     }
 
