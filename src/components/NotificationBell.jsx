@@ -232,8 +232,9 @@ export default function NotificationBell() {
                   </span>
                 )}
               </button>
-              {/* Co-founders only: ideas pitched from under-construction pages. */}
-              {isCofounder && (
+              {/* Ideas pitched from under-construction pages — everyone can look
+                  and thumbs-up; co-founders review inside the panel. */}
+              {(
                 <button
                   onClick={() => setView(v => v === 'ideas' ? 'notifications' : 'ideas')}
                   title={showIdeas ? 'Back to notifications' : 'Ideas & suggestions'}

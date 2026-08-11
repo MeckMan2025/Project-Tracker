@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 122,
+    date: '2026-08-11',
+    items: [
+      '👍 The ? ideas panel in the bell is for everyone now — see what teammates have pitched and thumbs-up the ones you want built. Co-founders still handle the reviewing',
+      '🔍 The Scouting page uses the standard under-construction screen, so it takes ideas too',
+    ],
+  },
+  {
     id: 121,
     date: '2026-08-11',
     items: [
