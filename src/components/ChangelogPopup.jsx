@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 115,
+    date: '2026-08-11',
+    items: [
+      '👑 Leads now see their whole division — a Business Lead gets every business tab and dashboard (Outreach, Finance, Communications), a Technical Lead gets all of hardware and software, and Co-Founders / Project Managers / Mentors / Coaches get both sides. Leads keep Special Controls',
+    ],
+  },
+  {
     id: 114,
     date: '2026-08-11',
     items: [

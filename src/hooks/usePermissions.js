@@ -29,6 +29,15 @@ export function usePermissions() {
   // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
 
+  // Division oversight: a Business Lead gets everything the business roles get,
+  // a Technical Lead everything the technical roles get, and the whole-team
+  // leads (Co-Founder / Project Manager / Mentor / Coach) get both sides.
+  const isBusinessLead = !!(functionTags && functionTags.includes('Business Lead'))
+  const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
+  const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
+  const businessAccess = isBusinessLead || isFullLead
+  const technicalAccess = isTechnicalLead || isFullLead
+
   return {
     tier,
     isGuest,
@@ -86,16 +95,18 @@ export function usePermissions() {
     canAddEvents: hasLeadTag || isTeam || hasOutreachRole || hasFinanceRole,
 
     // Finance-only tabs, and who reviews expense requests.
-    canViewFinanceTabs: hasFinanceRole,
-    canViewCommsTabs: hasCommsRole,
-    canViewHardwareTabs: hasHardwareRole,
-    canViewSoftwareTabs: hasProgrammingRole,
+    canViewFinanceTabs: hasFinanceRole || businessAccess,
+    canViewCommsTabs: hasCommsRole || businessAccess,
+    canViewHardwareTabs: hasHardwareRole || technicalAccess,
+    canViewSoftwareTabs: hasProgrammingRole || technicalAccess,
+    businessDivisionAccess: businessAccess,
+    technicalDivisionAccess: technicalAccess,
     // The season budget is the Business Lead's number to enter (co-founders can too).
     canSetBudget: (functionTags && functionTags.includes('Business Lead')) || isCofounder,
     canReviewExpenseRequests: hasFinanceRole || hasLeadTag,
 
     // Log Reach and Portfolio belong to Outreach and nobody else.
-    canViewOutreachTabs: hasOutreachRole,
+    canViewOutreachTabs: hasOutreachRole || businessAccess,
 
     // An Outreach member's Requests tab carries event requests and nothing else.
     outreachEventRequestsOnly: hasOutreachRole && !hasLeadTag,

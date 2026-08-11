@@ -6,6 +6,7 @@ import RobotDashboard from './RobotDashboard'
 import SoftwareDashboard from './SoftwareDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { ROLE_NAMES } from '../data/roleTrackers'
 
 // The Home dashboard — combines a dashboard for every role the current user
@@ -14,7 +15,16 @@ import { ROLE_NAMES } from '../data/roleTrackers'
 export default function MyDashboard() {
   const { trackers, loading, upsertTracker, removeTracker } = useRoleTrackers()
   const { functionTags } = useUser()
-  const myRoles = (functionTags || []).filter(t => ROLE_NAMES.includes(t))
+  const { businessDivisionAccess, technicalDivisionAccess } = usePermissions()
+
+  // Your own roles, plus a division lead sees every dashboard in their
+  // division (Business Lead -> business roles, Technical Lead -> technical,
+  // whole-team leads -> both).
+  const myRoles = [...new Set([
+    ...(functionTags || []).filter(t => ROLE_NAMES.includes(t)),
+    ...(businessDivisionAccess ? ['Communications', 'Finance', 'Outreach'] : []),
+    ...(technicalDivisionAccess ? ['CAD', 'Programming', 'Scouting'] : []),
+  ])]
 
   // One robot, one board: any hardware role gets the shared RobotDashboard,
   // rendered once even for someone holding all three.
