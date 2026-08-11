@@ -84,8 +84,17 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     try {
       const ref = supabaseUrl.split('//')[1].split('.')[0]
       const raw = window.localStorage.getItem(`sb-${ref}-auth-token`)
-      const token = raw ? JSON.parse(raw)?.access_token : null
-      if (token) return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const token = parsed?.access_token
+        const expMs = (parsed?.expires_at || 0) * 1000
+        // Only use the token while it's actually valid — sending an expired one
+        // gets the write rejected outright ("Failed to save role: JWT expired"),
+        // which is worse than the anon fallback that RLS accepts.
+        if (token && Date.now() < expMs - 10000) {
+          return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
+        }
+      }
     } catch { /* fall through */ }
     return { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
   }

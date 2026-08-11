@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 105,
+    date: '2026-08-10',
+    items: [
+      '💾 Fixed "Failed to save role" when changing roles from someone\'s profile page — the app was sending an expired login token with the save. It now falls back to a method that works',
+    ],
+  },
+  {
     id: 104,
     date: '2026-08-10',
     items: [
