@@ -36,7 +36,10 @@ export function usePermissions() {
   const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
   const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
   const businessAccess = isBusinessLead || isFullLead
-  const technicalAccess = isTechnicalLead || isFullLead
+  // Technical Lead oversees HARDWARE only — software/programming is its own
+  // thing and stays with the Programming role and the whole-team leads.
+  const hardwareAccess = isTechnicalLead || isFullLead
+  const softwareAccess = isFullLead
 
   return {
     tier,
@@ -97,10 +100,11 @@ export function usePermissions() {
     // Finance-only tabs, and who reviews expense requests.
     canViewFinanceTabs: hasFinanceRole || businessAccess,
     canViewCommsTabs: hasCommsRole || businessAccess,
-    canViewHardwareTabs: hasHardwareRole || technicalAccess,
-    canViewSoftwareTabs: hasProgrammingRole || technicalAccess,
+    canViewHardwareTabs: hasHardwareRole || hardwareAccess,
+    canViewSoftwareTabs: hasProgrammingRole || softwareAccess,
     businessDivisionAccess: businessAccess,
-    technicalDivisionAccess: technicalAccess,
+    hardwareDivisionAccess: hardwareAccess,
+    softwareDivisionAccess: softwareAccess,
     // The season budget is the Business Lead's number to enter (co-founders can too).
     canSetBudget: (functionTags && functionTags.includes('Business Lead')) || isCofounder,
     canReviewExpenseRequests: hasFinanceRole || hasLeadTag,

@@ -62,7 +62,7 @@ export default function MyDashboard() {
   const { ledger } = useFinanceLedger()
   const { board: comms } = useCommsBoard()
   const { functionTags } = useUser()
-  const { businessDivisionAccess, technicalDivisionAccess } = usePermissions()
+  const { businessDivisionAccess, hardwareDivisionAccess, softwareDivisionAccess } = usePermissions()
 
   // One-line summaries for collapsed rows — same data the boards render.
   const tv = (id) => trackers.find(t => t.id === id)?.value ?? 0
@@ -91,7 +91,8 @@ export default function MyDashboard() {
   const visible = new Set([
     ...ownRoles,
     ...(businessDivisionAccess ? ['Communications', 'Finance', 'Outreach'] : []),
-    ...(technicalDivisionAccess ? ['CAD', 'Programming', 'Scouting'] : []),
+    ...(hardwareDivisionAccess ? ['CAD'] : []),
+    ...(softwareDivisionAccess ? ['Programming', 'Scouting'] : []),
   ])
   if (visible.size === 0) return null
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -16,6 +16,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [scoutingOpen, setScoutingOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [navFilter, setNavFilter] = useState(() => localStorage.getItem('scrum-nav-filter') || 'general')
+  // Nav mode: 'role' = just your role/division tabs, 'general' = the general app, 'all' = everything.
+  const [navMode, setNavMode] = useState(() => localStorage.getItem('scrum-nav-mode') || 'all')
 
   // Reset all dropdowns when sidebar closes
   useEffect(() => {
@@ -254,6 +256,28 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* ─── Normal Nav ─── */}
           {/* No rule here — the sidebar header already has a border-b, and the two
               together read as a double line above Home. */}
+          {/* Role / Gen / All — filters which nav sections show below. */}
+          {!isTeamAccount && (
+            <div className="flex gap-1 mb-2 bg-gray-100 rounded-xl p-1">
+              {[
+                { id: 'role', label: 'Role', Icon: UserCog },
+                { id: 'general', label: 'Gen', Icon: Home },
+                { id: 'all', label: 'All', Icon: LayoutGrid },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => { setNavMode(id); localStorage.setItem('scrum-nav-mode', id) }}
+                  className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-[10px] font-semibold transition-colors ${
+                    navMode === id ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  <Icon size={14} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Home Tab */}
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -270,6 +294,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             <span className="truncate">Home</span>
           </div>
 
+          {navMode !== 'role' && (<>
           {/* Chat is co-founder only for now. The rule lives inside the block so
               hiding chat doesn't leave two separators stacked under Home. */}
           {isCofounder && (<>
@@ -617,7 +642,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </div>}
           </div>}
 
+          </>)}
+
           {!isTeamAccount && <>
+          {navMode !== 'role' && (<>
           <hr className="my-2 border-gray-200" />
 
           {/* Workshops — flat nav item; the Tasks dropdown (Scrum + Workshops) is gone. */}
@@ -634,7 +662,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               <span className="truncate">Workshops</span>
             </div>
           )}
+          </>)}
 
+          {navMode !== 'general' && (<>
           {/* Outreach-only top-level tabs. Placeholder views for now. */}
           {canViewOutreachTabs && (
             <>
@@ -776,6 +806,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
+          </>)}
+
+          {navMode !== 'role' && (<>
           {/* Expense Requests — every teammate can ask; Finance reviews inside. */}
           {!isGuest && (
             <>
@@ -791,13 +824,14 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               </div>
             </>
           )}
+          </>)}
 
           </>}
 
           {/* Engineering Notebook is not a nav tab — it's reached from the
               gallery button on Home, so everyone gets to it the same way. */}
 
-          {!isTeamAccount && <>
+          {!isTeamAccount && navMode !== 'role' && <>
 
           {/* Requests is not a nav item — it's the row under the notification
               bell, so there's one way in for everyone. */}

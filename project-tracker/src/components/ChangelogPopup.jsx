@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 119,
+    date: '2026-08-11',
+    items: [
+      '🗂️ Nav filter at the top of the sidebar — Role shows just your role\'s tabs, Gen shows the general app, All shows everything. It remembers your pick',
+    ],
+  },
+  {
     id: 118,
     date: '2026-08-11',
     items: [
