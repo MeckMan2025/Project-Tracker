@@ -648,12 +648,16 @@ function UserManagement({ onViewProfile }) {
     setDeleteSubmitting(true)
     try {
       const headers = await getAuthHeaders()
-      // Archive to Past Members first (best-effort; skips silently if the
-      // past_members table hasn't been created yet).
+      // Archive to Past Members FIRST and refuse to delete if it doesn't stick.
+      // This used to be a silent try/catch, so when past_members was missing the
+      // account was deleted with no record kept — 20 members were lost that way.
+      // The archive is the only thing that survives deletion; treat it as
+      // required, not best-effort.
+      let archived = null
       try {
-        await fetch(`${supabaseUrl}/rest/v1/past_members`, {
+        const archiveRes = await fetch(`${supabaseUrl}/rest/v1/past_members`, {
           method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
           body: JSON.stringify({
             original_id: deleteTarget.id,
             display_name: deleteTarget.display_name,
@@ -662,14 +666,25 @@ function UserManagement({ onViewProfile }) {
             removed_by: username,
           }),
         })
-        setPastMembers(prev => [{
-          id: `local-${deleteTarget.id}`,
-          display_name: deleteTarget.display_name,
-          function_tags: deleteTarget.function_tags || [],
-          avatar_url: deleteTarget.avatar_url || '',
-          removed_at: new Date().toISOString(),
-        }, ...prev])
-      } catch { /* table may not exist yet — ignore */ }
+        if (!archiveRes.ok) throw new Error(await archiveRes.text() || archiveRes.statusText)
+        const rows = await archiveRes.json()
+        if (!rows || rows.length === 0) throw new Error('archive returned no row')
+        archived = rows[0]
+      } catch (err) {
+        setDeleteError(
+          `Could not archive ${deleteTarget.display_name} to Past Members, so the account was NOT deleted. ` +
+          `Fix that first (run supabase/past_members.sql). Details: ${err.message}`
+        )
+        setDeleteSubmitting(false)
+        return
+      }
+      setPastMembers(prev => [{
+        id: archived.id || `local-${deleteTarget.id}`,
+        display_name: deleteTarget.display_name,
+        function_tags: deleteTarget.function_tags || [],
+        avatar_url: deleteTarget.avatar_url || '',
+        removed_at: archived.removed_at || new Date().toISOString(),
+      }, ...prev])
 
       const res = await fetch(`${supabaseUrl}/functions/v1/admin-delete-user`, {
         method: 'POST',

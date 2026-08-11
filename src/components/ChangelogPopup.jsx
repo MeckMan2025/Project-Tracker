@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 131,
+    date: '2026-08-11',
+    items: [
+      '🛡️ Removing a member now refuses to go through unless the archive to Past Members saves first — the archive was silently failing, which is how past members were lost with no record',
+      '📧 Added 12 teammates to the signup whitelist so they can create their accounts',
+    ],
+  },
+  {
     id: 130,
     date: '2026-08-11',
     items: [
