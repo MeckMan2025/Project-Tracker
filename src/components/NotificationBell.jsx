@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell, Inbox } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -25,6 +26,9 @@ export default function NotificationBell() {
   const { user } = useUser()
   const { pendingCount, panel: requestsPanel } = useRequestsPanel()
   const [showRequests, setShowRequests] = useState(false)
+  const btnRef = useRef(null)
+  const panelRef = useRef(null)
+  const [anchor, setAnchor] = useState(null)
   const [popup, setPopup] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
@@ -98,7 +102,9 @@ export default function NotificationBell() {
   // Close on outside click
   useEffect(() => {
     function onClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      const inTrigger = ref.current && ref.current.contains(e.target)
+      const inPanel = panelRef.current && panelRef.current.contains(e.target)
+      if (!inTrigger && !inPanel) setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -142,7 +148,13 @@ export default function NotificationBell() {
     <div className="relative" ref={ref}>
       <NotificationPopup notification={popup} onClose={() => setPopup(null)} />
       <button
-        onClick={() => { requestNotifPermission(); setOpen(prev => !prev) }}
+        ref={btnRef}
+        onClick={() => {
+          requestNotifPermission()
+          const r = btnRef.current?.getBoundingClientRect()
+          if (r) setAnchor({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) })
+          setOpen(prev => !prev)
+        }}
         className="relative p-2 rounded-lg hover:bg-pastel-blue/30 transition-colors"
         title="Notifications"
       >
@@ -154,18 +166,22 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {open && (
+      {open && createPortal(
         <>
           {/* Mobile backdrop — blurs background, click to close */}
           <div
-            className="sm:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+            className="sm:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-[100]"
             onClick={() => setOpen(false)}
           />
-          <div className="
-            fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md max-h-[80vh]
-            sm:absolute sm:left-auto sm:top-full sm:translate-x-0 sm:translate-y-0 sm:right-0 sm:mt-2 sm:w-80 sm:max-h-96
-            overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 z-50
-          ">
+          <div
+            ref={panelRef}
+            style={anchor ? { '--anchor-top': `${anchor.top}px`, '--anchor-right': `${anchor.right}px` } : undefined}
+            className="
+              fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md max-h-[80vh]
+              sm:left-auto sm:translate-x-0 sm:translate-y-0 sm:w-80 sm:max-h-96
+              sm:top-[var(--anchor-top)] sm:right-[var(--anchor-right)]
+              overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 z-[101]
+            ">
           <div className="p-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
@@ -238,7 +254,8 @@ export default function NotificationBell() {
           </>
           )}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   )
