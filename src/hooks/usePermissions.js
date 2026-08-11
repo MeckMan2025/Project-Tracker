@@ -81,6 +81,8 @@ export function usePermissions() {
 
     // Finance-only tabs, and who reviews expense requests.
     canViewFinanceTabs: hasFinanceRole,
+    // The season budget is the Business Lead's number to enter (co-founders can too).
+    canSetBudget: (functionTags && functionTags.includes('Business Lead')) || isCofounder,
     canReviewExpenseRequests: hasFinanceRole || hasLeadTag,
 
     // Log Reach and Portfolio belong to Outreach and nobody else.

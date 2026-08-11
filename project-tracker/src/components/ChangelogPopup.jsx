@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 108,
+    date: '2026-08-10',
+    items: [
+      '💰 The season budget starts as "not set" instead of a made-up number — the Business Lead (or a co-founder) enters it on the Finance dashboard, and the Budget Remaining meter appears once it\'s real',
+    ],
+  },
+  {
     id: 107,
     date: '2026-08-10',
     items: [

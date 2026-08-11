@@ -49,7 +49,7 @@ function Tile({ label, value, negative }) {
 
 export default function FinanceDashboard({ editable = false, publicOnly = false }) {
   const { ledger, loading, update } = useFinanceLedger()
-  const { hasLeadTag } = usePermissions()
+  const { hasLeadTag, canSetBudget } = usePermissions()
   const { username } = useUser()
 
   const [adding, setAdding] = useState(false)
@@ -109,24 +109,33 @@ export default function FinanceDashboard({ editable = false, publicOnly = false 
         <Tile label="🧾 Spent This Season" value={money(spent)} />
       </div>
 
-      {/* Budget remaining meter */}
+      {/* Budget remaining meter. target 0 = the Business Lead hasn't entered a
+          budget yet, so show that honestly instead of a meter full of made-up math. */}
       <div className="rounded-xl px-3 py-2.5 bg-white border border-gray-100">
         <div className="flex items-baseline justify-between mb-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-500">💰 Budget Remaining</p>
-          <span className="text-xs text-gray-400">{pct}%</span>
+          {target > 0 && <span className="text-xs text-gray-400">{pct}%</span>}
         </div>
-        <p className={`text-lg font-semibold ${remaining < 0 ? 'text-red-500' : 'text-gray-800'}`}>
-          {money(remaining)} <span className="text-xs font-normal text-gray-400">of {money(target)}</span>
-        </p>
-        <div className={`mt-1 h-2 rounded-full overflow-hidden ${theme.track}`}>
-          <div className={`h-full rounded-full ${remaining < 0 ? 'bg-red-400' : theme.bar} transition-all`} style={{ width: `${pct}%` }} />
-        </div>
-        {editable && (
+        {target > 0 ? (
+          <>
+            <p className={`text-lg font-semibold ${remaining < 0 ? 'text-red-500' : 'text-gray-800'}`}>
+              {money(remaining)} <span className="text-xs font-normal text-gray-400">of {money(target)}</span>
+            </p>
+            <div className={`mt-1 h-2 rounded-full overflow-hidden ${theme.track}`}>
+              <div className={`h-full rounded-full ${remaining < 0 ? 'bg-red-400' : theme.bar} transition-all`} style={{ width: `${pct}%` }} />
+            </div>
+          </>
+        ) : (
+          <p className="text-sm italic text-gray-400">
+            Not set yet — {canSetBudget ? 'enter the season budget below' : 'the Business Lead enters this'}
+          </p>
+        )}
+        {canSetBudget && (
           <button onClick={() => setConfig(c => !c)} className="mt-1.5 text-[11px] text-gray-400 hover:text-gray-600">
             {config ? 'Hide settings' : 'Starting balance / budget…'}
           </button>
         )}
-        {config && editable && (
+        {config && canSetBudget && (
           <div className="mt-2 flex gap-2">
             <label className="flex-1 text-[11px] text-gray-500">
               Starting balance

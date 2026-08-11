@@ -14,7 +14,8 @@ import { supabase } from '../supabase'
 // never stored — so they can't drift out of agreement with each other.
 const DOC_ID = 'finance_ledger'
 
-const EMPTY = { startingBalance: 0, budgetTarget: 3000, transactions: [], upcoming: [] }
+// budgetTarget 0 = not set yet — the Business Lead enters it in-app.
+const EMPTY = { startingBalance: 0, budgetTarget: 0, transactions: [], upcoming: [] }
 
 export function useFinanceLedger() {
   const [ledger, setLedger] = useState(null) // null = loading
