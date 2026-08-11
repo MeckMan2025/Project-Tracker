@@ -658,7 +658,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           </div>
 
           <NotificationBell />
-          {canReviewRequests && <RequestsBadge type="calendar_event" />}
         </div>
 
         {/* Row 2: department filters — one swipeable row on phones, wrap on desktop */}
