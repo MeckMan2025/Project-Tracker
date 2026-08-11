@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 99,
+    date: '2026-08-10',
+    items: [
+      '🔄 Removing someone\'s role now takes effect on their screen right away — their dashboard and role-only tabs disappear instead of hanging around until they sign in again',
+      '📱 Fixed the notification panel being stuck at the top of the screen on mobile',
+    ],
+  },
+  {
     id: 98,
     date: '2026-08-10',
     items: [

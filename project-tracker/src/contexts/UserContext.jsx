@@ -234,6 +234,7 @@ export function UserProvider({ children }) {
               return
             }
             setupRealtimeSub(session.user.id)
+            setupRoleNotifSub(session.user.id)
             setLoading(false)
           }
           return
@@ -295,6 +296,7 @@ export function UserProvider({ children }) {
               console.error('[Auth] No profile found for user:', session.user.id)
             }
             setupRealtimeSub(session.user.id)
+            setupRoleNotifSub(session.user.id)
           }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Keep user state fresh when token auto-refreshes (e.g. after page idle/refresh)
@@ -329,10 +331,39 @@ export function UserProvider({ children }) {
     document.addEventListener('visibilitychange', refreshOnFocus)
     window.addEventListener('focus', refreshOnFocus)
 
+    // Belt-and-braces on top of the profiles subscription below: a role change
+    // always writes a 'role_change' notification, and the notifications channel
+    // is known to work (it drives the celebration modal). If `profiles` isn't in
+    // the supabase_realtime publication, this is what actually clears a removed
+    // role from an open tab.
+    let roleNotifChannel = null
+    const setupRoleNotifSub = (userId) => {
+      if (roleNotifChannel) supabase.removeChannel(roleNotifChannel)
+      roleNotifChannel = supabase
+        .channel(`role-change-${userId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        }, async (payload) => {
+          if (!mounted || payload.new?.type !== 'role_change') return
+          try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user && mounted) {
+              const profile = await fetchProfile(session.user.id)
+              if (mounted && profile) applyProfile(profile, session.user.email)
+            }
+          } catch { /* ignore */ }
+        })
+        .subscribe()
+    }
+
     // Realtime subscription: pick up role/tag changes made by leads immediately
     let profileChannel = null
     const setupRealtimeSub = (userId) => {
       if (profileChannel) supabase.removeChannel(profileChannel)
+      if (roleNotifChannel) supabase.removeChannel(roleNotifChannel)
       profileChannel = supabase
         .channel(`profile-changes-${userId}`)
         .on('postgres_changes', {
