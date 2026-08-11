@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 117,
+    date: '2026-08-11',
+    items: [
+      '📊 Collapsed dashboard rows now show their key numbers right in the row — "2/4 ready · 1 blocked", "$450 balance · 3 upcoming", "4 events · 120 reached" — so leads see everything at a glance and only expand to work',
+    ],
+  },
+  {
     id: 116,
     date: '2026-08-11',
     items: [
