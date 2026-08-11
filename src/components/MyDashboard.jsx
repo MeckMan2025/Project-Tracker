@@ -2,6 +2,7 @@ import { LayoutDashboard } from 'lucide-react'
 import RoleDashboard from './RoleDashboard'
 import FinanceDashboard from './FinanceDashboard'
 import CommsDashboard from './CommsDashboard'
+import RobotDashboard from './RobotDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { useUser } from '../contexts/UserContext'
 import { ROLE_NAMES } from '../data/roleTrackers'
@@ -13,6 +14,12 @@ export default function MyDashboard() {
   const { trackers, loading, upsertTracker, removeTracker } = useRoleTrackers()
   const { functionTags } = useUser()
   const myRoles = (functionTags || []).filter(t => ROLE_NAMES.includes(t))
+
+  // One robot, one board: any hardware role gets the shared RobotDashboard,
+  // rendered once even for someone holding all three.
+  const HARDWARE = ['CAD', 'Assembly/Building', 'Wiring']
+  const hasHardware = myRoles.some(r => HARDWARE.includes(r))
+  const otherRoles = myRoles.filter(r => !HARDWARE.includes(r))
 
   if (myRoles.length === 0) return null
 
@@ -26,7 +33,8 @@ export default function MyDashboard() {
         <p className="text-sm text-gray-400 animate-pulse">Loading trackers…</p>
       ) : (
         <div className="space-y-6">
-          {myRoles.map(role => (
+          {hasHardware && <RobotDashboard editable />}
+          {otherRoles.map(role => (
             role === 'Finance'
               ? <FinanceDashboard key={role} editable />
               : role === 'Communications'

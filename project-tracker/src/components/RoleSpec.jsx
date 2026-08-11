@@ -3,6 +3,7 @@ import NotificationBell from './NotificationBell'
 import RoleDashboard from './RoleDashboard'
 import FinanceDashboard from './FinanceDashboard'
 import CommsDashboard from './CommsDashboard'
+import RobotDashboard from './RobotDashboard'
 import { useRoleTrackers } from '../hooks/useRoleTrackers'
 import { usePermissions } from '../hooks/usePermissions'
 import { useUser } from '../contexts/UserContext'
@@ -55,6 +56,8 @@ export default function RoleSpec() {
             <FinanceDashboard editable={canManage} publicOnly />
           ) : role === 'Communications' ? (
             <CommsDashboard editable={canManage} publicOnly />
+          ) : ['CAD', 'Assembly/Building', 'Wiring'].includes(role) ? (
+            <RobotDashboard editable={canManage} publicOnly />
           ) : (
             <RoleDashboard
               role={role}

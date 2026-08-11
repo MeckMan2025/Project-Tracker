@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
-  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs } = usePermissions()
+  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -80,7 +80,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'attendance' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'hw-testing'
 
   return (
     <>
@@ -701,6 +701,35 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 { tab: 'content-studio', label: 'Content Studio', Icon: PenTool, cls: 'text-pastel-orange-dark' },
                 { tab: 'website-manager', label: 'Website', Icon: Globe, cls: 'text-pastel-blue-dark' },
                 { tab: 'marketing', label: 'Marketing', Icon: Sparkles, cls: 'text-pastel-pink-dark' },
+              ].map(({ tab, label, Icon, cls }, i) => (
+                <div key={tab}>
+                  {i > 0 && <hr className="my-2 border-gray-200" />}
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                      activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                    }`}
+                    onClick={() => { onTabChange(tab); onToggle() }}
+                  >
+                    <Icon size={16} className={cls} />
+                    <span className="truncate">{label}</span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+
+          {/* Hardware-only tabs (CAD / Assembly / Wiring) — placeholders for the
+              Design -> Fabricate -> Assemble -> Wire -> Test loop. */}
+          {canViewHardwareTabs && (
+            <>
+              <hr className="my-2 border-gray-200" />
+              {[
+                { tab: 'hw-design', label: 'Design', Icon: Ruler, cls: 'text-pastel-blue-dark' },
+                { tab: 'hw-fabrication', label: 'Fabrication', Icon: Hammer, cls: 'text-pastel-orange-dark' },
+                { tab: 'hw-assembly', label: 'Assembly', Icon: Wrench, cls: 'text-pastel-blue-dark' },
+                { tab: 'hw-electrical', label: 'Electrical', Icon: Zap, cls: 'text-pastel-orange-dark' },
+                { tab: 'hw-testing', label: 'Testing', Icon: FlaskConical, cls: 'text-pastel-pink-dark' },
               ].map(({ tab, label, Icon, cls }, i) => (
                 <div key={tab}>
                   {i > 0 && <hr className="my-2 border-gray-200" />}

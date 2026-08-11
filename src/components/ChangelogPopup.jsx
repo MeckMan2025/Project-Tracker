@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 111,
+    date: '2026-08-10',
+    items: [
+      '🤖 Robot Status — one shared dashboard for all of hardware: a headline status derived from your subsystems, current build priority, blocked items anyone can flag and resolve, next deadline with countdown, and click-to-advance subsystem statuses (Drivetrain, Intake, Climber, Electronics…)',
+      '🔧 Five hardware-only tabs on the way: Design, Fabrication, Assembly, Electrical, Testing (under construction)',
+    ],
+  },
+  {
     id: 110,
     date: '2026-08-10',
     items: [

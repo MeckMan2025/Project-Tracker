@@ -13,7 +13,7 @@
 // Bump this whenever SEED_TRACKERS gains new entries. On load, any seed whose id
 // isn't in the saved doc gets appended once, then the doc records the new version
 // so a tracker a lead later deletes stays deleted instead of coming back.
-export const SEED_VERSION = 5
+export const SEED_VERSION = 6
 
 // Seed trackers that have been withdrawn. Removing an entry from SEED_TRACKERS is
 // not enough — docs that already saved it would keep it forever — so these ids get
@@ -24,7 +24,13 @@ export const SEED_VERSION = 5
 // fin-*: Finance runs on the dated ledger (FinanceDashboard) now — its tiles
 // derive from transactions instead of hand-typed numbers.
 // com-*: Communications runs on its own board (CommsDashboard) now.
-export const RETIRED_SEED_IDS = ['out-next', 'out-upcoming', 'fin-budget', 'fin-raised', 'fin-expenses', 'com-sponsors', 'com-posts', 'com-todo']
+// cad-/asm-/wir-: hardware runs on the shared RobotDashboard now.
+export const RETIRED_SEED_IDS = [
+  'out-next', 'out-upcoming',
+  'fin-budget', 'fin-raised', 'fin-expenses',
+  'com-sponsors', 'com-posts', 'com-todo',
+  'cad-parts', 'cad-todo', 'asm-progress', 'asm-subsystems', 'wir-progress', 'wir-todo',
+]
 
 export const DASHBOARD_ROLES = [
   { role: 'Communications', side: 'business' },
@@ -80,17 +86,7 @@ export const SEED_TRACKERS = [
   { id: 'out-orgs', icon: '🏢', role: 'Outreach', name: 'Organizations Worked With', type: 'number', value: 0, visibility: 'public' },
   // No event entry here — events get their own tab. See RETIRED_SEED_IDS.
 
-  // CAD
-  { id: 'cad-parts', icon: '📐', role: 'CAD', name: 'Parts Designed', type: 'number', value: 0, visibility: 'public' },
-  { id: 'cad-todo', icon: '📝', role: 'CAD', name: 'CAD To-Do', type: 'checklist', value: [], visibility: 'role' },
-
-  // Assembly/Building
-  { id: 'asm-progress', icon: '🔧', role: 'Assembly/Building', name: 'Build Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
-  { id: 'asm-subsystems', icon: '🧩', role: 'Assembly/Building', name: 'Subsystems', type: 'checklist', value: [], visibility: 'role' },
-
-  // Wiring
-  { id: 'wir-progress', icon: '🔌', role: 'Wiring', name: 'Wiring Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
-  { id: 'wir-todo', icon: '📝', role: 'Wiring', name: 'Wiring Checklist', type: 'checklist', value: [], visibility: 'role' },
+  // Hardware (CAD / Assembly / Wiring) shares RobotDashboard — no seeds.
 
   // Programming
   { id: 'prg-auto', icon: '🤖', role: 'Programming', name: 'Autonomous Progress', type: 'progress', unit: '%', target: 100, value: 0, visibility: 'public' },
