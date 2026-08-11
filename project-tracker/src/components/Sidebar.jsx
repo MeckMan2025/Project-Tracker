@@ -675,7 +675,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 { tab: 'fundraising', label: 'Fundraising', Icon: TrendingUp, cls: 'text-pastel-orange-dark' },
                 { tab: 'financial-history', label: 'Financial History', Icon: History, cls: 'text-pastel-blue-dark' },
               ].map(({ tab, label, Icon, cls }, i) => (
-                <div key={tab} className={i > 0 ? 'mt-1' : ''}>
+                <div key={tab}>
+                  {i > 0 && <hr className="my-2 border-gray-200" />}
                   <div
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                       activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
