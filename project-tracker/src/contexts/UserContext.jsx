@@ -42,11 +42,25 @@ export function UserProvider({ children }) {
       .eq('id', userId)
       .single()
 
-    if (error) {
-      console.error('Failed to fetch profile:', error.message)
+    if (!error) return data
+    console.error('Failed to fetch profile via client:', error.message)
+
+    // Fall back to the anon REST endpoint, which is how the rest of the app
+    // reads. The client call runs as the authenticated role; if that read is
+    // blocked the profile never loads, and roles silently never update.
+    try {
+      const url = import.meta.env.VITE_SUPABASE_URL
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${url}/rest/v1/profiles?id=eq.${userId}&select=*`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      })
+      if (!res.ok) return null
+      const rows = await res.json()
+      return Array.isArray(rows) && rows[0] ? rows[0] : null
+    } catch (e) {
+      console.error('Profile REST fallback failed:', e)
       return null
     }
-    return data
   }
 
   const checkWhitelist = async (email) => {
