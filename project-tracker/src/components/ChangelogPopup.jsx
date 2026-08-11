@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 102,
+    date: '2026-08-10',
+    items: [
+      '🔓 Stopped the app logging you out for no reason — a missing bit of session bookkeeping was treated as an expired login, so some people got kicked out on every visit. Sessions last 30 days as intended',
+      '♻️ You no longer need to sign out and back in for a role change to take effect — it applies on its own within about 15 seconds',
+    ],
+  },
+  {
     id: 101,
     date: '2026-08-10',
     items: [

@@ -194,6 +194,13 @@ export function UserProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession()
         if (!mounted) return
         if (session?.user) {
+          // A valid session with no session-start just means the bookkeeping key
+          // was lost (it's only written on SIGNED_IN). Treat now as the start
+          // rather than expiring — otherwise isSessionExpired() returns true and
+          // logs the user out on every visit.
+          if (!localStorage.getItem('session-start')) {
+            localStorage.setItem('session-start', Date.now().toString())
+          }
           if (isSessionExpired()) {
             await expireSession()
             if (mounted) setLoading(false)
