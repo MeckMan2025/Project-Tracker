@@ -419,6 +419,17 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       })
       if (!res.ok) {
         const body = await res.text()
+        // The role column ships via supabase/calendar_event_role.sql; until
+        // that's run, save the event untagged rather than failing outright.
+        if (body.includes("'role' column")) {
+          const { role: _dropped, ...withoutRole } = newEvent
+          const retry = await fetch(`${url}/rest/v1/calendar_events`, {
+            method: 'POST',
+            headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify(withoutRole),
+          })
+          if (retry.ok) { scheduleReminder(newEvent); return }
+        }
         console.error('Calendar insert failed:', res.status, body)
         addToast('Failed to save: ' + body, 'error')
         setEvents(prev => prev.filter(e => e.id !== newEvent.id))
