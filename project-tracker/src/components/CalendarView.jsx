@@ -928,6 +928,16 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
 // ---------------------------------------------------------------------------
 // Event bubble (the rounded pill shown inside day cells / lists)
 // ---------------------------------------------------------------------------
+// Category (or task-status) color for the mobile month-view dots.
+function eventDotColor(ev) {
+  if (ev.isTask) {
+    const isDone = ev.status === 'done' || ev.status === 'completed'
+    return isDone ? '#22c55e' : (TASK_PRIORITY_COLOR[ev.priority] || '#9ca3af')
+  }
+  const cat = CATEGORIES[ev.category] || CATEGORIES[ev.event_type] || CATEGORIES.meeting
+  return cat.color
+}
+
 function EventBubble({ ev, onClick, dense = false }) {
   if (ev.isTask) {
     const isDone = ev.status === 'done' || ev.status === 'completed'
@@ -980,7 +990,7 @@ function MonthView({ cursor, eventsByDay, onEventClick, onDayClick, canCreate, o
         {dayNames.map(d => <div key={d} className="text-center text-xs font-semibold text-gray-500 py-1">{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {Array.from({ length: firstDay }).map((_, i) => <div key={'e' + i} className="min-h-[110px] rounded-lg bg-gray-50/50" />)}
+        {Array.from({ length: firstDay }).map((_, i) => <div key={'e' + i} className="min-h-[52px] sm:min-h-[110px] rounded-lg bg-gray-50/50" />)}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1
           const date = new Date(year, month, day)
@@ -991,22 +1001,33 @@ function MonthView({ cursor, eventsByDay, onEventClick, onDayClick, canCreate, o
             <div
               key={day}
               onClick={() => onDayClick(key)}
-              className={`min-h-[110px] rounded-lg p-1.5 cursor-pointer transition-colors border bg-white/50 hover:bg-white/90 ${isToday ? 'border-pastel-blue-dark/50' : 'border-transparent'}`}
+              className={`min-h-[52px] sm:min-h-[110px] rounded-lg p-1 sm:p-1.5 cursor-pointer transition-colors border bg-white/50 hover:bg-white/90 ${isToday ? 'border-pastel-blue-dark/50' : 'border-transparent'}`}
             >
               <div className="flex items-center justify-between mb-1">
                 <span className={`text-xs font-medium ${isToday ? 'bg-pastel-blue-dark text-white w-5 h-5 rounded-full flex items-center justify-center' : 'text-gray-700'}`}>{day}</span>
                 {canCreate && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onCreate(key) }}
-                    className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded hover:bg-gray-100"
-                    style={{ opacity: 1 }}
+                    className="hidden sm:block p-0.5 rounded hover:bg-gray-100"
                     title="Add event"
                   >
                     <Plus size={11} className="text-gray-400" />
                   </button>
                 )}
               </div>
-              <div className="space-y-0.5 max-h-[80px] overflow-y-auto pr-0.5">
+              {/* Phones: colored dots (tap the day for details via the day
+                  panel). sm+ keeps the full chips. */}
+              <div className="flex sm:hidden flex-wrap gap-[3px] mt-0.5">
+                {items.slice(0, 6).map((ev, idx) => (
+                  <span
+                    key={ev.id + ':' + idx}
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: eventDotColor(ev) }}
+                  />
+                ))}
+                {items.length > 6 && <span className="text-[8px] leading-none text-gray-400">+{items.length - 6}</span>}
+              </div>
+              <div className="hidden sm:block space-y-0.5 max-h-[80px] overflow-y-auto pr-0.5">
                 {items.map((ev, idx) => (
                   <EventBubble key={ev.id + ':' + idx} ev={ev} onClick={onEventClick} dense />
                 ))}
@@ -1026,14 +1047,14 @@ function WeekView({ cursor, eventsByDay, onEventClick, canCreate, onCreate }) {
   const start = startOfWeek(cursor)
   const today = new Date()
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
       {Array.from({ length: 7 }).map((_, i) => {
         const d = addDays(start, i)
         const key = toKey(d)
         const items = eventsByDay[key] || []
         const isToday = sameDay(d, today)
         return (
-          <div key={key} className={`bg-white/70 rounded-xl p-2 min-h-[60vh] border ${isToday ? 'border-pastel-blue-dark/40' : 'border-gray-100'}`}>
+          <div key={key} className={`bg-white/70 rounded-xl p-2 sm:min-h-[60vh] border ${isToday ? 'border-pastel-blue-dark/40' : 'border-gray-100'}`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="text-xs text-gray-500 uppercase">{d.toLocaleString(undefined, { weekday: 'short' })}</p>
