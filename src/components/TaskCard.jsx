@@ -23,7 +23,7 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
   return (
     <div
       onClick={onOpen}
-      className={`bg-white rounded-lg p-3 mb-2 shadow-sm border-l-4 transition-shadow cursor-pointer ${
+      className={`bg-white rounded-lg p-3 mb-2 shadow-sm border-l-4 transition-shadow cursor-pointer select-none ${
         isDragging ? 'shadow-lg' : 'hover:shadow-md'
       } ${borderColor}`}
     >
