@@ -5,6 +5,16 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 107,
+    date: '2026-08-10',
+    items: [
+      '🧾 Expense Requests — anyone can ask before buying (item, cost, reason, optional link). Finance and leads approve, deny, or mark "needs discussion", from the new tab or straight from the requests panel in the bell',
+      '📑 Three new Finance-only tabs: Budget Tracker, Fundraising, and Financial History (under construction)',
+      '💸 Finance can schedule financial deadlines on the calendar — a new Finance Deadline category with quick-picks like "Registration payment due" and "Budget review"',
+      '⭐ My Calendar now includes events that belong to your role and events you created',
+    ],
+  },
+  {
     id: 106,
     date: '2026-08-10',
     items: [

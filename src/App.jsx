@@ -55,6 +55,7 @@ import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
+import ExpenseRequests from './components/ExpenseRequests'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
 import { useNativePush } from './hooks/useNativePush'
@@ -98,6 +99,7 @@ const TAB_ACCESS = {
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'log-reach': 'teammate', 'portfolio': 'teammate',
+  'budget-tracker': 'teammate', 'fundraising': 'teammate', 'financial-history': 'teammate', 'expense-requests': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
 }
@@ -299,13 +301,14 @@ function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs } = usePermissions()
 
   // Tabs this user can't reach, whatever their tier.
   const blockedTabs = []
   if (!isCofounder) blockedTabs.push('chat-all', 'chat-alliances', 'chat-leagues')
   if (!canViewSpecialControls) blockedTabs.push('special-controls')
   if (!canViewOutreachTabs) blockedTabs.push('log-reach', 'portfolio')
+  if (!canViewFinanceTabs) blockedTabs.push('budget-tracker', 'fundraising', 'financial-history')
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -1257,6 +1260,14 @@ function App() {
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
+      ) : activeTab === 'budget-tracker' ? (
+        <WorkingOnIt title="Budget Tracker" />
+      ) : activeTab === 'fundraising' ? (
+        <WorkingOnIt title="Fundraising Progress" />
+      ) : activeTab === 'financial-history' ? (
+        <WorkingOnIt title="Financial History" />
+      ) : activeTab === 'expense-requests' ? (
+        <ExpenseRequests />
       ) : activeTab === 'log-reach' ? (
         <WorkingOnIt title="Log Reach" />
       ) : activeTab === 'portfolio' ? (

@@ -23,7 +23,14 @@ const CATEGORIES = {
   workshop:    { label: 'Workshop',    emoji: '🛠️', color: '#a855f7', soft: '#f3e8ff', text: '#7e22ce', dept: ['programming', 'technical'] },
   birthday:    { label: 'Birthday',    emoji: '🎂', color: '#ec4899', soft: '#fce7f3', text: '#be185d', dept: ['team'] },
   fundraising: { label: 'Fundraising', emoji: '💰', color: '#f97316', soft: '#ffedd5', text: '#c2410c', dept: ['business'] },
+  finance:     { label: 'Finance Deadline', emoji: '💸', color: '#eab308', soft: '#fef9c3', text: '#a16207', dept: ['business'] },
 }
+
+// Quick-picks for the finance category — the deadlines Finance schedules most.
+const FINANCE_DEADLINES = [
+  'Registration payment due', 'Reimbursements due', 'Sponsor payment expected',
+  'Fundraiser', 'Budget review', 'Purchasing deadline',
+]
 
 const DEPARTMENTS = [
   { id: 'all',         label: 'All',         emoji: '📅' },
@@ -261,7 +268,10 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       if (ev.isTask) return (ev.assignee || '').toLowerCase() === (username || '').toLowerCase()
       const assigned = ev.assigned_to || []
       if (assigned.map(s => s.toLowerCase()).includes((username || '').toLowerCase())) return true
-      // Workshops you can opt-in to count as "mine" too — but only if explicitly assigned.
+      // Events belonging to a role you hold are yours (Finance deadlines for
+      // Finance, Outreach events for Outreach), as are events you created.
+      if (ev.role && (functionTags || []).includes(ev.role)) return true
+      if (ev.added_by && ev.added_by === username) return true
       return false
     }
     // Department filters
@@ -1397,9 +1407,22 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
             </div>
           </div>
 
+          {category === 'finance' && (
+            <div className="flex flex-wrap gap-1">
+              {FINANCE_DEADLINES.map(d => (
+                <button
+                  key={d} type="button" onClick={() => setName(d)}
+                  className={`text-[11px] px-2 py-1 rounded-full transition-colors ${name === d ? 'bg-yellow-200 text-yellow-800 font-semibold' : 'bg-gray-100 text-gray-500 hover:bg-yellow-100'}`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
+
           <input
             type="text" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder={category === 'birthday' ? 'Whose birthday?' : 'Event title'}
+            placeholder={category === 'birthday' ? 'Whose birthday?' : category === 'finance' ? 'Deadline (or pick above)' : 'Event title'}
             className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
           />
 

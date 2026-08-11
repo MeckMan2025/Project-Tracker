@@ -20,6 +20,7 @@ export function usePermissions() {
   // Outreach is excluded from Special Controls; a lead who also holds Outreach
   // keeps it.
   const hasOutreachRole = !!(functionTags && functionTags.includes('Outreach'))
+  const hasFinanceRole = !!(functionTags && functionTags.includes('Finance'))
 
   // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
   const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
@@ -76,7 +77,11 @@ export function usePermissions() {
     // Outreach can put events on the calendar directly instead of filing a
     // request. Adding events is the ONLY thing the role unlocks — editing and
     // deleting events, and every other kind of content, stay with leads.
-    canAddEvents: hasLeadTag || isTeam || hasOutreachRole,
+    canAddEvents: hasLeadTag || isTeam || hasOutreachRole || hasFinanceRole,
+
+    // Finance-only tabs, and who reviews expense requests.
+    canViewFinanceTabs: hasFinanceRole,
+    canReviewExpenseRequests: hasFinanceRole || hasLeadTag,
 
     // Log Reach and Portfolio belong to Outreach and nobody else.
     canViewOutreachTabs: hasOutreachRole,

@@ -15,13 +15,16 @@ import { usePendingRequests } from './usePendingRequests'
 // second implementation that only flips a status.
 export function useRequestsPanel() {
   const { user, username } = useUser()
-  const { canReviewRequests, outreachEventRequestsOnly, isGuest } = usePermissions()
+  const { canReviewRequests, outreachEventRequestsOnly, canReviewExpenseRequests, isGuest } = usePermissions()
   const { requests, handleApprove, handleDeny } = usePendingRequests()
 
   // Leads see everything pending, everyone else only their own, and Outreach
   // only event requests.
   const mine = isGuest ? [] : (requests || [])
-    .filter(r => canReviewRequests || r.requested_by_user_id === user?.id || r.requested_by === username)
+    .filter(r =>
+      canReviewRequests ||
+      (r.type === 'expense' && canReviewExpenseRequests) ||
+      r.requested_by_user_id === user?.id || r.requested_by === username)
     .filter(r => !outreachEventRequestsOnly || r.type === 'calendar_event')
 
   const label = (r) =>
@@ -44,7 +47,7 @@ export function useRequestsPanel() {
               {String(r.type).replace(/_/g, ' ')} · {r.requested_by}
             </p>
           </div>
-          {canReviewRequests ? (
+          {(canReviewRequests || (r.type === 'expense' && canReviewExpenseRequests)) ? (
             <div className="flex items-center gap-1 shrink-0">
               <button onClick={() => handleApprove(r)} title="Approve" className="p-1.5 rounded-lg hover:bg-green-50">
                 <Check size={15} className="text-green-500" />
