@@ -677,6 +677,24 @@ function UserManagement({ onViewProfile }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
+      // Purge the person's data everywhere else so nothing keeps showing a
+      // removed member: attendance, cleanup duties, notifications, push subs.
+      // Their open tasks go to Up for Grabs instead of a dangling name.
+      // Best-effort — the account itself is already gone.
+      const gone = deleteTarget.display_name
+      const purgeHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+      const enc = encodeURIComponent(gone)
+      Promise.allSettled([
+        fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${enc}`, { method: 'DELETE', headers: purgeHeaders }),
+        fetch(`${supabaseUrl}/rest/v1/cleanup_assignments?assigned_username=eq.${enc}`, { method: 'DELETE', headers: purgeHeaders }),
+        fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${deleteTarget.id}`, { method: 'DELETE', headers: purgeHeaders }),
+        fetch(`${supabaseUrl}/rest/v1/push_subscriptions?user_id=eq.${deleteTarget.id}`, { method: 'DELETE', headers: purgeHeaders }),
+        fetch(`${supabaseUrl}/rest/v1/tasks?assignee=eq.${enc}`, {
+          method: 'PATCH', headers: purgeHeaders,
+          body: JSON.stringify({ assignee: '__up_for_grabs__' }),
+        }),
+      ]).catch(() => {})
+
       setRegisteredMembers(prev => prev.filter(m => m.id !== deleteTarget.id))
       setDeleteTarget(null)
     } catch (err) {

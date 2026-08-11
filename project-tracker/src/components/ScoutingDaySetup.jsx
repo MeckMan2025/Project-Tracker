@@ -1,3 +1,4 @@
+import MemberPicker from './MemberPicker'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -257,7 +258,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                   {isLead ? (
                     <>
                       <label className="text-[11px] font-semibold text-gray-400 uppercase">Members</label>
-                      <input value={csv(group.members)} onChange={e => update(p => { const g = [...p.groups]; g[i] = { ...g[i], members: parseCsv(e.target.value) }; return { ...p, groups: g } })} placeholder="Names…" className="w-full mb-2 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                      <div className="mb-2"><MemberPicker value={group.members} onChange={members => update(p => { const g = [...p.groups]; g[i] = { ...g[i], members }; return { ...p, groups: g } })} /></div>
                       <label className="text-[11px] font-semibold text-gray-400 uppercase">FTC Teams</label>
                       <input value={csv(group.teams)} onChange={e => update(p => { const g = [...p.groups]; g[i] = { ...g[i], teams: parseCsv(e.target.value) }; return { ...p, groups: g } })} placeholder="Team #s…" className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
                     </>
@@ -283,7 +284,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 <div key={role.role} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100">
                   <h4 className="text-sm font-bold text-gray-700 mb-2">{role.role}</h4>
                   {isLead ? (
-                    <input value={csv(role.members)} onChange={e => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members: parseCsv(e.target.value) }; return { ...p, fixedRoles: r } })} placeholder="Names, comma separated" className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                    <MemberPicker value={role.members} onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return { ...p, fixedRoles: r } })} />
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {role.members.length ? role.members.map(m => <span key={m} className="text-xs px-2 py-0.5 bg-pastel-pink/20 text-gray-600 rounded-full">{m}</span>) : <span className="text-xs italic text-gray-300">Not assigned</span>}

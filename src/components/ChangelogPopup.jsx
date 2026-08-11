@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 113,
+    date: '2026-08-10',
+    items: [
+      '🧹 Removing a member now clears their traces everywhere — attendance records, cleanup duties, notifications, and push subscriptions go with them, and their open tasks flip to Up for Grabs instead of keeping a ghost name',
+      '👥 Assigning people is a roster dropdown now, not a typed name — task assignee and the scouting day group/role pickers all choose from actual members',
+    ],
+  },
+  {
     id: 112,
     date: '2026-08-10',
     items: [
