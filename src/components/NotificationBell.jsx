@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Inbox, Megaphone } from 'lucide-react'
+import { Bell, Inbox, Megaphone, HelpCircle } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import NotificationPopup from './NotificationPopup'
 import { useRequestsPanel } from '../hooks/useRequestsPanel'
 import { useAnnouncementsPanel } from '../hooks/useAnnouncementsPanel'
+import { useIdeasPanel } from '../hooks/useIdeasPanel'
+import { usePermissions } from '../hooks/usePermissions'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -27,11 +29,14 @@ export default function NotificationBell() {
   const { user } = useUser()
   const { pendingCount, panel: requestsPanel } = useRequestsPanel()
   const { freshCount, panel: announcementsPanel } = useAnnouncementsPanel()
+  const { isCofounder } = usePermissions()
+  const { ideaCount, panel: ideasPanel } = useIdeasPanel(isCofounder)
   // Which list the panel body shows: notifications by default, or one of the
   // header icons' views. Only one can be active.
   const [view, setView] = useState('notifications')
   const showRequests = view === 'requests'
   const showAnnouncements = view === 'announcements'
+  const showIdeas = view === 'ideas'
   const setShowRequests = (fnOrVal) => setView(v => (typeof fnOrVal === 'function' ? fnOrVal(v === 'requests') : fnOrVal) ? 'requests' : 'notifications')
   const btnRef = useRef(null)
   const panelRef = useRef(null)
@@ -227,6 +232,25 @@ export default function NotificationBell() {
                   </span>
                 )}
               </button>
+              {/* Co-founders only: ideas pitched from under-construction pages. */}
+              {isCofounder && (
+                <button
+                  onClick={() => setView(v => v === 'ideas' ? 'notifications' : 'ideas')}
+                  title={showIdeas ? 'Back to notifications' : 'Ideas & suggestions'}
+                  className={`relative p-1 rounded-lg border transition-colors ${
+                    showIdeas
+                      ? 'bg-pastel-blue-dark border-pastel-blue-dark'
+                      : 'border-pastel-blue-dark/50 hover:bg-pastel-blue/20'
+                  }`}
+                >
+                  <HelpCircle size={14} className={showIdeas ? 'text-white' : 'text-pastel-blue-dark'} />
+                  {ideaCount > 0 && !showIdeas && (
+                    <span className="absolute -top-1 -right-1 bg-pastel-blue-dark text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                      {ideaCount}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {view === 'notifications' && unreadCount > 0 && (
@@ -248,7 +272,7 @@ export default function NotificationBell() {
             </div>
           </div>
 
-          {showRequests ? requestsPanel : showAnnouncements ? announcementsPanel : (
+          {showRequests ? requestsPanel : showAnnouncements ? announcementsPanel : showIdeas ? ideasPanel : (
           <>
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-400">
