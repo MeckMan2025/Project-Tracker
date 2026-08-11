@@ -1340,8 +1340,16 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
   const [description, setDescription] = useState(existing?.description || '')
   const [priority, setPriority]       = useState(existing?.priority || 'normal')
   const [department, setDepartment]   = useState(existing?.department || 'team')
-  const [startTime, setStartTime]     = useState(existing ? (existing.start_time || '') : '16:00')
-  const [endTime, setEndTime]         = useState(existing ? (existing.end_time || '') : '20:00')
+  // Team meetings run Saturdays 8 AM – 2 PM, so 'meeting' defaults to that;
+  // every other category keeps the 4–8 PM default.
+  const [startTime, setStartTime]     = useState(existing ? (existing.start_time || '') : '08:00')
+  const [endTime, setEndTime]         = useState(existing ? (existing.end_time || '') : '14:00')
+  const timesTouched = useRef(false)
+  useEffect(() => {
+    if (isEdit || timesTouched.current) return
+    if (category === 'meeting') { setStartTime('08:00'); setEndTime('14:00') }
+    else { setStartTime('16:00'); setEndTime('20:00') }
+  }, [category]) // eslint-disable-line
   const [location, setLocation]       = useState(existing?.location || '')
   const [recurrence, setRecurrence]   = useState(existing?.recurrence || 'none')
   const [recurrenceUntil, setRecurrenceUntil] = useState(existing?.recurrence_until || '')
@@ -1442,11 +1450,11 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Start time</label>
-              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1" />
+              <input type="time" value={startTime} onChange={(e) => { timesTouched.current = true; setStartTime(e.target.value) }} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1" />
             </div>
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">End time</label>
-              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1" />
+              <input type="time" value={endTime} onChange={(e) => { timesTouched.current = true; setEndTime(e.target.value) }} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1" />
             </div>
           </div>
 

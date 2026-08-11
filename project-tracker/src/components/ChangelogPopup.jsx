@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 125,
+    date: '2026-08-11',
+    items: [
+      '⏰ New meetings default to Saturday hours, 8 AM – 2 PM (other event types keep 4–8 PM). Still changeable per event',
+    ],
+  },
+  {
     id: 124,
     date: '2026-08-11',
     items: [
