@@ -889,6 +889,15 @@ function UserManagement({ onViewProfile }) {
 
   const bulkCount = bulkText.split(/[\n,;\s]+/).filter(l => l.trim() && l.includes('@')).length
 
+  // Approved emails that don't already have an account, so nobody is listed
+  // twice once they've signed up.
+  const memberNameSet = new Set(
+    registeredMembers.map(m => (m.display_name || '').trim().toLowerCase()).filter(Boolean)
+  )
+  const pendingInvites = whitelistedEmails.filter(
+    w => !memberNameSet.has(inviteName(w.email).trim().toLowerCase())
+  )
+
   const tagColors = [
     'bg-purple-100 text-purple-700',
     'bg-green-100 text-green-700',
@@ -933,7 +942,7 @@ function UserManagement({ onViewProfile }) {
         {canManageUsers && (
           <div className="flex border-t">
             {[
-              { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length + (canManageUsers ? whitelistedEmails.length : 0) },
+              { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length + (canManageUsers ? pendingInvites.length : 0) },
               { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
               { id: 'pasmems', label: 'PasMems', icon: Trash2, count: pastMembers.length },
             ].map(t => {
@@ -1438,7 +1447,7 @@ function UserManagement({ onViewProfile }) {
                   // everything sorts together by the name shown on the card.
                   const nameOf = (row) => (row.__invite ? inviteName(row.email) : row.display_name || '').toLowerCase()
                   const combined = canManageUsers
-                    ? [...sorted, ...whitelistedEmails.map(w => ({ ...w, __invite: true }))]
+                    ? [...sorted, ...pendingInvites.map(w => ({ ...w, __invite: true }))]
                         .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
                     : sorted
 
