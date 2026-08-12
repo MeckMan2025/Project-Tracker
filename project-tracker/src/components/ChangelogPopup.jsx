@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 141,
+    date: '2026-08-11',
+    items: [
+      '🔑 Former members can get back in — their accounts were never actually deleted, only their profiles. Signing in now rebuilds the missing profile automatically (with any roles pre-assigned to their email), instead of bouncing them out',
+    ],
+  },
+  {
     id: 140,
     date: '2026-08-11',
     items: [

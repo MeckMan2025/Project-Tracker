@@ -38,6 +38,36 @@ export function UserProvider({ children }) {
   const [isTeam, setIsTeam] = useState(() => localStorage.getItem('scrum-is-team') === 'true')
   const [teamNumber, setTeamNumber] = useState(() => localStorage.getItem('scrum-team-number') || '')
 
+  // Auth account exists but its profile row is gone (deleted members were
+  // removed from `profiles` while their auth user survived). Rebuild the
+  // profile from the email so the person can get back in instead of being
+  // bounced out forever.
+  const ensureProfile = async (authUser) => {
+    if (!authUser?.id) return null
+    const email = (authUser.email || '').toLowerCase()
+    // Name from the whitelist's shape (lastfirst@school) — a lead can rename.
+    const local = email.split('@')[0].replace(/[._0-9]+/g, ' ').trim()
+    const guess = local ? local.charAt(0).toUpperCase() + local.slice(1) : email
+    // Roles a lead pre-assigned to this address, if any.
+    let tags = []
+    try {
+      const wl = await supabase.from('approved_emails').select('role').eq('email', email).single()
+      tags = String(wl?.data?.role || '')
+        .split(',').map(r => r.trim()).filter(r => r && r.toLowerCase() !== 'member')
+    } catch { /* ignore */ }
+    const row = {
+      id: authUser.id,
+      display_name: guess,
+      role: 'member',
+      authority_tier: tags.length > 0 ? 'teammate' : 'guest',
+      function_tags: tags,
+    }
+    const { error } = await supabase.from('profiles').insert(row)
+    if (error) { console.error('Could not rebuild profile:', error.message); return null }
+    console.warn('[Auth] Rebuilt a missing profile for', email)
+    return row
+  }
+
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
       .from('profiles')
@@ -265,6 +295,9 @@ export function UserProvider({ children }) {
           if (mounted) {
             if (profile) {
               applyProfile(profile, session.user.email)
+            } else if (await ensureProfile(session.user)) {
+              const rebuilt = await fetchProfile(session.user.id)
+              if (rebuilt) applyProfile(rebuilt, session.user.email)
             } else if (!cachedUserId || cachedUserId !== session.user.id) {
               console.warn('[Auth] No profile found — forcing re-login')
               await expireSession()
@@ -338,7 +371,12 @@ export function UserProvider({ children }) {
             localStorage.setItem('scrum-is-authority-admin', 'true')
             localStorage.setItem('scrum-authority-tier', 'teammate')
           }
-          const profile = await fetchProfile(session.user.id)
+          let profile = await fetchProfile(session.user.id)
+          if (!profile) {
+            // Their account outlived its profile — rebuild rather than dead-end.
+            await ensureProfile(session.user)
+            profile = await fetchProfile(session.user.id)
+          }
           if (mounted) {
             if (profile) {
               applyProfile(profile, session.user.email)
