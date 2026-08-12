@@ -5,6 +5,20 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 147,
+    date: '2026-08-11',
+    items: [
+      '🔑 Fixed changing your password hanging and not saving — it was waiting on something that could stall forever. It saves immediately now, and says so if it fails',
+    ],
+  },
+  {
+    id: 146,
+    date: '2026-08-11',
+    items: [
+      '⚡ Changing a temporary password is instant now — it used to hang, and could even bounce you back to the same screen if the save didn\'t go through. It now confirms the save and tells you if something went wrong',
+    ],
+  },
+  {
     id: 145,
     date: '2026-08-11',
     items: [

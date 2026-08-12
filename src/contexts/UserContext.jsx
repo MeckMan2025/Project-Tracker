@@ -5,6 +5,8 @@ const UserContext = createContext(null)
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
 
 export function UserProvider({ children }) {
+  const url = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const [roleChangeAlert, setRoleChangeAlert] = useState(null) // kept for context API compat
   // Diagnostic for the role-sync problem: what the last profile read did.
   const [profileSync, setProfileSync] = useState({ at: null, source: 'none', error: '' })
@@ -604,12 +606,69 @@ export function UserProvider({ children }) {
   }
 
   const updatePassword = async (newPassword) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) throw error
-    // Clear forced password change flag
-    if (user) {
-      await supabase.from('profiles').update({ must_change_password: false }).eq('id', user.id)
+    // Go straight at the auth API with the stored access token rather than
+    // supabase.auth.updateUser(): the client takes a cross-tab lock that can
+    // hang indefinitely, which showed up as "it takes forever and doesn't save".
+    let saved = false
+    try {
+      const ref = url.split('//')[1].split('.')[0]
+      const raw = window.localStorage.getItem(`sb-${ref}-auth-token`)
+      const token = raw ? JSON.parse(raw)?.access_token : null
+      if (token) {
+        const res = await fetch(`${url}/auth/v1/user`, {
+          method: 'PUT',
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: newPassword }),
+        })
+        if (!res.ok) {
+          const body = await res.text()
+          throw new Error(JSON.parse(body || '{}')?.msg || body || 'Could not update password')
+        }
+        saved = true
+      }
+    } catch (e) {
+      // A real rejection from the API (weak password, expired token) should
+      // surface; only fall through to the client if we never got that far.
+      if (e?.message && !/fetch|network/i.test(e.message)) throw e
     }
+
+    if (!saved) {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+    }
+
+    // Clear the forced-change flag over plain REST, and CONFIRM it landed.
+    // This used to go through the JS client as the authenticated role, which
+    // can stall — leaving the user staring at the change-password screen, and
+    // if the write never landed the profile poll flipped the flag back on and
+    // sent them round again.
+    const uid = user?.id || localStorage.getItem('scrum-cached-user-id')
+    if (uid) {
+      try {
+        const res = await fetch(`${url}/rest/v1/profiles?id=eq.${uid}`, {
+          method: 'PATCH',
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${anonKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({ must_change_password: false }),
+        })
+        const rows = res.ok ? await res.json() : null
+        if (!rows || rows.length === 0) {
+          throw new Error("Couldn't save the change — try once more.")
+        }
+      } catch (e) {
+        // Surface it: silently continuing means they bounce back here shortly.
+        throw new Error(e.message || 'Could not finish updating your password.')
+      }
+    }
+
     setMustChangePassword(false)
     setPasswordRecovery(false)
   }
