@@ -26,7 +26,7 @@ const hasTag = (p, tag) => (p.function_tags || []).some(t => t === tag)
 
 // Pink "top" border = leadership, derived from the actual role tags so every
 // leader is highlighted consistently (the authority_tier field is unreliable).
-const LEADERSHIP_TAGS_FOR_BORDER = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead']
+const LEADERSHIP_TAGS_FOR_BORDER = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead']
 function deriveTier(p) {
   const tags = p.function_tags || []
   if (tags.some(t => LEADERSHIP_TAGS_FOR_BORDER.includes(t))) return 'top'
@@ -132,7 +132,7 @@ function BusinessDepartment({ roles, leads, membersByTag, onClick }) {
 }
 
 // ── Technical department (Hardware = blue, Software = green sub-boxes) ──
-function TechnicalDepartment({ groups, leads, membersByTag, onClick }) {
+function TechnicalDepartment({ groups, leads, softwareLeads = [], membersByTag, onClick }) {
   return (
     <div className="h-full flex flex-col rounded-2xl border-2 border-gray-200 bg-white/50 shadow-sm p-4">
       <div className="flex items-center justify-center gap-2 mb-1">
@@ -146,6 +146,10 @@ function TechnicalDepartment({ groups, leads, membersByTag, onClick }) {
           return (
             <div key={g.key} className={`flex flex-col rounded-xl border-2 p-3 ${theme.box}`}>
               <h3 className={`text-sm font-black text-center ${theme.title}`}>{g.label}</h3>
+              {/* The software side has its own lead. */}
+              {g.key === 'software' && softwareLeads.length > 0 && (
+                <LeadLine label="Software" leads={softwareLeads} theme={theme} onClick={onClick} />
+              )}
               <p className="text-[10px] uppercase tracking-wider text-gray-400 text-center mb-2">Sub-roles</p>
               <div className="grid grid-cols-1 gap-2.5 flex-1">
                 {g.roles.map(role => (
@@ -394,7 +398,11 @@ function OrgChart({ onViewProfile }) {
           `${supabaseUrl}/rest/v1/profiles?select=id,display_name,primary_role_label,function_tags,short_bio,authority_tier,role,avatar_url`,
           { headers }
         )
-        if (res.ok) setProfiles(await res.json())
+        if (res.ok) {
+          const rows = await res.json()
+          // Guests aren't team members — keep them off the org chart.
+          setProfiles(rows.filter(r => deriveTier(r) !== 'guest'))
+        }
       } catch (e) { console.error('Failed to load org chart:', e) }
       setLoading(false)
     }
@@ -406,7 +414,9 @@ function OrgChart({ onViewProfile }) {
       .channel('org-chart-profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setProfiles(prev => prev.some(p => p.id === payload.new.id) ? prev : [...prev, payload.new])
+          if (deriveTier(payload.new) !== 'guest') {
+            setProfiles(prev => prev.some(p => p.id === payload.new.id) ? prev : [...prev, payload.new])
+          }
         } else if (payload.eventType === 'UPDATE') {
           setProfiles(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p))
         } else if (payload.eventType === 'DELETE') {
@@ -435,6 +445,7 @@ function OrgChart({ onViewProfile }) {
 
   const businessLeads = profiles.filter(p => hasTag(p, 'Business Lead'))
   const technicalLeads = profiles.filter(p => hasTag(p, 'Technical Lead'))
+  const softwareLeads = profiles.filter(p => hasTag(p, 'Programming Lead'))
   const projectManagers = profiles.filter(p => hasTag(p, 'Project Manager') || hasTag(p, 'Team Lead'))
   const mentorsCoaches = profiles.filter(p => hasTag(p, 'Mentor') || hasTag(p, 'Coach'))
 
@@ -469,7 +480,7 @@ function OrgChart({ onViewProfile }) {
               {/* Departments: Business (left, orange) · Technical (right — Hardware blue / Software green) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
                 <BusinessDepartment roles={businessRoles} leads={businessLeads} membersByTag={membersByTag} onClick={handleCardClick} />
-                <TechnicalDepartment groups={technicalGroups} leads={technicalLeads} membersByTag={membersByTag} onClick={handleCardClick} />
+                <TechnicalDepartment groups={technicalGroups} leads={technicalLeads} softwareLeads={softwareLeads} membersByTag={membersByTag} onClick={handleCardClick} />
               </div>
 
               {/* Project Managers — ombre sticky note, its own box */}
