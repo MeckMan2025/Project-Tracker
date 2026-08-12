@@ -1398,14 +1398,11 @@ function UserManagement({ onViewProfile }) {
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2.5 min-w-0 text-left">
                             <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle([])}>
-                              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
+                              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
                                 {name.charAt(0).toUpperCase()}
                               </span>
                             </span>
-                            <div className="min-w-0">
-                              <span className="font-medium text-gray-800 block truncate">{name}</span>
-                              <span className="text-xs text-gray-400 block truncate">{w.email}</span>
-                            </div>
+                            <span className="font-medium text-gray-800 truncate">{name}</span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
@@ -1439,7 +1436,7 @@ function UserManagement({ onViewProfile }) {
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
-                            No account yet
+                            {w.email}
                           </span>
                         </div>
                       </div>
