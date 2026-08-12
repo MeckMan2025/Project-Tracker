@@ -265,6 +265,28 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
 
   const [saveError, setSaveError] = useState('')
 
+  const patchField = async (field, value) => {
+    setProfile(prev => ({ ...prev, [field]: value }))
+    if (!user?.id) return
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({ [field]: value }),
+      })
+      const rows = res.ok ? await res.json() : null
+      if (!rows || rows.length === 0) throw new Error('not saved')
+    } catch {
+      setSaveError('Could not save that change.')
+      setTimeout(() => setSaveError(''), 4000)
+    }
+  }
+
   // Everything saves itself shortly after you stop typing; there is no Save
   // button, just a small status word in the header.
   useEffect(() => {
@@ -731,7 +753,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                 <label className="block text-xs font-medium text-gray-500 mb-1">Discipline</label>
                 <select
                   value={profile.discipline}
-                  onChange={(e) => setProfile(prev => ({ ...prev, discipline: e.target.value }))}
+                  onChange={(e) => patchField('discipline', e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                 >
                   <option value="">Select...</option>
@@ -743,7 +765,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                 <input
                   type="text"
                   value={profile.timezone}
-                  onChange={(e) => setProfile(prev => ({ ...prev, timezone: e.target.value }))}
+                  onChange={(e) => patchField('timezone', e.target.value)}
                   placeholder="e.g. CST"
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                 />

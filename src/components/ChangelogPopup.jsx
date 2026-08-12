@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 151,
+    date: '2026-08-11',
+    items: [
+      '💾 Profile fields like Discipline and Timezone now save the instant you pick them, and tell you if a save fails instead of pretending it worked',
+    ],
+  },
+  {
     id: 150,
     date: '2026-08-11',
     items: [
