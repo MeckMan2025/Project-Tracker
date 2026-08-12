@@ -1387,6 +1387,23 @@ function UserManagement({ onViewProfile }) {
                             <p className="text-sm font-medium text-gray-600 truncate">{name}</p>
                             <p className="text-[11px] text-gray-400 truncate">{w.email} · no account yet</p>
                           </div>
+                          {/* Hands this email + name to the Add Member form so a
+                              lead only has to set a password to give them a login. */}
+                          <button
+                            onClick={() => {
+                              setAddEmail(w.email)
+                              setAddName(name)
+                              setAddPassword('')
+                              setAddRoles([])
+                              setAddError('')
+                              setAddSuccess('')
+                              setShowAddMember(true)
+                              window.scrollTo({ top: 0, behavior: 'smooth' })
+                            }}
+                            className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-pastel-blue/40 hover:bg-pastel-blue text-gray-700 transition-colors"
+                          >
+                            Create login
+                          </button>
                         </div>
                       </div>
                     )
