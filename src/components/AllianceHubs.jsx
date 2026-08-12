@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ArrowLeft, Send, X } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Send, X, MessageCircle } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -24,7 +24,7 @@ function getSenderColor(sender) {
 
 function AllianceHubs() {
   const { username, chatName, nickname, user, isTeam, teamNumber } = useUser()
-  const { canDeleteAnyMessage, canDeleteOwnMessages } = usePermissions()
+  const { canDeleteAnyMessage, canDeleteOwnMessages, canUseChat } = usePermissions()
   const [hubs, setHubs] = useState([])
   const [activeHub, setActiveHub] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -330,6 +330,17 @@ function AllianceHubs() {
   }
 
   // --- Hub list view ---
+  // Alliance hubs are chat — same co-founder-only rule as the other channels.
+  if (!canUseChat) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-w-0 gap-3 p-8">
+        <MessageCircle size={48} className="text-gray-300" />
+        <h2 className="text-lg font-bold text-gray-500">Chat is closed right now</h2>
+        <p className="text-sm text-gray-400 text-center max-w-xs">Only co-founders have chat access at the moment.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">

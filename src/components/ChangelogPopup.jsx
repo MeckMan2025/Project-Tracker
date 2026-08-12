@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 152,
+    date: '2026-08-12',
+    items: [
+      '💬 Chat is co-founders only across the board — the alliance hubs now enforce it too, not just the main channels',
+    ],
+  },
+  {
     id: 151,
     date: '2026-08-11',
     items: [
