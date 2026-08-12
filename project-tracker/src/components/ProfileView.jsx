@@ -55,6 +55,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   const [editUseNickname, setEditUseNickname] = useState(false)
   const [profile, setProfile] = useState(DEFAULT_PROFILE_DATA)
   const [saving, setSaving] = useState(false)
+  // Auto-save can't run until the profile has actually loaded, or the empty
+  // initial state would overwrite real data.
+  const loadedRef = useRef(false)
+  const saveTimer = useRef(null)
   const [saved, setSaved] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [taskStats, setTaskStats] = useState({ active: 0, blocked: 0, total: 0 })
@@ -212,6 +216,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         setEditName(data.display_name || '')
         setEditNickname(data.nickname || '')
         setEditUseNickname(!!data.use_nickname)
+        setTimeout(() => { loadedRef.current = true }, 0)
         setProfile(prev => ({
           ...prev,
           discipline: data.discipline || '',
@@ -260,6 +265,15 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
 
   const [saveError, setSaveError] = useState('')
 
+  // Save shortly after you stop typing — the Save button still works, but you
+  // never have to reach for it.
+  useEffect(() => {
+    if (!loadedRef.current || isViewingOther) return
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => { handleSave() }, 900)
+    return () => clearTimeout(saveTimer.current)
+  }, [profile, editName, editNickname, editUseNickname]) // eslint-disable-line
+
   const handleSave = async () => {
     if (!user) return
     setSaving(true)
@@ -297,7 +311,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
+          'Prefer': 'return=representation',
         },
         body: JSON.stringify({ ...baseFields, ...nicknameFields }),
       })
@@ -311,13 +325,25 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=minimal',
+            'Prefer': 'return=representation',
           },
           body: JSON.stringify(baseFields),
         })
         if (res.ok) {
           setSaveError('Name saved! To save nicknames, run the SQL to add nickname columns.')
           setTimeout(() => setSaveError(''), 5000)
+        }
+      }
+
+      // A PATCH that matched nothing still returns 2xx; treat an empty body as
+      // a failure so a silent no-op can't masquerade as a save.
+      if (res.ok) {
+        const rows = await res.clone().json().catch(() => null)
+        if (Array.isArray(rows) && rows.length === 0) {
+          setSaveError("Couldn't save — your profile row wasn't found.")
+          setTimeout(() => setSaveError(''), 5000)
+          setSaving(false)
+          return
         }
       }
 
