@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Check, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
+import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -588,12 +588,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            {/* No Save button — edits save themselves. This is just status. */}
-            {(saving || saved) && (
-              <span className="flex items-center gap-1 text-xs text-gray-400">
-                {saving ? 'Saving…' : <><Check size={12} className="text-green-500" /> Saved</>}
-              </span>
-            )}
+            {/* Nothing here — edits just save. Only real failures speak up
+                (saveError, rendered below). */}
           </div>
         </div>
         {saveError && (
