@@ -1317,18 +1317,23 @@ function UserManagement({ onViewProfile }) {
                     return 0
                   })
 
-                  const renderMember = (member) => {
-                    const memberIsCofounder = isCofounder(member)
+                  // One card for both real members and approved-but-unregistered
+                  // emails. Passing `invite` swaps only the handlers and the chip
+                  // row — the markup is shared so the two can't drift apart.
+                  const renderMember = (member, invite = null) => {
+                    const memberIsCofounder = !invite && isCofounder(member)
                     const memberRoles = member.function_tags || []
-                    const isSelf = member.id === user.id
+                    const isSelf = !invite && member.id === user.id
                     return (
-                      <div key={member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                      <div key={invite ? `w-${invite.id}` : member.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <button
                             type="button"
-                            onClick={() => onViewProfile?.(member.id)}
+                            onClick={() => invite
+                              ? setInvitePickerOpen(invitePickerOpen === invite.id ? null : invite.id)
+                              : onViewProfile?.(member.id)}
                             className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity"
-                            title="View profile"
+                            title={invite ? 'Assign roles' : 'View profile'}
                           >
                             {/* Tie-dye ring showing the member's side(s) */}
                             <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle(member.function_tags)}>
@@ -1346,13 +1351,35 @@ function UserManagement({ onViewProfile }) {
                           {canManageUsers && (
                             <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => { setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('') }}
-                                title="Reset password"
+                                onClick={() => {
+                                  if (invite) {
+                                    setAddEmail(invite.email)
+                                    setAddName(member.display_name)
+                                    setAddPassword(''); setAddRoles(member.function_tags || [])
+                                    setAddError(''); setAddSuccess(''); setShowAddMember(true)
+                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                  } else {
+                                    setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('')
+                                  }
+                                }}
+                                title={invite ? 'Create their login' : 'Reset password'}
                                 className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
                               >
                                 <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
                               </button>
-                              {!isSelf && isPermanentMember(member) ? (
+                              {invite ? (
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Remove ${invite.email} from the approved list? They won't be able to sign up.`)) {
+                                      handleRemoveEmail(invite.id)
+                                    }
+                                  }}
+                                  title="Remove from approved list"
+                                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                                </button>
+                              ) : !isSelf && isPermanentMember(member) ? (
                                 <span
                                   title="Permanent account — cannot be deleted"
                                   className="p-1.5 rounded-lg"
@@ -1386,99 +1413,29 @@ function UserManagement({ onViewProfile }) {
                             </span>
                           ))}
                           {memberRoles.length === 0 && !memberIsCofounder && (
-                            <span className="text-xs text-gray-400">No roles — open profile to assign</span>
+                            <span className="text-xs text-gray-400">
+                              {invite ? 'No roles — tap the name to assign' : 'No roles — open profile to assign'}
+                            </span>
                           )}
                         </div>
-                      </div>
-                    )
-                  }
 
-                  // Team accounts live in the TeamRo tab, not under RadMems.
-                  // Approved emails render as member cards in the SAME list, sorted
-                  // in by name, each noting it has no account yet. profiles has no
-                  // email column, so a whitelist row can't be matched to an existing
-                  // account — hence "no account yet" rather than a signup claim.
-                  // Same card as a member: tie-dye ring avatar, name, key +
-                  // trash on the right, status chip underneath where roles go.
-                  const renderInvite = (w) => {
-                    const name = inviteName(w.email)
-                    return (
-                      <div key={`w-${w.id}`} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2.5 min-w-0 text-left">
-                            <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle([])}>
-                              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
-                                {name.charAt(0).toUpperCase()}
-                              </span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setInvitePickerOpen(invitePickerOpen === w.id ? null : w.id)}
-                              className="font-medium text-gray-800 truncate text-left hover:opacity-70 transition-opacity"
-                              title="Assign roles"
-                            >
-                              {name}
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => {
-                                setAddEmail(w.email)
-                                setAddName(name)
-                                setAddPassword('')
-                                setAddRoles([])
-                                setAddError('')
-                                setAddSuccess('')
-                                setShowAddMember(true)
-                                window.scrollTo({ top: 0, behavior: 'smooth' })
-                              }}
-                              title="Set a password / create their login"
-                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
-                            >
-                              <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm(`Remove ${w.email} from the approved list? They won't be able to sign up.`)) {
-                                  handleRemoveEmail(w.id)
-                                }
-                              }}
-                              title="Remove from approved list"
-                              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-                        {/* Roles chosen before signup, same chips as a member's.
-                            Stored comma-separated on the whitelist row; signup
-                            copies them onto the new profile. */}
-                        <div className="flex flex-wrap gap-1.5 items-center">
-                          {inviteRoles(w).map(r => (
-                            <span key={r} className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor(r)}`}>
-                              {r}
-                            </span>
-                          ))}
-                          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-400">
-                            {w.email}
-                          </span>
-                        </div>
-
-                        {invitePickerOpen === w.id && (
+                        {/* Invite-only: assign roles inline, since there's no
+                            profile page to open yet. Applied at signup. */}
+                        {invite && invitePickerOpen === invite.id && (
                           <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
                             {ROLE_GROUPS.map(group => (
                               <div key={group.label}>
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{group.label}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {group.roles.map(r => {
-                                    const on = inviteRoles(w).includes(r)
+                                    const on = memberRoles.includes(r)
                                     return (
                                       <button
                                         key={r}
                                         type="button"
                                         onClick={() => {
-                                          const next = on ? inviteRoles(w).filter(x => x !== r) : [...inviteRoles(w), r]
-                                          handleSetInviteRole(w.id, next.join(',') || 'member')
+                                          const next = on ? memberRoles.filter(x => x !== r) : [...memberRoles, r]
+                                          handleSetInviteRole(invite.id, next.join(',') || 'member')
                                         }}
                                         className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${on ? getTagColor(r) : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                                       >
@@ -1496,6 +1453,11 @@ function UserManagement({ onViewProfile }) {
                     )
                   }
 
+                  // Team accounts live in the TeamRo tab, not under RadMems.
+                  // Approved emails render as member cards in the SAME list, sorted
+                  // in by name, each noting it has no account yet. profiles has no
+                  // email column, so a whitelist row can't be matched to an existing
+                  // account — hence "no account yet" rather than a signup claim.
                   // Interleave: members keep their co-founders-first order, then
                   // everything sorts together by the name shown on the card.
                   const nameOf = (row) => (row.__invite ? inviteName(row.email) : row.display_name || '').toLowerCase()
@@ -1506,7 +1468,12 @@ function UserManagement({ onViewProfile }) {
 
                   return (
                     <>
-                      {combined.map(row => (row.__invite ? renderInvite(row) : renderMember(row)))}
+                      {combined.map(row => (row.__invite
+                        ? renderMember(
+                            { id: `w-${row.id}`, display_name: inviteName(row.email), function_tags: inviteRoles(row), avatar_url: '' },
+                            row
+                          )
+                        : renderMember(row)))}
                     </>
                   )
                 })()

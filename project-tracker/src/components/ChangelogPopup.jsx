@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 140,
+    date: '2026-08-11',
+    items: [
+      '👥 Approved emails and real members are now literally the same card — same avatar, name, key and trash, same role chips. Tap the name to assign roles; they apply the moment the person signs up',
+    ],
+  },
+  {
     id: 139,
     date: '2026-08-11',
     items: [
