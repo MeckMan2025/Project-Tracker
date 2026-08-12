@@ -757,6 +757,14 @@ function UserManagement({ onViewProfile }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
+      // Take them off the signup whitelist too, or they can just re-register
+      // (and with profile self-heal they'd reappear). The edge function returns
+      // the email; fall back to matching the name we'd derive from an address.
+      const wlRow = (data?.email
+        ? whitelistedEmails.find(w => (w.email || '').toLowerCase() === String(data.email).toLowerCase())
+        : whitelistedEmails.find(w => inviteName(w.email).toLowerCase() === (deleteTarget.display_name || '').toLowerCase()))
+      if (wlRow) handleRemoveEmail(wlRow.id)
+
       // Purge the person's data everywhere else so nothing keeps showing a
       // removed member: attendance, cleanup duties, notifications, push subs.
       // Their open tasks go to Up for Grabs instead of a dangling name.

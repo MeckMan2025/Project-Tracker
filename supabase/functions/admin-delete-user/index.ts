@@ -90,7 +90,28 @@ Deno.serve(async (req: Request) => {
     // Create admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Delete profile row first
+    // Look up the email before anything is destroyed — the caller uses it to
+    // clear the person off the signup whitelist.
+    let deletedEmail = null;
+    try {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+      deletedEmail = authUser?.user?.email ?? null;
+    } catch (_) { /* not fatal */ }
+
+    // Delete the AUTH USER first. Doing the profile first meant a failed auth
+    // delete left a login with no profile — an account nobody could see but
+    // that still blocked re-registration. Order it so the irreversible,
+    // failure-prone step happens while the profile is still there to retry.
+    const { error: deleteError } =
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      return new Response(JSON.stringify({ error: deleteError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { error: profileDeleteError } = await supabaseAdmin
       .from("profiles")
       .delete()
@@ -106,18 +127,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Delete auth user
-    const { error: deleteError } =
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-
-    if (deleteError) {
-      return new Response(JSON.stringify({ error: deleteError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, email: deletedEmail }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
