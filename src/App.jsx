@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2 } from 'lucide-react'
+import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2, ArrowLeft } from 'lucide-react'
 import { downloadCSV } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
 import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailModal from './components/TaskDetailModal'
+import PersonTasksView from './components/PersonTasksView'
 import Sidebar from './components/Sidebar'
 import LoadingScreen from './components/LoadingScreen'
 import PasswordInput from './components/PasswordInput'
@@ -104,7 +105,7 @@ const TAB_ACCESS = {
   'log-reach': 'teammate', 'portfolio': 'teammate',
   'budget-tracker': 'teammate', 'fundraising': 'teammate', 'financial-history': 'teammate', 'expense-requests': 'teammate',
   'comms-announcements': 'teammate', 'content-studio': 'teammate', 'website-manager': 'teammate', 'marketing': 'teammate',
-  'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'testing': 'teammate', 'design-matrix': 'teammate',
+  'hw-design': 'teammate', 'hw-fabrication': 'teammate', 'hw-assembly': 'teammate', 'hw-electrical': 'teammate', 'testing': 'teammate', 'design-matrix': 'teammate', 'unfinished-tabs': 'teammate',
   'sw-design': 'teammate', 'sw-programming': 'teammate', 'sw-io': 'teammate', 'bug-tracker': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
@@ -224,6 +225,8 @@ const mapTask = (t) => ({
   description: t.description,
   assignee: t.assignee,
   dueDate: t.due_date,
+  mentor: t.mentor || '',
+  assignedBy: t.assigned_by || '',
   status: t.status,
   skills: t.skills || [],
   priority: t.priority || 'medium',
@@ -315,16 +318,41 @@ function App() {
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
 
+  // The task-load popup renders in several places, so it asks for navigation
+  // by event instead of a threaded callback.
+  useEffect(() => {
+    const go = (e) => { if (e.detail) { setCameFromPerson(''); setViewPersonTasks(e.detail) } }
+    const assign = (e) => {
+      if (!e.detail) return
+      setPrefillAssignee(e.detail)
+      setCameFromPerson('')
+      setIsModalOpen(true)
+    }
+    window.addEventListener('view-person-tasks', go)
+    window.addEventListener('assign-task-to', assign)
+    return () => {
+      window.removeEventListener('view-person-tasks', go)
+      window.removeEventListener('assign-task-to', assign)
+    }
+  }, [])
+
   // Tabs this user can't reach, whatever their tier.
   const blockedTabs = []
   if (!isCofounder) blockedTabs.push('chat-all', 'chat-alliances', 'chat-leagues')
   if (!canViewSpecialControls) blockedTabs.push('special-controls')
-  if (!canViewOutreachTabs) blockedTabs.push('log-reach', 'portfolio')
-  if (!canViewFinanceTabs) blockedTabs.push('budget-tracker', 'fundraising', 'financial-history')
-  if (!canViewCommsTabs) blockedTabs.push('comms-announcements', 'content-studio', 'website-manager', 'marketing')
-  if (!canViewHardwareTabs) blockedTabs.push('hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical')
-  if (!canViewSoftwareTabs) blockedTabs.push('sw-design', 'sw-programming', 'sw-io', 'bug-tracker')
-  if (!canViewHardwareTabs && !canViewSoftwareTabs) blockedTabs.push('testing', 'design-matrix')
+  // Unfinished role pages are lead-only while they're parked in Special
+  // Controls — role holders shouldn't stumble into half-built screens.
+  if (!isCofounder) {
+    blockedTabs.push(
+      'unfinished-tabs',
+      'log-reach', 'portfolio',
+      'budget-tracker', 'fundraising', 'financial-history',
+      'comms-announcements', 'content-studio', 'website-manager', 'marketing',
+      'hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical',
+      'sw-design', 'sw-programming', 'sw-io', 'bug-tracker',
+      'testing', 'design-matrix', 'expense-requests', 'ai-manual',
+    )
+  }
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresence(username)
@@ -371,6 +399,11 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [specialView, setSpecialView] = useState(null)
   const [viewTask, setViewTask] = useState(null)
+  const [viewPersonTasks, setViewPersonTasks] = useState(null) // display_name
+  const [prefillAssignee, setPrefillAssignee] = useState('')
+  // Set when a board was opened from someone's task page, so we can offer
+  // "Back to <name>'s tasks" instead of stranding the lead on the board.
+  const [cameFromPerson, setCameFromPerson] = useState('')
   const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings()
   const [loadError, setLoadError] = useState(null)
   const [landingChoice, setLandingChoice] = useState(null)
@@ -712,7 +745,16 @@ function App() {
 
   const tasks = tasksByTab[activeTab] || []
 
-  // Open a specific task on its Scrum board (used by the Home "My Assigned Objective" View buttons)
+  // Home opens the read-only task details (everyone can read; editing stays
+  // with leads inside that popup) rather than jumping to the board editor.
+  const openTaskDetail = (boardId, taskId) => {
+    const list = tasksByTab[boardId] || []
+    const task = list.find(t => String(t.id) === String(taskId))
+    if (task) setViewTask(task)
+    else openTaskFromHome(boardId, taskId) // board not loaded yet — fall back
+  }
+
+  // Open a specific task on its Scrum board (used by lead flows)
   const openTaskFromHome = (boardId, taskId) => {
     if (boardId) setActiveTab(boardId)
     const list = tasksByTab[boardId] || []
@@ -891,16 +933,26 @@ function App() {
     .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2))
 
   const handleAddTask = async (newTask) => {
+    // Tasks created outside a board (e.g. from a member's task page, where
+    // activeTab is still 'home') would otherwise be filed under a non-board id
+    // and never show up anywhere. Fall back to a real board.
+    const boardIds = new Set(tabs.filter(t => !t.type).map(t => t.id))
+    const targetBoard = boardIds.has(activeTab)
+      ? activeTab
+      : (tabs.find(t => !t.type)?.id || 'business')
+
     const task = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
-      board_id: activeTab,
+      board_id: targetBoard,
       title: newTask.title,
       description: newTask.description || '',
       assignee: newTask.assignee || '',
       due_date: newTask.dueDate || '',
+      mentor: newTask.mentor || '',
       status: newTask.status || 'todo',
       skills: newTask.skills || [],
       priority: newTask.priority || 'medium',
+      assigned_by: username || '',
       created_at: new Date().toISOString().split('T')[0],
     }
 
@@ -909,12 +961,13 @@ function App() {
     setTasksByTab(prev => {
       const updated = {
         ...prev,
-        [activeTab]: [...(prev[activeTab] || []), localTask],
+        [targetBoard]: [...(prev[targetBoard] || []), localTask],
       }
       syncCache(updated)
       return updated
     })
     setIsModalOpen(false)
+    setPrefillAssignee('')
 
     // Persist via REST
     try {
@@ -925,7 +978,7 @@ function App() {
       setTasksByTab(prev => {
         const updated = {
           ...prev,
-          [activeTab]: (prev[activeTab] || []).filter(t => t.id !== task.id),
+          [targetBoard]: (prev[targetBoard] || []).filter(t => t.id !== task.id),
         }
         syncCache(updated)
         return updated
@@ -1068,6 +1121,7 @@ function App() {
         description: updatedTask.description || '',
         assignee: updatedTask.assignee || '',
         due_date: updatedTask.dueDate || '',
+        mentor: updatedTask.mentor || '',
         status: updatedTask.status || 'todo',
         skills: updatedTask.skills || [],
         priority: updatedTask.priority || 'medium',
@@ -1229,7 +1283,7 @@ function App() {
       return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} />
     }
     if (landingChoice === 'team-login') {
-      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} initialMode="team" />
+      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} initialMode={import.meta.env.DEV ? 'team' : 'member'} />
     }
     if (landingChoice === 'team-info') {
       return <TeamInfoPage onBack={() => setLandingChoice(null)} />
@@ -1303,16 +1357,79 @@ function App() {
 
 
       {/* Main Content */}
-      {!hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs) ? (
+      {viewPersonTasks ? (
+        <PersonTasksView
+          name={viewPersonTasks}
+          onBack={() => setViewPersonTasks(null)}
+          onOpenTask={(t) => {
+            // Same detail popup Home uses — one task view everywhere. The person
+            // page stays mounted underneath, so closing lands back on it.
+            setCameFromPerson(viewPersonTasks)
+            setViewTask({
+              id: t.id,
+              board_id: t.board_id,
+              title: t.title,
+              description: t.description,
+              assignee: t.assignee,
+              dueDate: t.due_date,
+              mentor: t.mentor,
+              assignedBy: t.assigned_by,
+              status: t.status,
+              skills: t.skills || [],
+              priority: t.priority,
+            })
+          }}
+          onAddTask={() => { setPrefillAssignee(viewPersonTasks); setCameFromPerson(viewPersonTasks); setIsModalOpen(true) }}
+        />
+      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskFromHome} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />
       ) : activeTab === 'sw-programming' ? (
         <WorkingOnIt title="Programming" />
       ) : activeTab === 'sw-io' ? (
         <WorkingOnIt title="Robot I/O" />
+      ) : activeTab === 'unfinished-tabs' ? (
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+            <div className="px-4 py-3 pl-14 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+                  Unfinished Tabs
+                </h1>
+                <p className="text-sm text-gray-500">Hidden from the team until they're built</p>
+              </div>
+              <NotificationBell />
+            </div>
+          </header>
+          <main className="flex-1 overflow-y-auto p-4">
+            <div className="max-w-md mx-auto grid grid-cols-2 gap-2">
+              {[
+                ['log-reach', 'Log Reach'], ['portfolio', 'Portfolio'],
+                ['budget-tracker', 'Budget Tracker'], ['fundraising', 'Fundraising'],
+                ['financial-history', 'Financial History'], ['comms-announcements', 'Announcements'],
+                ['content-studio', 'Content Studio'], ['website-manager', 'Website'],
+                ['marketing', 'Marketing'], ['hw-design', 'Design'],
+                ['hw-fabrication', 'Fabrication'], ['hw-assembly', 'Assembly'],
+                ['hw-electrical', 'Electrical'], ['sw-design', 'Software Design'],
+                ['sw-programming', 'Programming'], ['sw-io', 'Robot I/O'],
+                ['bug-tracker', 'Bug Tracker'], ['testing', 'Testing'],
+                ['design-matrix', 'Design Matrix'], ['expense-requests', 'Expense Requests'],
+                ['ai-manual', 'AI Manual'],
+              ].map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className="px-3 py-2.5 rounded-xl text-sm font-medium bg-white border border-gray-100 shadow-sm hover:bg-pastel-blue/20 text-gray-600 transition-colors text-left"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </main>
+        </div>
       ) : activeTab === 'testing' ? (
         <TestingDashboard onBack={() => setActiveTab('home')} />
       ) : activeTab === 'design-matrix' ? (
@@ -1653,6 +1770,7 @@ function App() {
 
         {/* Board */}
         <main className="flex-1 p-4 overflow-x-auto">
+
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 min-w-[300px]">
               {COLUMNS.map(column => (
@@ -1774,14 +1892,23 @@ function App() {
       {/* Add/Edit Task Modal */}
       {(isModalOpen || editingTask) && (
         <TaskModal
-          task={editingTask}
+          task={editingTask || (prefillAssignee ? { assignee: prefillAssignee } : null)}
           onSave={editingTask ? handleEditTask : handleAddTask}
           onClose={() => {
             setIsModalOpen(false)
             setEditingTask(null)
+            setPrefillAssignee('')
           }}
           isLead={canEditContent}
           isTeam={effectiveIsTeam}
+          backToPerson={cameFromPerson}
+          onBackToPerson={() => {
+            setIsModalOpen(false)
+            setEditingTask(null)
+            setPrefillAssignee('')
+            setViewPersonTasks(cameFromPerson)
+            setCameFromPerson('')
+          }}
         />
       )}
 

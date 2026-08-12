@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
+import { Download } from 'lucide-react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -142,6 +143,32 @@ export default function AttendanceView() {
     )
   }
 
+  const exportCSV = () => {
+    const byId = Object.fromEntries(sessions.map(s => [s.id, s]))
+    const rows = [...records]
+      .map(r => ({
+        date: byId[r.session_id]?.session_date || '',
+        session: byId[r.session_id]?.notes || '',
+        name: r.username,
+        status: r.status,
+        markedBy: r.marked_by || '',
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name))
+
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const csv = [
+      ['Date', 'Session', 'Name', 'Status', 'Marked by'].join(','),
+      ...rows.map(r => [r.date, r.session, r.name, r.status, r.markedBy].map(esc).join(',')),
+    ].join('\n')
+
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `attendance-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
@@ -152,7 +179,19 @@ export default function AttendanceView() {
             </h1>
             <p className="text-sm text-gray-500">Track your meeting attendance</p>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-2">
+            {/* Always shown, next to the bell — hiding it when there's no data
+                just made it look missing. Disabled when there's nothing to send. */}
+            <button
+              onClick={exportCSV}
+              disabled={records.length === 0}
+              title={records.length === 0 ? 'No attendance recorded yet' : 'Download attendance as CSV'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:hover:bg-pastel-pink text-gray-700 transition-colors"
+            >
+              <Download size={13} /> Export
+            </button>
+            <NotificationBell />
+          </div>
         </div>
       </header>
 

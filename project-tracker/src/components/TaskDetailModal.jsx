@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { X, Calendar, User, Pencil, Zap } from 'lucide-react'
+import { X, Calendar, User, Pencil, Zap, LifeBuoy, UserPlus } from 'lucide-react'
 
 // Read-only task details — anyone can open a task and read everything; the
 // Edit button appears only for people who can actually edit.
@@ -42,6 +42,17 @@ export default function TaskDetailModal({ task, onClose, onEdit, onMove }) {
             <div className="text-sm text-gray-600 space-y-1.5">
               <p className="flex items-center gap-2"><User size={13} className="text-gray-400" /> {assignee}</p>
               {task.dueDate && <p className="flex items-center gap-2"><Calendar size={13} className="text-gray-400" /> Due {task.dueDate}</p>}
+              <p className="flex items-center gap-2">
+                <UserPlus size={13} className="text-gray-400" /> Assigned by{' '}
+                {task.assignedBy
+                  ? <span className="font-medium">{task.assignedBy}</span>
+                  : <span className="italic text-gray-300">unknown</span>}
+              </p>
+              {task.mentor && (
+                <p className="flex items-center gap-2">
+                  <LifeBuoy size={13} className="text-pastel-pink-dark" /> Stuck? Ask <span className="font-medium">{task.mentor}</span>
+                </p>
+              )}
             </div>
 
             <div>

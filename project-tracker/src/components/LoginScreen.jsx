@@ -456,15 +456,17 @@ function LoginScreen({ sessionExpired, onBack, initialMode }) {
             No account? Ask a team lead to add you.
           </p>
 
-          <p className="text-sm text-center text-gray-500">
-            <button
-              type="button"
-              onClick={() => { setLoginMode('team'); setError(''); setPassword('') }}
-              className="text-pastel-blue-dark font-semibold hover:underline"
-            >
-              Team login
-            </button>
-          </p>
+          {import.meta.env.DEV && (
+            <p className="text-sm text-center text-gray-500">
+              <button
+                type="button"
+                onClick={() => { setLoginMode('team'); setError(''); setPassword('') }}
+                className="text-pastel-blue-dark font-semibold hover:underline"
+              >
+                Team login (local only)
+              </button>
+            </p>
+          )}
 
           {onBack && (
             <p className="text-sm text-center text-gray-500">

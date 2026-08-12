@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -18,7 +18,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [chatOpen, setChatOpen] = useState(false)
   const [navFilter, setNavFilter] = useState(() => localStorage.getItem('scrum-nav-filter') || 'general')
   // Nav mode: 'role' = just your role/division tabs, 'general' = the general app, 'all' = everything.
-  const [navMode, setNavMode] = useState(() => localStorage.getItem('scrum-nav-mode') || 'all')
+  const [navModeRaw, setNavMode] = useState(() => localStorage.getItem('scrum-nav-mode') || 'all')
+  // Live site always behaves as 'all'; the switcher is local-only for now.
+  const navMode = import.meta.env.DEV ? navModeRaw : 'all'
 
   // Reset all dropdowns when sidebar closes
   useEffect(() => {
@@ -145,6 +147,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
                     ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
                     { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
+                    ...(isCofounder ? [{ icon: Construction, label: 'Unfinished Tabs', color: 'text-gray-400', tab: 'unfinished-tabs' }] : []),
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab, action }) => (
                     <button
@@ -258,8 +261,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* ─── Normal Nav ─── */}
           {/* No rule here — the sidebar header already has a border-b, and the two
               together read as a double line above Home. */}
-          {/* Role / Gen / All — filters which nav sections show below. */}
-          {!isTeamAccount && (
+          {/* Role / Gen / All — filters which nav sections show below.
+              Local-only while the role experiences are unfinished. */}
+          {import.meta.env.DEV && !isTeamAccount && (
             <div className="flex gap-1 mb-2 bg-gray-100 rounded-xl p-1">
               {[
                 { id: 'role', label: 'Role', Icon: UserCog },
@@ -270,7 +274,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   key={id}
                   onClick={() => { setNavMode(id); localStorage.setItem('scrum-nav-mode', id) }}
                   className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-[10px] font-semibold transition-colors ${
-                    navMode === id ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    navModeRaw === id ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
                   <Icon size={14} />
@@ -298,45 +302,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </div>
 
           {navMode !== 'role' && (<>
-          {/* Chat is co-founder only for now. The rule lives inside the block so
-              hiding chat doesn't leave two separators stacked under Home. */}
-          {isCofounder && (<>
-          <hr className="my-1.5 border-gray-300" />
-          {/* Chat Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => setChatOpen(prev => !prev)}
-          >
-            <MessageCircle size={16} className="text-pastel-pink-dark" />
-            <span className="truncate flex-1">Chat</span>
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues' ? 'rotate-90' : ''}`}
-            />
-          </div>
-
-          {(chatOpen || activeTab === 'chat-all' || activeTab === 'chat-alliances' || activeTab === 'chat-leagues') && (
-            <div className="ml-4 mt-1 space-y-1">
-              {[{ tab: 'chat-all', label: 'All' }, { tab: 'chat-alliances', label: 'Alliances' }, { tab: 'chat-leagues', label: 'Leagues' }].map(({ tab, label }) => (
-                <div
-                  key={tab}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                    activeTab === tab ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                  }`}
-                  onClick={() => { onTabChange(tab); onToggle() }}
-                >
-                  <ChevronRight size={14} className={activeTab === tab ? 'rotate-90' : ''} />
-                  <span className="truncate">{label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          </>)}
+          {/* Chat has no nav tab. */}
 
           <hr className="my-2 border-gray-200" />
 
@@ -526,23 +492,23 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* Only show separator if non-team Data section was rendered (team Data has its own hr) */}
           {!isTeamAccount && <hr className="my-2 border-gray-200" />}
 
-          {/* AI Manual Tab */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'ai-manual'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => {
-              onTabChange('ai-manual')
-              onToggle()
-            }}
-          >
-            <BookOpen size={16} className="text-pastel-orange-dark" />
-            <span className="truncate">AI Manual</span>
-          </div>
-
-          <hr className="my-2 border-gray-200" />
+          {/* Engineering Notebook — also reachable from the Home gallery. */}
+          {!isGuest && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'notebook'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('notebook'); onToggle() }}
+              >
+                <BookOpen size={16} className="text-pastel-blue-dark" />
+                <span className="truncate">Engineering Notebook</span>
+              </div>
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
 
           {/* Boards Tab */}
           <div
@@ -668,21 +634,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           </>)}
 
           {navMode !== 'role' && (<>
-          {/* Expense Requests — every teammate can ask; Finance reviews inside. */}
-          {!isGuest && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'expense-requests' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('expense-requests'); onToggle() }}
-              >
-                <Receipt size={16} className="text-pastel-orange-dark" />
-                <span className="truncate">Expense Requests</span>
-              </div>
-            </>
-          )}
           </>)}
 
           </>}
@@ -720,180 +671,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* In-the-works role tabs always sit at the BOTTOM of the nav. */}
           {!isTeamAccount && (<>
           {navMode !== 'general' && (<>
-          {/* Testing — live tab for hardware + software (moved out of Special Controls). */}
-          {(canViewHardwareTabs || canViewSoftwareTabs) && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'testing' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('testing'); onToggle() }}
-              >
-                <FlaskConical size={16} className="text-pastel-pink-dark" />
-                <span className="truncate">Testing</span>
-              </div>
-              <hr className="my-2 border-gray-200" />
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'design-matrix' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('design-matrix'); onToggle() }}
-              >
-                <Scale size={16} className="text-pastel-blue-dark" />
-                <span className="truncate">Design Matrix</span>
-              </div>
-            </>
-          )}
-          {/* Outreach-only top-level tabs. Placeholder views for now. */}
-          {canViewOutreachTabs && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'log-reach'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('log-reach'); onToggle() }}
-              >
-                <Megaphone size={16} className="text-pastel-orange-dark" />
-                <span className="truncate">Log Reach</span>
-              </div>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'portfolio'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('portfolio'); onToggle() }}
-              >
-                <Briefcase size={16} className="text-pastel-blue-dark" />
-                <span className="truncate">Portfolio</span>
-              </div>
-              </div>
-            </>
-          )}
-
-          {/* Finance-only tabs. Budget Tracker / Fundraising / History are
-              placeholders for now; Expense Requests below is live for everyone. */}
-          {canViewFinanceTabs && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
-              {[
-                { tab: 'budget-tracker', label: 'Budget Tracker', Icon: Wallet, cls: 'text-pastel-orange-dark' },
-                { tab: 'fundraising', label: 'Fundraising', Icon: TrendingUp, cls: 'text-pastel-orange-dark' },
-                { tab: 'financial-history', label: 'Financial History', Icon: History, cls: 'text-pastel-blue-dark' },
-              ].map(({ tab, label, Icon, cls }) => (
-                <div key={tab}>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                    }`}
-                    onClick={() => { onTabChange(tab); onToggle() }}
-                  >
-                    <Icon size={16} className={cls} />
-                    <span className="truncate">{label}</span>
-                  </div>
-                </div>
-              ))}
-              </div>
-            </>
-          )}
-
-
-          {/* Communications-only tabs — placeholders for now. */}
-          {canViewCommsTabs && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
-              {[
-                { tab: 'comms-announcements', label: 'Announcements', Icon: Megaphone, cls: 'text-pastel-pink-dark' },
-                { tab: 'content-studio', label: 'Content Studio', Icon: PenTool, cls: 'text-pastel-orange-dark' },
-                { tab: 'website-manager', label: 'Website', Icon: Globe, cls: 'text-pastel-blue-dark' },
-                { tab: 'marketing', label: 'Marketing', Icon: Sparkles, cls: 'text-pastel-pink-dark' },
-              ].map(({ tab, label, Icon, cls }) => (
-                <div key={tab}>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                    }`}
-                    onClick={() => { onTabChange(tab); onToggle() }}
-                  >
-                    <Icon size={16} className={cls} />
-                    <span className="truncate">{label}</span>
-                  </div>
-                </div>
-              ))}
-              </div>
-            </>
-          )}
-
-
-          {/* Hardware-only tabs (CAD / Assembly / Wiring) — placeholders for the
-              Design -> Fabricate -> Assemble -> Wire -> Test loop. */}
-          {canViewHardwareTabs && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
-              {[
-                { tab: 'hw-design', label: 'Design', Icon: Ruler, cls: 'text-pastel-blue-dark' },
-                { tab: 'hw-fabrication', label: 'Fabrication', Icon: Hammer, cls: 'text-pastel-orange-dark' },
-                { tab: 'hw-assembly', label: 'Assembly', Icon: Wrench, cls: 'text-pastel-blue-dark' },
-                { tab: 'hw-electrical', label: 'Electrical', Icon: Zap, cls: 'text-pastel-orange-dark' },
-              ].map(({ tab, label, Icon, cls }) => (
-                <div key={tab}>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                    }`}
-                    onClick={() => { onTabChange(tab); onToggle() }}
-                  >
-                    <Icon size={16} className={cls} />
-                    <span className="truncate">{label}</span>
-                  </div>
-                </div>
-              ))}
-              </div>
-            </>
-          )}
-
-
-          {/* Software-only tabs (Programming) — placeholders for the
-              Design -> Programming -> Testing -> Bug -> Retest loop. */}
-          {canViewSoftwareTabs && (
-            <>
-              <hr className="my-2 border-gray-200" />
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-1 py-1">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-2 pt-0.5 pb-1">🚧 In the works</p>
-              {[
-                { tab: 'sw-design', label: 'Software Design', Icon: Ruler, cls: 'text-pastel-pink-dark' },
-                { tab: 'sw-programming', label: 'Programming', Icon: Code, cls: 'text-pastel-blue-dark' },
-                { tab: 'sw-io', label: 'Robot I/O', Icon: Cable, cls: 'text-pastel-orange-dark' },
-                { tab: 'bug-tracker', label: 'Bug Tracker', Icon: BugIcon, cls: 'text-pastel-orange-dark' },
-              ].map(({ tab, label, Icon, cls }) => (
-                <div key={tab}>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                    }`}
-                    onClick={() => { onTabChange(tab); onToggle() }}
-                  >
-                    <Icon size={16} className={cls} />
-                    <span className="truncate">{label}</span>
-                  </div>
-                </div>
-              ))}
-              </div>
-            </>
-          )}
-
+          {/* Unfinished role tabs live under Special Controls until they're ready. */}
           </>)}
           </>)}
           </>)}

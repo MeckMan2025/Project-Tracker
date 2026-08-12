@@ -1,6 +1,6 @@
 import { useMemberNames } from '../hooks/useMemberNames'
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, ArrowLeft } from 'lucide-react'
 
 const SKILL_OPTIONS = [
   'Programming', 'CAD', 'Mechanical', 'Electronics', 'Design',
@@ -8,7 +8,7 @@ const SKILL_OPTIONS = [
 ]
 
 
-function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
+function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToPerson, onBackToPerson }) {
   const memberNames = useMemberNames()
   const [formData, setFormData] = useState({
     title: task?.title || '',
@@ -16,6 +16,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
     status: task?.status || 'todo',
     assignee: task?.assignee || '',
     dueDate: task?.dueDate || '',
+    mentor: task?.mentor || '',
     skills: task?.skills || [],
     priority: task?.priority || 'medium',
   })
@@ -54,9 +55,21 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">
-            {task ? 'Edit Task' : requestMode ? 'Request Task' : 'Add New Task'}
-          </h2>
+          <div className="min-w-0">
+            {/* Only when this was opened from someone's task page. */}
+            {backToPerson && (
+              <button
+                type="button"
+                onClick={onBackToPerson}
+                className="flex items-center gap-1 text-xs font-semibold text-pastel-blue-dark hover:underline mb-0.5"
+              >
+                <ArrowLeft size={12} /> Back to {backToPerson}'s tasks
+              </button>
+            )}
+            <h2 className="text-lg font-semibold">
+              {task ? 'Edit Task' : requestMode ? 'Request Task' : 'Add New Task'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded"
@@ -118,6 +131,33 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam }) {
                     still shows so the select doesn't silently blank it. */}
                 {formData.assignee && formData.assignee !== '__up_for_grabs__' && !memberNames.includes(formData.assignee) && (
                   <option value={formData.assignee}>{formData.assignee} (former)</option>
+                )}
+              </select>
+            </div>
+            {task && (
+              <div className="col-span-2 -mb-2">
+                <p className="text-xs text-gray-400">
+                  Assigned by{' '}
+                  {task.assignedBy
+                    ? <span className="font-medium text-gray-600">{task.assignedBy}</span>
+                    : <span className="italic">unknown — recorded automatically on new tasks</span>}
+                </p>
+              </div>
+            )}
+            <div>
+              {/* Who to go to when you're stuck on this task. */}
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mentor <span className="text-xs font-normal text-gray-400">(who to ask for help)</span>
+              </label>
+              <select
+                value={formData.mentor}
+                onChange={(e) => setFormData({ ...formData, mentor: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              >
+                <option value="">No mentor</option>
+                {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
+                {formData.mentor && !memberNames.includes(formData.mentor) && (
+                  <option value={formData.mentor}>{formData.mentor} (former)</option>
                 )}
               </select>
             </div>

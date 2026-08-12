@@ -1,4 +1,4 @@
-import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle } from 'lucide-react'
+import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle, LifeBuoy } from 'lucide-react'
 
 const UP_FOR_GRABS = '__up_for_grabs__'
 

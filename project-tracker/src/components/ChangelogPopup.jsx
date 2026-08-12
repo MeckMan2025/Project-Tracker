@@ -5,6 +5,18 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 153,
+    date: '2026-08-12',
+    items: [
+      '📋 My Tasks shows your three most important tasks, most urgent first, with progress, due date, and a quiet red mark when something is overdue. Finished tasks drop off on their own',
+      '🙋 Tasks now record who assigned them and can name a mentor to ask for help',
+      '👥 Leads get a Task load button on Home: who has fewer than three tasks, what\'s overdue, and one tap to assign — open anyone to see all their tasks',
+      '📤 Attendance has an Export button that downloads the full log as a spreadsheet',
+      '🧹 Unfinished role pages moved out of everyone\'s sidebar; co-founders can reach them from the menu under Unfinished Tabs',
+      '📓 Engineering Notebook is back as a sidebar tab',
+    ],
+  },
+  {
     id: 152,
     date: '2026-08-12',
     items: [

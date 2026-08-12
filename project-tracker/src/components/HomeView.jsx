@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -6,6 +6,7 @@ import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import NotebookGallery from './NotebookGallery'
 import MyDashboard from './MyDashboard'
+import TaskLoadButton from './TaskLoadButton'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -14,7 +15,7 @@ const STATUS_STYLES = {
 }
 
 // Season kickoff date — change this to your real kickoff date/time.
-const SEASON_KICKOFF = new Date('2026-09-06T09:00:00')
+const SEASON_KICKOFF = new Date('2026-09-12T09:00:00')
 const FIRST_MEET = new Date('2026-10-19T09:00:00')
 
 // Cleanup assignment status styling (mirrors CleanUpChart)
@@ -45,6 +46,7 @@ function HomeView({ onTabChange, onOpenTask }) {
   const scrollRef = useRef(null)
   const [now, setNow] = useState(() => new Date())
   const [myTasks, setMyTasks] = useState([])
+  const [myTaskTotal, setMyTaskTotal] = useState(0)
   const [cleanupRows, setCleanupRows] = useState([])
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -69,18 +71,51 @@ function HomeView({ onTabChange, onOpenTask }) {
   // Load the tasks assigned to me from the Scrum board (active tasks only)
   useEffect(() => {
     async function loadMyTasks() {
-      if (!username) { setMyTasks([]); return }
+      if (!username) { setMyTasks([]); setMyTaskTotal(0); return }
       try {
         const res = await fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${encodeURIComponent(username)}&select=*`, { headers })
         if (!res.ok) return
         const data = await res.json()
         const active = (Array.isArray(data) ? data : []).filter(t => t.status !== 'done' && t.status !== 'completed')
-        setMyTasks(active)
+
+        // Most urgent first, per the kickoff plan: soonest due (so overdue rises
+        // to the top), then priority, then whatever is closest to finishing.
+        // Undated tasks sink rather than jumping the queue.
+        const PRIORITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 }
+        const PROGRESS = { todo: 0, '25': 25, '50': 50, '75': 75 }
+        const dueValue = (t) => {
+          const [y, m, d] = String(t.due_date || '').split('-').map(Number)
+          return (y && m && d) ? new Date(y, m - 1, d).getTime() : Infinity
+        }
+        active.sort((a, b) =>
+          dueValue(a) - dueValue(b) ||
+          (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2) ||
+          (PROGRESS[b.status] ?? 0) - (PROGRESS[a.status] ?? 0) ||
+          String(a.title).localeCompare(String(b.title))
+        )
+        // Page shows only the three that matter most, ranked by the task's
+        // priority setting first (critical > high > medium > low), then by how
+        // soon it's due. Display keeps the page's least-urgent-first order.
+        const byImportance = [...active].sort((a, b) =>
+          (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2) ||
+          dueValue(a) - dueValue(b)
+        )
+        const topThree = new Set(byImportance.slice(0, 3).map(t => t.id))
+        setMyTasks(active.filter(t => topThree.has(t.id)))
+        setMyTaskTotal(active.length)
       } catch (err) {
         console.error('Failed to load assigned tasks:', err)
       }
     }
     loadMyTasks()
+
+    // Re-read on any task change so finishing one makes it drop off this page
+    // immediately, instead of lingering until the next reload.
+    const ch = supabase
+      .channel('home-my-tasks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, loadMyTasks)
+      .subscribe()
+    return () => supabase.removeChannel(ch)
   }, [username])
 
   // Load the latest cleanup session's assignments for the homepage chart
@@ -374,6 +409,15 @@ function HomeView({ onTabChange, onOpenTask }) {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-4">
+        {/* Lead strip: task coverage + what's due. First thing on Home so it
+            can't be missed. */}
+        {hasLeadTag && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-3 py-2 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">Leads</span>
+            <TaskLoadButton />
+          </div>
+        )}
+
         {/* Mini Week Calendar */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
           <div className="flex items-center justify-between mb-2">
@@ -421,15 +465,15 @@ function HomeView({ onTabChange, onOpenTask }) {
 
         {/* Role dashboard(s) for the current user */}
         <MyDashboard />
-        {/* Sticky-note board: Assigned Objective (big notebook) + Season Kickoff + Next Meeting */}
+        {/* Sticky-note board: My Tasks (big notebook) + Season Kickoff + Next Meeting */}
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch pt-2">
 
-          {/* BIG notebook-paper sticky note — My Assigned Objective */}
+          {/* BIG notebook-paper sticky note — My Tasks */}
           <div className="relative w-full md:flex-1 flex -rotate-[0.4deg]">
             {/* piece of tape */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-amber-200/50 border border-amber-100/70 rotate-2 shadow-sm rounded-[2px] z-10" />
             <div
-              className="relative flex-1 flex flex-col rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] overflow-hidden"
+              className="relative flex-1 flex flex-col rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] max-h-[442px] overflow-hidden"
               style={{ background: '#ffffff' }}
             >
               {/* pink margin line */}
@@ -437,28 +481,79 @@ function HomeView({ onTabChange, onOpenTask }) {
               <div className="flex items-center gap-2 mb-2">
                 <Target size={20} className="text-pastel-blue-dark" />
                 <h2 className="text-3xl leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
-                  My Assigned Objective
+                  My Tasks
                 </h2>
+                {myTaskTotal > myTasks.length && (
+                  <span className="ml-auto text-sm text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>
+                    +{myTaskTotal - myTasks.length} more
+                  </span>
+                )}
               </div>
               <div className="mt-1 relative flex-1">
                 {myTasks.length === 0 && (
-                  <div className="flex items-center h-9" style={{ borderBottom: '1px solid rgba(59,130,246,0.45)' }}>
+                  <div className="flex items-center h-[46px]" style={{ borderBottom: '1px solid rgba(59,130,246,0.45)' }}>
                     <span className="text-2xl text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>Nothing assigned yet…</span>
                   </div>
                 )}
-                {myTasks.map((task, i) => (
+                {myTasks.map((task, i) => {
+                  // Overdue rows get a highlighter stripe so they stand out on
+                  // the page instead of only the date turning red.
+                  const [dy, dm, dd] = String(task.due_date || '').split('-').map(Number)
+                  const dueDate = (dy && dm && dd) ? new Date(dy, dm - 1, dd) : null
+                  const now = new Date()
+                  const isOverdue = dueDate && dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                  return (
+                  <Fragment key={task.id}>
                   <div
-                    key={task.id}
-                    className="flex items-center gap-2.5 h-9"
+                    className={`flex items-center gap-2.5 h-[46px] ${isOverdue ? 'border-l-2 border-red-400 -ml-2 pl-1.5' : ''}`}
                     style={{ borderBottom: `1px solid ${i % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
                   >
-                    <span className="w-2.5 h-2.5 rounded-full border-2 border-pastel-blue-dark shrink-0" />
+                    {/* Progress from the board column the task sits in. */}
+                    {(() => {
+                      const PCT = { todo: 0, '25': 25, '50': 50, '75': 75, done: 100, completed: 100 }
+                      const pct = PCT[task.status] ?? 0
+                      return (
+                        <span
+                          className="shrink-0 w-6 h-6 rounded-full grid place-items-center"
+                          title={`${pct}% done`}
+                          style={{
+                            background: `conic-gradient(#7EC8E3 ${pct * 3.6}deg, rgba(0,0,0,0.06) 0deg)`,
+                          }}
+                        >
+                          <span className="w-3.5 h-3.5 rounded-full bg-white grid place-items-center text-[8px] font-bold text-gray-500">
+                            {pct === 100 ? '✓' : ''}
+                          </span>
+                        </span>
+                      )
+                    })()}
                     <span
-                      className="flex-1 text-2xl text-gray-700 truncate"
+                      className={`flex-1 text-2xl truncate ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}
                       style={{ fontFamily: "'Kalam', cursive" }}
                     >
                       {task.title}
                     </span>
+                    {(() => {
+                      const PCT = { todo: 0, '25': 25, '50': 50, '75': 75, done: 100, completed: 100 }
+                      const pct = PCT[task.status] ?? 0
+                      return (
+                        <span
+                          className={`shrink-0 text-base ${pct === 100 ? 'text-green-600' : 'text-gray-400'}`}
+                          style={{ fontFamily: "'Kalam', cursive" }}
+                        >
+                          {pct}%
+                        </span>
+                      )
+                    })()}
+                    {/* Due date in the margin — red once it's past. */}
+                    {dueDate && (
+                      <span
+                        className={`shrink-0 text-base ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-400'}`}
+                        style={{ fontFamily: "'Kalam', cursive" }}
+                        title={isOverdue ? 'Past due' : 'Due date'}
+                      >
+                        {dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
                     <button
                       onClick={() => onOpenTask?.(task.board_id, task.id)}
                       className="shrink-0 flex items-center gap-0.5 text-sm font-semibold text-pastel-blue-dark hover:underline"
@@ -466,7 +561,14 @@ function HomeView({ onTabChange, onOpenTask }) {
                       View <ArrowRight size={13} />
                     </button>
                   </div>
-                ))}
+                  <div
+                    key={`${task.id}-gap`}
+                    className="h-[46px]"
+                    style={{ borderBottom: `1px solid ${i % 2 === 0 ? 'rgba(236,72,153,0.45)' : 'rgba(59,130,246,0.45)'}` }}
+                  />
+                  </Fragment>
+                  )
+                })}
                 {/* Filler ruled lines, absolutely positioned so they paint the rest
                     of the page without adding height — otherwise the paper would grow
                     past the sticky-note column it's meant to line up with. Rows are
@@ -474,14 +576,14 @@ function HomeView({ onTabChange, onOpenTask }) {
                     Surplus lines clip against the paper's overflow-hidden. */}
                 <div
                   className="absolute inset-x-0 bottom-0 overflow-hidden pointer-events-none"
-                  style={{ top: `${(myTasks.length === 0 ? 1 : myTasks.length) * 36}px` }}
+                  style={{ top: `${(myTasks.length === 0 ? 1 : myTasks.length * 2) * 46}px` }}
                 >
-                  {Array.from({ length: 20 }).map((_, i) => {
+                  {Array.from({ length: Math.max(0, 7 - (myTasks.length === 0 ? 1 : myTasks.length * 2)) }).map((_, i) => {
                     const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
                     return (
                       <div
                         key={`filler-${i}`}
-                        className="h-9"
+                        className="h-[46px]"
                         style={{ borderBottom: `1px solid ${idx % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
                       />
                     )

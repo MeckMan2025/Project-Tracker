@@ -18,12 +18,16 @@ function LandingScreen({ onGetRadical, onTeamLogin, onRadicalRundown }) {
           Get Radical
         </button>
 
-        <button
-          onClick={onTeamLogin}
-          className="w-full py-3 bg-pastel-orange/40 hover:bg-pastel-orange/60 rounded-xl font-semibold text-gray-700 transition-colors text-lg"
-        >
-          Team Login
-        </button>
+        {/* Team login is a local-only testing door — absent from the deployed
+            site (import.meta.env.DEV is false in a production build). */}
+        {import.meta.env.DEV && (
+          <button
+            onClick={onTeamLogin}
+            className="w-full py-3 bg-pastel-orange/40 hover:bg-pastel-orange/60 rounded-xl font-semibold text-gray-700 transition-colors text-lg"
+          >
+            Team Login <span className="text-xs font-normal text-gray-500">(local only)</span>
+          </button>
+        )}
 
         <p className="text-xs text-gray-400">
           Scouts &amp; visitors, check us out below!
