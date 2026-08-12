@@ -532,12 +532,24 @@ export function UserProvider({ children }) {
     if (data.user) {
       const PERM_COFOUNDERS = ['yukti', 'kayden']
       const isPermCofounder = PERM_COFOUNDERS.some(n => displayName.toLowerCase().includes(n))
+
+      // Roles a lead assigned to this email before it had an account. They're
+      // stored comma-separated in approved_emails.role, so 'member' (the plain
+      // default) means "no roles".
+      const preAssigned = String(role || '')
+        .split(',')
+        .map(r => r.trim())
+        .filter(r => r && r.toLowerCase() !== 'member')
+      const tags = isPermCofounder
+        ? [...new Set(['Co-Founder', ...preAssigned])]
+        : preAssigned
+
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         display_name: displayName,
         role: role,
-        authority_tier: isPermCofounder ? 'teammate' : 'guest',
-        function_tags: isPermCofounder ? ['Co-Founder'] : [],
+        authority_tier: (isPermCofounder || tags.length > 0) ? 'teammate' : 'guest',
+        function_tags: tags,
       })
       if (profileError) {
         console.error('Failed to create profile:', profileError.message)

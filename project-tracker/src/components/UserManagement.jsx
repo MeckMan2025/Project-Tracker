@@ -99,6 +99,13 @@ const INVITE_NAMES = {
   'andrew.meckley1981@gmail.com': 'Andrew Meckley',
 }
 
+// Roles pre-assigned to an approved email (comma-separated in .role;
+// 'member' is the no-roles default).
+const inviteRoles = (w) => String(w?.role || '')
+  .split(',')
+  .map(r => r.trim())
+  .filter(r => r && r.toLowerCase() !== 'member')
+
 const inviteName = (email) => {
   const key = (email || '').toLowerCase()
   if (INVITE_NAMES[key]) return INVITE_NAMES[key]
@@ -162,6 +169,7 @@ function UserManagement({ onViewProfile }) {
   const [teamError, setTeamError] = useState('')
   const [teamSubmitting, setTeamSubmitting] = useState(false)
   const [whitelistSubSection, setWhitelistSubSection] = useState('members')
+  const [invitePickerOpen, setInvitePickerOpen] = useState(null) // whitelist id
   // Team password edit
   const [editTeamPw, setEditTeamPw] = useState(null)
   const [editTeamPwValue, setEditTeamPwValue] = useState('')
@@ -363,6 +371,7 @@ function UserManagement({ onViewProfile }) {
   // approved_emails.role at signup, so this actually lands on their account).
   const handleSetInviteRole = async (id, role) => {
     setWhitelistedEmails(prev => prev.map(w => w.id === id ? { ...w, role } : w))
+    if (invitePickerOpen === id) { /* keep picker open while toggling */ }
     try {
       const headers = await getAuthHeaders()
       await fetch(`${supabaseUrl}/rest/v1/approved_emails?id=eq.${id}`, {
@@ -1402,7 +1411,14 @@ function UserManagement({ onViewProfile }) {
                                 {name.charAt(0).toUpperCase()}
                               </span>
                             </span>
-                            <span className="font-medium text-gray-800 truncate">{name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setInvitePickerOpen(invitePickerOpen === w.id ? null : w.id)}
+                              className="font-medium text-gray-800 truncate text-left hover:opacity-70 transition-opacity"
+                              title="Assign roles"
+                            >
+                              {name}
+                            </button>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
@@ -1430,15 +1446,52 @@ function UserManagement({ onViewProfile }) {
                               title="Remove from approved list"
                               className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                             >
-                              <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
+                              <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
                             </button>
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+                        {/* Roles chosen before signup, same chips as a member's.
+                            Stored comma-separated on the whitelist row; signup
+                            copies them onto the new profile. */}
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          {inviteRoles(w).map(r => (
+                            <span key={r} className={`text-xs px-2.5 py-1 rounded-full font-medium ${getTagColor(r)}`}>
+                              {r}
+                            </span>
+                          ))}
+                          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-400">
                             {w.email}
                           </span>
                         </div>
+
+                        {invitePickerOpen === w.id && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                            {ROLE_GROUPS.map(group => (
+                              <div key={group.label}>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{group.label}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.roles.map(r => {
+                                    const on = inviteRoles(w).includes(r)
+                                    return (
+                                      <button
+                                        key={r}
+                                        type="button"
+                                        onClick={() => {
+                                          const next = on ? inviteRoles(w).filter(x => x !== r) : [...inviteRoles(w), r]
+                                          handleSetInviteRole(w.id, next.join(',') || 'member')
+                                        }}
+                                        className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${on ? getTagColor(r) : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                                      >
+                                        {r}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                            <p className="text-[10px] text-gray-400">Applied automatically when they sign up.</p>
+                          </div>
+                        )}
                       </div>
                     )
                   }
