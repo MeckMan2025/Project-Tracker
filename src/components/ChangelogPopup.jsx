@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 145,
+    date: '2026-08-11',
+    items: [
+      '🔐 Anyone signing in with a temporary password is now asked to choose their own right away, with a clear explanation — this applies to new accounts and to any password a lead resets',
+    ],
+  },
+  {
     id: 144,
     date: '2026-08-11',
     items: [

@@ -146,6 +146,12 @@ function ForcePasswordChange({ updatePassword }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex items-center justify-center">
       <form onSubmit={handleSubmit} className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 w-80 space-y-5">
+        <div>
+          <h2 className="text-lg font-bold text-gray-700">Choose a new password</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            You're signing in with a temporary password. Pick your own before you continue.
+          </p>
+        </div>
         <div className="text-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
             Set Your Password

@@ -693,7 +693,16 @@ function UserManagement({ onViewProfile }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
-      setResetSuccess(`Password reset successfully. Tell ${resetTarget.display_name} their temporary password.`)
+      // Make sure they're prompted to pick their own password at next login,
+      // even if the edge function's own flag-setting step didn't land.
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${resetTarget.id}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ must_change_password: true }),
+        })
+      } catch { /* the edge function already tries this */ }
+      setResetSuccess(`Password reset. Tell ${resetTarget.display_name} their temporary password — they'll be asked to change it as soon as they log in.`)
       setResetPassword('')
     } catch (err) {
       setResetError(err.message)
@@ -1283,7 +1292,7 @@ function UserManagement({ onViewProfile }) {
                     <form onSubmit={handleAddMemberDirect} className="bg-white rounded-xl shadow-sm border p-4 space-y-3">
                       <input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="Email address" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" autoFocus required />
                       <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Display name" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" required />
-                      <PasswordInput value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="Temporary password (min 6 chars)" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" />
+                      <PasswordInput value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="Temporary password (they'll change it at first login)" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm" />
                       <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1.5">Roles (decides their side &amp; access)</label>
                         <div className="space-y-2.5">
