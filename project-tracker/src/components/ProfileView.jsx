@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Save, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
+import { User, Check, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -265,8 +265,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
 
   const [saveError, setSaveError] = useState('')
 
-  // Save shortly after you stop typing — the Save button still works, but you
-  // never have to reach for it.
+  // Everything saves itself shortly after you stop typing; there is no Save
+  // button, just a small status word in the header.
   useEffect(() => {
     if (!loadedRef.current || isViewingOther) return
     clearTimeout(saveTimer.current)
@@ -588,14 +588,12 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2 bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
-            >
-              <Save size={16} />
-              {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
-            </button>
+            {/* No Save button — edits save themselves. This is just status. */}
+            {(saving || saved) && (
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                {saving ? 'Saving…' : <><Check size={12} className="text-green-500" /> Saved</>}
+              </span>
+            )}
           </div>
         </div>
         {saveError && (
