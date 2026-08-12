@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 137,
+    date: '2026-08-11',
+    items: [
+      '⚙️ Approved emails in RadMems can now be managed like members — pick the role they\'ll get when they sign up, remove them from the approved list, or hit Create login to make their account outright',
+      'ℹ️ Passwords can only be set once someone has an account: use Create login to make one (they choose their own password at first sign-in), or they can self-register',
+    ],
+  },
+  {
     id: 136,
     date: '2026-08-11',
     items: [

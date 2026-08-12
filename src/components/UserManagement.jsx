@@ -359,6 +359,20 @@ function UserManagement({ onViewProfile }) {
     }
   }
 
+  // Set the role an approved email gets when they sign up (checkWhitelist reads
+  // approved_emails.role at signup, so this actually lands on their account).
+  const handleSetInviteRole = async (id, role) => {
+    setWhitelistedEmails(prev => prev.map(w => w.id === id ? { ...w, role } : w))
+    try {
+      const headers = await getAuthHeaders()
+      await fetch(`${supabaseUrl}/rest/v1/approved_emails?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ role }),
+      })
+    } catch (err) { console.error('Failed to set invite role:', err) }
+  }
+
   const handleRemoveEmail = async (id) => {
     try {
       const headers = await getAuthHeaders()
@@ -1387,8 +1401,8 @@ function UserManagement({ onViewProfile }) {
                             <p className="text-sm font-medium text-gray-600 truncate">{name}</p>
                             <p className="text-[11px] text-gray-400 truncate">{w.email} · no account yet</p>
                           </div>
-                          {/* Hands this email + name to the Add Member form so a
-                              lead only has to set a password to give them a login. */}
+                          {/* Create login hands this email + name to the Add
+                              Member form; a lead only sets a password. */}
                           <button
                             onClick={() => {
                               setAddEmail(w.email)
@@ -1404,6 +1418,33 @@ function UserManagement({ onViewProfile }) {
                           >
                             Create login
                           </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Remove ${w.email} from the approved list? They won't be able to sign up.`)) {
+                                handleRemoveEmail(w.id)
+                              }
+                            }}
+                            title="Remove from approved list"
+                            className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
+                          </button>
+                        </div>
+
+                        {/* Role they'll be given the moment they sign up. */}
+                        <div className="flex items-center gap-1.5 mt-2 pl-[46px]">
+                          <span className="text-[10px] text-gray-400 shrink-0">Signs up as</span>
+                          <select
+                            value={w.role || 'member'}
+                            onChange={(e) => handleSetInviteRole(w.id, e.target.value)}
+                            className="text-[11px] border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white text-gray-600"
+                          >
+                            <option value="member">Member</option>
+                            <option value="teammate">Teammate</option>
+                            <option value="lead">Lead</option>
+                            <option value="coach">Coach</option>
+                            <option value="guest">Guest</option>
+                          </select>
                         </div>
                       </div>
                     )
