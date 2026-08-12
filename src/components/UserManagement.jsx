@@ -1389,62 +1389,58 @@ function UserManagement({ onViewProfile }) {
                   // in by name, each noting it has no account yet. profiles has no
                   // email column, so a whitelist row can't be matched to an existing
                   // account — hence "no account yet" rather than a signup claim.
+                  // Same card as a member: tie-dye ring avatar, name, key +
+                  // trash on the right, status chip underneath where roles go.
                   const renderInvite = (w) => {
                     const name = inviteName(w.email)
                     return (
                       <div key={`w-${w.id}`} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-9 h-9 shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-400">
-                            {name.charAt(0).toUpperCase()}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-600 truncate">{name}</p>
-                            <p className="text-[11px] text-gray-400 truncate">{w.email} · no account yet</p>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2.5 min-w-0 text-left">
+                            <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle([])}>
+                              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center ring-2 ring-white text-xs font-bold text-white">
+                                {name.charAt(0).toUpperCase()}
+                              </span>
+                            </span>
+                            <div className="min-w-0">
+                              <span className="font-medium text-gray-800 block truncate">{name}</span>
+                              <span className="text-xs text-gray-400 block truncate">{w.email}</span>
+                            </div>
                           </div>
-                          {/* Create login hands this email + name to the Add
-                              Member form; a lead only sets a password. */}
-                          <button
-                            onClick={() => {
-                              setAddEmail(w.email)
-                              setAddName(name)
-                              setAddPassword('')
-                              setAddRoles([])
-                              setAddError('')
-                              setAddSuccess('')
-                              setShowAddMember(true)
-                              window.scrollTo({ top: 0, behavior: 'smooth' })
-                            }}
-                            className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-pastel-blue/40 hover:bg-pastel-blue text-gray-700 transition-colors"
-                          >
-                            Create login
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Remove ${w.email} from the approved list? They won't be able to sign up.`)) {
-                                handleRemoveEmail(w.id)
-                              }
-                            }}
-                            title="Remove from approved list"
-                            className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                setAddEmail(w.email)
+                                setAddName(name)
+                                setAddPassword('')
+                                setAddRoles([])
+                                setAddError('')
+                                setAddSuccess('')
+                                setShowAddMember(true)
+                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                              }}
+                              title="Set a password / create their login"
+                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                            >
+                              <KeyRound size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Remove ${w.email} from the approved list? They won't be able to sign up.`)) {
+                                  handleRemoveEmail(w.id)
+                                }
+                              }}
+                              title="Remove from approved list"
+                              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
+                            </button>
+                          </div>
                         </div>
-
-                        {/* Role they'll be given the moment they sign up. */}
-                        <div className="flex items-center gap-1.5 mt-2 pl-[46px]">
-                          <span className="text-[10px] text-gray-400 shrink-0">Signs up as</span>
-                          <select
-                            value={w.role || 'member'}
-                            onChange={(e) => handleSetInviteRole(w.id, e.target.value)}
-                            className="text-[11px] border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white text-gray-600"
-                          >
-                            <option value="member">Member</option>
-                            <option value="teammate">Teammate</option>
-                            <option value="lead">Lead</option>
-                            <option value="coach">Coach</option>
-                            <option value="guest">Guest</option>
-                          </select>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+                            No account yet
+                          </span>
                         </div>
                       </div>
                     )
