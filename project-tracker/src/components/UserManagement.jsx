@@ -925,7 +925,7 @@ function UserManagement({ onViewProfile }) {
         {canManageUsers && (
           <div className="flex border-t">
             {[
-              { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length },
+              { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length + (canManageUsers ? whitelistedEmails.length : 0) },
               { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
               { id: 'pasmems', label: 'PasMems', icon: Trash2, count: pastMembers.length },
             ].map(t => {
@@ -1329,11 +1329,9 @@ function UserManagement({ onViewProfile }) {
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <button
                             type="button"
-                            onClick={() => invite
-                              ? setInvitePickerOpen(invitePickerOpen === invite.id ? null : invite.id)
-                              : onViewProfile?.(member.id)}
+                            onClick={() => onViewProfile?.(invite ? `invite:${invite.id}` : member.id)}
                             className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity"
-                            title={invite ? 'Assign roles' : 'View profile'}
+                            title="View profile"
                           >
                             {/* Tie-dye ring showing the member's side(s) */}
                             <span className="shrink-0 rounded-full p-[2px]" style={getSideStyle(member.function_tags)}>
@@ -1419,36 +1417,6 @@ function UserManagement({ onViewProfile }) {
                           )}
                         </div>
 
-                        {/* Invite-only: assign roles inline, since there's no
-                            profile page to open yet. Applied at signup. */}
-                        {invite && invitePickerOpen === invite.id && (
-                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
-                            {ROLE_GROUPS.map(group => (
-                              <div key={group.label}>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{group.label}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {group.roles.map(r => {
-                                    const on = memberRoles.includes(r)
-                                    return (
-                                      <button
-                                        key={r}
-                                        type="button"
-                                        onClick={() => {
-                                          const next = on ? memberRoles.filter(x => x !== r) : [...memberRoles, r]
-                                          handleSetInviteRole(invite.id, next.join(',') || 'member')
-                                        }}
-                                        className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${on ? getTagColor(r) : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                                      >
-                                        {r}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                            <p className="text-[10px] text-gray-400">Applied automatically when they sign up.</p>
-                          </div>
-                        )}
                       </div>
                     )
                   }

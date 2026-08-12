@@ -63,15 +63,38 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+  // An id of the form "invite:<whitelistId>" is an approved email that has no
+  // account yet. It gets the same profile page, shaped from the whitelist row,
+  // so roles can be assigned before the person ever signs up.
+  const inviteId = String(viewingProfileId || '').startsWith('invite:')
+    ? String(viewingProfileId).slice('invite:'.length)
+    : null
+
   // Load viewed profile when viewing someone else
   useEffect(() => {
     if (!isViewingOther) { setViewedProfile(null); return }
     setViewedLoading(true)
-    fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${viewingProfileId}&select=*`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-    })
+    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const url = inviteId
+      ? `${supabaseUrl}/rest/v1/approved_emails?id=eq.${inviteId}&select=*`
+      : `${supabaseUrl}/rest/v1/profiles?id=eq.${viewingProfileId}&select=*`
+    fetch(url, { headers })
       .then(res => res.ok ? res.json() : [])
-      .then(rows => { if (rows[0]) setViewedProfile(rows[0]) })
+      .then(rows => {
+        const row = rows[0]
+        if (!row) return
+        if (!inviteId) { setViewedProfile(row); return }
+        // Shape the whitelist row like a profile so the page renders as usual.
+        const local = String(row.email || '').split('@')[0].replace(/[._0-9]+/g, ' ').trim()
+        setViewedProfile({
+          id: viewingProfileId,
+          __invite: row,
+          display_name: local ? local.charAt(0).toUpperCase() + local.slice(1) : row.email,
+          function_tags: String(row.role || '').split(',').map(r => r.trim()).filter(r => r && r.toLowerCase() !== 'member'),
+          status: '',
+          avatar_url: '',
+        })
+      })
       .catch(() => {})
       .finally(() => setViewedLoading(false))
   }, [viewingProfileId])
@@ -103,6 +126,31 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   const toggleViewedRole = async (roleName) => {
     if (!viewedProfile) return
     const current = viewedProfile.function_tags || []
+
+    // No account yet: roles live on the whitelist row and are copied onto the
+    // profile the moment they sign up.
+    if (viewedProfile.__invite) {
+      const next = current.includes(roleName)
+        ? current.filter(r => r !== roleName)
+        : [...current, roleName]
+      setViewedProfile(prev => ({ ...prev, function_tags: next }))
+      setRoleSaving(roleName)
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/approved_emails?id=eq.${viewedProfile.__invite.id}`, {
+          method: 'PATCH',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ role: next.join(',') || 'member' }),
+        })
+        if (!res.ok) throw new Error(await res.text() || res.statusText)
+      } catch (err) {
+        setViewedProfile(prev => ({ ...prev, function_tags: current }))
+        alert('Failed to save role: ' + err.message)
+      } finally {
+        setRoleSaving('')
+      }
+      return
+    }
+
     const wasAdded = !current.includes(roleName)
     let updated
     if (roleName === 'Guest') {
