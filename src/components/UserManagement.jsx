@@ -66,6 +66,46 @@ const ROLE_DESCRIPTIONS = {
 }
 
 
+// Approved-email display names.
+//
+// approved_emails has no name column, so names come from here: an explicit map
+// for people we know, and a fallback that unpacks "lastfirst@school" into
+// "First Last". Replace this with a real column if one is ever added.
+const INVITE_NAMES = {
+  'langlily@pleasval.org': 'Lily Lang',
+  'dinakaransahana@pleasval.org': 'Sahana Dinakaran',
+  'tummalapalliamruta@pleasval.org': 'Amruta Tummalapalli',
+  'jaiganeshaakansha@pleasval.org': 'Aakansha Jaiganesh',
+  'kulkarnisaumyaa@pleasval.org': 'Saumyaa Kulkarni',
+  'pallamreddysuhaas@pleasval.org': 'Suhaas Pallamreddy',
+  'kathiravanprakruthi@pleasval.org': 'Prakruthi Kathiravan',
+  'canieremmett@pleasval.org': 'Emmett Canier',
+  'petersdaegus@pleasval.org': 'Daegus Peters',
+  'burantbraden@pleasval.org': 'Braden Burant',
+  'langjames@pleasval.org': 'James Lang',
+  'dinakaransadhana@pleasval.org': 'Sadhana Dinakaran',
+  'sattivarun@pleasval.org': 'Varun Satti',
+  'pappireddypragnyareddy@pleasval.org': 'Pragnya Pappireddy',
+  'rogerslucy@pleasval.org': 'Lucy Rogers',
+  'sattivarsha@pleasval.org': 'Varsha Satti',
+  'shrivastavaarav@pleasval.org': 'Arav Shrivastava',
+  'schroederweston@pleasval.org': 'Weston Schroeder',
+  'newmannnicholas@pleasval.org': 'Nicholas Newmann',
+  'mankotiaharshita@pleasval.org': 'Harshita Mankotia',
+  'franzenburgjason@pleasval.org': 'Jason Franzenburg',
+  'seamerbrandon@pleasval.org': 'Brandon Seamer',
+  'deshpandeyukti@pleasval.org': 'Yukti Deshpande',
+  'meckleykayden@pleasval.org': 'Kayden Meckley',
+  'andrew.meckley1981@gmail.com': 'Andrew Meckley',
+}
+
+const inviteName = (email) => {
+  const key = (email || '').toLowerCase()
+  if (INVITE_NAMES[key]) return INVITE_NAMES[key]
+  const local = key.split('@')[0].replace(/[._]+/g, ' ').trim()
+  return local ? local.charAt(0).toUpperCase() + local.slice(1) : email
+}
+
 function UserManagement({ onViewProfile }) {
   const { user, username } = useUser()
   const { canManageUsers, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
@@ -1335,23 +1375,26 @@ function UserManagement({ onViewProfile }) {
                   // in by name, each noting it has no account yet. profiles has no
                   // email column, so a whitelist row can't be matched to an existing
                   // account — hence "no account yet" rather than a signup claim.
-                  const renderInvite = (w) => (
-                    <div key={`w-${w.id}`} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="w-9 h-9 shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-400">
-                          {(w.email || '?').charAt(0).toUpperCase()}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-600 truncate">{w.email}</p>
-                          <p className="text-[11px] text-gray-400">No account yet{w.role ? ` · ${w.role}` : ''}</p>
+                  const renderInvite = (w) => {
+                    const name = inviteName(w.email)
+                    return (
+                      <div key={`w-${w.id}`} className="group bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-9 h-9 shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-400">
+                            {name.charAt(0).toUpperCase()}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-600 truncate">{name}</p>
+                            <p className="text-[11px] text-gray-400 truncate">{w.email} · no account yet</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
+                    )
+                  }
 
                   // Interleave: members keep their co-founders-first order, then
                   // everything sorts together by the name shown on the card.
-                  const nameOf = (row) => (row.__invite ? row.email : row.display_name || '').toLowerCase()
+                  const nameOf = (row) => (row.__invite ? inviteName(row.email) : row.display_name || '').toLowerCase()
                   const combined = canManageUsers
                     ? [...sorted, ...whitelistedEmails.map(w => ({ ...w, __invite: true }))]
                         .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
