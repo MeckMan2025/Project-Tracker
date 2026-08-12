@@ -11,14 +11,14 @@ import { getSideStyle } from '../utils/sideColors'
 import { ROLE_GUIDE } from '../data/roleGuide'
 
 const ALL_ROLES = [
-  'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead',
+  'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
   'Communications', 'Finance', 'Outreach',
   'CAD', 'Assembly/Building', 'Wiring', 'Programming', 'Scouting', 'Guest',
 ]
 
 // Roles grouped by department (mirrors the Org Chart) for the role pickers.
 const ROLE_GROUPS = [
-  { label: 'Leadership', roles: ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead'] },
+  { label: 'Leadership', roles: ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead'] },
   { label: 'Business', roles: ['Communications', 'Finance', 'Outreach'] },
   { label: 'Technical · Hardware', roles: ['CAD', 'Assembly/Building', 'Wiring'] },
   { label: 'Technical · Software', roles: ['Programming', 'Scouting'] },
@@ -54,6 +54,7 @@ const ROLE_DESCRIPTIONS = {
   'Project Manager': 'Coordinates timelines, tasks, and all sub-teams',
   'Business Lead': 'Leads business plan, outreach, and fundraising',
   'Technical Lead': 'Leads robot design, build, and programming',
+  'Programming Lead': 'Leads the software subteam and its members',
   'Communications': 'Team communications, the team website, and social media',
   'Finance': 'Manages the budget, fundraising, and reimbursements',
   'Outreach': 'Runs community events and STEM outreach',

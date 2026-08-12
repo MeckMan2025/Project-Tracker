@@ -2,7 +2,7 @@ import { useUser } from '../contexts/UserContext'
 
 const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
-const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead']
+const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead']
 
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam } = useUser()
@@ -34,12 +34,13 @@ export function usePermissions() {
   // leads (Co-Founder / Project Manager / Mentor / Coach) get both sides.
   const isBusinessLead = !!(functionTags && functionTags.includes('Business Lead'))
   const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
+  const isProgrammingLead = !!(functionTags && functionTags.includes('Programming Lead'))
   const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
   const businessAccess = isBusinessLead || isFullLead
   // Technical Lead oversees HARDWARE only — software/programming is its own
   // thing and stays with the Programming role and the whole-team leads.
   const hardwareAccess = isTechnicalLead || isFullLead
-  const softwareAccess = isFullLead
+  const softwareAccess = isProgrammingLead || isFullLead
 
   return {
     tier,
@@ -105,6 +106,8 @@ export function usePermissions() {
     canRunMeetings: (functionTags && functionTags.includes('Project Manager')) || isCofounder,
     canViewHardwareTabs: hasHardwareRole || hardwareAccess,
     canViewSoftwareTabs: hasProgrammingRole || softwareAccess,
+    // Programming Lead reviews software-side requests.
+    isProgrammingLead,
     businessDivisionAccess: businessAccess,
     hardwareDivisionAccess: hardwareAccess,
     softwareDivisionAccess: softwareAccess,

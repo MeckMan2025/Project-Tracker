@@ -22,7 +22,7 @@ const DISCIPLINE_OPTIONS = [
 
 
 const ROLE_OPTIONS = [
-  'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead',
+  'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
   'Communications', 'Finance', 'Outreach',
   'CAD', 'Assembly/Building', 'Wiring', 'Programming', 'Scouting', 'Guest',
 ]

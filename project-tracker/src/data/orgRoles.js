@@ -34,6 +34,7 @@ export const TECHNICAL_ROLES = TECHNICAL_GROUPS.flatMap(g => g.roles)
 export const LEAD_DESC = {
   'Business Lead': 'Leads the business subteam and its members.',
   'Technical Lead': 'Leads the technical subteam and its members.',
+  'Programming Lead': 'Leads the software subteam and its members.',
   'Project Manager': 'Coordinates timelines, tasks, and the whole team.',
   'Co-Founder': 'Founded and oversees the team.',
   'Mentor': 'Adult mentor guiding the team.',
@@ -43,7 +44,7 @@ export const LEAD_DESC = {
 // Tags that describe leadership/standing, NOT a functional role box.
 export const LEADERSHIP_TAGS = new Set([
   'Co-Founder', 'Coach', 'Mentor', 'Team Lead', 'Project Manager',
-  'Business Lead', 'Technical Lead', 'Team', 'Business', 'Technical',
+  'Business Lead', 'Technical Lead', 'Programming Lead', 'Team', 'Business', 'Technical',
 ])
 
 // Build a { tag -> description } lookup from everything above.
