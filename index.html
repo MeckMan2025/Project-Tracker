@@ -25,6 +25,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet" />
+    <script>
+      // A deploy replaces the hashed bundle and deletes the old one, but Pages
+      // serves index.html with max-age=600 — so for ten minutes a returning
+      // browser can ask for a script that is already gone and render nothing.
+      // Catch that 404 and reload once (a reload revalidates the document, so
+      // it picks up the new index.html). The flag stops any reload loop.
+      window.addEventListener('error', function (e) {
+        var el = e.target
+        if (!el || el.tagName !== 'SCRIPT' || !el.src) return
+        if (sessionStorage.getItem('ets-stale-shell')) return
+        sessionStorage.setItem('ets-stale-shell', '1')
+        location.reload()
+      }, true)
+      // Clear the flag once the app has actually mounted.
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          var root = document.getElementById('root')
+          if (root && root.children.length) sessionStorage.removeItem('ets-stale-shell')
+        }, 3000)
+      })
+    </script>
   </head>
   <body>
     <div id="root"></div>
