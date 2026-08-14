@@ -27,7 +27,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
       setMenuOpen(false)
       setBoardsOpen(false)
       setDataOpen(false)
-      setScoutingOpen(false)
       setChatOpen(false)
       setIsAdding(false)
       setNewTabName('')
