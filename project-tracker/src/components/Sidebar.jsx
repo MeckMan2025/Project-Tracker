@@ -14,7 +14,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
   const [menuOpen, setMenuOpen] = useState(false)
   const [boardsOpen, setBoardsOpen] = useState(isTeamAccount)
   const [dataOpen, setDataOpen] = useState(false)
-  const [scoutingOpen, setScoutingOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [navFilter, setNavFilter] = useState(() => localStorage.getItem('scrum-nav-filter') || 'general')
   // Nav mode: 'role' = just your role/division tabs, 'general' = the general app, 'all' = everything.
@@ -144,9 +143,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     ...(!isTeamAccount ? [{ icon: Calendar, label: 'Calendar', color: 'text-pastel-pink-dark', tab: 'calendar' }] : []),
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' },
-                    ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
-                    ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-orange-dark', tab: 'user-management' }] : []),
-                    { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
+                    ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-emerald-400', tab: 'org-chart' }] : []),
+                    ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-violet-400', tab: 'user-management' }] : []),
+                    { icon: Lightbulb, label: 'Suggestions', color: 'text-amber-400', tab: 'suggestions' },
                     ...(isCofounder ? [{ icon: Construction, label: 'Unfinished Tabs', color: 'text-gray-400', tab: 'unfinished-tabs' }] : []),
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab, action }) => (
@@ -283,7 +282,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               ))}
             </div>
           )}
-          <hr className="mb-1.5 border-gray-200" />
+          {import.meta.env.DEV && !isTeamAccount && <hr className="mb-1.5 border-gray-200" />}
 
           {/* Home Tab */}
           <div
@@ -327,60 +326,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             </>
           )}
 
-          {/* Scouting Tab for regular accounts — dropdown with form + schedule */}
-          {!isTeamAccount && !isGuest && (
-            <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'scouting' || activeTab === 'schedule'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  setScoutingOpen(prev => !prev)
-                }}
-              >
-                <ClipboardList size={16} className="text-pastel-orange-dark" />
-                <span className="truncate flex-1">Scouting</span>
-                <ChevronRight
-                  size={14}
-                  className={`transition-transform ${scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule' ? 'rotate-90' : ''}`}
-                />
-              </div>
-
-              {(scoutingOpen || activeTab === 'scouting' || activeTab === 'schedule') && (
-                <div className="ml-4 mt-1 space-y-1">
-                  <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                      activeTab === 'scouting' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                    }`}
-                    onClick={() => {
-                      onTabChange('scouting')
-                      onToggle()
-                    }}
-                  >
-                    <ChevronRight size={14} className={activeTab === 'scouting' ? 'rotate-90' : ''} />
-                    <span className="truncate">Scouting Form</span>
-                  </div>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                      activeTab === 'schedule' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                    }`}
-                    onClick={() => {
-                      onTabChange('schedule')
-                      onToggle()
-                    }}
-                  >
-                    <ChevronRight size={14} className={activeTab === 'schedule' ? 'rotate-90' : ''} />
-                    <span className="truncate">Schedule</span>
-                  </div>
-                </div>
-              )}
-
-              <hr className="my-2 border-gray-200" />
-            </>
-          )}
-
+          {/* Scouting sits with the other unfinished tabs for now. The kiosk
+              (team accounts) and Comp Day still reach the form above. */}
           {/* Data Tab for team accounts — dropdown with scouting data only */}
           {isTeamAccount && (
             <>
@@ -503,7 +450,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 }`}
                 onClick={() => { onTabChange('notebook'); onToggle() }}
               >
-                <BookOpen size={16} className="text-pastel-blue-dark" />
+                <BookOpen size={16} className="text-emerald-400" />
                 <span className="truncate">Engineering Notebook</span>
               </div>
               <hr className="my-2 border-gray-200" />
@@ -521,7 +468,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               setBoardsOpen(prev => !prev)
             }}
           >
-            <FolderKanban size={16} className="text-pastel-blue-dark" />
+            <FolderKanban size={16} className="text-violet-400" />
             <span className="truncate flex-1">Boards</span>
             <ChevronRight
               size={14}
@@ -627,7 +574,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               }`}
               onClick={() => { onTabChange('workshops'); onToggle() }}
             >
-              <ClipboardEdit size={16} className="text-pastel-blue-dark" />
+              <ClipboardEdit size={16} className="text-amber-400" />
               <span className="truncate">Workshops</span>
             </div>
           )}
@@ -661,9 +608,11 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   onToggle()
                 }}
               >
-                <Gamepad2 size={16} className="text-pastel-pink-dark" />
+                <Gamepad2 size={16} className="text-fuchsia-400" />
                 <span className="truncate">Special Controls</span>
               </div>
+
+              <hr className="my-2 border-gray-200" />
             </>
           )}
           </>}

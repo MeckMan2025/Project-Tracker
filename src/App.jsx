@@ -413,6 +413,9 @@ function App() {
   const [musicStarted, setMusicStarted] = useState(false)
   const audioRef = useRef(null)
   const [compDayLock, setCompDayLock] = useState(null) // { role: 'scouting' | 'drive-team' | ... } or null
+  // Scouting is parked with the unfinished tabs until it's ready. The kiosk
+  // accounts and Comp Day scouts still need the form, so they keep it.
+  if (!isCofounder && !effectiveIsTeam && !compDayLock) blockedTabs.push('scouting', 'schedule')
   const [showPulse, setShowPulse] = useState(false)
 
   // Default sounds off for team accounts on first login
@@ -1417,7 +1420,8 @@ function App() {
                 ['sw-programming', 'Programming'], ['sw-io', 'Robot I/O'],
                 ['bug-tracker', 'Bug Tracker'], ['testing', 'Testing'],
                 ['design-matrix', 'Design Matrix'], ['expense-requests', 'Expense Requests'],
-                ['ai-manual', 'AI Manual'],
+                ['ai-manual', 'AI Manual'], ['scouting', 'Scouting Form'],
+                ['schedule', 'Match Schedule'],
               ].map(([tab, label]) => (
                 <button
                   key={tab}

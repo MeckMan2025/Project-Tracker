@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2 } from 'lucide-react'
+import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 
@@ -39,6 +39,8 @@ const INITIAL_ENTRY = {
   whyOption: '',
   whyNote: '',
   engagement: 'Somewhat',
+  mentorHelp: false,
+  mentorName: '',
   projectId: '',
   projectLink: '',
   photoUrl: '',
@@ -78,6 +80,9 @@ export default function EngineeringNotebook() {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterProject, setFilterProject] = useState('')
   const [filterEngagement, setFilterEngagement] = useState('')
+  // Adults on the roster, to name who helped. Optional — the yes/no is the
+  // part that matters for judging.
+  const [mentors, setMentors] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   const [expandedProject, setExpandedProject] = useState(null)
   const [showRequestProjectModal, setShowRequestProjectModal] = useState(false)
@@ -128,6 +133,26 @@ export default function EngineeringNotebook() {
   }, [])
 
 
+  // Mentors and coaches, for the "who helped" dropdown.
+  useEffect(() => {
+    let active = true
+    fetch(`${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    })
+      .then(res => (res.ok ? res.json() : []))
+      .then(rows => {
+        if (!active) return
+        setMentors(
+          (Array.isArray(rows) ? rows : [])
+            .filter(r => (r.function_tags || []).some(t => t === 'Mentor' || t === 'Coach'))
+            .map(r => r.display_name)
+            .filter(Boolean)
+        )
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
+
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
 
   // Submit entry
@@ -148,6 +173,8 @@ export default function EngineeringNotebook() {
       why_option: formData.whyOption,
       why_note: formData.whyNote.trim(),
       engagement: formData.engagement,
+      mentor_help: !!formData.mentorHelp,
+      mentor_name: formData.mentorHelp ? formData.mentorName.trim() : '',
       project_id: formData.projectId,
       project_link: formData.projectLink.trim(),
       photo_url: formData.photoUrl.trim(),
@@ -548,6 +575,14 @@ export default function EngineeringNotebook() {
                                           )}
                                         </div>
                                         <p className="text-sm text-gray-800 mt-1 font-medium">{entry.what_did}</p>
+                                        <p className="text-xs mt-1 flex items-center gap-1 text-gray-400">
+                                          {entry.mentor_help ? (
+                                            <>
+                                              <GraduationCap size={11} className="text-amber-500" />
+                                              Mentor helped{entry.mentor_name ? ` — ${entry.mentor_name}` : ''}
+                                            </>
+                                          ) : 'Done on their own'}
+                                        </p>
                                         <p className="text-xs text-gray-500 mt-1">
                                           <span className="font-medium">Why:</span> {entry.why_option}
                                           {entry.why_note && <span className="italic"> - {entry.why_note}</span>}
@@ -687,6 +722,40 @@ export default function EngineeringNotebook() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Mentor help — FTC judges care whether the work was student-led,
+                  so record it per entry rather than guessing later. */}
+              <div>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Did a mentor help?</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFormData(prev => ({ ...prev, mentorHelp: false, mentorName: '' }))}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      !formData.mentorHelp ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    I did this on my own
+                  </button>
+                  <button
+                    onClick={() => updateField('mentorHelp', true)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      formData.mentorHelp ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    <GraduationCap size={14} /> A mentor helped
+                  </button>
+                </div>
+                {formData.mentorHelp && (
+                  <select
+                    value={formData.mentorName}
+                    onChange={e => updateField('mentorName', e.target.value)}
+                    className="w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                  >
+                    <option value="">Which mentor? (optional)</option>
+                    {mentors.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                )}
               </div>
 
               {/* Project link (optional) */}
