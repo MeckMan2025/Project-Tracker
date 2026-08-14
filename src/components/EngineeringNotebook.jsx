@@ -41,6 +41,7 @@ const INITIAL_ENTRY = {
   engagement: 'Somewhat',
   mentorHelp: false,
   mentorName: '',
+  mentorNote: '',
   projectId: '',
   projectLink: '',
   photoUrl: '',
@@ -175,6 +176,7 @@ export default function EngineeringNotebook() {
       engagement: formData.engagement,
       mentor_help: !!formData.mentorHelp,
       mentor_name: formData.mentorHelp ? formData.mentorName.trim() : '',
+      mentor_note: formData.mentorHelp ? formData.mentorNote.trim() : '',
       project_id: formData.projectId,
       project_link: formData.projectLink.trim(),
       photo_url: formData.photoUrl.trim(),
@@ -575,11 +577,12 @@ export default function EngineeringNotebook() {
                                           )}
                                         </div>
                                         <p className="text-sm text-gray-800 mt-1 font-medium">{entry.what_did}</p>
-                                        <p className="text-xs mt-1 flex items-center gap-1 text-gray-400">
+                                        <p className="text-xs mt-1 flex items-start flex-wrap gap-x-1 text-gray-400">
                                           {entry.mentor_help ? (
                                             <>
-                                              <GraduationCap size={11} className="text-amber-500" />
+                                              <GraduationCap size={11} className="text-amber-500 shrink-0 mt-0.5" />
                                               Mentor helped{entry.mentor_name ? ` — ${entry.mentor_name}` : ''}
+                                              {entry.mentor_note ? <span className="italic text-gray-400">: {entry.mentor_note}</span> : null}
                                             </>
                                           ) : 'Done on their own'}
                                         </p>
@@ -730,7 +733,7 @@ export default function EngineeringNotebook() {
                 <label className="text-sm font-medium text-gray-600 block mb-1">Did a mentor help?</label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setFormData(prev => ({ ...prev, mentorHelp: false, mentorName: '' }))}
+                    onClick={() => setFormData(prev => ({ ...prev, mentorHelp: false, mentorName: '', mentorNote: '' }))}
                     className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       !formData.mentorHelp ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                     }`}
@@ -747,14 +750,24 @@ export default function EngineeringNotebook() {
                   </button>
                 </div>
                 {formData.mentorHelp && (
-                  <select
-                    value={formData.mentorName}
-                    onChange={e => updateField('mentorName', e.target.value)}
-                    className="w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                  >
-                    <option value="">Which mentor? (optional)</option>
-                    {mentors.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <>
+                    <select
+                      value={formData.mentorName}
+                      onChange={e => updateField('mentorName', e.target.value)}
+                      className="w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                    >
+                      <option value="">Which mentor?</option>
+                      {mentors.map(m => <option key={m} value={m}>{m}</option>)}
+                      <option value="Someone else">Someone else</option>
+                    </select>
+                    <textarea
+                      value={formData.mentorNote}
+                      onChange={e => updateField('mentorNote', e.target.value)}
+                      rows={2}
+                      placeholder="How did they help? e.g. showed me how to set gear ratios, I did the CAD"
+                      className="w-full mt-2 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                    />
+                  </>
                 )}
               </div>
 
