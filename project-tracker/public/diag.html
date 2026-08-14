@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ETS Diagnostics</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 16px; background: #fafafa; color: #333; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    p.sub { margin: 0 0 16px; color: #888; font-size: 13px; }
+    .row { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+    .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #999; }
+    .val { font-size: 14px; margin-top: 2px; word-break: break-all; }
+    .ok { color: #16a34a; } .bad { color: #dc2626; } .warn { color: #d97706; }
+    button { font-size: 15px; padding: 10px 14px; border-radius: 10px; border: 1px solid #ddd; background: #fff; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <h1>ETS Diagnostics</h1>
+  <p class="sub">Screenshot this page and send it over.</p>
+  <div id="out"></div>
+  <button onclick="location.reload()">Run again</button>
+  <button onclick="hardReset()">Clear cache &amp; reload app</button>
+
+  <script>
+    // Plain-language health check for the deployed app. Exists so a blank
+    // screen can be diagnosed from a phone, without DevTools.
+    var out = document.getElementById('out')
+    function row(label, value, cls) {
+      var d = document.createElement('div')
+      d.className = 'row'
+      d.innerHTML = '<div class="label"></div><div class="val"></div>'
+      d.children[0].textContent = label
+      d.children[1].textContent = value
+      d.children[1].className = 'val ' + (cls || '')
+      out.appendChild(d)
+    }
+
+    row('Page loaded', new Date().toString(), '')
+
+    // 1. What bundle does the CURRENT index.html point at, and does it exist?
+    fetch('/?diag=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.text() })
+      .then(function (html) {
+        var m = html.match(/assets\/index-[A-Za-z0-9_-]+\.js/)
+        if (!m) { row('App bundle', 'not found in index.html', 'bad'); return }
+        row('App bundle (fresh)', m[0], '')
+        return fetch('/' + m[0], { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+          row('Bundle downloads', r.status === 200 ? 'yes (200)' : 'NO — ' + r.status, r.status === 200 ? 'ok' : 'bad')
+        })
+      })
+      .catch(function (e) { row('Bundle check failed', String(e), 'bad') })
+
+    // 2. Service worker — a stuck one can serve an old page forever.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        row('Service workers', regs.length ? regs.length + ' registered' : 'none', regs.length ? 'warn' : 'ok')
+      })
+    } else { row('Service workers', 'not supported', '') }
+
+    // 3. Are we signed in? Presence only — never the token itself.
+    try {
+      var signedIn = false
+      for (var i = 0; i < localStorage.length; i++) {
+        if (/auth-token/.test(localStorage.key(i))) signedIn = true
+      }
+      row('Signed in', signedIn ? 'yes' : 'no', '')
+      row('Saved username', localStorage.getItem('scrum-username') || '(none)', '')
+      row('Last screen', localStorage.getItem('scrum-active-tab') || '(none)', '')
+    } catch (e) { row('Storage', 'unreadable: ' + String(e), 'bad') }
+
+    // 4. Load the real app hidden and capture whatever it throws.
+    var frame = document.createElement('iframe')
+    frame.style.cssText = 'position:absolute;left:-9999px;width:390px;height:700px'
+    frame.src = '/?diag=1'
+    var caught = null
+    frame.onload = function () {
+      try {
+        frame.contentWindow.onerror = function (msg, src, line) { caught = msg + '  @' + (src || '').split('/').pop() + ':' + line }
+        frame.contentWindow.addEventListener('unhandledrejection', function (e) {
+          caught = caught || ('unhandled promise: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)))
+        })
+      } catch (e) { /* ignore */ }
+    }
+    document.body.appendChild(frame)
+
+    setTimeout(function () {
+      var rendered = '(could not read)'
+      try {
+        var root = frame.contentDocument && frame.contentDocument.getElementById('root')
+        rendered = root ? (root.children.length ? 'yes — app rendered' : 'NO — root is empty (blank screen)') : 'no #root found'
+        if (root && root.children.length) {
+          var t = (root.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80)
+          row('First words on screen', t || '(none)', '')
+        }
+      } catch (e) { rendered = 'blocked: ' + String(e) }
+      row('App renders', rendered, /^yes/.test(rendered) ? 'ok' : 'bad')
+      row('Error thrown', caught || '(none captured)', caught ? 'bad' : 'ok')
+    }, 9000)
+
+    function hardReset() {
+      var done = function () { location.replace('/?fresh=' + Date.now()) }
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            Promise.all(regs.map(function (r) { return r.unregister() })).then(function () {
+              if (window.caches && caches.keys) {
+                caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k) })) }).then(done)
+              } else done()
+            })
+          })
+        } else done()
+      } catch (e) { done() }
+    }
+  </script>
+</body>
+</html>
