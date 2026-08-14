@@ -57,6 +57,7 @@ import { usePermissions } from './hooks/usePermissions'
 import { usePresence } from './hooks/usePresence'
 import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
+import ScreenBoundary from './components/ScreenBoundary'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import ExpenseRequests from './components/ExpenseRequests'
@@ -1359,7 +1360,9 @@ function App() {
       />
 
 
-      {/* Main Content */}
+      {/* Main Content — inside a boundary so one broken screen shows an
+          error with a way out instead of blanking the whole app. */}
+      <ScreenBoundary tab={activeTab} onHome={() => setActiveTab('home')}>
       {viewPersonTasks ? (
         <PersonTasksView
           name={viewPersonTasks}
@@ -1892,6 +1895,7 @@ function App() {
         </main>
       </div>
       )}
+      </ScreenBoundary>
 
       {/* Add/Edit Task Modal */}
       {(isModalOpen || editingTask) && (
