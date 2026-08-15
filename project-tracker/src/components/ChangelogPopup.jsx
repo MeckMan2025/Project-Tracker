@@ -19,6 +19,7 @@ const CHANGELOG = [
       '🎨 Timeline notes are colored by who\'s doing the work — Business pink, Technical blue, Project Managers yellow, a mix green',
       '🏷️ The Calendar section in the sidebar is called Season Progress now, holding Calendar and Timeline',
       '⏭️ Timeline hides days once they pass. Unfinished notes ride forward to the next meeting; anything you ticked off stays on the day it got done, under Show past',
+      '✏️ Timeline notes can be rewritten or moved to another date, and you can edit or delete your own comments',
       '💬 On the Timeline: leads, mentors and coaches pin the notes, anyone with a role can comment, and everyone can read the whole wall',
       '🔼 The dashboard toggle is just an arrow now, at the top right of Competition This Week',
       '📏 The calendar\'s top bar is one slim row now — title, date arrows, both dropdowns and the dashboard toggle all on one line',

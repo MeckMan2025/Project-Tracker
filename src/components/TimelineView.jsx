@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, X, MessageCircle, Trash2, Check, Send } from 'lucide-react'
+import { Plus, X, MessageCircle, Trash2, Check, Send, Pencil } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -188,6 +188,15 @@ export default function TimelineView() {
     }).catch(err => console.error('Timeline toggle failed:', err))
   }
 
+  const editCard = async (card, patch) => {
+    setCards(prev => prev.map(c => c.id === card.id ? { ...c, ...patch } : c))
+    setOpenCard(prev => prev && prev.id === card.id ? { ...prev, ...patch } : prev)
+    const res = await fetch(`${supabaseUrl}/rest/v1/timeline_cards?id=eq.${card.id}`, {
+      method: 'PATCH', headers: writeHeaders, body: JSON.stringify(patch),
+    }).catch(err => { console.error('Timeline edit failed:', err); return null })
+    if (res && !res.ok) console.error('Timeline edit rejected:', await res.text())
+  }
+
   const setSide = async (card, side) => {
     setCards(prev => prev.map(c => c.id === card.id ? { ...c, side } : c))
     setOpenCard(prev => prev && prev.id === card.id ? { ...prev, side } : prev)
@@ -218,6 +227,22 @@ export default function TimelineView() {
     await fetch(`${supabaseUrl}/rest/v1/timeline_comments`, {
       method: 'POST', headers: writeHeaders, body: JSON.stringify(row),
     }).catch(err => console.error('Timeline comment failed:', err))
+  }
+
+  const editComment = async (id, body) => {
+    const text = body.trim()
+    if (!text) return
+    setComments(prev => prev.map(c => c.id === id ? { ...c, body: text } : c))
+    await fetch(`${supabaseUrl}/rest/v1/timeline_comments?id=eq.${id}`, {
+      method: 'PATCH', headers: writeHeaders, body: JSON.stringify({ body: text }),
+    }).catch(err => console.error('Comment edit failed:', err))
+  }
+
+  const removeComment = async (id) => {
+    setComments(prev => prev.filter(c => c.id !== id))
+    await fetch(`${supabaseUrl}/rest/v1/timeline_comments?id=eq.${id}`, {
+      method: 'DELETE', headers,
+    }).catch(err => console.error('Comment delete failed:', err))
   }
 
   // ----------------------------------------------------------------- Render
@@ -387,6 +412,11 @@ export default function TimelineView() {
           onClose={() => setOpenCard(null)}
           onToggleDone={toggleDone}
           onSetSide={setSide}
+          onEdit={editCard}
+          dateOptions={allColumns}
+          onEditComment={editComment}
+          onDeleteComment={removeComment}
+          username={username}
           onDelete={removeCard}
           onComment={addComment}
         />
@@ -395,11 +425,21 @@ export default function TimelineView() {
   )
 }
 
-function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone, onSetSide, onDelete, onComment }) {
+function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone, onSetSide, onDelete, onComment, onEdit, dateOptions = [], onEditComment, onDeleteComment, username }) {
   const [text, setText] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(card.title)
   const s = sideOf(card.side)
 
   const send = () => { onComment(card.id, text); setText('') }
+
+  const saveTitle = () => {
+    const next = title.trim()
+    // An empty note would be unreadable on the wall, so keep the old text.
+    if (next && next !== card.title) onEdit(card, { title: next })
+    else setTitle(card.title)
+    setEditing(false)
+  }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
@@ -407,13 +447,65 @@ function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone,
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden">
         <div className="p-3.5" style={{ background: s.bg, borderBottom: `1px solid ${s.edge}` }}>
           <div className="flex items-start gap-2">
-            <p className="flex-1 text-sm text-gray-800 leading-snug" style={HAND}>{card.title}</p>
+            {editing ? (
+              <textarea
+                autoFocus
+                rows={3}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveTitle() }
+                  if (e.key === 'Escape') { setTitle(card.title); setEditing(false) }
+                }}
+                className="flex-1 text-sm text-gray-800 leading-snug rounded-lg px-2 py-1 border border-black/10 bg-white/70 resize-none"
+                style={HAND}
+              />
+            ) : (
+              <p
+                onClick={() => canEdit && setEditing(true)}
+                title={canEdit ? 'Click to edit' : undefined}
+                className={`flex-1 text-sm text-gray-800 leading-snug ${canEdit ? 'cursor-text hover:bg-black/5 rounded px-1 -mx-1' : ''}`}
+                style={HAND}
+              >
+                {card.title}
+              </p>
+            )}
             <button onClick={onClose} className="p-1 rounded hover:bg-black/10"><X size={15} /></button>
           </div>
-          <p className="text-[10px] text-gray-600 mt-1">
-            {fromKey(card.date_key).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-            {card.created_by ? ` · added by ${card.created_by}` : ''}
-          </p>
+
+          {editing ? (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {/* Moving a note is just changing which day it hangs under. */}
+              <select
+                value={card.date_key}
+                onChange={e => onEdit(card, { date_key: e.target.value })}
+                className="text-[10px] rounded-lg px-1.5 py-1 border border-black/10 bg-white/70"
+              >
+                {[...new Set([card.date_key, ...dateOptions])].sort().map(k => (
+                  <option key={k} value={k}>
+                    {fromKey(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={saveTitle}
+                className="ml-auto text-[10px] font-semibold px-2 py-1 rounded-lg bg-white/80 hover:bg-white text-gray-700"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setTitle(card.title); setEditing(false) }}
+                className="text-[10px] px-1.5 py-1 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <p className="text-[10px] text-gray-600 mt-1">
+              {fromKey(card.date_key).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              {card.created_by ? ` · added by ${card.created_by}` : ''}
+            </p>
+          )}
         </div>
 
         {canEdit && (
@@ -435,6 +527,13 @@ function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone,
             >
               <Check size={11} /> {card.done ? 'Done' : 'Mark done'}
             </button>
+            <button
+              onClick={() => setEditing(e => !e)}
+              title="Edit note"
+              className="p-1 rounded text-gray-400 hover:text-gray-600"
+            >
+              <Pencil size={14} />
+            </button>
             <button onClick={() => onDelete(card)} className="p-1 rounded text-gray-300 hover:text-red-400">
               <Trash2 size={14} />
             </button>
@@ -448,10 +547,14 @@ function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone,
           {comments.length === 0 ? (
             <p className="text-xs text-gray-400">No comments yet.</p>
           ) : comments.map(c => (
-            <div key={c.id} className="bg-gray-50 rounded-lg px-2.5 py-1.5">
-              <p className="text-[10px] font-semibold text-gray-500">{c.author}</p>
-              <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{c.body}</p>
-            </div>
+            <Comment
+              key={c.id}
+              comment={c}
+              /* Your own words are yours to fix; leads can tidy anyone's. */
+              canManage={canEdit || (username && c.author === username)}
+              onSave={onEditComment}
+              onDelete={onDeleteComment}
+            />
           ))}
         </div>
 
@@ -474,6 +577,61 @@ function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone,
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function Comment({ comment, canManage, onSave, onDelete }) {
+  const [editing, setEditing] = useState(false)
+  const [body, setBody] = useState(comment.body)
+
+  const save = () => {
+    const next = body.trim()
+    if (next && next !== comment.body) onSave?.(comment.id, next)
+    else setBody(comment.body)
+    setEditing(false)
+  }
+
+  return (
+    <div className="bg-gray-50 rounded-lg px-2.5 py-1.5 group">
+      <div className="flex items-center gap-1">
+        <p className="text-[10px] font-semibold text-gray-500 flex-1">{comment.author}</p>
+        {canManage && !editing && (
+          <>
+            <button onClick={() => setEditing(true)} className="p-0.5 text-gray-300 hover:text-gray-600" title="Edit">
+              <Pencil size={11} />
+            </button>
+            <button
+              onClick={() => { if (confirm('Delete this comment?')) onDelete?.(comment.id) }}
+              className="p-0.5 text-gray-300 hover:text-red-400"
+              title="Delete"
+            >
+              <Trash2 size={11} />
+            </button>
+          </>
+        )}
+      </div>
+      {editing ? (
+        <div className="mt-1">
+          <textarea
+            autoFocus
+            rows={2}
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() }
+              if (e.key === 'Escape') { setBody(comment.body); setEditing(false) }
+            }}
+            className="w-full text-xs border rounded-lg px-2 py-1 resize-none"
+          />
+          <div className="flex gap-1 mt-1">
+            <button onClick={save} className="text-[10px] font-semibold px-2 py-0.5 rounded bg-pastel-blue/50 hover:bg-pastel-blue">Save</button>
+            <button onClick={() => { setBody(comment.body); setEditing(false) }} className="text-[10px] px-1 text-gray-400 hover:text-gray-600">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{comment.body}</p>
+      )}
     </div>
   )
 }
