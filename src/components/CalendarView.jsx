@@ -652,22 +652,20 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
             <button onClick={() => shift(-1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronLeft size={16} /></button>
             <button onClick={() => setCursor(new Date())} className="px-2 py-0.5 rounded-lg text-xs font-medium hover:bg-pastel-blue/30">Today</button>
             <button onClick={() => shift(1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronRight size={16} /></button>
-            <span className="ml-1.5 text-sm font-semibold text-gray-700 whitespace-nowrap">{headerLabel}</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 ml-auto">
-            {VIEWS.map(v => {
-              const Active = v.id === view
-              return (
-                <button
-                  key={v.id}
-                  onClick={() => setView(v.id)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${Active ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  <v.Icon size={12} /> {v.label}
-                </button>
-              )
-            })}
+          {/* View switcher — a dropdown, matching the department filter below. */}
+          <div className="relative ml-auto shrink-0">
+            <select
+              value={view}
+              onChange={e => setView(e.target.value)}
+              className="appearance-none pl-2.5 pr-7 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 border border-transparent hover:bg-gray-200 transition-colors cursor-pointer"
+            >
+              {VIEWS.map(v => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
           </div>
 
           <NotificationBell />
@@ -707,6 +705,17 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       </header>
 
       <main className="flex-1 p-1.5 sm:p-4 overflow-auto">
+        {/* Month and year, large, above the grid — the small label that used
+            to sit next to Today lived in the header and was easy to miss. */}
+        <h2
+          className="text-4xl sm:text-5xl text-gray-700 text-center mb-3 mt-1 leading-none"
+          style={{ fontFamily: "'Kalam', cursive" }}
+        >
+          {/* Week and day views keep their range here, so removing the small
+              label next to Today doesn't lose what you're looking at. */}
+          {view === 'month' ? cursor.toLocaleString(undefined, { month: 'long', year: 'numeric' }) : headerLabel}
+        </h2>
+
         {showDashboard && (
           <Dashboard
             events={events}
