@@ -15,6 +15,7 @@ const CHANGELOG = [
       '🗓️ The month and year sit above the calendar in big handwriting instead of in small text next to Today',
       '🔽 Month / Week / Day / Agenda is a dropdown now too, so the calendar header stays uncluttered',
       '⬇️ The calendar dashboard moved below the grid, so the calendar is the first thing you see',
+      '🔼 The dashboard toggle is just an arrow now, at the top right of Competition This Week',
       '📏 The calendar\'s top bar is one slim row now — title, date arrows, both dropdowns and the dashboard toggle all on one line',
       '🎓 Notebook: pick which mentor helped you and write what they actually did, so the entry shows how much was yours',
       '🛟 If a page ever breaks, you now get a message and a Back to Home button instead of a blank white screen',

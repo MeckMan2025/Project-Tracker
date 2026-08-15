@@ -692,15 +692,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
             />
           </div>
 
-          <button
-            onClick={() => setShowDashboard(s => !s)}
-            title={showDashboard ? 'Hide dashboard' : 'Show dashboard'}
-            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-600"
-          >
-            {showDashboard ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            <span className="hidden sm:inline">Dashboard</span>
-          </button>
-
           <div className="ml-auto shrink-0">
             <NotificationBell />
           </div>
@@ -737,7 +728,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
 
         {/* Dashboard sits under the calendar — the grid is the reason you
             opened this tab, so it shouldn't be pushed down the page. */}
-        {showDashboard && (
+        {showDashboard ? (
           <div className="mt-4">
             <Dashboard
               events={events}
@@ -745,7 +736,19 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
               username={username}
               onOpenEvent={setOpenEvent}
               onOpenTask={onOpenTask}
+              onToggle={() => setShowDashboard(false)}
             />
+          </div>
+        ) : (
+          // Collapsed: the arrow stays in the same spot so it's where you left it.
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => setShowDashboard(true)}
+              title="Show dashboard"
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            >
+              <ChevronDown size={16} />
+            </button>
           </div>
         )}
       </main>
@@ -801,7 +804,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
-function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
+function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask, onToggle }) {
   const today = new Date()
   const weekStart = startOfWeek(today)
   const weekEnd = addDays(weekStart, 6)
@@ -827,11 +830,12 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
   const birthdays = all.filter(e => e.category === 'birthday').slice(0, 3)
   const nextComp = all.find(e => e.category === 'competition')
 
-  const Card = ({ title, children, accent }) => (
+  const Card = ({ title, children, accent, action }) => (
     <div className="bg-white/80 rounded-xl p-3 border border-gray-100 min-w-0">
       <div className="flex items-center gap-1.5 mb-2">
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent }} />
         <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{title}</h3>
+        {action && <div className="ml-auto -mr-1">{action}</div>}
       </div>
       {children}
     </div>
@@ -877,7 +881,19 @@ function Dashboard({ events, taskEvents, username, onOpenEvent, onOpenTask }) {
           </ul>
         )}
       </Card>
-      <Card title="Competition This Week" accent="#ef4444">
+      <Card
+        title="Competition This Week"
+        accent="#ef4444"
+        action={onToggle && (
+          <button
+            onClick={onToggle}
+            title="Hide dashboard"
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <ChevronUp size={16} />
+          </button>
+        )}
+      >
         {!nextComp ? <p className="text-xs text-gray-400">None this week.</p> : (
           <div onClick={() => onOpenEvent(nextComp)} className="cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
             <p className="text-sm font-semibold text-gray-700 truncate">🏆 {nextComp.name}</p>
