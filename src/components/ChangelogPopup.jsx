@@ -17,7 +17,7 @@ const CHANGELOG = [
     id: 154,
     date: '2026-08-12',
     items: [
-      '🎨 Every sidebar icon has its own color now, so you can find a section by its color instead of reading the whole list',
+      '🎨 Sidebar icons rotate through the usual pink, blue, and yellow so neighbouring tabs are easier to tell apart',
       '🎓 Notebook entries now record whether a mentor helped or you did it on your own, and which mentor it was — judges ask about this',
       '🔭 Scouting moved in with the other unfinished tabs until it\'s ready — the scouting kiosk and Competition Day still open the form as usual',
       '📏 Tidied the sidebar divider lines — no more doubled line above Home, and Special Controls closes off like every other section',

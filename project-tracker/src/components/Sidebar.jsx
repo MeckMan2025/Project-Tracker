@@ -141,9 +141,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   {[
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' },
-                    ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-emerald-400', tab: 'org-chart' }] : []),
-                    ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-violet-400', tab: 'user-management' }] : []),
-                    { icon: Lightbulb, label: 'Suggestions', color: 'text-amber-400', tab: 'suggestions' },
+                    ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
+                    ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-pink-dark', tab: 'user-management' }] : []),
+                    { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
                     ...(isCofounder ? [{ icon: Construction, label: 'Unfinished Tabs', color: 'text-gray-400', tab: 'unfinished-tabs' }] : []),
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab, action }) => (
@@ -448,7 +448,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 }`}
                 onClick={() => { onTabChange('calendar'); onToggle() }}
               >
-                <Calendar size={16} className="text-sky-400" />
+                <Calendar size={16} className="text-pastel-pink-dark" />
                 <span className="truncate">Calendar</span>
               </div>
               <hr className="my-2 border-gray-200" />
@@ -466,7 +466,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 }`}
                 onClick={() => { onTabChange('notebook'); onToggle() }}
               >
-                <BookOpen size={16} className="text-emerald-400" />
+                <BookOpen size={16} className="text-pastel-orange-dark" />
                 <span className="truncate">Engineering Notebook</span>
               </div>
               <hr className="my-2 border-gray-200" />
@@ -484,7 +484,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               setBoardsOpen(prev => !prev)
             }}
           >
-            <FolderKanban size={16} className="text-violet-400" />
+            <FolderKanban size={16} className="text-pastel-blue-dark" />
             <span className="truncate flex-1">Boards</span>
             <ChevronRight
               size={14}
@@ -590,7 +590,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               }`}
               onClick={() => { onTabChange('workshops'); onToggle() }}
             >
-              <ClipboardEdit size={16} className="text-amber-400" />
+              <ClipboardEdit size={16} className="text-pastel-orange-dark" />
               <span className="truncate">Workshops</span>
             </div>
           )}
@@ -624,7 +624,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   onToggle()
                 }}
               >
-                <Gamepad2 size={16} className="text-fuchsia-400" />
+                <Gamepad2 size={16} className="text-pastel-pink-dark" />
                 <span className="truncate">Special Controls</span>
               </div>
 
