@@ -36,6 +36,11 @@ export function usePermissions() {
   const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
   const isProgrammingLead = !!(functionTags && functionTags.includes('Programming Lead'))
   const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
+  // Timeline: leads, mentors and coaches pin the notes; anyone holding a
+  // role can comment. Guest and Team aren't roles — they're account kinds.
+  const roleTags = (functionTags || []).filter(t => t !== 'Guest' && t !== 'Team')
+  const hasAnyRole = roleTags.length > 0
+
   const businessAccess = isBusinessLead || isFullLead
   // Technical Lead oversees HARDWARE only — software/programming is its own
   // thing and stays with the Programming role and the whole-team leads.
@@ -73,6 +78,8 @@ export function usePermissions() {
     // Lead tags (Co-Founder, Mentor, Coach, Project Manager, Business Lead, Technical Lead)
     // Team accounts can also edit their own boards directly
     canEditContent: hasLeadTag || isTeam,
+    canAddTimelineNotes: hasLeadTag,
+    canCommentTimeline: !isTeam && (hasAnyRole || hasLeadTag),
     canReviewRequests: hasLeadTag,
     canDeleteScouting: hasLeadTag,
     canReorderScoutingRanks: hasLeadTag,

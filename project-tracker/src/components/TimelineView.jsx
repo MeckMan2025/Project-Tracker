@@ -58,7 +58,7 @@ function expandRecurrence(event, from, to) {
 
 export default function TimelineView() {
   const { username } = useUser()
-  const { isGuest, canEditContent } = usePermissions()
+  const { canAddTimelineNotes, canCommentTimeline } = usePermissions()
   const [events, setEvents] = useState([])
   const [cards, setCards] = useState([])
   const [comments, setComments] = useState([])
@@ -334,7 +334,7 @@ export default function TimelineView() {
                       )
                     })}
 
-                    {canEditContent && (
+                    {canAddTimelineNotes && (
                       addingAt === key ? (
                         <div className="rounded-sm border border-dashed border-gray-300 p-1.5 bg-white/70">
                           <textarea
@@ -382,8 +382,8 @@ export default function TimelineView() {
         <CardModal
           card={cards.find(c => c.id === openCard.id) || openCard}
           comments={commentsFor(openCard.id)}
-          canEdit={canEditContent}
-          canComment={!isGuest}
+          canEdit={canAddTimelineNotes}
+          canComment={canCommentTimeline}
           onClose={() => setOpenCard(null)}
           onToggleDone={toggleDone}
           onSetSide={setSide}
