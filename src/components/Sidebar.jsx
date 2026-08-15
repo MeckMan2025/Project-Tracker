@@ -439,7 +439,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {/* Only show separator if non-team Data section was rendered (team Data has its own hr) */}
           {!isTeamAccount && <hr className="my-2 border-gray-200" />}
 
-          {/* Calendar — a main nav tab, with Timeline under it. */}
+          {/* Season Progress — holds the Calendar and the Timeline. */}
           {!isTeamAccount && (
             <>
               <div
@@ -451,7 +451,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 onClick={() => setCalendarOpen(prev => !prev)}
               >
                 <Calendar size={16} className="text-pastel-pink-dark" />
-                <span className="truncate flex-1">Calendar</span>
+                <span className="truncate flex-1">Season Progress</span>
                 <ChevronRight
                   size={14}
                   className={`transition-transform ${calendarOpen || activeTab === 'calendar' || activeTab === 'timeline' ? 'rotate-90' : ''}`}
