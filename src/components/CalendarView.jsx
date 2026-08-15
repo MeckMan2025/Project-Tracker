@@ -660,25 +660,30 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           <NotificationBell />
         </div>
 
-        {/* Row 2: department filters — one swipeable row on phones, wrap on desktop */}
-        <div className="px-3 sm:px-4 pb-2 sm:ml-14 flex items-center gap-1 overflow-x-auto flex-nowrap sm:flex-wrap sm:overflow-visible [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {DEPARTMENTS.map(d => {
-            const active = filter === d.id
-            return (
-              <button
-                key={d.id}
-                onClick={() => setFilter(d.id)}
-                className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
-                  active
-                    ? 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white shadow-sm'
-                    : 'bg-white text-gray-600 hover:bg-pastel-pink/20 border border-gray-200'
-                }`}
-              >
-                <span className="leading-none">{d.emoji}</span>
-                <span>{d.label}</span>
-              </button>
-            )
-          })}
+        {/* Row 2: department filter as a dropdown — one control instead of a row
+            of chips that had to scroll sideways on a phone. */}
+        <div className="px-3 sm:px-4 pb-2 sm:ml-14 flex items-center gap-1">
+          <div className="relative shrink-0">
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className={`appearance-none pl-2.5 pr-7 py-1 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                filter === 'all'
+                  ? 'bg-white text-gray-600 border-gray-200 hover:bg-pastel-pink/20'
+                  : 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white border-transparent shadow-sm'
+              }`}
+            >
+              {DEPARTMENTS.map(d => (
+                <option key={d.id} value={d.id} className="text-gray-700 bg-white font-medium">
+                  {d.emoji} {d.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={12}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filter === 'all' ? 'text-gray-400' : 'text-white'}`}
+            />
+          </div>
           <button
             onClick={() => setShowDashboard(s => !s)}
             className="ml-auto flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-gray-200 hover:bg-pastel-blue/20 text-gray-600"
