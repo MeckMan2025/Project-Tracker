@@ -25,6 +25,9 @@ const CATEGORIES = {
   birthday:    { label: 'Birthday',    emoji: '🎂', color: '#ec4899', soft: '#fce7f3', text: '#be185d', dept: ['team'] },
   fundraising: { label: 'Fundraising', emoji: '💰', color: '#f97316', soft: '#ffedd5', text: '#c2410c', dept: ['business'] },
   finance:     { label: 'Finance Deadline', emoji: '💸', color: '#eab308', soft: '#fef9c3', text: '#a16207', dept: ['business'] },
+  // For anything that isn't one of the above — kept neutral so it doesn't
+  // read as a category with its own meaning.
+  other:       { label: 'Other',       emoji: '📌', color: '#6b7280', soft: '#f3f4f6', text: '#4b5563', dept: ['team'] },
 }
 
 // Quick-picks for the finance category — the deadlines Finance schedules most.
@@ -33,13 +36,16 @@ const FINANCE_DEADLINES = [
   'Fundraiser', 'Budget review', 'Purchasing deadline',
 ]
 
-const DEPARTMENTS = [
-  { id: 'all',         label: 'All',         emoji: '📅' },
-  { id: 'team',        label: 'Team',        emoji: '👥' },
-  { id: 'business',    label: 'Business',    emoji: '💼' },
-  { id: 'programming', label: 'Programming', emoji: '💻' },
-  { id: 'technical',   label: 'Technical',   emoji: '🔧' },
-  { id: 'mine',        label: 'My Calendar', emoji: '⭐' },
+// The filter list is built from the Boards tab, so adding a board adds a
+// calendar filter that shows that board's tasks. Only these three are fixed.
+const BOARD_EMOJI = { business: '💼', programming: '💻', technical: '🔧' }
+const boardFilters = (tabs) => [
+  { id: 'all',  label: 'All',  emoji: '📅' },
+  { id: 'team', label: 'Team', emoji: '👥' },
+  ...(tabs || [])
+    .filter(t => !t.type)
+    .map(b => ({ id: b.id, label: b.name, emoji: BOARD_EMOJI[b.id] || '📋' })),
+  { id: 'mine', label: 'My Calendar', emoji: '⭐' },
 ]
 
 const PRIORITIES = {
@@ -262,6 +268,13 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     return out
   }, [tasksByTab])
 
+  const departments = useMemo(() => boardFilters(tabs), [tabs])
+
+  // A deleted board would otherwise leave the calendar stuck on an empty filter.
+  useEffect(() => {
+    if (!departments.some(d => d.id === filter)) setFilter('all')
+  }, [departments, filter])
+
   // ---------------------------------------------------------------------- Filter
   const eventMatches = (ev) => {
     if (filter === 'all') return true
@@ -277,8 +290,8 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     }
     // Department filters
     if (ev.isTask) {
-      // Tasks belong to "Team" by default — surface in Team filter only.
-      return filter === 'team'
+      // A task belongs to the board it lives on, so picking that board shows it.
+      return (ev.task?.board_id || '') === filter
     }
     if (ev.department && ev.department === filter) return true
     // Allow categories to show in their natural department even if dept is unset.
@@ -673,7 +686,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
                   : 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white border-transparent shadow-sm'
               }`}
             >
-              {DEPARTMENTS.map(d => (
+              {departments.map(d => (
                 <option key={d.id} value={d.id} className="text-gray-700 bg-white font-medium">
                   {d.emoji} {d.label}
                 </option>
@@ -750,6 +763,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           onClose={() => setCreating(null)}
           onSubmit={handleCreate}
           canEdit={canEditContent}
+          departments={departments}
         />
       )}
 
@@ -760,6 +774,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           onClose={() => setEditing(null)}
           onSubmit={(payload) => handleUpdate(editing.id, payload, editing._editScope || 'all', editing._instanceDate || null)}
           canEdit={canEditContent}
+          departments={departments}
         />
       )}
 
@@ -1286,7 +1301,7 @@ function EventModal({ event, onClose, onDelete, onEdit, reactions, onReact, user
 // ---------------------------------------------------------------------------
 // Event form (handles both create and edit)
 // ---------------------------------------------------------------------------
-function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
+function EventForm({ dateKey, existing, onClose, onSubmit, canEdit, departments = [] }) {
   const isEdit = !!existing
   const [date, setDate]               = useState(existing?.date_key || dateKey)
   const [category, setCategory]       = useState(existing?.category || existing?.event_type || 'meeting')
@@ -1466,10 +1481,10 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit }) {
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Department</label>
               <select value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs mt-1">
-                <option value="team">Team</option>
-                <option value="business">Business</option>
-                <option value="programming">Programming</option>
-                <option value="technical">Technical</option>
+                {/* Same list as the filter, minus the two that aren't places. */}
+                {departments.filter(d => d.id !== 'all' && d.id !== 'mine').map(d => (
+                  <option key={d.id} value={d.id}>{d.emoji} {d.label}</option>
+                ))}
               </select>
             </div>
           </div>

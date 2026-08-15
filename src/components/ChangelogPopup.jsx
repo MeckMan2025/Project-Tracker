@@ -10,6 +10,8 @@ const CHANGELOG = [
     items: [
       '📅 Calendar is a sidebar tab now instead of hiding in the three-dots menu',
       '🔽 The calendar\'s All / Team / Business filter is a dropdown now instead of a row of chips you had to scroll sideways',
+      '🗂️ The calendar filter now lists your boards — add a board and it shows up as a filter, showing that board\'s tasks and events',
+      '📌 Calendar events can be filed under Other when none of the categories fit',
       '🎓 Notebook: pick which mentor helped you and write what they actually did, so the entry shows how much was yours',
       '🛟 If a page ever breaks, you now get a message and a Back to Home button instead of a blank white screen',
     ],
