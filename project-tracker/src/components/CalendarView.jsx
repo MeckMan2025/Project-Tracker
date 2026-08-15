@@ -716,16 +716,6 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           {view === 'month' ? cursor.toLocaleString(undefined, { month: 'long', year: 'numeric' }) : headerLabel}
         </h2>
 
-        {showDashboard && (
-          <Dashboard
-            events={events}
-            taskEvents={taskEvents}
-            username={username}
-            onOpenEvent={setOpenEvent}
-            onOpenTask={onOpenTask}
-          />
-        )}
-
         {view === 'month'  && <MonthView  cursor={cursor} eventsByDay={eventsByDay} onEventClick={handleEventClick} onDayClick={(k) => setSelectedDay(k)} canCreate={!isGuest} onCreate={(k) => setCreating({ date_key: k })} reactions={reactions} />}
         {view === 'week'   && <WeekView   cursor={cursor} eventsByDay={eventsByDay} onEventClick={handleEventClick} canCreate={!isGuest} onCreate={(k) => setCreating({ date_key: k })} reactions={reactions} />}
         {view === 'day'    && <DayView    cursor={cursor} eventsByDay={eventsByDay} onEventClick={handleEventClick} canCreate={!isGuest} onCreate={(k) => setCreating({ date_key: k })} reactions={reactions} />}
@@ -740,6 +730,20 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
             onCreate={() => setCreating({ date_key: selectedDay })}
             canCreate={!isGuest}
           />
+        )}
+
+        {/* Dashboard sits under the calendar — the grid is the reason you
+            opened this tab, so it shouldn't be pushed down the page. */}
+        {showDashboard && (
+          <div className="mt-4">
+            <Dashboard
+              events={events}
+              taskEvents={taskEvents}
+              username={username}
+              onOpenEvent={setOpenEvent}
+              onOpenTask={onOpenTask}
+            />
+          </div>
         )}
       </main>
 
