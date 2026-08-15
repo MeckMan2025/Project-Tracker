@@ -642,20 +642,21 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-20">
-        {/* Row 1: title · nav · view switcher · bell */}
-        <div className="pl-14 pr-3 sm:px-4 py-2 sm:ml-14 flex items-center gap-2 sm:gap-3 flex-wrap">
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent shrink-0">
+        {/* One row: title, date nav, both dropdowns, dashboard toggle, bell.
+            Two rows made the sticky bar tall enough to eat the grid on a phone. */}
+        <div className="pl-14 pr-3 sm:px-4 py-1.5 sm:ml-14 flex items-center gap-1.5 sm:gap-2 overflow-x-auto flex-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent shrink-0">
             Calendar
           </h1>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 shrink-0">
             <button onClick={() => shift(-1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronLeft size={16} /></button>
             <button onClick={() => setCursor(new Date())} className="px-2 py-0.5 rounded-lg text-xs font-medium hover:bg-pastel-blue/30">Today</button>
             <button onClick={() => shift(1)} className="p-1 rounded-lg hover:bg-pastel-blue/30"><ChevronRight size={16} /></button>
           </div>
 
-          {/* View switcher — a dropdown, matching the department filter below. */}
-          <div className="relative ml-auto shrink-0">
+          {/* View switcher */}
+          <div className="relative shrink-0">
             <select
               value={view}
               onChange={e => setView(e.target.value)}
@@ -668,19 +669,14 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
             <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
           </div>
 
-          <NotificationBell />
-        </div>
-
-        {/* Row 2: department filter as a dropdown — one control instead of a row
-            of chips that had to scroll sideways on a phone. */}
-        <div className="px-3 sm:px-4 pb-2 sm:ml-14 flex items-center gap-1">
+          {/* Department filter — keeps the gradient while a filter is on. */}
           <div className="relative shrink-0">
             <select
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              className={`appearance-none pl-2.5 pr-7 py-1 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+              className={`appearance-none pl-2.5 pr-7 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                 filter === 'all'
-                  ? 'bg-white text-gray-600 border-gray-200 hover:bg-pastel-pink/20'
+                  ? 'bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200'
                   : 'bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark text-white border-transparent shadow-sm'
               }`}
             >
@@ -695,12 +691,19 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
               className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filter === 'all' ? 'text-gray-400' : 'text-white'}`}
             />
           </div>
+
           <button
             onClick={() => setShowDashboard(s => !s)}
-            className="ml-auto flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-gray-200 hover:bg-pastel-blue/20 text-gray-600"
+            title={showDashboard ? 'Hide dashboard' : 'Show dashboard'}
+            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-600"
           >
-            {showDashboard ? <><ChevronUp size={12} /> Hide Dashboard</> : <><ChevronDown size={12} /> Show Dashboard</>}
+            {showDashboard ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            <span className="hidden sm:inline">Dashboard</span>
           </button>
+
+          <div className="ml-auto shrink-0">
+            <NotificationBell />
+          </div>
         </div>
       </header>
 
