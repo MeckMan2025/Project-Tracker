@@ -64,6 +64,7 @@ export default function TimelineView() {
   const [comments, setComments] = useState([])
   const [openCard, setOpenCard] = useState(null)
   const [addingAt, setAddingAt] = useState(null)   // date_key the new card belongs to
+  const [showPast, setShowPast] = useState(false)
   const [draft, setDraft] = useState('')
   const [draftSide, setDraftSide] = useState('mix')
   const todayRef = useRef(null)
@@ -101,7 +102,7 @@ export default function TimelineView() {
   // --------------------------------------------------------------- Columns
   // One column per meeting date. Dates that already hold cards stay even if the
   // meeting is later deleted, so a note can never end up with nowhere to live.
-  const columns = useMemo(() => {
+  const allColumns = useMemo(() => {
     const from = addDays(new Date(), -60)
     const to = addDays(new Date(), 365)
     const keys = new Set()
@@ -113,6 +114,20 @@ export default function TimelineView() {
     cards.forEach(c => keys.add(c.date_key))
     return [...keys].sort()
   }, [events, cards])
+
+  // Past dates drop off the strip. Anything finished stays put on the day it
+  // was done (visible under "past days"); anything still open rides forward to
+  // the next meeting so it can't be left behind.
+  const visibleColumns = useMemo(
+    () => (showPast ? allColumns : allColumns.filter(k => k >= todayKey)),
+    [allColumns, showPast, todayKey]
+  )
+  const firstUpcoming = visibleColumns.find(k => k >= todayKey) || null
+
+  const carriedOver = useMemo(
+    () => (showPast ? [] : cards.filter(c => c.date_key < todayKey && !c.done)),
+    [cards, showPast, todayKey]
+  )
 
   // Milestones ride above the line: anything big landing on or after this
   // column but before the next one.
@@ -131,13 +146,16 @@ export default function TimelineView() {
   const milestoneFor = (key, nextKey) =>
     milestones.filter(m => m.key >= key && (!nextKey || m.key < nextKey))
 
-  const cardsFor = (key) => cards.filter(c => c.date_key === key)
+  const cardsFor = (key) => {
+    const own = cards.filter(c => c.date_key === key)
+    return key === firstUpcoming ? [...carriedOver, ...own] : own
+  }
   const commentsFor = (id) => comments.filter(c => c.card_id === id)
 
   // Land on today rather than the far past.
   useEffect(() => {
     if (todayRef.current) todayRef.current.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [columns.length])
+  }, [visibleColumns.length])
 
   // ------------------------------------------------------------------ Write
   const addCard = async () => {
@@ -218,22 +236,35 @@ export default function TimelineView() {
               </span>
             ))}
           </div>
-          <div className="ml-auto shrink-0"><NotificationBell /></div>
+          <button
+            onClick={() => setShowPast(p => !p)}
+            className={`ml-auto shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg border transition-colors ${
+              showPast
+                ? 'bg-pastel-blue/40 border-pastel-blue-dark text-gray-700'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-pastel-blue/20'
+            }`}
+          >
+            {showPast ? 'Hide past' : 'Show past'}
+          </button>
+          <div className="shrink-0"><NotificationBell /></div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-3 sm:p-4">
-        {columns.length === 0 ? (
+      <main className="flex-1 overflow-y-auto p-3 sm:p-4">
+        {visibleColumns.length === 0 ? (
           <p className="text-center text-gray-400 mt-10 text-sm">
             No meetings on the calendar yet — add meetings and they'll line up here.
           </p>
         ) : (
-          <div className="flex gap-3 items-start min-w-max pb-6">
-            {columns.map((key, i) => {
+          // rotateX flips the scroller so its bar sits along the top; the row
+          // inside flips back so the cards read the right way up.
+          <div className="overflow-x-auto" style={{ transform: 'rotateX(180deg)' }}>
+          <div className="flex gap-3 items-start min-w-max pt-1 pb-4" style={{ transform: 'rotateX(180deg)' }}>
+            {visibleColumns.map((key, i) => {
               const d = fromKey(key)
               const isToday = key === todayKey
               const past = key < todayKey
-              const marks = milestoneFor(key, columns[i + 1])
+              const marks = milestoneFor(key, visibleColumns[i + 1])
               const list = cardsFor(key)
               return (
                 <div key={key} ref={isToday ? todayRef : null} className="w-40 shrink-0 flex flex-col">
@@ -242,8 +273,8 @@ export default function TimelineView() {
                     {marks.map((m, n) => (
                       <div
                         key={m.key + n}
-                        className="rounded-sm px-1.5 py-1 text-[10px] leading-tight text-gray-700 shadow-sm"
-                        style={{ ...HAND, background: '#EFE3C8', border: '1px solid #DCCBA6' }}
+                        className="rounded-lg px-1.5 py-1 text-[10px] leading-tight text-gray-700 shadow-sm bg-pastel-orange border border-pastel-orange-dark"
+                        style={HAND}
                       >
                         <span className="font-bold">{fromKey(m.key).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                         {' · '}{m.name}
@@ -252,20 +283,24 @@ export default function TimelineView() {
                   </div>
 
                   {/* The date card, on the line */}
+                  {/* Notebook-tab look: white card, pastel underline, pink when
+                      it's today — the same language as the rest of the app. */}
                   <div
-                    className={`rounded-sm px-2 py-1.5 text-center shadow-sm ${past ? 'opacity-60' : ''}`}
-                    style={{
-                      ...HAND,
-                      background: isToday ? '#FFE9A8' : '#E8DCC0',
-                      border: `1px solid ${isToday ? '#E9C766' : '#D5C6A4'}`,
-                    }}
+                    className={`rounded-lg px-2 py-1.5 text-center shadow-sm border ${
+                      isToday ? 'bg-pastel-pink border-pastel-pink-dark' : 'bg-white/90 border-gray-200'
+                    } ${past ? 'opacity-50' : ''}`}
+                    style={HAND}
                   >
-                    <div className="text-sm font-bold text-gray-700 leading-none">
+                    <div className="text-base font-bold text-gray-700 leading-none">
                       {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className={`text-[10px] ${isToday ? 'text-gray-600' : 'text-gray-400'}`}>
                       {isToday ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' })}
                     </div>
+                    <div
+                      className="h-0.5 rounded-full mt-1"
+                      style={{ background: isToday ? '#F4A3B5' : '#A8D8EA' }}
+                    />
                   </div>
                   <div className="h-3 w-px bg-gray-300 mx-auto" />
 
@@ -284,6 +319,12 @@ export default function TimelineView() {
                           <span className={`text-xs leading-snug block ${c.done ? 'line-through text-gray-500' : 'text-gray-800'}`}>
                             {c.title}
                           </span>
+                          {/* Rolled forward from a day that has passed. */}
+                          {!showPast && c.date_key < todayKey && (
+                            <span className="text-[9px] text-gray-500 block">
+                              ↪ from {fromKey(c.date_key).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
                           {n > 0 && (
                             <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-gray-600">
                               <MessageCircle size={9} /> {n}
@@ -332,6 +373,7 @@ export default function TimelineView() {
                 </div>
               )
             })}
+          </div>
           </div>
         )}
       </main>

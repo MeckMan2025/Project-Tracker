@@ -17,6 +17,7 @@ const CHANGELOG = [
       '⬇️ The calendar dashboard moved below the grid, so the calendar is the first thing you see',
       '📈 Timeline is the sticky-note wall on screen: meeting dates from the calendar run left to right, with notes hanging under each one',
       '🎨 Timeline notes are colored by who\'s doing the work — Business pink, Technical blue, Project Managers yellow, a mix green',
+      '⏭️ Timeline hides days once they pass. Unfinished notes ride forward to the next meeting; anything you ticked off stays on the day it got done, under Show past',
       '💬 Anyone can comment on a timeline note, and leads can add, recolor, tick off or delete them',
       '🔼 The dashboard toggle is just an arrow now, at the top right of Competition This Week',
       '📏 The calendar\'s top bar is one slim row now — title, date arrows, both dropdowns and the dashboard toggle all on one line',
