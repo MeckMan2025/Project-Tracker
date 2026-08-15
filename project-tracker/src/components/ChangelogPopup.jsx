@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 155,
     date: '2026-08-14',
     items: [
+      '📅 Calendar is a sidebar tab now instead of hiding in the three-dots menu',
       '🎓 Notebook: pick which mentor helped you and write what they actually did, so the entry shows how much was yours',
       '🛟 If a page ever breaks, you now get a message and a Back to Home button instead of a blank white screen',
     ],

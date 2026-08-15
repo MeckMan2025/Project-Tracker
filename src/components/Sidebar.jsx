@@ -140,7 +140,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <div className="space-y-1">
                   {[
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
-                    ...(!isTeamAccount ? [{ icon: Calendar, label: 'Calendar', color: 'text-pastel-pink-dark', tab: 'calendar' }] : []),
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' },
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-emerald-400', tab: 'org-chart' }] : []),
                     ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-violet-400', tab: 'user-management' }] : []),
@@ -437,6 +436,24 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
 
           {/* Only show separator if non-team Data section was rendered (team Data has its own hr) */}
           {!isTeamAccount && <hr className="my-2 border-gray-200" />}
+
+          {/* Calendar — a main nav tab, not buried in the menu. */}
+          {!isTeamAccount && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'calendar'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('calendar'); onToggle() }}
+              >
+                <Calendar size={16} className="text-sky-400" />
+                <span className="truncate">Calendar</span>
+              </div>
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
 
           {/* Engineering Notebook — also reachable from the Home gallery. */}
           {!isGuest && (
