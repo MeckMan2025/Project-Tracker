@@ -58,6 +58,7 @@ import { usePresence } from './hooks/usePresence'
 import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
+import TimelineView from './components/TimelineView'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import ExpenseRequests from './components/ExpenseRequests'
@@ -1498,7 +1499,7 @@ function App() {
           }}
         />
       ) : activeTab === 'timeline' ? (
-        <WorkingOnIt title="Timeline" />
+        <TimelineView />
       ) : activeTab === 'user-management' ? (
         <UserManagement onViewProfile={(id) => { setViewingProfileId(id); setProfileReturnTab('user-management'); setActiveTab('profile') }} />
       ) : activeTab === 'requests' ? (
