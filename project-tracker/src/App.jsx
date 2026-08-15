@@ -99,7 +99,7 @@ async function restDelete(table, filter) {
 // Tab access requirements: which minimum tier is needed
 const TAB_ACCESS = {
   // All tiers (including guest)
-  'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
+  'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest', 'timeline': 'guest',
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
@@ -1497,6 +1497,8 @@ function App() {
             setEditingTask(task)
           }}
         />
+      ) : activeTab === 'timeline' ? (
+        <WorkingOnIt title="Timeline" />
       ) : activeTab === 'user-management' ? (
         <UserManagement onViewProfile={(id) => { setViewingProfileId(id); setProfileReturnTab('user-management'); setActiveTab('profile') }} />
       ) : activeTab === 'requests' ? (
