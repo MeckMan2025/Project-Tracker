@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { notifyRequestReviewers } from '../utils/requestRouting'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight } from 'lucide-react'
+import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
@@ -119,7 +119,7 @@ function UserManagement({ onViewProfile }) {
   const { canManageUsers, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
-  const [activeSection, setActiveSection] = useState('radmems') // 'radmems' | 'teamro'
+  const [activeSection, setActiveSection] = useState('radmems') // 'radmems' | 'mentors' | 'teamro'
   // Direct "Add Member" (no whitelist) — creates the account and sets roles at once
   const [showAddMember, setShowAddMember] = useState(false)
   const [addEmail, setAddEmail] = useState('')
@@ -132,6 +132,17 @@ function UserManagement({ onViewProfile }) {
   const [addSubmitting, setAddSubmitting] = useState(false)
   // Past members archive
   const [pastMembers, setPastMembers] = useState([])
+
+  // Mentors and coaches are adults, not students — they get their own tab.
+  const rosterRows = [
+    ...registeredMembers.filter(m => !(m.function_tags || []).includes('Team')),
+    ...(canManageUsers ? pendingInvites.map(w => ({ ...w, __invite: true })) : []),
+  ]
+
+  const isAdultRow = (row) => {
+    const tags = row.__invite ? inviteRoles(row) : (row.function_tags || [])
+    return tags.some(t => t === 'Mentor' || t === 'Coach')
+  }
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [newEmail, setNewEmail] = useState('')
@@ -952,7 +963,8 @@ function UserManagement({ onViewProfile }) {
         {canManageUsers && (
           <div className="flex border-t">
             {[
-              { id: 'radmems', label: 'RadMems', icon: Users, count: registeredMembers.filter(m => !(m.function_tags || []).includes('Team')).length + (canManageUsers ? pendingInvites.length : 0) },
+              { id: 'radmems', label: 'RadMems', icon: Users, count: rosterRows.filter(r => !isAdultRow(r)).length },
+              { id: 'mentors', label: 'Mentors', icon: GraduationCap, count: rosterRows.filter(isAdultRow).length },
               { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
             ].map(t => {
               const TabIcon = t.icon
@@ -1436,40 +1448,22 @@ function UserManagement({ onViewProfile }) {
                         .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
                     : sorted
 
-                  // Adults get their own group. They aren't students, so they
-                  // don't belong in the same run of names — and it makes the
-                  // student roster the actual roster.
-                  const rolesOf = (row) => (row.__invite ? inviteRoles(row) : (row.function_tags || []))
-                  const isAdult = (row) => rolesOf(row).some(t => t === 'Mentor' || t === 'Coach')
-                  const students = combined.filter(r => !isAdult(r))
-                  const adults = combined.filter(isAdult)
-
-                  const card = (row) => (row.__invite
-                    ? renderMember(
-                        { id: `w-${row.id}`, display_name: inviteName(row.email), function_tags: inviteRoles(row), avatar_url: '' },
-                        row
-                      )
-                    : renderMember(row))
-
-                  const GroupHeading = ({ label, count }) => (
-                    <div className="flex items-center gap-2 pt-1">
-                      <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">{label}</h3>
-                      <span className="text-[10px] text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">{count}</span>
-                      <span className="flex-1 h-px bg-gray-200" />
-                    </div>
-                  )
+                  // Mentors and coaches have their own tab, so each list shows
+                  // only its own people.
+                  const shown = combined.filter(r => isAdultRow(r) === (activeSection === 'mentors'))
 
                   return (
                     <>
-                      {adults.length > 0 && <GroupHeading label="Team" count={students.length} />}
-                      {students.map(card)}
-
-                      {adults.length > 0 && (
-                        <>
-                          <GroupHeading label="Mentors & Coaches" count={adults.length} />
-                          {adults.map(card)}
-                        </>
-                      )}
+                      {shown.length === 0 ? (
+                        <p className="text-center text-gray-400 mt-10">
+                          {activeSection === 'mentors' ? 'No mentors or coaches yet.' : 'No members yet.'}
+                        </p>
+                      ) : shown.map(row => (row.__invite
+                        ? renderMember(
+                            { id: `w-${row.id}`, display_name: inviteName(row.email), function_tags: inviteRoles(row), avatar_url: '' },
+                            row
+                          )
+                        : renderMember(row)))}
                     </>
                   )
                 })()

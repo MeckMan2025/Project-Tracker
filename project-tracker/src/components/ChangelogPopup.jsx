@@ -9,7 +9,7 @@ const CHANGELOG = [
     date: '2026-08-15',
     items: [
       '🏆 The First Meet note counts meetings away instead of days — Tuesdays, Thursdays and Saturdays',
-      '🧑‍🏫 User Management groups Mentors & Coaches into their own section under the team, so the student roster reads as the roster',
+      '🧑‍🏫 User Management has a Mentors tab beside RadMems and TeamRo — mentors and coaches live there instead of in the student roster',
       '🗑️ The PasMems tab is gone — removed members are still archived behind the scenes, there just isn\'t a page for it',
     ],
   },
