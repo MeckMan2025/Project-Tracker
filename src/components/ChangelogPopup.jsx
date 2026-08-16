@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 156,
+    date: '2026-08-15',
+    items: [
+      '🧑‍🏫 User Management groups Mentors & Coaches into their own section under the team, so the student roster reads as the roster',
+      '🗑️ The PasMems tab is gone — removed members are still archived behind the scenes, there just isn\'t a page for it',
+    ],
+  },
+  {
     id: 155,
     date: '2026-08-14',
     items: [
