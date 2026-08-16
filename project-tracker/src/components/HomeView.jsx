@@ -384,9 +384,23 @@ function HomeView({ onTabChange, onOpenTask }) {
   const kickoffMs = SEASON_KICKOFF - now
   const kickoffPassed = kickoffMs <= 0
 
-  // First meet countdown — whole days, so it doesn't tick like the kickoff clock.
+  // First meet countdown, counted in MEETINGS rather than days — that's the
+  // unit the team plans in. Meetings run Tuesday, Thursday and Saturday.
   const firstMeetDays = Math.ceil((FIRST_MEET - now) / 86400000)
   const firstMeetPassed = firstMeetDays < 0
+  const meetingsAway = (() => {
+    const MEETING_DAYS = [2, 4, 6] // Tue, Thu, Sat
+    const cur = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const end = new Date(FIRST_MEET.getFullYear(), FIRST_MEET.getMonth(), FIRST_MEET.getDate())
+    let count = 0
+    // Bounded so a bad date can never spin: a season is nowhere near 800 days.
+    for (let i = 0; i < 800; i++) {
+      cur.setDate(cur.getDate() + 1)
+      if (cur >= end) break
+      if (MEETING_DAYS.includes(cur.getDay())) count++
+    }
+    return count
+  })()
   const countdown = {
     days: Math.max(0, Math.floor(kickoffMs / 86400000)),
     hours: Math.max(0, Math.floor((kickoffMs % 86400000) / 3600000)),
@@ -638,9 +652,9 @@ function HomeView({ onTabChange, onOpenTask }) {
               ) : (
                 <>
                   <p className="text-4xl font-bold text-gray-700 tabular-nums leading-tight" style={{ fontFamily: "'Kalam', cursive" }}>
-                    {firstMeetDays}
+                    {meetingsAway}
                   </p>
-                  <p className="text-xs text-gray-500 -mt-1">{firstMeetDays === 1 ? 'day away' : 'days away'}</p>
+                  <p className="text-xs text-gray-500 -mt-1">{meetingsAway === 1 ? 'meeting away' : 'meetings away'}</p>
                 </>
               )}
               <p className="text-[11px] text-gray-500 mt-2">
