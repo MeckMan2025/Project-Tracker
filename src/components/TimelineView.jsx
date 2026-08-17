@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, X, MessageCircle, Trash2, Check, Send, Pencil } from 'lucide-react'
+import { Plus, X, MessageCircle, Trash2, Check, Send, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -433,6 +433,17 @@ function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone,
 
   const send = () => { onComment(card.id, text); setText('') }
 
+  // Meeting dates either side of this note, from the same list the strip uses.
+  const days = [...new Set([card.date_key, ...dateOptions])].sort()
+  const at = days.indexOf(card.date_key)
+  const prevDate = at > 0 ? days[at - 1] : null
+  const nextDate = at >= 0 && at < days.length - 1 ? days[at + 1] : null
+  const labelOf = (k) => fromKey(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const shiftDate = (dir) => {
+    const target = dir > 0 ? nextDate : prevDate
+    if (target) onEdit(card, { date_key: target })
+  }
+
   const saveTitle = () => {
     const next = title.trim()
     // An empty note would be unreadable on the wall, so keep the old text.
@@ -507,6 +518,38 @@ function CardModal({ card, comments, canEdit, canComment, onClose, onToggleDone,
             </p>
           )}
         </div>
+
+        {/* Bump a note to the next (or previous) meeting date. Keeps the note,
+            its color and its comments — only the day changes. */}
+        {canEdit && (
+          <div className="px-3.5 py-2 flex items-center gap-1.5 border-b border-gray-100">
+            <button
+              onClick={() => shiftDate(-1)}
+              disabled={!prevDate}
+              title={prevDate ? `Move back to ${labelOf(prevDate)}` : 'No earlier meeting'}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="text-[11px] text-gray-500 tabular-nums">{labelOf(card.date_key)}</span>
+            <button
+              onClick={() => shiftDate(1)}
+              disabled={!nextDate}
+              title={nextDate ? `Move to ${labelOf(nextDate)}` : 'No later meeting'}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronRight size={15} />
+            </button>
+            {nextDate && (
+              <button
+                onClick={() => shiftDate(1)}
+                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-pastel-blue/40 hover:bg-pastel-blue text-gray-700"
+              >
+                Next meeting
+              </button>
+            )}
+          </div>
+        )}
 
         {canEdit && (
           <div className="px-3.5 py-2 flex items-center gap-1.5 border-b border-gray-100">
