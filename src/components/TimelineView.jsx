@@ -79,6 +79,8 @@ export default function TimelineView() {
   const movedRef = useRef(false)    // suppresses the click that follows a drag
   const hoverRef = useRef(null)     // read on drop, so it can't lag behind state
   const [ghost, setGhost] = useState(null)  // { card, x, y } — the note under the cursor
+  const [hoverIndex, setHoverIndex] = useState(null)  // which slot in the stack
+  const indexRef = useRef(null)
 
   // ------------------------------------------------------------------- Load
   useEffect(() => {
@@ -157,9 +159,21 @@ export default function TimelineView() {
   const milestoneFor = (key, nextKey) =>
     milestones.filter(m => m.key >= key && (!nextKey || m.key < nextKey))
 
-  // Highest sort value on a date, so a new or moved note goes to the bottom.
+  // Highest sort value on a date, so a new note goes to the bottom.
   const nextSortFor = (key) =>
     cards.filter(c => c.date_key === key).reduce((m, c) => Math.max(m, c.sort || 0), 0) + 1
+
+  // A sort value placing the note in slot `idx` of that date — halfway between
+  // its new neighbours. sort is a float, so there is always room between two.
+  const sortForSlot = (key, idx, movingId) => {
+    const list = cards.filter(c => c.date_key === key && c.id !== movingId).sort(bySort)
+    if (idx == null || idx >= list.length) {
+      return (list.length ? (list[list.length - 1].sort || 0) : 0) + 1
+    }
+    const next = list[idx].sort || 0
+    if (idx === 0) return next - 1
+    return ((list[idx - 1].sort || 0) + next) / 2
+  }
 
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) ||
     String(a.created_at || '').localeCompare(String(b.created_at || ''))
@@ -180,8 +194,10 @@ export default function TimelineView() {
     pressRef.current = null
     dragRef.current = null
     hoverRef.current = null
+    indexRef.current = null
     setDragId(null)
     setHoverKey(null)
+    setHoverIndex(null)
     setGhost(null)
   }
 
@@ -222,22 +238,39 @@ export default function TimelineView() {
     const key = col ? col.getAttribute('data-date-key') : null
     hoverRef.current = key
     setHoverKey(key)
+
+    // Which gap in the stack the note is aimed at: the first note whose middle
+    // sits below the pointer. The gap opens there, so the drop is aimed rather
+    // than guessed at.
+    if (!col) { indexRef.current = null; setHoverIndex(null); return }
+    const notes = [...col.querySelectorAll('[data-note-id]')]
+      .filter(n => n.getAttribute('data-note-id') !== dragRef.current.card.id)
+    let idx = notes.length
+    for (let i = 0; i < notes.length; i++) {
+      const r = notes[i].getBoundingClientRect()
+      if (e.clientY < r.top + r.height / 2) { idx = i; break }
+    }
+    indexRef.current = idx
+    setHoverIndex(idx)
   }
 
   const endPress = () => {
     const dragging = dragRef.current
     const target = hoverRef.current
-    if (dragging && target && target !== dragging.card.date_key) {
-      // Land at the end of the target date rather than sorting back in among
-      // notes that were written earlier.
-      editCard(dragging.card, { date_key: target, sort: nextSortFor(target) })
+    if (dragging && target) {
+      const sort = sortForSlot(target, indexRef.current, dragging.card.id)
+      if (target !== dragging.card.date_key || sort !== dragging.card.sort) {
+        editCard(dragging.card, { date_key: target, sort })
+      }
     }
     if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
     pressRef.current = null
     dragRef.current = null
     hoverRef.current = null
+    indexRef.current = null
     setDragId(null)
     setHoverKey(null)
+    setHoverIndex(null)
     setGhost(null)
   }
 
@@ -328,6 +361,51 @@ export default function TimelineView() {
     await fetch(`${supabaseUrl}/rest/v1/timeline_comments?id=eq.${id}`, {
       method: 'DELETE', headers,
     }).catch(err => console.error('Comment delete failed:', err))
+  }
+
+
+  // One note, used by every column. Kept as a function so the stack can have a
+  // placeholder spliced into it while dragging.
+  const noteCard = (c) => {
+    const s = sideOf(c.side)
+    const n = commentsFor(c.id).length
+    return (
+      <button
+        key={c.id}
+        data-note-id={c.id}
+        onPointerDown={(e) => beginPress(e, c)}
+        onPointerMove={onPointerMove}
+        onPointerUp={endPress}
+        onPointerCancel={cancelPress}
+        onClick={() => { if (!movedRef.current) setOpenCard(c) }}
+        className={`w-full text-left rounded-sm px-2 py-1.5 shadow-sm transition-transform hover:-translate-y-0.5 ${
+          canAddTimelineNotes ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
+        style={{
+          ...HAND,
+          background: s.bg,
+          border: `1px solid ${s.edge}`,
+          // Leads drag from the note, so the browser must not claim the gesture
+          // for scrolling first.
+          touchAction: canAddTimelineNotes ? 'none' : 'auto',
+        }}
+      >
+        <span className={`text-xs leading-snug block ${c.done ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+          {c.title}
+        </span>
+        {/* Rolled forward from a day that has passed. */}
+        {!showPast && c.date_key < todayKey && (
+          <span className="text-[9px] text-gray-500 block">
+            ↪ from {fromKey(c.date_key).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+        {n > 0 && (
+          <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-gray-600">
+            <MessageCircle size={9} /> {n}
+          </span>
+        )}
+      </button>
+    )
   }
 
   // ----------------------------------------------------------------- Render
@@ -423,46 +501,21 @@ export default function TimelineView() {
 
                   {/* Note cards hanging below */}
                   <div className="space-y-1.5">
-                    {list.map(c => {
-                      const s = sideOf(c.side)
-                      const n = commentsFor(c.id).length
-                      return (
-                        <button
-                          key={c.id}
-                          onPointerDown={(e) => beginPress(e, c)}
-                          onPointerMove={onPointerMove}
-                          onPointerUp={endPress}
-                          onPointerCancel={cancelPress}
-                          onClick={() => { if (!movedRef.current) setOpenCard(c) }}
-                          className={`w-full text-left rounded-sm px-2 py-1.5 shadow-sm transition-transform ${
-                            dragId === c.id ? 'opacity-50 scale-95' : 'hover:-translate-y-0.5'
-                          } ${canAddTimelineNotes ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                          style={{
-                            ...HAND,
-                            background: s.bg,
-                            border: `1px solid ${s.edge}`,
-                            // Leads drag from the note, so the browser must not
-                            // claim the gesture for scrolling first.
-                            touchAction: canAddTimelineNotes ? 'none' : 'auto',
-                          }}
-                        >
-                          <span className={`text-xs leading-snug block ${c.done ? 'line-through text-gray-500' : 'text-gray-800'}`}>
-                            {c.title}
-                          </span>
-                          {/* Rolled forward from a day that has passed. */}
-                          {!showPast && c.date_key < todayKey && (
-                            <span className="text-[9px] text-gray-500 block">
-                              ↪ from {fromKey(c.date_key).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                          {n > 0 && (
-                            <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-gray-600">
-                              <MessageCircle size={9} /> {n}
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
+                    {(() => {
+                      // The dragged note leaves the stack and a dashed slot opens
+                      // where it will land, so it drops into a real position
+                      // instead of appearing somewhere in the pile.
+                      const slot = dragId && hoverKey === key ? hoverIndex : null
+                      const rest = list.filter(c => c.id !== dragId)
+                      const gap = <div key="gap" className="h-9 rounded-sm border-2 border-dashed border-pastel-blue-dark bg-pastel-blue/20" />
+                      const out = []
+                      rest.forEach((c, i) => {
+                        if (slot === i) out.push(gap)
+                        out.push(noteCard(c))
+                      })
+                      if (slot != null && slot >= rest.length) out.push(gap)
+                      return out
+                    })()}
 
                     {canAddTimelineNotes && (
                       addingAt === key ? (
