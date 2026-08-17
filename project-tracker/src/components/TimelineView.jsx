@@ -68,6 +68,15 @@ export default function TimelineView() {
   const [draft, setDraft] = useState('')
   const [draftSide, setDraftSide] = useState('mix')
   const todayRef = useRef(null)
+  // Press-and-hold to drag a note onto another date. Pointer events rather than
+  // a drag library: the strip sits inside a rotateX wrapper (scrollbar on top),
+  // and hit-testing by screen point is unaffected by that transform.
+  const [dragId, setDragId] = useState(null)
+  const [hoverKey, setHoverKey] = useState(null)
+  const dragRef = useRef(null)      // { card } once the hold has armed
+  const pressRef = useRef(null)     // { card, x, y, timer, el, pointerId }
+  const movedRef = useRef(false)    // suppresses the click that follows a drag
+  const hoverRef = useRef(null)     // read on drop, so it can't lag behind state
 
   // ------------------------------------------------------------------- Load
   useEffect(() => {
@@ -156,6 +165,63 @@ export default function TimelineView() {
   useEffect(() => {
     if (todayRef.current) todayRef.current.scrollIntoView({ inline: 'center', block: 'nearest' })
   }, [visibleColumns.length])
+
+  const cancelPress = () => {
+    if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
+    pressRef.current = null
+    dragRef.current = null
+    hoverRef.current = null
+    setDragId(null)
+    setHoverKey(null)
+  }
+
+  const beginPress = (e, card) => {
+    if (!canAddTimelineNotes) return
+    const el = e.currentTarget
+    const pointerId = e.pointerId
+    const timer = setTimeout(() => {
+      dragRef.current = { card }
+      hoverRef.current = card.date_key
+      setDragId(card.id)
+      setHoverKey(card.date_key)
+      try { el.setPointerCapture(pointerId) } catch { /* ignore */ }
+    }, 220)
+    pressRef.current = { card, x: e.clientX, y: e.clientY, timer, el, pointerId }
+    movedRef.current = false
+  }
+
+  const onPointerMove = (e) => {
+    const press = pressRef.current
+    if (!press) return
+    // Before the hold arms, a real movement means the user is scrolling.
+    if (!dragRef.current) {
+      if (Math.abs(e.clientX - press.x) > 8 || Math.abs(e.clientY - press.y) > 8) {
+        clearTimeout(press.timer)
+        pressRef.current = null
+      }
+      return
+    }
+    movedRef.current = true
+    const under = document.elementFromPoint(e.clientX, e.clientY)
+    const col = under?.closest?.('[data-date-key]')
+    const key = col ? col.getAttribute('data-date-key') : null
+    hoverRef.current = key
+    setHoverKey(key)
+  }
+
+  const endPress = () => {
+    const dragging = dragRef.current
+    const target = hoverRef.current
+    if (dragging && target && target !== dragging.card.date_key) {
+      editCard(dragging.card, { date_key: target })
+    }
+    if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
+    pressRef.current = null
+    dragRef.current = null
+    hoverRef.current = null
+    setDragId(null)
+    setHoverKey(null)
+  }
 
   // ------------------------------------------------------------------ Write
   const addCard = async () => {
@@ -292,7 +358,14 @@ export default function TimelineView() {
               const marks = milestoneFor(key, visibleColumns[i + 1])
               const list = cardsFor(key)
               return (
-                <div key={key} ref={isToday ? todayRef : null} className="w-40 shrink-0 flex flex-col">
+                <div
+                  key={key}
+                  ref={isToday ? todayRef : null}
+                  data-date-key={key}
+                  className={`w-40 shrink-0 flex flex-col rounded-lg transition-colors ${
+                    dragId && hoverKey === key ? 'bg-pastel-blue/25 ring-2 ring-pastel-blue-dark' : ''
+                  }`}
+                >
                   {/* Milestones sit above the line, like the big notes on the wall. */}
                   <div className="min-h-[42px] flex flex-col justify-end gap-1 mb-1">
                     {marks.map((m, n) => (
@@ -337,9 +410,22 @@ export default function TimelineView() {
                       return (
                         <button
                           key={c.id}
-                          onClick={() => setOpenCard(c)}
-                          className="w-full text-left rounded-sm px-2 py-1.5 shadow-sm hover:-translate-y-0.5 transition-transform"
-                          style={{ ...HAND, background: s.bg, border: `1px solid ${s.edge}` }}
+                          onPointerDown={(e) => beginPress(e, c)}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={endPress}
+                          onPointerCancel={cancelPress}
+                          onClick={() => { if (!movedRef.current) setOpenCard(c) }}
+                          className={`w-full text-left rounded-sm px-2 py-1.5 shadow-sm transition-transform ${
+                            dragId === c.id ? 'opacity-50 scale-95' : 'hover:-translate-y-0.5'
+                          } ${canAddTimelineNotes ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                          style={{
+                            ...HAND,
+                            background: s.bg,
+                            border: `1px solid ${s.edge}`,
+                            // Leads drag from the note, so the browser must not
+                            // claim the gesture for scrolling first.
+                            touchAction: canAddTimelineNotes ? 'none' : 'auto',
+                          }}
                         >
                           <span className={`text-xs leading-snug block ${c.done ? 'line-through text-gray-500' : 'text-gray-800'}`}>
                             {c.title}

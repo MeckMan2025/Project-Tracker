@@ -8,7 +8,7 @@ const CHANGELOG = [
     id: 156,
     date: '2026-08-15',
     items: [
-      '➡️ Timeline notes can be bumped to the next meeting (or back one) with an arrow — the note, its color and its comments come along',
+      '🤏 Press and hold a timeline note to drag it onto any other date — the column lights up as you pass over it. The arrows in the note also still bump it a meeting either way',
       '🏆 The First Meet note counts meetings away instead of days — Tuesdays, Thursdays and Saturdays',
       '🧑‍🏫 User Management has a Mentors tab beside RadMems and TeamRo — mentors and coaches live there instead of in the student roster',
       '🗑️ The PasMems tab is gone — removed members are still archived behind the scenes, there just isn\'t a page for it',
