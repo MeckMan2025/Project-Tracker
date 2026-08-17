@@ -1341,16 +1341,30 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit, departments 
   const [description, setDescription] = useState(existing?.description || '')
   const [priority, setPriority]       = useState(existing?.priority || 'normal')
   const [department, setDepartment]   = useState(existing?.department || 'team')
-  // Team meetings run Saturdays 8 AM – 2 PM, so 'meeting' defaults to that;
-  // every other category keeps the 4–8 PM default.
-  const [startTime, setStartTime]     = useState(existing ? (existing.start_time || '') : '08:00')
-  const [endTime, setEndTime]         = useState(existing ? (existing.end_time || '') : '14:00')
+  // Meetings run after school on weekdays and all morning at the weekend, so
+  // the default follows the day the event lands on. Every other category keeps
+  // the 4–8 PM default.
+  const WEEKEND_HOURS = { start: '08:00', end: '14:00' }
+  const WEEKDAY_HOURS = { start: '16:00', end: '20:00' }
+  const hoursForDate = (key) => {
+    const day = fromKey(key || dateKey).getDay()
+    return (day === 0 || day === 6) ? WEEKEND_HOURS : WEEKDAY_HOURS
+  }
+  const initialHours = hoursForDate(existing?.date_key || dateKey)
+  const [startTime, setStartTime]     = useState(existing ? (existing.start_time || '') : initialHours.start)
+  const [endTime, setEndTime]         = useState(existing ? (existing.end_time || '') : initialHours.end)
   const timesTouched = useRef(false)
+  // Re-runs when the date changes too, so moving an event to a Saturday moves
+  // its hours with it — unless the times were set by hand.
   useEffect(() => {
     if (isEdit || timesTouched.current) return
-    if (category === 'meeting') { setStartTime('08:00'); setEndTime('14:00') }
-    else { setStartTime('16:00'); setEndTime('20:00') }
-  }, [category]) // eslint-disable-line
+    if (category === 'meeting') {
+      const h = hoursForDate(date)
+      setStartTime(h.start); setEndTime(h.end)
+    } else {
+      setStartTime(WEEKDAY_HOURS.start); setEndTime(WEEKDAY_HOURS.end)
+    }
+  }, [category, date]) // eslint-disable-line
   const [location, setLocation]       = useState(existing?.location || '')
   const [recurrence, setRecurrence]   = useState(existing?.recurrence || 'none')
   const [recurrenceUntil, setRecurrenceUntil] = useState(existing?.recurrence_until || '')
