@@ -8,7 +8,7 @@ const CHANGELOG = [
     id: 156,
     date: '2026-08-15',
     items: [
-      '🤏 Drag a timeline note onto another date and it simply joins the bottom of that day\'s list, with a dashed slot showing where it will sit. Leads, mentors and coaches only',
+      '🤏 Dragging a timeline note actually works now — it follows your cursor the whole way and joins the bottom of the day you drop it on. Leads, mentors and coaches only',
       '🏆 The First Meet note counts meetings away instead of days — Tuesdays, Thursdays and Saturdays',
       '🧑‍🏫 User Management has a Mentors tab beside RadMems and TeamRo — mentors and coaches live there instead of in the student roster',
       '🗑️ The PasMems tab is gone — removed members are still archived behind the scenes, there just isn\'t a page for it',

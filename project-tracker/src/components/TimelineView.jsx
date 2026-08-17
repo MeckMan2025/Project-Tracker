@@ -79,7 +79,6 @@ export default function TimelineView() {
   const movedRef = useRef(false)    // suppresses the click that follows a drag
   const hoverRef = useRef(null)     // read on drop, so it can't lag behind state
   const [ghost, setGhost] = useState(null)  // { card, x, y } — the note under the cursor
-  const [hoverIndex, setHoverIndex] = useState(null)  // which slot in the stack
 
   // ------------------------------------------------------------------- Load
   useEffect(() => {
@@ -179,74 +178,84 @@ export default function TimelineView() {
     if (todayRef.current) todayRef.current.scrollIntoView({ inline: 'center', block: 'nearest' })
   }, [visibleColumns.length])
 
-  const cancelPress = () => {
-    if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
-    pressRef.current = null
-    dragRef.current = null
-    hoverRef.current = null
-    setDragId(null)
-    setHoverKey(null)
-    setHoverIndex(null)
-    setGhost(null)
-  }
+  // Drag lives on window listeners, not on the note element. The note is a
+  // React child that re-renders during a drag, and anything attached to it (or
+  // holding its pointer capture) stops receiving events the moment it changes —
+  // which looked like the drag freezing and the note landing somewhere random.
+  const resetDrag = useRef(() => {})
 
   const beginPress = (e, card) => {
     if (!canAddTimelineNotes) return
-    const el = e.currentTarget
-    const pointerId = e.pointerId
-    const timer = setTimeout(() => {
+    movedRef.current = false
+    const start = { x: e.clientX, y: e.clientY }
+    const state = { card, start, last: { ...start }, timer: null }
+    pressRef.current = state
+
+    const detach = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+
+    const finish = () => {
+      if (state.timer) clearTimeout(state.timer)
+      pressRef.current = null
+      dragRef.current = null
+      hoverRef.current = null
+      document.body.style.userSelect = ''
+      setDragId(null)
+      setHoverKey(null)
+      setGhost(null)
+      detach()
+    }
+    resetDrag.current = finish
+
+    function onMove(ev) {
+      state.last = { x: ev.clientX, y: ev.clientY }
+      // Before the hold arms, real movement means the user is scrolling.
+      if (!dragRef.current) {
+        if (Math.abs(ev.clientX - start.x) > 8 || Math.abs(ev.clientY - start.y) > 8) {
+          clearTimeout(state.timer)
+          pressRef.current = null
+          detach()
+        }
+        return
+      }
+      if (ev.cancelable) ev.preventDefault()
+      movedRef.current = true
+      setGhost(g => (g ? { ...g, x: ev.clientX, y: ev.clientY } : g))
+      const col = document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.('[data-date-key]')
+      const key = col ? col.getAttribute('data-date-key') : null
+      hoverRef.current = key
+      setHoverKey(key)
+    }
+
+    function onUp() {
+      const dragging = dragRef.current
+      const target = hoverRef.current
+      // Joins the end of that date's list, tucked under the note above it.
+      if (dragging && target && target !== dragging.card.date_key) {
+        editCard(dragging.card, { date_key: target, sort: nextSortFor(target, dragging.card.id) })
+      }
+      finish()
+    }
+
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+
+    state.timer = setTimeout(() => {
       dragRef.current = { card }
       hoverRef.current = card.date_key
+      document.body.style.userSelect = 'none'
       setDragId(card.id)
       setHoverKey(card.date_key)
-      setGhost({ card, x: last.x, y: last.y })
-      try { el.setPointerCapture(pointerId) } catch { /* ignore */ }
-    }, 220)
-    // The hold fires later, so remember where the pointer actually is.
-    const last = { x: e.clientX, y: e.clientY }
-    pressRef.current = { card, x: e.clientX, y: e.clientY, timer, el, pointerId, last }
-    movedRef.current = false
+      setGhost({ card, x: state.last.x, y: state.last.y })
+    }, 200)
   }
 
-  const onPointerMove = (e) => {
-    const press = pressRef.current
-    if (!press) return
-    // Before the hold arms, a real movement means the user is scrolling.
-    if (!dragRef.current) {
-      press.last = { x: e.clientX, y: e.clientY }
-      if (Math.abs(e.clientX - press.x) > 8 || Math.abs(e.clientY - press.y) > 8) {
-        clearTimeout(press.timer)
-        pressRef.current = null
-      }
-      return
-    }
-    movedRef.current = true
-    setGhost(g => (g ? { ...g, x: e.clientX, y: e.clientY } : g))
-    const under = document.elementFromPoint(e.clientX, e.clientY)
-    const col = under?.closest?.('[data-date-key]')
-    const key = col ? col.getAttribute('data-date-key') : null
-    hoverRef.current = key
-    setHoverKey(key)
-
-    setHoverIndex(col ? 'end' : null)
-  }
-
-  const endPress = () => {
-    const dragging = dragRef.current
-    const target = hoverRef.current
-    // Joins the end of that date's list, tucked under the note above it.
-    if (dragging && target && target !== dragging.card.date_key) {
-      editCard(dragging.card, { date_key: target, sort: nextSortFor(target, dragging.card.id) })
-    }
-    if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
-    pressRef.current = null
-    dragRef.current = null
-    hoverRef.current = null
-    setDragId(null)
-    setHoverKey(null)
-    setHoverIndex(null)
-    setGhost(null)
-  }
+  // Leaving the page mid-drag shouldn't leave listeners behind.
+  useEffect(() => () => resetDrag.current(), [])
 
   // ------------------------------------------------------------------ Write
   const addCard = async () => {
@@ -348,13 +357,10 @@ export default function TimelineView() {
         key={c.id}
         data-note-id={c.id}
         onPointerDown={(e) => beginPress(e, c)}
-        onPointerMove={onPointerMove}
-        onPointerUp={endPress}
-        onPointerCancel={cancelPress}
         onClick={() => { if (!movedRef.current) setOpenCard(c) }}
-        className={`w-full text-left rounded-sm px-2 py-1.5 shadow-sm transition-transform hover:-translate-y-0.5 ${
-          canAddTimelineNotes ? 'cursor-grab active:cursor-grabbing' : ''
-        }`}
+        className={`w-full text-left rounded-sm px-2 py-1.5 shadow-sm transition-transform ${
+          dragId === c.id ? 'opacity-40' : 'hover:-translate-y-0.5'
+        } ${canAddTimelineNotes ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{
           ...HAND,
           background: s.bg,
@@ -479,11 +485,10 @@ export default function TimelineView() {
                       // The dragged note leaves the stack and a dashed slot shows
                       // at the bottom, which is where it lands — under the note
                       // above it, not wherever the cursor happened to be.
-                      const landingHere = dragId && hoverKey === key && hoverIndex === 'end'
-                      const rest = list.filter(c => c.id !== dragId)
+                      const landingHere = dragId && hoverKey === key
                       return (
                         <>
-                          {rest.map(noteCard)}
+                          {list.map(noteCard)}
                           {landingHere && (
                             <div className="h-9 rounded-sm border-2 border-dashed border-pastel-blue-dark bg-pastel-blue/20" />
                           )}
