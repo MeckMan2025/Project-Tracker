@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Plus, X, MessageCircle, Trash2, Check, Send, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../supabase'
@@ -77,6 +78,7 @@ export default function TimelineView() {
   const pressRef = useRef(null)     // { card, x, y, timer, el, pointerId }
   const movedRef = useRef(false)    // suppresses the click that follows a drag
   const hoverRef = useRef(null)     // read on drop, so it can't lag behind state
+  const [ghost, setGhost] = useState(null)  // { card, x, y } — the note under the cursor
 
   // ------------------------------------------------------------------- Load
   useEffect(() => {
@@ -155,8 +157,15 @@ export default function TimelineView() {
   const milestoneFor = (key, nextKey) =>
     milestones.filter(m => m.key >= key && (!nextKey || m.key < nextKey))
 
+  // Highest sort value on a date, so a new or moved note goes to the bottom.
+  const nextSortFor = (key) =>
+    cards.filter(c => c.date_key === key).reduce((m, c) => Math.max(m, c.sort || 0), 0) + 1
+
+  const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) ||
+    String(a.created_at || '').localeCompare(String(b.created_at || ''))
+
   const cardsFor = (key) => {
-    const own = cards.filter(c => c.date_key === key)
+    const own = cards.filter(c => c.date_key === key).sort(bySort)
     return key === firstUpcoming ? [...carriedOver, ...own] : own
   }
   const commentsFor = (id) => comments.filter(c => c.card_id === id)
@@ -173,6 +182,7 @@ export default function TimelineView() {
     hoverRef.current = null
     setDragId(null)
     setHoverKey(null)
+    setGhost(null)
   }
 
   const beginPress = (e, card) => {
@@ -184,9 +194,12 @@ export default function TimelineView() {
       hoverRef.current = card.date_key
       setDragId(card.id)
       setHoverKey(card.date_key)
+      setGhost({ card, x: last.x, y: last.y })
       try { el.setPointerCapture(pointerId) } catch { /* ignore */ }
     }, 220)
-    pressRef.current = { card, x: e.clientX, y: e.clientY, timer, el, pointerId }
+    // The hold fires later, so remember where the pointer actually is.
+    const last = { x: e.clientX, y: e.clientY }
+    pressRef.current = { card, x: e.clientX, y: e.clientY, timer, el, pointerId, last }
     movedRef.current = false
   }
 
@@ -195,6 +208,7 @@ export default function TimelineView() {
     if (!press) return
     // Before the hold arms, a real movement means the user is scrolling.
     if (!dragRef.current) {
+      press.last = { x: e.clientX, y: e.clientY }
       if (Math.abs(e.clientX - press.x) > 8 || Math.abs(e.clientY - press.y) > 8) {
         clearTimeout(press.timer)
         pressRef.current = null
@@ -202,6 +216,7 @@ export default function TimelineView() {
       return
     }
     movedRef.current = true
+    setGhost(g => (g ? { ...g, x: e.clientX, y: e.clientY } : g))
     const under = document.elementFromPoint(e.clientX, e.clientY)
     const col = under?.closest?.('[data-date-key]')
     const key = col ? col.getAttribute('data-date-key') : null
@@ -213,7 +228,9 @@ export default function TimelineView() {
     const dragging = dragRef.current
     const target = hoverRef.current
     if (dragging && target && target !== dragging.card.date_key) {
-      editCard(dragging.card, { date_key: target })
+      // Land at the end of the target date rather than sorting back in among
+      // notes that were written earlier.
+      editCard(dragging.card, { date_key: target, sort: nextSortFor(target) })
     }
     if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
     pressRef.current = null
@@ -221,6 +238,7 @@ export default function TimelineView() {
     hoverRef.current = null
     setDragId(null)
     setHoverKey(null)
+    setGhost(null)
   }
 
   // ------------------------------------------------------------------ Write
@@ -232,6 +250,7 @@ export default function TimelineView() {
       date_key: addingAt,
       title,
       side: draftSide,
+      sort: nextSortFor(addingAt),
       created_by: username || '',
     }
     setCards(prev => [...prev, row])
@@ -350,7 +369,7 @@ export default function TimelineView() {
           // rotateX flips the scroller so its bar sits along the top; the row
           // inside flips back so the cards read the right way up.
           <div className="overflow-x-auto" style={{ transform: 'rotateX(180deg)' }}>
-          <div className="flex gap-3 items-start min-w-max pt-1 pb-4" style={{ transform: 'rotateX(180deg)' }}>
+          <div className="flex gap-3 items-stretch min-w-max pt-1 pb-4" style={{ transform: 'rotateX(180deg)' }}>
             {visibleColumns.map((key, i) => {
               const d = fromKey(key)
               const isToday = key === todayKey
@@ -362,7 +381,7 @@ export default function TimelineView() {
                   key={key}
                   ref={isToday ? todayRef : null}
                   data-date-key={key}
-                  className={`w-40 shrink-0 flex flex-col rounded-lg transition-colors ${
+                  className={`w-40 shrink-0 flex flex-col rounded-lg transition-colors min-h-[55vh] ${
                     dragId && hoverKey === key ? 'bg-pastel-blue/25 ring-2 ring-pastel-blue-dark' : ''
                   }`}
                 >
@@ -481,6 +500,14 @@ export default function TimelineView() {
                       )
                     )}
                   </div>
+
+                  {/* Grows to fill the column so the whole band under a date
+                      accepts a drop, not just the notes already there. */}
+                  <div className="flex-1 min-h-[40px] flex items-start justify-center pt-1">
+                    {dragId && hoverKey === key && (
+                      <span className="text-[10px] text-pastel-blue-dark font-semibold">drop here</span>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -489,6 +516,26 @@ export default function TimelineView() {
         )}
       </main>
 
+
+      {/* The note travels with the pointer. Portalled to <body> because the
+          strip's rotateX wrapper would otherwise both flip it and act as the
+          containing block for position:fixed. */}
+      {ghost && createPortal(
+        <div
+          className="fixed z-[200] pointer-events-none w-36 rounded-sm px-2 py-1.5 shadow-lg -rotate-2"
+          style={{
+            ...HAND,
+            left: ghost.x,
+            top: ghost.y,
+            transform: 'translate(-50%, -50%) rotate(-2deg)',
+            background: sideOf(ghost.card.side).bg,
+            border: `1px solid ${sideOf(ghost.card.side).edge}`,
+          }}
+        >
+          <span className="text-xs leading-snug text-gray-800">{ghost.card.title}</span>
+        </div>,
+        document.body
+      )}
       {openCard && (
         <CardModal
           card={cards.find(c => c.id === openCard.id) || openCard}
