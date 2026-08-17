@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   ChevronLeft, ChevronRight, Plus, X, Trash2, Pencil,
   CalendarDays, CalendarRange, Calendar as CalendarIcon, List,
-  ChevronDown, ChevronUp, Repeat, AlertCircle,
+  ChevronDown, ChevronUp, Repeat, AlertCircle, Bell,
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -621,6 +621,67 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     setOpenEvent(ev)
   }
 
+
+  // Test notification, Kayden only — the quickest way to find out whose phone
+  // is actually receiving anything.
+  const isKayden = (username || '').toLowerCase().includes('kayden')
+  const [testOpen, setTestOpen] = useState(false)
+  const [testBusy, setTestBusy] = useState(false)
+  const [testResult, setTestResult] = useState('')
+
+  const sendTest = async (toEveryone) => {
+    if (!user?.id) { addToast('No user — sign in first', 'error'); return }
+    setTestBusy(true); setTestResult('')
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const rest = { apikey: key, Authorization: `Bearer ${key}` }
+
+    // Ask for permission here if this device never granted it, or the test
+    // reports failure for a reason that has nothing to do with the others.
+    if (pushSupported && !pushSubscribed) await pushSubscribe().catch(() => {})
+
+    let ids = [user.id]
+    if (toEveryone) {
+      try {
+        const res = await fetch(`${url}/rest/v1/profiles?select=id`, { headers: rest })
+        const data = await res.json()
+        if (Array.isArray(data)) ids = data.map(r => r.id).filter(Boolean)
+      } catch {
+        setTestBusy(false); setTestResult('Could not load the team list.'); return
+      }
+    }
+
+    const sender = username || 'A teammate'
+    let delivered = 0
+    await Promise.all(ids.map(async (uid) => {
+      const notif = {
+        id: 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + uid.slice(0, 4),
+        user_id: uid,
+        type: 'calendar_event',
+        title: `🔔 Test from ${sender}`,
+        body: 'If you can see this, your notifications are working.',
+        force: true,
+      }
+      await fetch(`${url}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { ...rest, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify(notif),
+      }).catch(() => {})
+      try {
+        const res = await fetch(`${url}/functions/v1/send-push`, {
+          method: 'POST',
+          headers: { ...rest, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ record: notif }),
+        })
+        const body = await res.json().catch(() => null)
+        if (body?.sent) delivered += body.sent
+      } catch { /* ignore */ }
+    }))
+
+    setTestBusy(false)
+    setTestResult(`Bell: ${ids.length} · pushed to ${delivered} device${delivered === 1 ? '' : 's'}`)
+  }
+
   // ---------------------------------------------------------------------- Header
   const headerLabel = useMemo(() => {
     if (view === 'month') return cursor.toLocaleString(undefined, { month: 'long', year: 'numeric' })
@@ -752,6 +813,57 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           </div>
         )}
       </main>
+
+
+      {/* Test notification — Kayden only. Sending to everyone is how we check at
+          a meeting who still hasn't switched notifications on. */}
+      {isKayden && (
+        <>
+          <button
+            onClick={() => setTestOpen(true)}
+            title="Send a test notification"
+            className="fixed bottom-4 right-4 z-40 w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg hover:bg-pastel-pink/30 flex items-center justify-center"
+          >
+            <Bell size={17} className="text-pastel-pink-dark" />
+          </button>
+
+          {testOpen && (
+            <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/40" onClick={() => setTestOpen(false)} />
+              <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                  <Bell size={15} className="text-pastel-pink-dark" />
+                  <h3 className="text-sm font-bold text-gray-700 flex-1">Test notification</h3>
+                  <button onClick={() => setTestOpen(false)} className="p-1 rounded hover:bg-gray-100">
+                    <X size={14} className="text-gray-500" />
+                  </button>
+                </div>
+                <div className="p-3 space-y-2">
+                  <button
+                    onClick={() => sendTest(false)}
+                    disabled={testBusy}
+                    className="w-full py-2 rounded-xl text-sm font-semibold bg-pastel-blue/40 hover:bg-pastel-blue disabled:opacity-50 text-gray-700"
+                  >
+                    Just me
+                  </button>
+                  <button
+                    onClick={() => sendTest(true)}
+                    disabled={testBusy}
+                    className="w-full py-2 rounded-xl text-sm font-semibold bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 text-gray-800"
+                  >
+                    Everyone on the team
+                  </button>
+                  <p className="text-[10px] text-gray-400 text-center">
+                    Everyone sends a real ping to the whole team — good at a meeting,
+                    annoying otherwise.
+                  </p>
+                  {testResult && <p className="text-[11px] text-gray-600 text-center pt-1">{testResult}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {openEvent && (
         <EventModal

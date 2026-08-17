@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 157,
     date: '2026-08-17',
     items: [
+      '🧪 Test notification button is back on the calendar for Kayden, with a choice of just yourself or the whole team',
       '🔔 A one-time prompt asks you to turn on notifications and says what they\'re for — tasks assigned to you, announcements, role changes, request decisions and upcoming meetings',
       '🕓 New meetings default to 4–8 PM on weekdays and 8 AM–2 PM at the weekend, and the times follow if you change the date',
     ],
