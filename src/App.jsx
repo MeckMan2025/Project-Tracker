@@ -59,6 +59,7 @@ import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
 import TimelineView from './components/TimelineView'
+import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import ExpenseRequests from './components/ExpenseRequests'
@@ -1309,7 +1310,8 @@ function App() {
   return (
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
-      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /></>)}
+      {/* Guests and kiosk accounts aren't people we send notifications to. */}
+      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup />{!isGuest && <NotificationNudge />}</>)}
       {viewTask && (
         <TaskDetailModal
           task={viewTask}

@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 157,
     date: '2026-08-17',
     items: [
+      '🔔 A one-time prompt asks you to turn on notifications and says what they\'re for — tasks assigned to you, announcements, role changes, request decisions and upcoming meetings',
       '🕓 New meetings default to 4–8 PM on weekdays and 8 AM–2 PM at the weekend, and the times follow if you change the date',
     ],
   },
