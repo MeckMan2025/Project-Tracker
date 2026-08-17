@@ -80,7 +80,6 @@ export default function TimelineView() {
   const hoverRef = useRef(null)     // read on drop, so it can't lag behind state
   const [ghost, setGhost] = useState(null)  // { card, x, y } — the note under the cursor
   const [hoverIndex, setHoverIndex] = useState(null)  // which slot in the stack
-  const indexRef = useRef(null)
 
   // ------------------------------------------------------------------- Load
   useEffect(() => {
@@ -159,21 +158,12 @@ export default function TimelineView() {
   const milestoneFor = (key, nextKey) =>
     milestones.filter(m => m.key >= key && (!nextKey || m.key < nextKey))
 
-  // Highest sort value on a date, so a new note goes to the bottom.
-  const nextSortFor = (key) =>
-    cards.filter(c => c.date_key === key).reduce((m, c) => Math.max(m, c.sort || 0), 0) + 1
-
-  // A sort value placing the note in slot `idx` of that date — halfway between
-  // its new neighbours. sort is a float, so there is always room between two.
-  const sortForSlot = (key, idx, movingId) => {
-    const list = cards.filter(c => c.date_key === key && c.id !== movingId).sort(bySort)
-    if (idx == null || idx >= list.length) {
-      return (list.length ? (list[list.length - 1].sort || 0) : 0) + 1
-    }
-    const next = list[idx].sort || 0
-    if (idx === 0) return next - 1
-    return ((list[idx - 1].sort || 0) + next) / 2
-  }
+  // Bottom of the stack for that date, so a new or moved note joins the end of
+  // the list rather than sorting in among notes written earlier.
+  const nextSortFor = (key, exceptId = null) =>
+    cards
+      .filter(c => c.date_key === key && c.id !== exceptId)
+      .reduce((m, c) => Math.max(m, c.sort || 0), 0) + 1
 
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) ||
     String(a.created_at || '').localeCompare(String(b.created_at || ''))
@@ -194,7 +184,6 @@ export default function TimelineView() {
     pressRef.current = null
     dragRef.current = null
     hoverRef.current = null
-    indexRef.current = null
     setDragId(null)
     setHoverKey(null)
     setHoverIndex(null)
@@ -239,35 +228,20 @@ export default function TimelineView() {
     hoverRef.current = key
     setHoverKey(key)
 
-    // Which gap in the stack the note is aimed at: the first note whose middle
-    // sits below the pointer. The gap opens there, so the drop is aimed rather
-    // than guessed at.
-    if (!col) { indexRef.current = null; setHoverIndex(null); return }
-    const notes = [...col.querySelectorAll('[data-note-id]')]
-      .filter(n => n.getAttribute('data-note-id') !== dragRef.current.card.id)
-    let idx = notes.length
-    for (let i = 0; i < notes.length; i++) {
-      const r = notes[i].getBoundingClientRect()
-      if (e.clientY < r.top + r.height / 2) { idx = i; break }
-    }
-    indexRef.current = idx
-    setHoverIndex(idx)
+    setHoverIndex(col ? 'end' : null)
   }
 
   const endPress = () => {
     const dragging = dragRef.current
     const target = hoverRef.current
-    if (dragging && target) {
-      const sort = sortForSlot(target, indexRef.current, dragging.card.id)
-      if (target !== dragging.card.date_key || sort !== dragging.card.sort) {
-        editCard(dragging.card, { date_key: target, sort })
-      }
+    // Joins the end of that date's list, tucked under the note above it.
+    if (dragging && target && target !== dragging.card.date_key) {
+      editCard(dragging.card, { date_key: target, sort: nextSortFor(target, dragging.card.id) })
     }
     if (pressRef.current?.timer) clearTimeout(pressRef.current.timer)
     pressRef.current = null
     dragRef.current = null
     hoverRef.current = null
-    indexRef.current = null
     setDragId(null)
     setHoverKey(null)
     setHoverIndex(null)
@@ -502,19 +476,19 @@ export default function TimelineView() {
                   {/* Note cards hanging below */}
                   <div className="space-y-1.5">
                     {(() => {
-                      // The dragged note leaves the stack and a dashed slot opens
-                      // where it will land, so it drops into a real position
-                      // instead of appearing somewhere in the pile.
-                      const slot = dragId && hoverKey === key ? hoverIndex : null
+                      // The dragged note leaves the stack and a dashed slot shows
+                      // at the bottom, which is where it lands — under the note
+                      // above it, not wherever the cursor happened to be.
+                      const landingHere = dragId && hoverKey === key && hoverIndex === 'end'
                       const rest = list.filter(c => c.id !== dragId)
-                      const gap = <div key="gap" className="h-9 rounded-sm border-2 border-dashed border-pastel-blue-dark bg-pastel-blue/20" />
-                      const out = []
-                      rest.forEach((c, i) => {
-                        if (slot === i) out.push(gap)
-                        out.push(noteCard(c))
-                      })
-                      if (slot != null && slot >= rest.length) out.push(gap)
-                      return out
+                      return (
+                        <>
+                          {rest.map(noteCard)}
+                          {landingHere && (
+                            <div className="h-9 rounded-sm border-2 border-dashed border-pastel-blue-dark bg-pastel-blue/20" />
+                          )}
+                        </>
+                      )
                     })()}
 
                     {canAddTimelineNotes && (
