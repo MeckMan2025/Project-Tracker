@@ -68,9 +68,9 @@ export default function AttendanceView() {
     const headers = REST_HEADERS
     Promise.all([
       fetch(`${REST_URL}/rest/v1/attendance_sessions?select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
-      canViewAllAttendance
-        ? fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : [])
-        : fetch(`${REST_URL}/rest/v1/attendance_records?select=*&username=eq.${encodeURIComponent(username)}`, { headers }).then(r => r.ok ? r.json() : []),
+      // All records are loaded so everyone can see the team-average trend;
+      // individual names/rates stay gated to leads in the Team Overview list.
+      fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r]) => {
       setSessions(s)
       setRecords(r)
@@ -93,7 +93,6 @@ export default function AttendanceView() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const rec = payload.new
-          if (!canViewAllAttendance && rec.username !== username) return
           setRecords(prev => prev.some(r => r.id === rec.id) ? prev : [...prev, rec])
         } else if (payload.eventType === 'UPDATE') {
           setRecords(prev => prev.map(r => r.id === payload.new.id ? payload.new : r))
@@ -318,8 +317,8 @@ export default function AttendanceView() {
             )}
           </div>
 
-          {/* Lead-only Team Trend */}
-          {canViewAllAttendance && sessions.length >= 2 && (
+          {/* Team Trend — visible to everyone (aggregate average, no names) */}
+          {sessions.length >= 2 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-2">Team Trend (average)</h3>
               <TrendChart
