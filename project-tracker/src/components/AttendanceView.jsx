@@ -5,6 +5,13 @@ import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { useAttendancePartial, presencePct, recordTiming } from '../lib/attendancePartial'
+
+// Team accounts and the ETS account are never part of attendance.
+const excludedAttName = (name) => {
+  const n = (name || '').trim().toLowerCase()
+  return n === 'ets' || n === 'everythingthatsscrum' || n.startsWith('team ')
+}
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -23,6 +30,7 @@ export default function AttendanceView() {
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
+  const { partial } = useAttendancePartial()
 
   useEffect(() => {
     const headers = REST_HEADERS
@@ -65,26 +73,30 @@ export default function AttendanceView() {
     return () => supabase.removeChannel(channel)
   }, [canViewAllAttendance, username])
 
+  // Presence-weighted rate: average of "% of each meeting they were present for"
+  // across all sessions (0 for absent/excused/no-record).
+  const statusFor = (name, sid) => (records.find(r => r.session_id === sid && r.username === name)?.status) || 'no record'
+  const rateFor = (name) => sessions.length > 0
+    ? Math.round(sessions.reduce((sum, s) => sum + presencePct(s.id, name, statusFor(name, s.id), partial, s.session_date), 0) / sessions.length)
+    : 0
+
   // Personal stats
   const myRecords = records.filter(r => r.username === username)
   const myPresent = myRecords.filter(r => r.status === 'present').length
   const myExcused = myRecords.filter(r => r.status === 'excused').length
-  const myAttendanceRate = sessions.length > 0 ? Math.round((myPresent / sessions.length) * 100) : 0
+  const myAttendanceRate = rateFor(username)
 
-  // Team stats (leads only)
+  // Team stats (leads only) — teams and the ETS account are excluded
   const teamStats = canViewAllAttendance ? (() => {
     const byUser = {}
     records.forEach(r => {
+      if (excludedAttName(r.username)) return
       if (!byUser[r.username]) byUser[r.username] = { present: 0, absent: 0, excused: 0, total: 0 }
       byUser[r.username][r.status] = (byUser[r.username][r.status] || 0) + 1
       byUser[r.username].total++
     })
     return Object.entries(byUser)
-      .map(([name, stats]) => ({
-        name,
-        ...stats,
-        rate: sessions.length > 0 ? Math.round((stats.present / sessions.length) * 100) : 0,
-      }))
+      .map(([name, stats]) => ({ name, ...stats, rate: rateFor(name) }))
       .sort((a, b) => b.rate - a.rate)
   })() : []
 
@@ -122,14 +134,21 @@ export default function AttendanceView() {
               {sessions.map(s => {
                 const status = userRecordMap[s.id] || 'no record'
                 const colorClass = STATUS_COLORS[status] || 'bg-gray-100 text-gray-400'
+                const pct = presencePct(s.id, selectedUser, status, partial, s.session_date)
+                const t = recordTiming(s.id, selectedUser, partial)
+                const tag = [t.lateMin ? `late ${t.lateMin}m${t.lateExcused ? ' (exc)' : ''}` : '', t.earlyMin ? `left ${t.earlyMin}m${t.earlyExcused ? ' (exc)' : ''}` : ''].filter(Boolean).join(' · ')
                 return (
-                  <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
-                    <span className="text-sm text-gray-700">
-                      {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClass}`}>
-                      {status}
-                    </span>
+                  <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-sm text-gray-700">
+                        {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </span>
+                      {status === 'present' && tag && <div className="text-[11px] text-gray-400">{tag}</div>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {status === 'present' && <span className={`text-xs font-bold ${pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>{pct}%</span>}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClass}`}>{status}</span>
+                    </div>
                   </div>
                 )
               })}
@@ -231,14 +250,21 @@ export default function AttendanceView() {
                 const myRecord = myRecords.find(r => r.session_id === s.id)
                 const status = myRecord ? myRecord.status : 'no record'
                 const colorClass = STATUS_COLORS[status] || 'bg-gray-100 text-gray-400'
+                const pct = presencePct(s.id, username, status, partial, s.session_date)
+                const t = recordTiming(s.id, username, partial)
+                const tag = [t.lateMin ? `late ${t.lateMin}m${t.lateExcused ? ' (exc)' : ''}` : '', t.earlyMin ? `left ${t.earlyMin}m${t.earlyExcused ? ' (exc)' : ''}` : ''].filter(Boolean).join(' · ')
                 return (
-                  <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
-                    <span className="text-sm text-gray-700">
-                      {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClass}`}>
-                      {status}
-                    </span>
+                  <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-sm text-gray-700">
+                        {new Date(s.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </span>
+                      {status === 'present' && tag && <div className="text-[11px] text-gray-400">{tag}</div>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {status === 'present' && <span className={`text-xs font-bold ${pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>{pct}%</span>}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${colorClass}`}>{status}</span>
+                    </div>
                   </div>
                 )
               })

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock } from 'lucide-react'
+import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -34,6 +35,14 @@ export default function AttendanceManager({ onBack }) {
   const [editing, setEditing] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
+  const { partial, setSessionDurationMin, setTiming } = useAttendancePartial()
+  const [expandedRec, setExpandedRec] = useState(null)
+
+  // Team accounts and the ETS account are never part of attendance.
+  const EXCLUDED_ATT_NAMES = ['ets', 'everythingthatsscrum']
+  const excludeFromAttendance = (p) =>
+    (p.function_tags || []).includes('Team') ||
+    EXCLUDED_ATT_NAMES.includes((p.display_name || '').trim().toLowerCase())
   // Fetch all sessions, records, and profiles
   // Fetch sessions, records, profiles on mount
   useEffect(() => {
@@ -93,7 +102,7 @@ export default function AttendanceManager({ onBack }) {
   }
 
   // All profiles with a display name (exclude explicit guests)
-  const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest')
+  const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
 
   // Who's been seen in the last 15 seconds (heartbeat pings every 10s)
   const recentlySeen = (name) => {
@@ -119,7 +128,7 @@ export default function AttendanceManager({ onBack }) {
       }
     } catch {}
 
-    const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest')
+    const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
     const isRecentlySeen = (name) => {
       const p = freshProfiles.find(pr => pr.display_name === name)
       if (!p?.last_seen_at) return false
@@ -262,7 +271,7 @@ export default function AttendanceManager({ onBack }) {
   if (selectedSession) {
     const usersInSession = sessionRecords.map(r => r.username)
     const addableUsers = profiles
-      .filter(p => p.authority_tier !== 'guest' && !usersInSession.includes(p.display_name))
+      .filter(p => p.authority_tier !== 'guest' && !excludeFromAttendance(p) && !usersInSession.includes(p.display_name))
       .map(p => p.display_name)
       .sort()
 
@@ -305,33 +314,83 @@ export default function AttendanceManager({ onBack }) {
             <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
           )}
 
-          <div className="text-sm text-gray-500">
-            {sessionRecords.filter(r => r.status === 'present').length} present / {sessionRecords.length} total
+          <div className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
+            <div className="text-sm text-gray-500">
+              {sessionRecords.filter(r => r.status === 'present').length} present / {sessionRecords.length} total
+            </div>
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
+              Meeting length
+              <input
+                type="number" min="1"
+                value={sessionDuration(selectedSession.id, partial, selectedSession.session_date)}
+                onChange={e => setSessionDurationMin(selectedSession.id, e.target.value)}
+                className="w-16 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              /> min
+            </label>
           </div>
 
           <div className="space-y-2">
-            {sessionRecords.map(r => (
-              <div key={r.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-gray-700">{r.username}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => editing && handleToggleStatus(r)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-500'} ${editing ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-                  >
-                    {r.status}
-                  </button>
-                  {editing && (
-                    <button
-                      onClick={() => handleRemoveRecord(r.id)}
-                      className="text-gray-300 hover:text-red-400 transition-colors"
-                      title="Remove"
-                    >
-                      <X size={14} />
-                    </button>
+            {sessionRecords.map(r => {
+              const present = r.status === 'present'
+              const t = recordTiming(selectedSession.id, r.username, partial)
+              const pct = presencePct(selectedSession.id, r.username, r.status, partial, selectedSession.session_date)
+              const open = expandedRec === r.id
+              const tag = (mins, exc, label) => mins ? `${label} ${mins}m${exc ? ' (exc)' : ''}` : ''
+              const timingLine = [tag(t.lateMin, t.lateExcused, 'late'), tag(t.earlyMin, t.earlyExcused, 'left')].filter(Boolean).join(' · ')
+              return (
+                <div key={r.id} className="bg-white rounded-xl shadow-sm">
+                  <div className="p-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-gray-700">{r.username}</span>
+                      {present && timingLine && <div className="text-[11px] text-gray-400 mt-0.5">{timingLine}</div>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {present && (
+                        <span className={`text-xs font-bold ${pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>{pct}%</span>
+                      )}
+                      <button
+                        onClick={() => editing && handleToggleStatus(r)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-500'} ${editing ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                      >
+                        {r.status}
+                      </button>
+                      {editing && present && (
+                        <button
+                          onClick={() => setExpandedRec(open ? null : r.id)}
+                          title="Late / left early"
+                          className={`p-1 rounded-lg transition-colors ${open ? 'bg-pastel-blue text-gray-700' : 'text-gray-400 hover:bg-gray-100'}`}
+                        >
+                          <Clock size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {editing && present && open && (
+                    <div className="px-3 pb-3 pt-2 border-t border-gray-100 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-24 shrink-0">Late (min)</span>
+                        <input type="number" min="0" value={t.lateMin || ''} placeholder="0"
+                          onChange={e => setTiming(selectedSession.id, r.username, { lateMin: Math.max(0, Number(e.target.value) || 0) })}
+                          className="w-20 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                        <label className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
+                          <input type="checkbox" checked={!!t.lateExcused} onChange={e => setTiming(selectedSession.id, r.username, { lateExcused: e.target.checked })} /> excused
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-24 shrink-0">Left early (min)</span>
+                        <input type="number" min="0" value={t.earlyMin || ''} placeholder="0"
+                          onChange={e => setTiming(selectedSession.id, r.username, { earlyMin: Math.max(0, Number(e.target.value) || 0) })}
+                          className="w-20 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                        <label className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
+                          <input type="checkbox" checked={!!t.earlyExcused} onChange={e => setTiming(selectedSession.id, r.username, { earlyExcused: e.target.checked })} /> excused
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-gray-400">Present for <b>{pct}%</b> of the {sessionDuration(selectedSession.id, partial, selectedSession.session_date)}-min meeting.</p>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {editing && (
