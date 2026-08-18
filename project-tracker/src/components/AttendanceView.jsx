@@ -26,11 +26,11 @@ const STATUS_COLORS = {
 // Inline SVG line chart of presence % across recent meetings (no dependencies).
 function TrendChart({ points, color = '#6366f1' }) {
   const pts = points.slice(-12) // last 12 meetings
-  if (pts.length < 2) return null
+  if (pts.length < 1) return null
   const W = 320, H = 132, padL = 26, padR = 10, padT = 10, padB = 22
   const plotW = W - padL - padR, plotH = H - padT - padB
   const n = pts.length
-  const x = (i) => padL + (i * plotW) / (n - 1)
+  const x = (i) => n <= 1 ? padL + plotW / 2 : padL + (i * plotW) / (n - 1)
   const y = (v) => padT + plotH - (Math.max(0, Math.min(100, v)) / 100) * plotH
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.pct).toFixed(1)}`).join(' ')
   const area = `${line} L${x(n - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`
@@ -161,7 +161,7 @@ export default function AttendanceView() {
 
             <h2 className="text-lg font-semibold text-gray-800">{selectedUser}</h2>
 
-            {sessions.length >= 2 && (
+            {sessions.length >= 1 && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Trend</h3>
                 <TrendChart points={[...sessions].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, selectedUser, userRecordMap[s.id] || 'no record', partial, s.session_date) }))} />
@@ -279,7 +279,7 @@ export default function AttendanceView() {
           )}
 
           {/* Personal Trend */}
-          {sessions.length >= 2 && (
+          {sessions.length >= 1 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-2">Your Trend</h3>
               <TrendChart points={[...sessions].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, username, statusFor(username, s.id), partial, s.session_date) }))} />
@@ -318,7 +318,7 @@ export default function AttendanceView() {
           </div>
 
           {/* Team Trend — visible to everyone (aggregate average, no names) */}
-          {sessions.length >= 2 && (
+          {sessions.length >= 1 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-2">Team Trend (average)</h3>
               <TrendChart
