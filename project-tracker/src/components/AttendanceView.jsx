@@ -23,6 +23,38 @@ const STATUS_COLORS = {
   excused: 'bg-orange-100 text-orange-700',
 }
 
+// Inline SVG line chart of presence % across recent meetings (no dependencies).
+function TrendChart({ points, color = '#6366f1' }) {
+  const pts = points.slice(-12) // last 12 meetings
+  if (pts.length < 2) return null
+  const W = 320, H = 132, padL = 26, padR = 10, padT = 10, padB = 22
+  const plotW = W - padL - padR, plotH = H - padT - padB
+  const n = pts.length
+  const x = (i) => padL + (i * plotW) / (n - 1)
+  const y = (v) => padT + plotH - (Math.max(0, Math.min(100, v)) / 100) * plotH
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.pct).toFixed(1)}`).join(' ')
+  const area = `${line} L${x(n - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`
+  const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const avg = Math.round(pts.reduce((a, b) => a + b.pct, 0) / n)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 150 }} preserveAspectRatio="xMidYMid meet">
+      {[0, 50, 100].map(g => (
+        <g key={g}>
+          <line x1={padL} x2={W - padR} y1={y(g)} y2={y(g)} stroke="#eef2f7" strokeWidth="1" />
+          <text x={padL - 5} y={y(g) + 3} textAnchor="end" fontSize="8" fill="#9ca3af">{g}</text>
+        </g>
+      ))}
+      <path d={area} fill={color} opacity="0.08" />
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.pct)} r="2.6" fill={color} />)}
+      {pts.map((p, i) => (i === 0 || i === n - 1 || (n >= 5 && i === Math.floor((n - 1) / 2))) ? (
+        <text key={'x' + i} x={x(i)} y={H - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fontSize="8" fill="#9ca3af">{fmt(p.date)}</text>
+      ) : null)}
+      <text x={W - padR} y={padT + 2} textAnchor="end" fontSize="9" fill={color} fontWeight="700">avg {avg}%</text>
+    </svg>
+  )
+}
+
 export default function AttendanceView() {
   const { username } = useUser()
   const { canViewAllAttendance, canViewOwnAttendance, hasLeadTag } = usePermissions()
@@ -129,6 +161,13 @@ export default function AttendanceView() {
             </button>
 
             <h2 className="text-lg font-semibold text-gray-800">{selectedUser}</h2>
+
+            {sessions.length >= 2 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-500 mb-2">Trend</h3>
+                <TrendChart points={[...sessions].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, selectedUser, userRecordMap[s.id] || 'no record', partial, s.session_date) }))} />
+              </div>
+            )}
 
             <div className="space-y-2">
               {sessions.map(s => {
@@ -240,6 +279,14 @@ export default function AttendanceView() {
             </div>
           )}
 
+          {/* Personal Trend */}
+          {sessions.length >= 2 && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-500 mb-2">Your Trend</h3>
+              <TrendChart points={[...sessions].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, username, statusFor(username, s.id), partial, s.session_date) }))} />
+            </div>
+          )}
+
           {/* Personal History */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-gray-500">Your History</h3>
@@ -270,6 +317,21 @@ export default function AttendanceView() {
               })
             )}
           </div>
+
+          {/* Lead-only Team Trend */}
+          {canViewAllAttendance && sessions.length >= 2 && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-500 mb-2">Team Trend (average)</h3>
+              <TrendChart
+                color="#10b981"
+                points={[...sessions].reverse().map(s => {
+                  const recs = records.filter(r => r.session_id === s.id && !excludedAttName(r.username))
+                  const vals = recs.map(r => presencePct(s.id, r.username, r.status, partial, s.session_date))
+                  return { date: s.session_date, pct: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0 }
+                })}
+              />
+            </div>
+          )}
 
           {/* Lead-only Team Overview */}
           {canViewAllAttendance && (
