@@ -133,6 +133,15 @@ function UserManagement({ onViewProfile }) {
   // Past members archive
   const [pastMembers, setPastMembers] = useState([])
 
+  // Approved emails that don't already have an account, so nobody is listed
+  // twice once they've signed up. (Declared here because the roster below uses it.)
+  const memberNameSet = new Set(
+    registeredMembers.map(m => (m.display_name || '').trim().toLowerCase()).filter(Boolean)
+  )
+  const pendingInvites = whitelistedEmails.filter(
+    w => !memberNameSet.has(inviteName(w.email).trim().toLowerCase())
+  )
+
   // Mentors and coaches are adults, not students — they get their own tab.
   const rosterRows = [
     ...registeredMembers.filter(m => !(m.function_tags || []).includes('Team')),
@@ -909,15 +918,6 @@ function UserManagement({ onViewProfile }) {
   }
 
   const bulkCount = bulkText.split(/[\n,;\s]+/).filter(l => l.trim() && l.includes('@')).length
-
-  // Approved emails that don't already have an account, so nobody is listed
-  // twice once they've signed up.
-  const memberNameSet = new Set(
-    registeredMembers.map(m => (m.display_name || '').trim().toLowerCase()).filter(Boolean)
-  )
-  const pendingInvites = whitelistedEmails.filter(
-    w => !memberNameSet.has(inviteName(w.email).trim().toLowerCase())
-  )
 
   const tagColors = [
     'bg-purple-100 text-purple-700',
