@@ -69,6 +69,11 @@ export default function TimelineView() {
   const [draft, setDraft] = useState('')
   const [draftSide, setDraftSide] = useState('mix')
   const todayRef = useRef(null)
+  const stripRef = useRef(null)
+  // Which way the strip can still travel, so an arrow only shows when it does
+  // something. The scrollbar is an invisible overlay on most machines and this
+  // one is flipped to the top edge besides, so the arrows are the affordance.
+  const [canScroll, setCanScroll] = useState({ left: false, right: false })
   // Press-and-hold to drag a note onto another date. Pointer events rather than
   // a drag library: the strip sits inside a rotateX wrapper (scrollbar on top),
   // and hit-testing by screen point is unaffected by that transform.
@@ -200,6 +205,29 @@ export default function TimelineView() {
   useEffect(() => {
     if (todayRef.current) todayRef.current.scrollIntoView({ inline: 'center', block: 'nearest' })
   }, [visibleColumns.length])
+
+  // Keep the arrows in step with where the strip is sitting — after a scroll,
+  // after the window resizes, and whenever dates come or go.
+  useEffect(() => {
+    const el = stripRef.current
+    if (!el) return
+    const read = () => {
+      const room = el.scrollWidth - el.clientWidth
+      setCanScroll({ left: el.scrollLeft > 4, right: el.scrollLeft < room - 4 })
+    }
+    read()
+    el.addEventListener('scroll', read, { passive: true })
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    return () => { el.removeEventListener('scroll', read); ro.disconnect() }
+  }, [visibleColumns.length])
+
+  // Roughly a screenful, so a click lands on new dates without losing your place.
+  const scrollStrip = (dir) => {
+    const el = stripRef.current
+    if (!el) return
+    el.scrollBy({ left: dir * Math.max(el.clientWidth * 0.8, 176), behavior: 'smooth' })
+  }
 
   // Drag lives on window listeners, not on the note element. The note is a
   // React child that re-renders during a drag, and anything attached to it (or
@@ -430,9 +458,31 @@ export default function TimelineView() {
               </span>
             ))}
           </div>
+          {/* Scroll the strip from the corner, so the control stays put
+              instead of floating over the dates. */}
+          <div className="ml-auto shrink-0 flex items-center gap-0.5">
+            <button
+              onClick={() => scrollStrip(-1)}
+              disabled={!canScroll.left}
+              aria-label="Earlier dates"
+              title="Earlier dates"
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-pastel-blue/25 disabled:opacity-25 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => scrollStrip(1)}
+              disabled={!canScroll.right}
+              aria-label="Later dates"
+              title="Later dates"
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-pastel-blue/25 disabled:opacity-25 disabled:hover:bg-transparent"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
           <button
             onClick={() => setShowPast(p => !p)}
-            className={`ml-auto shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg border transition-colors ${
+            className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg border transition-colors ${
               showPast
                 ? 'bg-pastel-blue/40 border-pastel-blue-dark text-gray-700'
                 : 'bg-white border-gray-200 text-gray-500 hover:bg-pastel-blue/20'
@@ -452,7 +502,7 @@ export default function TimelineView() {
         ) : (
           // rotateX flips the scroller so its bar sits along the top; the row
           // inside flips back so the cards read the right way up.
-          <div className="overflow-x-auto" style={{ transform: 'rotateX(180deg)' }}>
+          <div ref={stripRef} className="overflow-x-auto" style={{ transform: 'rotateX(180deg)' }}>
           <div className="flex gap-3 items-stretch min-w-max pt-1 pb-4" style={{ transform: 'rotateX(180deg)' }}>
             {visibleColumns.map((key, i) => {
               const d = fromKey(key)
