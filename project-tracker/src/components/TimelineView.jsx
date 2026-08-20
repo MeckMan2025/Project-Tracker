@@ -111,9 +111,9 @@ export default function TimelineView() {
   const todayKey = toKey(new Date())
 
   // --------------------------------------------------------------- Columns
-  // One column per meeting date. Dates that already hold cards stay even if the
-  // meeting is later deleted, so a note can never end up with nowhere to live.
-  const allColumns = useMemo(() => {
+  // The meeting dates the calendar still has. Take a meeting off the calendar
+  // and its date stops being a place a note can hang.
+  const meetingKeys = useMemo(() => {
     const from = addDays(new Date(), -60)
     const to = addDays(new Date(), 365)
     const keys = new Set()
@@ -122,22 +122,40 @@ export default function TimelineView() {
       if (cat !== 'meeting') return
       expandRecurrence(ev, from, to).forEach(k => keys.add(k))
     })
-    cards.forEach(c => keys.add(c.date_key))
-    return [...keys].sort()
-  }, [events, cards])
+    return keys
+  }, [events])
 
-  // Past dates drop off the strip. Anything finished stays put on the day it
-  // was done (visible under "past days"); anything still open rides forward to
-  // the next meeting so it can't be left behind.
+  const meetingDays = useMemo(() => [...meetingKeys].sort(), [meetingKeys])
+
+  // The first meeting on or after a date — where work goes when the day it was
+  // sitting on is gone.
+  const nextMeetingFrom = (key) => meetingDays.find(k => k >= key) || null
+
+  // Where a note actually hangs, which isn't always the day it was written on.
+  // Unfinished work never sits on a day that's stopped being a meeting, or on a
+  // day that's already gone by — it rides forward to the next meeting instead,
+  // so cancelling a meeting can't strand it. Finished work stays on the day it
+  // was done. If there's no later meeting to ride to, the note keeps its day
+  // rather than vanishing.
+  const homeKey = (c) => {
+    if (c.done) return c.date_key
+    const stranded = !meetingKeys.has(c.date_key) || (!showPast && c.date_key < todayKey)
+    if (!stranded) return c.date_key
+    return nextMeetingFrom(c.date_key > todayKey ? c.date_key : todayKey) || c.date_key
+  }
+
+  // One column per meeting date, plus any day still holding a note that had
+  // nowhere to ride forward to.
+  const allColumns = useMemo(() => {
+    const keys = new Set(meetingKeys)
+    cards.forEach(c => keys.add(homeKey(c)))
+    return [...keys].sort()
+  }, [meetingKeys, meetingDays, cards, showPast, todayKey])
+
+  // Past dates drop off the strip unless you ask for them.
   const visibleColumns = useMemo(
     () => (showPast ? allColumns : allColumns.filter(k => k >= todayKey)),
     [allColumns, showPast, todayKey]
-  )
-  const firstUpcoming = visibleColumns.find(k => k >= todayKey) || null
-
-  const carriedOver = useMemo(
-    () => (showPast ? [] : cards.filter(c => c.date_key < todayKey && !c.done)),
-    [cards, showPast, todayKey]
   )
 
   // Milestones ride above the line: anything big landing on or after this
@@ -167,9 +185,14 @@ export default function TimelineView() {
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) ||
     String(a.created_at || '').localeCompare(String(b.created_at || ''))
 
+  // Notes that rode in from a cancelled or past meeting sit at the top of the
+  // stack, above the ones written for this day.
   const cardsFor = (key) => {
-    const own = cards.filter(c => c.date_key === key).sort(bySort)
-    return key === firstUpcoming ? [...carriedOver, ...own] : own
+    const here = cards.filter(c => homeKey(c) === key)
+    return [
+      ...here.filter(c => c.date_key !== key).sort(bySort),
+      ...here.filter(c => c.date_key === key).sort(bySort),
+    ]
   }
   const commentsFor = (id) => comments.filter(c => c.card_id === id)
 
@@ -349,9 +372,11 @@ export default function TimelineView() {
 
   // One note, used by every column. Kept as a function so the stack can have a
   // placeholder spliced into it while dragging.
-  const noteCard = (c) => {
+  const noteCard = (c, columnKey) => {
     const s = sideOf(c.side)
     const n = commentsFor(c.id).length
+    // Hanging under a day that isn't the one it was written for.
+    const rodeFrom = columnKey && c.date_key !== columnKey ? c.date_key : null
     return (
       <button
         key={c.id}
@@ -373,10 +398,11 @@ export default function TimelineView() {
         <span className={`text-xs leading-snug block ${c.done ? 'line-through text-gray-500' : 'text-gray-800'}`}>
           {c.title}
         </span>
-        {/* Rolled forward from a day that has passed. */}
-        {!showPast && c.date_key < todayKey && (
+        {/* Rolled forward from a day that has passed, or one that's no longer
+            a meeting. */}
+        {rodeFrom && (
           <span className="text-[9px] text-gray-500 block">
-            ↪ from {fromKey(c.date_key).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            ↪ from {fromKey(rodeFrom).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
         {n > 0 && (
@@ -488,7 +514,7 @@ export default function TimelineView() {
                       const landingHere = dragId && hoverKey === key
                       return (
                         <>
-                          {list.map(noteCard)}
+                          {list.map(c => noteCard(c, key))}
                           {landingHere && (
                             <div className="h-9 rounded-sm border-2 border-dashed border-pastel-blue-dark bg-pastel-blue/20" />
                           )}
@@ -578,7 +604,7 @@ export default function TimelineView() {
           onToggleDone={toggleDone}
           onSetSide={setSide}
           onEdit={editCard}
-          dateOptions={allColumns}
+          dateOptions={meetingDays}
           onEditComment={editComment}
           onDeleteComment={removeComment}
           username={username}
