@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock, Briefcase, Cpu, ClipboardList, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
+import { usePresenceContext } from '../contexts/PresenceContext'
+import OnlineDot from './OnlineDot'
 import { BUSINESS_ROLES, TECHNICAL_ROLES, TECHNICAL_GROUPS, LEADERSHIP_TAGS, ROLE_DESC } from '../data/orgRoles'
 
 const STATUS_MAP = {
@@ -70,6 +72,7 @@ function LeadLine({ label, leads, theme, onClick }) {
 
 // ── Clickable name chip (keeps profiles) ──
 function PersonChip({ profile, onClick, className = '' }) {
+  const { isOnline } = usePresenceContext()
   return (
     <button
       onClick={() => onClick(profile)}
@@ -84,6 +87,7 @@ function PersonChip({ profile, onClick, className = '' }) {
         </span>
       )}
       {profile.display_name || 'Unknown'}
+      <OnlineDot online={isOnline(profile.display_name)} size={7} ring={false} className="ml-0.5" />
     </button>
   )
 }
@@ -168,6 +172,7 @@ function TechnicalDepartment({ groups, leads, softwareLeads = [], membersByTag, 
 function PersonCard({ profile, onClick }) {
   const tier = deriveTier(profile)
   const primaryTag = (profile.function_tags || [])[0]
+  const { isOnline } = usePresenceContext()
   return (
     <button
       onClick={() => onClick(profile)}
@@ -176,13 +181,18 @@ function PersonCard({ profile, onClick }) {
         hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer min-w-[120px] max-w-[160px]
         ${TIER_BORDER[tier] || 'border-gray-200'}`}
     >
-      {profile.avatar_url ? (
-        <img src={profile.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover mb-1.5" />
-      ) : (
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 mb-1.5 ${TIER_BG[tier] || 'bg-gray-100'}`}>
-          {(profile.display_name || '?').charAt(0).toUpperCase()}
-        </div>
-      )}
+      <div className="relative mb-1.5">
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+        ) : (
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 ${TIER_BG[tier] || 'bg-gray-100'}`}>
+            {(profile.display_name || '?').charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className="absolute -bottom-0.5 -right-0.5">
+          <OnlineDot online={isOnline(profile.display_name)} size={12} />
+        </span>
+      </div>
       <span className="text-sm font-semibold text-gray-800 text-center leading-tight truncate w-full">
         {profile.display_name || 'Unknown'}
       </span>
@@ -197,6 +207,7 @@ function PersonCard({ profile, onClick }) {
 
 // ── Profile Detail Modal (unchanged) ──
 function ProfileModal({ profile, onClose, onViewProfile }) {
+  const { isOnline } = usePresenceContext()
   const [full, setFull] = useState(null)
   const [loading, setLoading] = useState(false)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -238,13 +249,18 @@ function ProfileModal({ profile, onClose, onViewProfile }) {
           </button>
 
           <div className="flex flex-col items-center mb-4">
-            {(data.avatar_url || profile.avatar_url) ? (
-              <img src={data.avatar_url || profile.avatar_url} alt="" className={`w-16 h-16 rounded-full object-cover mb-2 border-2 ${TIER_BORDER[tier]}`} />
-            ) : (
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 mb-2 border-2 ${TIER_BORDER[tier]} ${TIER_BG[tier]}`}>
-                {(profile.display_name || '?').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="relative mb-2">
+              {(data.avatar_url || profile.avatar_url) ? (
+                <img src={data.avatar_url || profile.avatar_url} alt="" className={`w-16 h-16 rounded-full object-cover border-2 ${TIER_BORDER[tier]}`} />
+              ) : (
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 border-2 ${TIER_BORDER[tier]} ${TIER_BG[tier]}`}>
+                  {(profile.display_name || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="absolute bottom-0.5 right-0.5">
+                <OnlineDot online={isOnline(profile.display_name)} size={15} />
+              </span>
+            </div>
             <h2 className="text-lg font-bold text-gray-800">{profile.display_name || 'Unknown'}</h2>
             {profile.primary_role_label && <span className="text-sm text-gray-500">{profile.primary_role_label}</span>}
           </div>

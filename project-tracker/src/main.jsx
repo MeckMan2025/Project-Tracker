@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import RootBoundary from './components/RootBoundary'
 import { UserProvider } from './contexts/UserContext'
+import { PresenceProvider } from './contexts/PresenceContext'
 import { ToastProvider } from './components/ToastProvider'
 import { isNative } from './utils/platform'
 import './index.css'
@@ -12,7 +13,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <RootBoundary>
       <ToastProvider>
         <UserProvider>
-          <App />
+          <PresenceProvider>
+            <App />
+          </PresenceProvider>
         </UserProvider>
       </ToastProvider>
     </RootBoundary>

@@ -54,7 +54,7 @@ import { MeetingStatsView } from './components/MeetingRecorder'
 
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
-import { usePresence } from './hooks/usePresence'
+import { usePresenceContext } from './contexts/PresenceContext'
 import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
@@ -358,7 +358,7 @@ function App() {
   }
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
-  const { onlineUsers, presenceState } = usePresence(username)
+  const { onlineUsers, presenceState } = usePresenceContext()
   const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
   const flashUsername = username || localStorage.getItem('scrum-username') || ''
   const flashRequired = activeFlash && flashUsername && presentUsers.includes(flashUsername) && !completedUsers.includes(flashUsername) && !(activeFlash.exempt_users || []).includes(flashUsername)
