@@ -17,7 +17,10 @@ const REASONS = [
   ['🕓', 'A meeting or event is coming up'],
 ]
 
-const DISMISS_KEY = 'scrum-notif-nudge-dismissed'
+// Bump this version to re-show the nudge to everyone once more (their old
+// dismissal no longer matches, so it reappears on next login and disappears
+// again once they act). Only shows to people who haven't enabled notifications.
+const DISMISS_KEY = 'scrum-notif-nudge-dismissed-v2'
 
 // Installed to the home screen? Notifications are impossible on iOS until then.
 const isInstalled = () =>
