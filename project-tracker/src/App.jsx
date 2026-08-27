@@ -127,6 +127,7 @@ function hasAccess(tab, tier, isTeam, blockedTabs) {
 }
 
 function ForcePasswordChange({ updatePassword }) {
+  const { logout } = useUser()
   const [pw, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -149,7 +150,16 @@ function ForcePasswordChange({ updatePassword }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 w-80 space-y-5">
+      <form onSubmit={handleSubmit} className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 w-80 space-y-5">
+        <button
+          type="button"
+          onClick={() => logout()}
+          title="Cancel and sign out"
+          aria-label="Cancel and sign out"
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors text-lg leading-none"
+        >
+          ✕
+        </button>
         <div>
           <h2 className="text-lg font-bold text-gray-700">Choose a new password</h2>
           <p className="text-sm text-gray-500 mt-1">
@@ -1878,12 +1888,14 @@ function App() {
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                        {task.assignee && task.assignee !== '__up_for_grabs__' && (
+                        {task.assignee === '__everyone__' ? (
+                          <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">👥 Everyone</span>
+                        ) : task.assignee && task.assignee !== '__up_for_grabs__' ? (
                           <span className="flex items-center gap-1">
                             <User size={11} />
                             {task.assignee}
                           </span>
-                        )}
+                        ) : null}
                         {task.dueDate && (
                           <span className="flex items-center gap-1">
                             <Calendar size={11} />

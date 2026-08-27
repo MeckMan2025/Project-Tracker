@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
+import { usePresenceContext } from '../contexts/PresenceContext'
+import OnlineDot from './OnlineDot'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
 import { getSideStyle, getSideLabel, getSides, SIDE_HEX, SIDE_LABEL } from '../utils/sideColors'
@@ -45,6 +47,7 @@ const DEFAULT_PROFILE_DATA = {
 
 function ProfileView({ viewingProfileId, onClearViewing }) {
   const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio, isTeam, teamNumber } = useUser()
+  const { isOnline } = usePresenceContext()
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin, canChangeRoles } = usePermissions()
   const isViewingOther = viewingProfileId && viewingProfileId !== user?.id
@@ -245,7 +248,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     async function loadTasks() {
       if (!username) return
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${encodeURIComponent(username)}&select=*`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(username)},assignee.eq.__everyone__)&select=*`, {
           headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         })
         if (!res.ok) return
@@ -477,6 +480,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     const vpStatus = STATUS_OPTIONS.find(s => s.value === vp.status) || STATUS_OPTIONS[0]
     const VpStatusIcon = vpStatus.icon
     const vpTags = vp.function_tags || []
+    // Someone who hasn't signed up yet carries their address on the whitelist
+    // row; everyone else gets it from profiles.email, which a trigger on
+    // auth.users keeps in step.
+    const vpEmail = vp.__invite?.email || vp.email || ''
 
     return (
       <div className="flex-1 flex flex-col min-w-0">
@@ -499,7 +506,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start gap-4">
                 {/* Avatar wrapped in a tie-dye ring showing the member's side(s) */}
-                <div className="shrink-0 rounded-full p-[3px]" style={getSideStyle(vpTags)}>
+                <div className="shrink-0 rounded-full p-[3px] relative" style={getSideStyle(vpTags)}>
                   {vp.avatar_url ? (
                     <img src={vp.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full object-cover ring-2 ring-white" />
                   ) : (
@@ -507,10 +514,21 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                       <span className="text-2xl font-bold text-white">{(vp.display_name || '?').charAt(0).toUpperCase()}</span>
                     </div>
                   )}
+                  <span className="absolute bottom-0.5 right-0.5">
+                    <OnlineDot online={isOnline(vp.display_name)} size={15} />
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-bold text-gray-800">{vp.display_name || 'Unknown'}</h2>
                   {vp.primary_role_label && <p className="text-sm text-gray-600 font-medium">{vp.primary_role_label}</p>}
+                  {vpEmail && (
+                    <a
+                      href={`mailto:${vpEmail}`}
+                      className="block text-sm text-gray-500 hover:text-pastel-blue-dark hover:underline break-all"
+                    >
+                      {vpEmail}
+                    </a>
+                  )}
                   {/* Side badge(s) */}
                   {getSides(vpTags).length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">

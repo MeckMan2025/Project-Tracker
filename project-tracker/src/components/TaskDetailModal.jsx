@@ -15,7 +15,7 @@ const STATUS_LABEL = { todo: 'To Do', 25: '25%', 50: '50%', 75: '75%', 'in-progr
 
 export default function TaskDetailModal({ task, onClose, onEdit, onMove }) {
   if (!task) return null
-  const assignee = task.assignee === UP_FOR_GRABS ? '🙋 Up for Grabs' : (task.assignee || 'Unassigned')
+  const assignee = task.assignee === UP_FOR_GRABS ? '🙋 Up for Grabs' : task.assignee === '__everyone__' ? '👥 Everyone' : (task.assignee || 'Unassigned')
 
   return createPortal(
     <>

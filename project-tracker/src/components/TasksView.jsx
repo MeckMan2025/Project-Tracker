@@ -90,6 +90,7 @@ function TasksView({ tasksByTab, tabs }) {
                       {tasks.map(task => {
                         const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' && task.status !== 'completed'
                         const isUpForGrabs = task.assignee === '__up_for_grabs__'
+                        const isEveryone = task.assignee === '__everyone__'
                         const priorityBorder = {
                           critical: 'border-l-red-500',
                           high: 'border-l-orange-400',
@@ -130,6 +131,10 @@ function TasksView({ tasksByTab, tabs }) {
                                 <span className="flex items-center gap-0.5 text-amber-500 font-medium">
                                   <Zap size={8} />
                                   Up for Grabs
+                                </span>
+                              ) : isEveryone ? (
+                                <span className="flex items-center gap-0.5 text-pastel-blue-dark font-medium">
+                                  👥 Everyone
                                 </span>
                               ) : task.assignee ? (
                                 <span className="flex items-center gap-0.5">

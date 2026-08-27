@@ -4,6 +4,15 @@ const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead']
 
+// Same rule as canAddEvents below, but computed from a raw function_tags array
+// so callers can re-check against a freshly-fetched profile (not cached state).
+// Team accounts / permanent co-founders are handled by the caller.
+export function canAddEventsFromTags(functionTags = []) {
+  const tags = functionTags || []
+  const hasLeadTag = tags.includes('Co-Founder') || tags.some(t => LEAD_TAGS.includes(t))
+  return hasLeadTag || tags.includes('Outreach') || tags.includes('Finance')
+}
+
 export function usePermissions() {
   const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam } = useUser()
 

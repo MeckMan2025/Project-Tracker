@@ -8,7 +8,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { ROLE_NAMES } from '../data/roleTrackers'
 import { notifyRequestReviewers } from '../utils/requestRouting'
-import { usePermissions } from '../hooks/usePermissions'
+import { usePermissions, canAddEventsFromTags } from '../hooks/usePermissions'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import NotificationBell from './NotificationBell'
 import { useToast } from './ToastProvider'
@@ -141,7 +141,7 @@ function expandRecurrence(event, from, to) {
 // Top-level component
 // ---------------------------------------------------------------------------
 function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
-  const { username, user, functionTags } = useUser()
+  const { username, user, functionTags, isTeam } = useUser()
   const { canEditContent, canReviewRequests, isGuest, canAddEvents, hasLeadTag } = usePermissions()
   // A non-lead's events are tagged with the functional role that let them
   // create it — Outreach can only add Outreach events. Leads create team-wide
@@ -403,7 +403,25 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     // Close the modal immediately — never block the UI on the network round-trip.
     setCreating(null)
 
-    if (!canAddEvents) {
+    // Guard against stale permissions: someone just demoted from a lead role can
+    // still hold "lead" tags in cached state, which would let their event insert
+    // directly. Re-check the live profile before allowing a direct add; if they
+    // no longer qualify, it goes through the request queue like any teammate.
+    let mayAddDirectly = canAddEvents
+    if (canAddEvents && !isCofounder && !isTeam && user?.id) {
+      try {
+        const sUrl = import.meta.env.VITE_SUPABASE_URL
+        const sKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+        const rows = await fetch(
+          `${sUrl}/rest/v1/profiles?id=eq.${user.id}&select=function_tags`,
+          { headers: { apikey: sKey, Authorization: `Bearer ${sKey}` } }
+        ).then(r => (r.ok ? r.json() : null))
+        const tags = rows?.[0]?.function_tags
+        if (Array.isArray(tags)) mayAddDirectly = canAddEventsFromTags(tags)
+      } catch { /* if the live check can't run, keep the cached decision */ }
+    }
+
+    if (!mayAddDirectly) {
       const request = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         type: 'calendar_event',

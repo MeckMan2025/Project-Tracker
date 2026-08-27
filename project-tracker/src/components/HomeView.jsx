@@ -73,7 +73,8 @@ function HomeView({ onTabChange, onOpenTask }) {
     async function loadMyTasks() {
       if (!username) { setMyTasks([]); setMyTaskTotal(0); return }
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${encodeURIComponent(username)}&select=*`, { headers })
+        // Include tasks assigned to the whole team (__everyone__) alongside mine.
+        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(username)},assignee.eq.__everyone__)&select=*`, { headers })
         if (!res.ok) return
         const data = await res.json()
         const active = (Array.isArray(data) ? data : []).filter(t => t.status !== 'done' && t.status !== 'completed')

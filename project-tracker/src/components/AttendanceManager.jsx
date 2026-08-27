@@ -22,6 +22,7 @@ const STATUS_COLORS = {
   present: 'bg-green-100 text-green-700',
   absent: 'bg-red-100 text-red-700',
   excused: 'bg-orange-100 text-orange-700',
+  'no record': 'bg-gray-100 text-gray-400',
 }
 
 export default function AttendanceManager({ onBack }) {
@@ -206,6 +207,26 @@ export default function AttendanceManager({ onBack }) {
   }
 
   const handleToggleStatus = async (record) => {
+    // A "no record" placeholder (member added after this meeting) has no DB row
+    // yet — the first tap creates one, marked present, then it cycles normally.
+    if (record.virtual) {
+      const newRec = {
+        id: genId(),
+        session_id: record.session_id,
+        username: record.username,
+        status: 'present',
+        marked_by: username,
+        created_at: new Date().toISOString(),
+      }
+      setRecords(prev => [...prev, newRec])
+      try {
+        await fetch(`${REST_URL}/rest/v1/attendance_records`, {
+          method: 'POST', headers: REST_JSON, body: JSON.stringify(newRec),
+        })
+      } catch (err) { console.error('Failed to create record:', err) }
+      return
+    }
+
     const cycle = ['present', 'absent', 'excused']
     const nextIdx = (cycle.indexOf(record.status) + 1) % cycle.length
     const newStatus = cycle[nextIdx]
@@ -257,8 +278,26 @@ export default function AttendanceManager({ onBack }) {
     }
   }
 
+  // Show every current team member on each meeting — real records as-is, plus a
+  // neutral "no record" row for anyone (e.g. members added after the meeting was
+  // logged) who doesn't have one yet. This way new members appear on all past
+  // meetings automatically, ready for a lead to mark.
   const sessionRecords = selectedSession
-    ? records.filter(r => r.session_id === selectedSession.id).sort((a, b) => a.username.localeCompare(b.username))
+    ? (() => {
+        const sid = selectedSession.id
+        const real = records.filter(r => r.session_id === sid)
+        const haveRecord = new Set(real.map(r => r.username))
+        const virtuals = teamMembers
+          .filter(m => !haveRecord.has(m.display_name))
+          .map(m => ({
+            id: `virtual_${sid}_${m.display_name}`,
+            session_id: sid,
+            username: m.display_name,
+            status: 'no record',
+            virtual: true,
+          }))
+        return [...real, ...virtuals].sort((a, b) => a.username.localeCompare(b.username))
+      })()
     : []
 
   const getSessionSummary = (sessionId) => {
@@ -316,7 +355,7 @@ export default function AttendanceManager({ onBack }) {
 
           <div className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
             <div className="text-sm text-gray-500">
-              {sessionRecords.filter(r => r.status === 'present').length} present / {sessionRecords.length} total
+              {sessionRecords.filter(r => r.status === 'present').length} present / {sessionRecords.filter(r => r.status !== 'no record').length} marked
             </div>
             <label className="flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
               Meeting length

@@ -126,10 +126,11 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
               >
                 <option value="">Unassigned</option>
                 <option value="__up_for_grabs__">🙋 Up for Grabs</option>
+                <option value="__everyone__">👥 Everyone (whole team)</option>
                 {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
                 {/* A name from before the roster dropdown (or a removed member)
                     still shows so the select doesn't silently blank it. */}
-                {formData.assignee && formData.assignee !== '__up_for_grabs__' && !memberNames.includes(formData.assignee) && (
+                {formData.assignee && formData.assignee !== '__up_for_grabs__' && formData.assignee !== '__everyone__' && !memberNames.includes(formData.assignee) && (
                   <option value={formData.assignee}>{formData.assignee} (former)</option>
                 )}
               </select>

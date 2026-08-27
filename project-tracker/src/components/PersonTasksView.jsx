@@ -32,7 +32,7 @@ export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask })
     const load = async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/tasks?assignee=ilike.${encodeURIComponent(name)}&select=*`,
+          `${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(name)},assignee.eq.__everyone__)&select=*`,
           { headers }
         )
         if (!active || !res.ok) return

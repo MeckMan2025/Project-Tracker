@@ -1,10 +1,12 @@
 import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle, LifeBuoy } from 'lucide-react'
 
 const UP_FOR_GRABS = '__up_for_grabs__'
+const EVERYONE = '__everyone__'
 
 function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim, onLeaveTask, onMarkDone, currentUser, isGuest }) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
   const isUpForGrabs = task.assignee === UP_FOR_GRABS
+  const isEveryone = task.assignee === EVERYONE
   const isAssignedToMe = currentUser && task.assignee && task.assignee.toLowerCase() === currentUser.toLowerCase()
 
   const priorityBorder = {
@@ -57,6 +59,10 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
             <span className="flex items-center gap-1 text-amber-500 font-medium">
               <Zap size={12} />
               Up for Grabs
+            </span>
+          ) : isEveryone ? (
+            <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">
+              👥 Everyone
             </span>
           ) : task.assignee ? (
             <span className="flex items-center gap-1">

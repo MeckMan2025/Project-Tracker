@@ -68,7 +68,7 @@ export default function TaskLoadButton() {
           soon.push({
             id: t.id,
             title: t.title,
-            assignee: t.assignee === '__up_for_grabs__' ? 'Up for Grabs' : (t.assignee || 'Unassigned'),
+            assignee: t.assignee === '__up_for_grabs__' ? 'Up for Grabs' : t.assignee === '__everyone__' ? 'Everyone' : (t.assignee || 'Unassigned'),
             due,
             overdue: due < midnight,
           })
