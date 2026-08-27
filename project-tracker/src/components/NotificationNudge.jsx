@@ -35,7 +35,13 @@ export default function NotificationNudge() {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState('')
 
+  // Preview override: add ?nudge to the URL to force the guide open once,
+  // regardless of subscription/dismissal (for screenshots). Affects no one else.
+  const forcePreview = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('nudge')
+
   useEffect(() => {
+    if (forcePreview) { setOpen(true); return }            // preview: show immediately
     if (isNative) return                                   // handled by APNs
     if (localStorage.getItem(DISMISS_KEY)) return
     if (isSubscribed) return
@@ -44,7 +50,7 @@ export default function NotificationNudge() {
     // Give the app a moment to settle rather than interrupting the load.
     const t = setTimeout(() => setOpen(true), 2500)
     return () => clearTimeout(t)
-  }, [isSubscribed, permission])
+  }, [isSubscribed, permission, forcePreview])
 
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, '1')
