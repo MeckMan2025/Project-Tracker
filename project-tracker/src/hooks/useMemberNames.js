@@ -31,3 +31,35 @@ export function useMemberNames() {
 
   return names
 }
+
+// Just the mentors and coaches (as set in User Management) — for the "who to
+// ask for help" mentor picker, so it isn't the whole team.
+export function useMentorNames() {
+  const [names, setNames] = useState([])
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`,
+          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+        )
+        if (!res.ok || !active) return
+        const rows = await res.json()
+        setNames(
+          (Array.isArray(rows) ? rows : [])
+            .filter(r => {
+              const t = r.function_tags || []
+              return t.includes('Mentor') || t.includes('Coach')
+            })
+            .map(r => r.display_name)
+            .filter(Boolean)
+        )
+      } catch { /* ignore */ }
+    })()
+    return () => { active = false }
+  }, [])
+
+  return names
+}

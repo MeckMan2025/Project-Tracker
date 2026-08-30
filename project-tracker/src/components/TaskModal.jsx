@@ -1,4 +1,4 @@
-import { useMemberNames } from '../hooks/useMemberNames'
+import { useMemberNames, useMentorNames } from '../hooks/useMemberNames'
 import { useState } from 'react'
 import { X, ArrowLeft } from 'lucide-react'
 
@@ -10,6 +10,7 @@ const SKILL_OPTIONS = [
 
 function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToPerson, onBackToPerson }) {
   const memberNames = useMemberNames()
+  const mentorNames = useMentorNames()
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
@@ -22,11 +23,17 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
   })
   const [showErrors, setShowErrors] = useState(false)
 
+  // Every category is required to make a task.
+  const titleMissing = !formData.title.trim()
   const descriptionMissing = !formData.description.trim()
+  const assigneeMissing = !formData.assignee
+  const mentorMissing = !formData.mentor
+  const dueDateMissing = !formData.dueDate
+  const hasErrors = titleMissing || descriptionMissing || assigneeMissing || mentorMissing || dueDateMissing
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.title.trim() || descriptionMissing) {
+    if (hasErrors) {
       setShowErrors(true)
       return
     }
@@ -117,14 +124,16 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assignee
+                Assignee *
               </label>
               <select
                 value={formData.assignee}
                 onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
+                  showErrors && assigneeMissing ? 'border-red-400' : ''
+                }`}
               >
-                <option value="">Unassigned</option>
+                <option value="">Select assignee…</option>
                 <option value="__up_for_grabs__">🙋 Up for Grabs</option>
                 <option value="__everyone__">👥 Everyone (whole team)</option>
                 {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
@@ -134,6 +143,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
                   <option value={formData.assignee}>{formData.assignee} (former)</option>
                 )}
               </select>
+              {showErrors && assigneeMissing && <p className="text-red-500 text-sm mt-1">Pick an assignee</p>}
             </div>
             {task && (
               <div className="col-span-2 -mb-2">
@@ -146,32 +156,41 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
               </div>
             )}
             <div>
-              {/* Who to go to when you're stuck on this task. */}
+              {/* Who to go to when you're stuck on this task — mentors/coaches only. */}
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mentor <span className="text-xs font-normal text-gray-400">(who to ask for help)</span>
+                Mentor <span className="text-xs font-normal text-gray-400">(who to ask for help)</span> *
               </label>
               <select
                 value={formData.mentor}
                 onChange={(e) => setFormData({ ...formData, mentor: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
+                  showErrors && mentorMissing ? 'border-red-400' : ''
+                }`}
               >
-                <option value="">No mentor</option>
-                {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
-                {formData.mentor && !memberNames.includes(formData.mentor) && (
+                <option value="">Select a mentor…</option>
+                {mentorNames.map(n => <option key={n} value={n}>{n}</option>)}
+                {formData.mentor && !mentorNames.includes(formData.mentor) && (
                   <option value={formData.mentor}>{formData.mentor} (former)</option>
                 )}
               </select>
+              {mentorNames.length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">No mentors yet — add the Mentor or Coach role in User Management.</p>
+              )}
+              {showErrors && mentorMissing && <p className="text-red-500 text-sm mt-1">Pick a mentor</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Date
+                Due Date *
               </label>
               <input
                 type="date"
                 value={formData.dueDate}
                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
+                  showErrors && dueDateMissing ? 'border-red-400' : ''
+                }`}
               />
+              {showErrors && dueDateMissing && <p className="text-red-500 text-sm mt-1">Set a due date</p>}
             </div>
           </div>
 
