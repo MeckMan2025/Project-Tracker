@@ -729,7 +729,7 @@ export default function EngineeringNotebook() {
                   <div className="mt-2">
                     <p className="text-xs text-gray-400 mb-1">
                       No entry yet for {missingDays.length === 1 ? 'this meeting' : 'these meetings'} — tap one to write it up.
-                      It completes your notebook, but it won't undo an absence.
+                      If you were marked absent only for missing it, writing it wins that meeting back.
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {missingDays.map(d => (

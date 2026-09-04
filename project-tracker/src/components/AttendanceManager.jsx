@@ -375,33 +375,47 @@ export default function AttendanceManager({ onBack }) {
       })()
     : []
 
-  // The rule only ever takes attendance away. Absent is final for that date:
-  // writing the entry afterwards fixes the notebook, it does not buy back a
-  // meeting you were marked absent for. 'excused' is a lead's call and is left
-  // alone.
+  // Marker on marked_by that means "this absence came from the rule, not from a
+  // person". Only those can be won back — if a lead marked you absent because
+  // you weren't there, writing an entry afterwards doesn't overturn them.
+  const RULE = 'notebook-rule'
+
   const notebookDiff = (session) => {
-    if (!session) return { toAbsent: [] }
+    if (!session) return { toAbsent: [], toPresent: [] }
     const wrote = notebookByDate[session.session_date] || new Set()
+    const real = records.filter(r => r.session_id === session.id)
     return {
-      toAbsent: records.filter(r =>
-        r.session_id === session.id && r.status === 'present' && !wrote.has(r.username)
-      ),
+      toAbsent: real.filter(r => r.status === 'present' && !wrote.has(r.username)),
+      toPresent: real.filter(r => r.status === 'absent' && r.marked_by === RULE && wrote.has(r.username)),
     }
   }
 
   const applyNotebookRule = async (session = selectedSession, quiet = false) => {
     if (applyingRule || !session) return
-    const { toAbsent } = notebookDiff(session)
-    if (toAbsent.length === 0) return
+    const { toAbsent, toPresent } = notebookDiff(session)
+    if (toAbsent.length === 0 && toPresent.length === 0) return
     setApplyingRule(true)
-    const ids = toAbsent.map(r => r.id)
-    setRecords(prev => prev.map(r => ids.includes(r.id) ? { ...r, status: 'absent', marked_by: username } : r))
-    try {
-      await fetch(`${REST_URL}/rest/v1/attendance_records?id=in.(${ids.join(',')})`, {
+    // Absences the rule creates are stamped with RULE so they stay reversible.
+    // Winning one back hands it to the person who applied it, so it can't be
+    // won back twice over.
+    const changed = new Map()
+    toAbsent.forEach(r => changed.set(r.id, ['absent', RULE]))
+    toPresent.forEach(r => changed.set(r.id, ['present', username]))
+    setRecords(prev => prev.map(r => changed.has(r.id)
+      ? { ...r, status: changed.get(r.id)[0], marked_by: changed.get(r.id)[1] } : r))
+    const patch = async (list, status, by) => {
+      if (list.length === 0) return
+      await fetch(`${REST_URL}/rest/v1/attendance_records?id=in.(${list.map(r => r.id).join(',')})`, {
         method: 'PATCH', headers: REST_JSON,
-        body: JSON.stringify({ status: 'absent', marked_by: username }),
+        body: JSON.stringify({ status, marked_by: by }),
       })
-      if (!quiet) showFeedback(`${toAbsent.length} marked absent`)
+    }
+    try {
+      await Promise.all([patch(toAbsent, 'absent', RULE), patch(toPresent, 'present', username)])
+      if (!quiet) showFeedback([
+        toAbsent.length ? `${toAbsent.length} marked absent` : '',
+        toPresent.length ? `${toPresent.length} won back` : '',
+      ].filter(Boolean).join(' · '))
     } catch (err) {
       console.error('Failed to apply the notebook rule:', err)
       showFeedback('Could not apply it — try again')
@@ -421,7 +435,8 @@ export default function AttendanceManager({ onBack }) {
     const today = todayStr()
     const past = sessions.filter(s => s.session_date < today)
     const pending = past.filter(s => {
-      return notebookDiff(s).toAbsent.length > 0
+      const d = notebookDiff(s)
+      return d.toAbsent.length > 0 || d.toPresent.length > 0
     })
     if (pending.length === 0) return
     settledRef.current = true
@@ -484,9 +499,12 @@ export default function AttendanceManager({ onBack }) {
           {/* Today's session hasn't hit its deadline yet, so the rule is offered
               rather than applied. Past days settle themselves on load. */}
           {hasLeadTag && (() => {
-            const { toAbsent } = notebookDiff(selectedSession)
-            if (toAbsent.length === 0) return null
-            const bits = `${toAbsent.length} marked present with no entry — this can't be undone by writing one later`
+            const { toAbsent, toPresent } = notebookDiff(selectedSession)
+            if (toAbsent.length === 0 && toPresent.length === 0) return null
+            const bits = [
+              toAbsent.length ? `${toAbsent.length} without an entry → absent` : '',
+              toPresent.length ? `${toPresent.length} wrote one late → present` : '',
+            ].filter(Boolean).join(' · ')
             return (
               <button
                 onClick={() => applyNotebookRule()}
