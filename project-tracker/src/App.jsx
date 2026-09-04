@@ -41,6 +41,7 @@ import WorkshopIdeas from './components/WorkshopIdeas'
 import CleanUpChart from './components/CleanUpChart'
 import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
+import BirthdayConfetti from './components/BirthdayConfetti'
 import DailyPulsePopup from './components/DailyPulsePopup'
 import TeamPulseDashboard from './components/TeamPulseDashboard'
 import { useAppSettings } from './hooks/useAppSettings'
@@ -60,6 +61,7 @@ import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
 import TimelineView from './components/TimelineView'
 import NotificationNudge from './components/NotificationNudge'
+import TeamContractSurvey from './components/TeamContractSurvey'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import ExpenseRequests from './components/ExpenseRequests'
@@ -1321,7 +1323,7 @@ function App() {
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {/* Guests and kiosk accounts aren't people we send notifications to. */}
-      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup />{!isGuest && <NotificationNudge />}</>)}
+      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /><BirthdayConfetti />{!isGuest && <NotificationNudge />}{!isGuest && <TeamContractSurvey />}</>)}
       {viewTask && (
         <TaskDetailModal
           task={viewTask}

@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 160,
+    date: '2026-09-04',
+    items: [
+      '\u{1F389} A confetti pops up in the corner on someone\'s birthday, and everyone gets a Happy Birthday notification with their name. It reads the birthdays already on the calendar, so there is nothing extra to fill in \u2014 two people sharing a day get one message between them, and on your own birthday you get the confetti without being pinged about yourself',
+      '\u{1F5FA}\uFE0F Org chart is three equal departments now \u2014 Business, Hardware and Software side by side. Technical is gone as a layer above Hardware and Software, and each of the three shows its own lead',
+    ],
+  },
+  {
     id: 159,
     date: '2026-09-04',
     items: [
