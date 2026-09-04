@@ -61,7 +61,6 @@ import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
 import TimelineView from './components/TimelineView'
 import NotificationNudge from './components/NotificationNudge'
-import TeamContractSurvey from './components/TeamContractSurvey'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import ExpenseRequests from './components/ExpenseRequests'
@@ -1323,7 +1322,7 @@ function App() {
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
       {/* Guests and kiosk accounts aren't people we send notifications to. */}
-      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /><BirthdayConfetti />{!isGuest && <NotificationNudge />}{!isGuest && <TeamContractSurvey />}</>)}
+      {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /><BirthdayConfetti />{!isGuest && <NotificationNudge />}</>)}
       {viewTask && (
         <TaskDetailModal
           task={viewTask}
