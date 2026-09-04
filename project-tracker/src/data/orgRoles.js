@@ -1,6 +1,12 @@
-// Role catalog for the Org Chart. Each department (Business / Technical) has a
-// set of specific roles. People are placed into a role box by matching
+// Role catalog for the Org Chart. The team is three equal departments —
+// Business, Hardware, Software. People are placed into a role box by matching
 // function_tags. Descriptions power the hover tooltips.
+//
+// Note on lead tags: the chart labels the hardware lead "Hardware", but the
+// underlying tag is still 'Technical Lead', and the software lead's is still
+// 'Programming Lead'. Those tag strings are checked by usePermissions and by
+// the deployed admin-* edge functions, so renaming them is a coordinated change
+// and not just a relabel.
 
 export const BUSINESS_ROLES = [
   { tag: 'Communications', desc: 'Team communications, emails, the team website, and social media.' },
@@ -8,10 +14,12 @@ export const BUSINESS_ROLES = [
   { tag: 'Outreach', desc: 'Community events and STEM outreach.' },
 ]
 
-// Technical splits into two sides: Hardware (blue) and Software (green).
+// Hardware (blue) and Software (green) stand beside Business, not under a
+// shared "Technical" umbrella — there is no lead above the two of them.
 export const TECHNICAL_GROUPS = [
   {
     key: 'hardware', label: 'Hardware', color: 'blue',
+    leadTag: 'Technical Lead',
     roles: [
       { tag: 'CAD', desc: 'Designs robot parts and assemblies in 3D CAD.' },
       { tag: 'Assembly/Building', desc: 'Fabricates and assembles the physical robot.' },
@@ -20,6 +28,7 @@ export const TECHNICAL_GROUPS = [
   },
   {
     key: 'software', label: 'Software', color: 'green',
+    leadTag: 'Programming Lead',
     roles: [
       { tag: 'Programming', desc: 'Writes autonomous and driver-control code.' },
       { tag: 'Scouting', desc: 'Collects and analyzes match data on other teams.' },
@@ -30,11 +39,17 @@ export const TECHNICAL_GROUPS = [
 // Flattened technical roles (used for catalog/extra-tag detection).
 export const TECHNICAL_ROLES = TECHNICAL_GROUPS.flatMap(g => g.roles)
 
+// The three departments, side by side and equal. Each owns its own lead.
+export const DEPARTMENTS = [
+  { key: 'business', label: 'Business', color: 'orange', leadTag: 'Business Lead', roles: BUSINESS_ROLES },
+  ...TECHNICAL_GROUPS.map(g => ({ key: g.key, label: g.label, color: g.color, leadTag: g.leadTag, roles: g.roles })),
+]
+
 // Leadership / support role descriptions (tooltips for those sections)
 export const LEAD_DESC = {
   'Business Lead': 'Leads the business subteam and its members.',
-  'Technical Lead': 'Leads the technical subteam and its members.',
-  'Programming Lead': 'Leads the software subteam and its members.',
+  'Technical Lead': 'Leads the hardware side — CAD, assembly, and wiring.',
+  'Programming Lead': 'Leads the software side — programming and scouting.',
   'Project Manager': 'Coordinates timelines, tasks, and the whole team.',
   'Co-Founder': 'Founded and oversees the team.',
   'Mentor': 'Adult mentor guiding the team.',

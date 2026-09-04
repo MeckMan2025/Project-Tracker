@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import { usePresenceContext } from '../contexts/PresenceContext'
 import OnlineDot from './OnlineDot'
-import { BUSINESS_ROLES, TECHNICAL_ROLES, TECHNICAL_GROUPS, LEADERSHIP_TAGS, ROLE_DESC } from '../data/orgRoles'
+import { BUSINESS_ROLES, TECHNICAL_ROLES, DEPARTMENTS, LEADERSHIP_TAGS, ROLE_DESC } from '../data/orgRoles'
 
 const STATUS_MAP = {
   'available': { label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
@@ -117,52 +117,24 @@ function RoleBox({ role, people, theme, onClick }) {
 }
 
 // ── Business department (single orange box, flat roles) ──
-function BusinessDepartment({ roles, leads, membersByTag, onClick }) {
-  const theme = THEME.orange
+const DEPT_ICON = { business: Briefcase, hardware: Wrench, software: Cpu }
+
+// ── One department box. Business, Hardware and Software are peers: each owns
+// its own lead, and none of them sits under another. ──
+function Department({ dept, leads, membersByTag, onClick }) {
+  const theme = THEME[dept.color] || THEME.blue
+  const Icon = DEPT_ICON[dept.key] || Cpu
   return (
     <div className={`h-full flex flex-col rounded-2xl border-2 shadow-sm p-4 ${theme.box}`}>
       <div className="flex items-center justify-center gap-2 mb-1">
-        <Briefcase size={20} className={theme.title} />
-        <h2 className={`text-lg font-black ${theme.title}`}>Business</h2>
+        <Icon size={20} className={theme.title} />
+        <h2 className={`text-lg font-black ${theme.title}`}>{dept.label}</h2>
       </div>
-      <LeadLine label="Business" leads={leads} theme={theme} onClick={onClick} />
+      <LeadLine label={dept.label} leads={leads} theme={theme} onClick={onClick} />
       <div className="grid grid-cols-1 gap-2.5 flex-1">
-        {roles.map(role => (
+        {dept.roles.map(role => (
           <RoleBox key={role.tag} role={role} people={membersByTag(role.tag)} theme={theme} onClick={onClick} />
         ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Technical department (Hardware = blue, Software = green sub-boxes) ──
-function TechnicalDepartment({ groups, leads, softwareLeads = [], membersByTag, onClick }) {
-  return (
-    <div className="h-full flex flex-col rounded-2xl border-2 border-gray-200 bg-white/50 shadow-sm p-4">
-      <div className="flex items-center justify-center gap-2 mb-1">
-        <Cpu size={20} className="text-gray-600" />
-        <h2 className="text-lg font-black text-gray-700">Technical</h2>
-      </div>
-      <LeadLine label="Technical" leads={leads} theme={THEME.blue} onClick={onClick} />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-        {groups.map(g => {
-          const theme = THEME[g.color] || THEME.blue
-          return (
-            <div key={g.key} className={`flex flex-col rounded-xl border-2 p-3 ${theme.box}`}>
-              <h3 className={`text-sm font-black text-center ${theme.title}`}>{g.label}</h3>
-              {/* The software side has its own lead. */}
-              {g.key === 'software' && softwareLeads.length > 0 && (
-                <LeadLine label="Software" leads={softwareLeads} theme={theme} onClick={onClick} />
-              )}
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 text-center mb-2">Sub-roles</p>
-              <div className="grid grid-cols-1 gap-2.5 flex-1">
-                {g.roles.map(role => (
-                  <RoleBox key={role.tag} role={role} people={membersByTag(role.tag)} theme={theme} onClick={onClick} />
-                ))}
-              </div>
-            </div>
-          )
-        })}
       </div>
     </div>
   )
@@ -451,17 +423,12 @@ function OrgChart({ onViewProfile }) {
     .filter(t => !LEADERSHIP_TAGS.has(t) && !catalogTags.has(t))
   const extraTech = extraTags.map(t => ({ tag: t, desc: ROLE_DESC[t] || 'Custom team role.' }))
 
-  const businessRoles = BUSINESS_ROLES
-  // Custom (non-catalog) role tags get appended to the last technical group (Software).
-  const technicalGroups = TECHNICAL_GROUPS.map((g, i) =>
-    i === TECHNICAL_GROUPS.length - 1 && extraTech.length
-      ? { ...g, roles: [...g.roles, ...extraTech] }
-      : g
+  // Custom (non-catalog) role tags get appended to the last department (Software).
+  const departments = DEPARTMENTS.map((d, i) =>
+    i === DEPARTMENTS.length - 1 && extraTech.length
+      ? { ...d, roles: [...d.roles, ...extraTech] }
+      : d
   )
-
-  const businessLeads = profiles.filter(p => hasTag(p, 'Business Lead'))
-  const technicalLeads = profiles.filter(p => hasTag(p, 'Technical Lead'))
-  const softwareLeads = profiles.filter(p => hasTag(p, 'Programming Lead'))
   const projectManagers = profiles.filter(p => hasTag(p, 'Project Manager') || hasTag(p, 'Team Lead'))
   const mentorsCoaches = profiles.filter(p => hasTag(p, 'Mentor') || hasTag(p, 'Coach'))
 
@@ -493,10 +460,17 @@ function OrgChart({ onViewProfile }) {
             </div>
           ) : (
             <>
-              {/* Departments: Business (left, orange) · Technical (right — Hardware blue / Software green) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-                <BusinessDepartment roles={businessRoles} leads={businessLeads} membersByTag={membersByTag} onClick={handleCardClick} />
-                <TechnicalDepartment groups={technicalGroups} leads={technicalLeads} softwareLeads={softwareLeads} membersByTag={membersByTag} onClick={handleCardClick} />
+              {/* Three equal departments: Business (orange) · Hardware (blue) · Software (green) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+                {departments.map(dept => (
+                  <Department
+                    key={dept.key}
+                    dept={dept}
+                    leads={profiles.filter(p => hasTag(p, dept.leadTag))}
+                    membersByTag={membersByTag}
+                    onClick={handleCardClick}
+                  />
+                ))}
               </div>
 
               {/* Project Managers — ombre sticky note, its own box */}
