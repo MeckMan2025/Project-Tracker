@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import MeetingRecorder from './MeetingRecorder'
 import { usePermissions } from '../hooks/usePermissions'
 import { SIDE_THEME } from '../data/roleTrackers'
@@ -44,15 +44,12 @@ export default function MyDashboard() {
 
   return (
     <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <LayoutDashboard size={16} className="text-gray-400" />
-        <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">My Dashboard</h2>
-      </div>
-      <div className="divide-y divide-gray-100">
-        <Section id="meetings" title="Meetings" emoji="🎙️" side="hardware" defaultOpen>
-          <MeetingRecorder />
-        </Section>
-      </div>
+      {/* The "My Dashboard" heading is gone — the card only ever held the
+          meeting recorder, so the label sat above a single "Meetings" section
+          saying the same thing twice. */}
+      <Section id="meetings" title="Meetings" emoji="🎙️" side="hardware" defaultOpen>
+        <MeetingRecorder />
+      </Section>
     </div>
   )
 }

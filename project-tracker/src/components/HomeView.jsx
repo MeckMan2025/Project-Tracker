@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy, ClipboardCheck, BarChart3, Zap } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -26,7 +26,7 @@ const CLEANUP_STATUS = {
   denied: { label: 'Denied', cls: 'bg-red-100 text-red-700' },
 }
 
-function HomeView({ onTabChange, onOpenTask }) {
+function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   const { username, user } = useUser()
   const { isGuest, hasLeadTag } = usePermissions()
 
@@ -477,6 +477,27 @@ function HomeView({ onTabChange, onOpenTask }) {
             })}
           </div>
         </div>
+
+        {/* Lead shortcuts — the three Special Controls pages that actually get
+            used during a meeting, one tap from Home instead of three. */}
+        {hasLeadTag && (
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-blue',   tint: 'bg-pastel-blue/20',   text: 'text-pastel-blue-dark' },
+              { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-pink',   tint: 'bg-pastel-pink/20',   text: 'text-pastel-pink-dark' },
+              { view: 'flash',         label: 'Notebook Flash',icon: Zap,            ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
+            ].map(({ view, label, icon: Icon, ring, tint, text }) => (
+              <button
+                key={view}
+                onClick={() => onOpenSpecial?.(view)}
+                className={`flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 ${ring} ${tint} bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all`}
+              >
+                <Icon size={22} className={text} />
+                <span className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Role dashboard(s) for the current user */}
         <MyDashboard />

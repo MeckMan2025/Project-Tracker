@@ -1411,7 +1411,7 @@ function App() {
       ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setActiveTab('special-controls') }} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />
       ) : activeTab === 'sw-programming' ? (
