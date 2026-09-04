@@ -1418,7 +1418,7 @@ function App() {
         <WorkingOnIt title="Programming" />
       ) : activeTab === 'sw-io' ? (
         <WorkingOnIt title="Robot I/O" />
-      ) : activeTab === 'unfinished-tabs' ? (
+      ) : activeTab === 'unfinished-tabs' && import.meta.env.DEV ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
             <div className="px-4 py-3 pl-14 flex items-center justify-between">

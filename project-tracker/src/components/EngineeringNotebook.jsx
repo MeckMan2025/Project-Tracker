@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, Users } from 'lucide-react'
+import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 
@@ -17,11 +17,6 @@ function todayLocal() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-// Team accounts and the ETS testing account are not people on the roster.
-const EXCLUDED_ROSTER_NAMES = ['ets', 'everythingthatsscrum']
-const offRoster = (p) =>
-  (p.function_tags || []).includes('Team') ||
-  EXCLUDED_ROSTER_NAMES.includes((p.display_name || '').trim().toLowerCase())
 
 const CATEGORY_COLORS = {
   Technical: 'bg-blue-100 text-blue-700',
@@ -103,10 +98,6 @@ export default function EngineeringNotebook() {
   const [expandedProject, setExpandedProject] = useState(null)
   const [showRequestProjectModal, setShowRequestProjectModal] = useState(false)
   const [requestProjectName, setRequestProjectName] = useState('')
-  // Daily notebook-usage tracker
-  const [roster, setRoster] = useState([])
-  const [trackerDate, setTrackerDate] = useState(todayLocal)
-  const [showWhoLogged, setShowWhoLogged] = useState(false)
 
   // Load data via direct fetch
   useEffect(() => {
@@ -153,11 +144,10 @@ export default function EngineeringNotebook() {
   }, [])
 
 
-  // Mentors and coaches, for the "who helped" dropdown — and the full roster,
-  // which is the denominator for the daily usage tracker.
+  // Mentors and coaches, for the "who helped" dropdown.
   useEffect(() => {
     let active = true
-    fetch(`${supabaseUrl}/rest/v1/profiles?select=display_name,authority_tier,function_tags&order=display_name`, {
+    fetch(`${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`, {
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
     })
       .then(res => (res.ok ? res.json() : []))
@@ -169,11 +159,6 @@ export default function EngineeringNotebook() {
             .filter(r => (r.function_tags || []).some(t => t === 'Mentor' || t === 'Coach'))
             .map(r => r.display_name)
             .filter(Boolean)
-        )
-        setRoster(
-          list
-            .filter(r => r.display_name && r.authority_tier !== 'guest' && !offRoster(r))
-            .map(r => r.display_name)
         )
       })
       .catch(() => {})
@@ -429,26 +414,6 @@ export default function EngineeringNotebook() {
     }).catch(err => console.error('Failed to request project:', err))
   }
 
-  // How many people logged a notebook entry on the selected day. Counted by
-  // meeting_date (the day the work happened), which is what entries are filed
-  // under, not by when the row happened to be created.
-  const dayStats = useMemo(() => {
-    const logged = [...new Set(
-      entries.filter(e => e.meeting_date === trackerDate).map(e => e.username)
-    )].sort((a, b) => a.localeCompare(b))
-    const loggedSet = new Set(logged)
-    const missing = roster.filter(n => !loggedSet.has(n)).sort((a, b) => a.localeCompare(b))
-    const count = entries.filter(e => e.meeting_date === trackerDate).length
-    const total = roster.length
-    return {
-      logged,
-      missing,
-      total,
-      entryCount: count,
-      pct: total ? Math.min(100, Math.round((logged.length / total) * 100)) : 0,
-    }
-  }, [entries, roster, trackerDate])
-
   const views = [
     { id: 'projects', label: 'Projects', icon: FolderOpen },
     { id: 'entry', label: 'New Entry', icon: Plus },
@@ -519,101 +484,6 @@ export default function EngineeringNotebook() {
           {/* ========== PROJECTS VIEW ========== */}
           {view === 'projects' && (
             <>
-              {/* Daily usage tracker — how much of the team wrote in the
-                  notebook on a given day. The count is aggregate so everyone
-                  sees it; the names are lead-only, matching entry visibility. */}
-              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-1.5">
-                    <Users size={14} /> Notebook activity
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={trackerDate}
-                      onChange={e => { setTrackerDate(e.target.value || todayLocal()); setShowWhoLogged(false) }}
-                      className="border rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                    />
-                    {trackerDate !== todayLocal() && (
-                      <button
-                        onClick={() => { setTrackerDate(todayLocal()); setShowWhoLogged(false) }}
-                        className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap"
-                      >
-                        Today
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-end gap-3">
-                  <div className="text-3xl font-bold text-gray-800">{dayStats.logged.length}</div>
-                  <div className="text-xs text-gray-400 pb-1">
-                    {dayStats.total > 0
-                      ? `of ${dayStats.total} people wrote an entry`
-                      : 'people wrote an entry'}
-                    <div>
-                      {dayStats.entryCount} {dayStats.entryCount === 1 ? 'entry' : 'entries'} total
-                    </div>
-                  </div>
-                </div>
-
-                {dayStats.total > 0 && (
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div
-                      className="h-2.5 rounded-full transition-all duration-500"
-                      style={{
-                        width: `${dayStats.pct}%`,
-                        background: dayStats.pct >= 80 ? '#86efac' : dayStats.pct >= 50 ? '#fde68a' : '#fca5a5',
-                      }}
-                    />
-                  </div>
-                )}
-
-                {isLead && (dayStats.logged.length > 0 || dayStats.missing.length > 0) && (
-                  <>
-                    <button
-                      onClick={() => setShowWhoLogged(v => !v)}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showWhoLogged ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                      {showWhoLogged ? 'Hide names' : 'Who wrote one?'}
-                    </button>
-                    {showWhoLogged && (
-                      <div className="space-y-2 pt-1 border-t border-gray-100">
-                        <div>
-                          <p className="text-[11px] font-semibold text-gray-400 mb-1">
-                            Wrote an entry ({dayStats.logged.length})
-                          </p>
-                          {dayStats.logged.length === 0 ? (
-                            <p className="text-xs text-gray-300">Nobody yet.</p>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {dayStats.logged.map(n => (
-                                <span key={n} className="px-2 py-0.5 text-xs rounded-lg bg-green-100 text-green-700">{n}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-gray-400 mb-1">
-                            Hasn't yet ({dayStats.missing.length})
-                          </p>
-                          {dayStats.missing.length === 0 ? (
-                            <p className="text-xs text-gray-300">Everyone's in.</p>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {dayStats.missing.map(n => (
-                                <span key={n} className="px-2 py-0.5 text-xs rounded-lg bg-gray-100 text-gray-500">{n}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 {isLead ? (
                   <button

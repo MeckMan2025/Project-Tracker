@@ -146,7 +146,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
                     ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-pink-dark', tab: 'user-management' }] : []),
                     { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
-                    ...(isCofounder ? [{ icon: Construction, label: 'Unfinished Tabs', color: 'text-gray-400', tab: 'unfinished-tabs' }] : []),
+                    // Local-only, like RoleSpec and Team Pulse — half-built pages
+                    // shouldn't be one tap away on the deployed site.
+                    ...(isCofounder && import.meta.env.DEV ? [{ icon: Construction, label: 'Unfinished Tabs', color: 'text-gray-400', tab: 'unfinished-tabs' }] : []),
                     { icon: LogOut, label: 'Logout', color: 'text-red-400' },
                   ].map(({ icon: Icon, label, color, tab, action }) => (
                     <button
