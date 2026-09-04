@@ -187,6 +187,36 @@ export default function EngineeringNotebook() {
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
 
+  // Writing the entry is what wins the meeting back, so claim it here rather
+  // than waiting for a lead to open the Attendance Manager. Only absences the
+  // rule handed out (marked_by 'notebook-rule') can be claimed — a lead marking
+  // someone absent because they weren't there still stands.
+  const claimAttendance = async (dateStr) => {
+    if (!username || !dateStr) return
+    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    try {
+      const sRes = await fetch(`${supabaseUrl}/rest/v1/attendance_sessions?session_date=eq.${dateStr}&select=id`, { headers: h })
+      if (!sRes.ok) return
+      const sessions = await sRes.json()
+      if (!sessions.length) return
+      const q = new URLSearchParams({
+        session_id: `eq.${sessions[0].id}`,
+        username: `eq.${username}`,
+        status: 'eq.absent',
+        marked_by: 'eq.notebook-rule',
+      })
+      const res = await fetch(`${supabaseUrl}/rest/v1/attendance_records?${q}`, {
+        method: 'PATCH',
+        headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'present', marked_by: username }),
+      })
+      const rows = res.ok ? await res.json() : []
+      if (rows.length > 0) setSubmitFeedback('Entry saved — you\'re marked present for that meeting again')
+    } catch (err) {
+      console.error('Failed to claim attendance back:', err)
+    }
+  }
+
   // Submit entry
   const handleSubmitEntry = async () => {
     if (!formData.whatDid.trim()) return
@@ -224,6 +254,7 @@ export default function EngineeringNotebook() {
         body: JSON.stringify(entryData),
       }).then(res => {
         if (!res.ok) res.text().then(t => { console.error('Update failed:', t); setSubmitFeedback('Failed to save — try again') })
+        else claimAttendance(entryData.meeting_date)
       }).catch(err => { console.error('Failed to update entry:', err); setSubmitFeedback('Failed to save — try again') })
     } else {
       const newEntry = {
@@ -239,6 +270,7 @@ export default function EngineeringNotebook() {
         body: JSON.stringify(newEntry),
       }).then(res => {
         if (!res.ok) res.text().then(t => { console.error('Save failed:', t); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
+        else claimAttendance(newEntry.meeting_date)
       }).catch(err => { console.error('Failed to save entry:', err); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
     }
 
