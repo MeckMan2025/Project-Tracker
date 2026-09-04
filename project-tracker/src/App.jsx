@@ -1533,7 +1533,7 @@ function App() {
         <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
-      ) : activeTab === 'role-spec' ? (
+      ) : activeTab === 'role-spec' && import.meta.env.DEV ? (
         <RoleSpec />
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />

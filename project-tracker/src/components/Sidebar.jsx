@@ -422,15 +422,19 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                 <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
                 <span className="truncate">Attendance</span>
               </div>
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                  activeTab === 'role-spec' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                }`}
-                onClick={() => { onTabChange('role-spec'); onToggle() }}
-              >
-                <ChevronRight size={14} className={activeTab === 'role-spec' ? 'rotate-90' : ''} />
-                <span className="truncate">RoleSpec</span>
-              </div>
+              {/* RoleSpec is local-only for now — import.meta.env.DEV is false
+                  in a production build, so it isn't on the deployed site. */}
+              {import.meta.env.DEV && (
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                    activeTab === 'role-spec' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                  }`}
+                  onClick={() => { onTabChange('role-spec'); onToggle() }}
+                >
+                  <ChevronRight size={14} className={activeTab === 'role-spec' ? 'rotate-90' : ''} />
+                  <span className="truncate">RoleSpec</span>
+                </div>
+              )}
             </div>
           )}
 
