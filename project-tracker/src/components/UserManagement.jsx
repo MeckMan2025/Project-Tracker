@@ -162,6 +162,7 @@ function UserManagement({ onViewProfile }) {
   const [resetPassword, setResetPassword] = useState('')
   const [resetError, setResetError] = useState('')
   const [resetSuccess, setResetSuccess] = useState('')
+  const [resetCopied, setResetCopied] = useState(false)
   const [resetSubmitting, setResetSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
@@ -723,8 +724,11 @@ function UserManagement({ onViewProfile }) {
           body: JSON.stringify({ must_change_password: true }),
         })
       } catch { /* the edge function already tries this */ }
-      setResetSuccess(`Password reset. Tell ${resetTarget.display_name} their temporary password — they'll be asked to change it as soon as they log in.`)
-      setResetPassword('')
+      // Do NOT clear resetPassword here. This is the only copy of the temporary
+      // password anywhere — clearing it left the lead being told to pass along a
+      // secret the screen had just erased, which locked people out of the app.
+      setResetSuccess(`Password reset. Give ${resetTarget.display_name} the temporary password below — they'll be asked to pick their own as soon as they log in.`)
+      setResetCopied(false)
     } catch (err) {
       setResetError(err.message)
     } finally {
@@ -1371,7 +1375,7 @@ function UserManagement({ onViewProfile }) {
                                     setAddError(''); setAddSuccess(''); setShowAddMember(true)
                                     window.scrollTo({ top: 0, behavior: 'smooth' })
                                   } else {
-                                    setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess('')
+                                    setResetTarget(member); setResetPassword(''); setResetError(''); setResetSuccess(''); setResetCopied(false)
                                   }
                                 }}
                                 title={invite ? 'Create their login' : 'Reset password'}
@@ -1646,18 +1650,41 @@ function UserManagement({ onViewProfile }) {
             <h3 className="font-semibold text-gray-700">
               Reset Password for {resetTarget.display_name}
             </h3>
-            <PasswordInput
-              value={resetPassword}
-              onChange={(e) => { setResetPassword(e.target.value); setResetError(''); setResetSuccess('') }}
-              placeholder="New password (min 6 characters)"
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              autoFocus
-            />
+            {!resetSuccess && (
+              <PasswordInput
+                value={resetPassword}
+                onChange={(e) => { setResetPassword(e.target.value); setResetError(''); setResetSuccess('') }}
+                placeholder="New password (min 6 characters)"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                autoFocus
+              />
+            )}
             {resetError && <p className="text-sm text-red-500">{resetError}</p>}
-            {resetSuccess && <p className="text-sm text-green-600">{resetSuccess}</p>}
+            {resetSuccess && (
+              <>
+                <p className="text-sm text-green-600">{resetSuccess}</p>
+                <div className="rounded-lg border-2 border-dashed border-pastel-blue bg-pastel-blue/10 p-3 space-y-2">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Temporary password</p>
+                  <p className="font-mono text-base text-gray-800 break-all select-all">{resetPassword}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(resetPassword)
+                        .then(() => { setResetCopied(true); setTimeout(() => setResetCopied(false), 2000) })
+                        .catch(() => {})
+                    }}
+                    className="text-xs px-2 py-1 rounded-lg bg-white border hover:bg-gray-50 text-gray-600"
+                  >
+                    {resetCopied ? '✓ Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Write it down before closing — it isn't stored anywhere and can't be shown again.
+                </p>
+              </>
+            )}
             <div className="flex gap-2">
               <button
-                onClick={() => setResetTarget(null)}
+                onClick={() => { setResetTarget(null); setResetPassword(''); setResetSuccess(''); setResetCopied(false) }}
                 className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
               >
                 {resetSuccess ? 'Close' : 'Cancel'}
