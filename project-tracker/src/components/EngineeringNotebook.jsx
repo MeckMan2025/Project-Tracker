@@ -952,29 +952,49 @@ export default function EngineeringNotebook() {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0]
+                        // Clear the input straight away, so picking the same
+                        // file again after a failure still fires onChange.
+                        e.target.value = ''
                         if (!file) return
                         if (file.size > 10 * 1024 * 1024) {
-                          alert('Photo must be under 10 MB')
+                          setFormData(prev => ({ ...prev, _uploading: false, _photoError: 'That photo is over 10 MB — try a smaller one.' }))
                           return
                         }
-                        updateField('_uploading', true)
+                        setFormData(prev => ({ ...prev, _uploading: true, _photoError: '' }))
+
+                        // Every path out of here has to clear _uploading. It
+                        // previously only cleared on success, so a photo the
+                        // browser couldn't decode — an iPhone HEIC on Chrome,
+                        // most often — left the spinner going forever and the
+                        // Submit button disabled with nothing to explain why.
+                        const fail = (msg) => setFormData(prev => ({ ...prev, _uploading: false, _photoError: msg }))
+                        const CANT_READ = "Couldn't read that photo. If it came from an iPhone it may be HEIC — open it, screenshot it, and add the screenshot, or use the project link instead."
+
                         const img = new Image()
                         const reader = new FileReader()
+                        reader.onerror = () => fail(CANT_READ)
                         reader.onload = (ev) => {
+                          img.onerror = () => fail(CANT_READ)
                           img.onload = () => {
-                            const canvas = document.createElement('canvas')
-                            const MAX = 480
-                            let w = img.width, h = img.height
-                            if (w > MAX || h > MAX) {
-                              if (w > h) { h = Math.round(h * MAX / w); w = MAX }
-                              else { w = Math.round(w * MAX / h); h = MAX }
+                            try {
+                              const canvas = document.createElement('canvas')
+                              const MAX = 480
+                              let w = img.width, h = img.height
+                              if (!w || !h) return fail(CANT_READ)
+                              if (w > MAX || h > MAX) {
+                                if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+                                else { w = Math.round(w * MAX / h); h = MAX }
+                              }
+                              canvas.width = w
+                              canvas.height = h
+                              const ctx = canvas.getContext('2d')
+                              if (!ctx) return fail(CANT_READ)
+                              ctx.drawImage(img, 0, 0, w, h)
+                              const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
+                              setFormData(prev => ({ ...prev, photoUrl: dataUrl, _uploading: false, _photoError: '' }))
+                            } catch {
+                              fail(CANT_READ)
                             }
-                            canvas.width = w
-                            canvas.height = h
-                            canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-                            const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
-                            updateField('photoUrl', dataUrl)
-                            updateField('_uploading', false)
                           }
                           img.src = ev.target.result
                         }
@@ -984,17 +1004,37 @@ export default function EngineeringNotebook() {
                     {formData._uploading && <Loader2 size={16} className="animate-spin text-pastel-blue-dark ml-auto" />}
                   </label>
                 )}
+                {formData._photoError && (
+                  <p className="text-xs text-red-500 mt-1.5">{formData._photoError}</p>
+                )}
               </div>
 
-              {/* Submit */}
-              <button
-                onClick={handleSubmitEntry}
-                disabled={!formData.whatDid.trim() || !formData.whyOption || (formData.whyOption === 'Other' && !formData.whyNote.trim()) || (!formData.photoUrl && !formData.projectLink.trim())}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-colors bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Send size={18} />
-                {editingEntryId ? 'Update Entry' : 'Submit Entry'}
-              </button>
+              {/* Submit — say what's still missing rather than just greying out */}
+              {(() => {
+                const missing = [
+                  !formData.whatDid.trim() && 'what you did',
+                  !formData.whyOption && 'why it mattered',
+                  formData.whyOption === 'Other' && !formData.whyNote.trim() && 'a note for "Other"',
+                  !formData.photoUrl && !formData.projectLink.trim() && 'a photo or a project link',
+                ].filter(Boolean)
+                return (
+                  <>
+                    {missing.length > 0 && (
+                      <p className="text-xs text-gray-400 text-center">
+                        Still needed: {missing.join(' · ')}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleSubmitEntry}
+                      disabled={missing.length > 0}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-colors bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Send size={18} />
+                      {editingEntryId ? 'Update Entry' : 'Submit Entry'}
+                    </button>
+                  </>
+                )
+              })()}
             </div>
           )}
 
