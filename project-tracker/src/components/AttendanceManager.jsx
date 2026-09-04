@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
+import { excludedFromAttendance } from '../lib/attendanceRoster'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -45,11 +46,9 @@ export default function AttendanceManager({ onBack }) {
   const creatingRef = useRef(false)
   const [creating, setCreating] = useState(false)
 
-  // Team accounts and the ETS account are never part of attendance.
-  const EXCLUDED_ATT_NAMES = ['ets', 'everythingthatsscrum']
-  const excludeFromAttendance = (p) =>
-    (p.function_tags || []).includes('Team') ||
-    EXCLUDED_ATT_NAMES.includes((p.display_name || '').trim().toLowerCase())
+  // Mentors, coaches, team accounts and the ETS account are never part of
+  // attendance — see lib/attendanceRoster.
+  const excludeFromAttendance = excludedFromAttendance
   // Fetch all sessions, records, and profiles
   // Fetch sessions, records, profiles on mount
   useEffect(() => {

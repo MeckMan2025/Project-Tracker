@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -6,12 +6,7 @@ import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { useAttendancePartial, presencePct, recordTiming } from '../lib/attendancePartial'
-
-// Team accounts and the ETS account are never part of attendance.
-const excludedAttName = (name) => {
-  const n = (name || '').trim().toLowerCase()
-  return n === 'ets' || n === 'everythingthatsscrum' || n.startsWith('team ')
-}
+import { excludedAttName, excludedNamesFrom } from '../lib/attendanceRoster'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -62,7 +57,13 @@ export default function AttendanceView() {
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
+  const [profiles, setProfiles] = useState([])
   const { partial } = useAttendancePartial()
+
+  // Mentors and coaches are tagged, not named, so the roster rules need the
+  // profile rows — records only carry a username.
+  const excludedNames = useMemo(() => excludedNamesFrom(profiles), [profiles])
+  const isExcluded = (name) => excludedAttName(name) || excludedNames.has(name)
 
   useEffect(() => {
     const headers = REST_HEADERS
@@ -71,9 +72,11 @@ export default function AttendanceView() {
       // All records are loaded so everyone can see the team-average trend;
       // individual names/rates stay gated to leads in the Team Overview list.
       fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : []),
-    ]).then(([s, r]) => {
+      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,function_tags`, { headers }).then(r => r.ok ? r.json() : []),
+    ]).then(([s, r, p]) => {
       setSessions(s)
       setRecords(r)
+      setProfiles(p)
     }).catch(() => {})
   }, [username, canViewAllAttendance])
 
@@ -117,11 +120,11 @@ export default function AttendanceView() {
   const myExcused = myRecords.filter(r => r.status === 'excused').length
   const myAttendanceRate = rateFor(username)
 
-  // Team stats (leads only) — teams and the ETS account are excluded
+  // Team stats (leads only) — mentors, coaches, teams and ETS are excluded
   const teamStats = canViewAllAttendance ? (() => {
     const byUser = {}
     records.forEach(r => {
-      if (excludedAttName(r.username)) return
+      if (isExcluded(r.username)) return
       if (!byUser[r.username]) byUser[r.username] = { present: 0, absent: 0, excused: 0, total: 0 }
       byUser[r.username][r.status] = (byUser[r.username][r.status] || 0) + 1
       byUser[r.username].total++
@@ -324,7 +327,7 @@ export default function AttendanceView() {
               <TrendChart
                 color="#10b981"
                 points={[...sessions].reverse().map(s => {
-                  const recs = records.filter(r => r.session_id === s.id && !excludedAttName(r.username))
+                  const recs = records.filter(r => r.session_id === s.id && !isExcluded(r.username))
                   const vals = recs.map(r => presencePct(s.id, r.username, r.status, partial, s.session_date))
                   return { date: s.session_date, pct: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0 }
                 })}
