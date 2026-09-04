@@ -254,6 +254,7 @@ export default function EngineeringNotebook() {
   // Load an existing entry back into the form. handleSubmitEntry already
   // PATCHes when editingEntryId is set — nothing ever set it until now.
   const startEditEntry = (entry) => {
+    if (entry.username !== username) return
     setFormData({
       category: entry.category || 'Technical',
       customCategory: entry.custom_category || '',
@@ -624,9 +625,10 @@ export default function EngineeringNotebook() {
                                             {entry.engagement}
                                           </span>
                                           <div className="flex items-center gap-2 shrink-0">
-                                            {/* Your own entry is yours to fix — a typo shouldn't need a
-                                                lead. Leads can edit anyone's. */}
-                                            {(entry.username === username || isLead) && (
+                                            {/* Only the person who wrote it. An entry is that person's
+                                                own account of what they did — a lead rewriting it would
+                                                put words in their mouth. Leads can still delete. */}
+                                            {entry.username === username && (
                                               <button
                                                 onClick={() => startEditEntry(entry)}
                                                 title="Edit this entry"
