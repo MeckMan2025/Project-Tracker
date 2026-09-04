@@ -43,24 +43,27 @@ const THEME = {
     mini: 'border-orange-300 bg-white/70', miniLabel: 'text-orange-700',
     chip: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
     leadChip: 'bg-orange-500 text-white hover:bg-orange-600',
-    tile: 'text-orange-900 hover:bg-orange-100',
-    leadTile: 'text-orange-900 bg-orange-100/80 hover:bg-orange-200 ring-1 ring-orange-300',
+    tile: 'bg-white border-2 border-orange-200 text-orange-900 shadow-sm hover:border-orange-400 hover:shadow-md',
+    leadTile: 'bg-orange-100 border-2 border-orange-500 text-orange-900 shadow-sm hover:bg-orange-200 hover:shadow-md',
+    photoRing: 'ring-2 ring-orange-200',
   },
   blue: {
     box: 'bg-blue-50 border-blue-300', title: 'text-blue-700',
     mini: 'border-blue-300 bg-white/70', miniLabel: 'text-blue-700',
     chip: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
     leadChip: 'bg-blue-500 text-white hover:bg-blue-600',
-    tile: 'text-blue-900 hover:bg-blue-100',
-    leadTile: 'text-blue-900 bg-blue-100/80 hover:bg-blue-200 ring-1 ring-blue-300',
+    tile: 'bg-white border-2 border-blue-200 text-blue-900 shadow-sm hover:border-blue-400 hover:shadow-md',
+    leadTile: 'bg-blue-100 border-2 border-blue-500 text-blue-900 shadow-sm hover:bg-blue-200 hover:shadow-md',
+    photoRing: 'ring-2 ring-blue-200',
   },
   green: {
     box: 'bg-green-50 border-green-300', title: 'text-green-700',
     mini: 'border-green-300 bg-white/70', miniLabel: 'text-green-700',
     chip: 'bg-green-100 text-green-800 hover:bg-green-200',
     leadChip: 'bg-green-500 text-white hover:bg-green-600',
-    tile: 'text-green-900 hover:bg-green-100',
-    leadTile: 'text-green-900 bg-green-100/80 hover:bg-green-200 ring-1 ring-green-300',
+    tile: 'bg-white border-2 border-green-200 text-green-900 shadow-sm hover:border-green-400 hover:shadow-md',
+    leadTile: 'bg-green-100 border-2 border-green-500 text-green-900 shadow-sm hover:bg-green-200 hover:shadow-md',
+    photoRing: 'ring-2 ring-green-200',
   },
 }
 
@@ -92,14 +95,14 @@ function PersonTile({ profile, onClick, theme, lead = false }) {
     <button
       onClick={() => onClick(profile)}
       title={`View ${name}'s profile`}
-      className={`flex flex-col items-center gap-1 w-full max-w-[74px] p-1.5 rounded-xl transition-all
+      className={`flex flex-col items-center gap-1.5 w-full max-w-[76px] px-1.5 pt-2 pb-1.5 rounded-xl transition-all
         hover:scale-105 active:scale-95 ${lead ? theme.leadTile : theme.tile}`}
     >
       <div className="relative">
         {profile.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover shadow-sm" />
+          <img src={profile.avatar_url} alt="" className={`w-12 h-12 rounded-lg object-cover ${theme.photoRing}`} />
         ) : (
-          <div className="w-12 h-12 rounded-xl bg-white/80 shadow-sm flex items-center justify-center text-base font-bold text-gray-500">
+          <div className={`w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center text-base font-bold text-gray-400 ${theme.photoRing}`}>
             {name.charAt(0).toUpperCase()}
           </div>
         )}
@@ -121,8 +124,8 @@ function RoleBox({ role, people, theme, onClick }) {
       <p className={`text-xs font-bold uppercase tracking-wide mb-1.5 text-center ${theme.miniLabel}`}>{role.tag}</p>
       {people.length > 0 ? (
         <div
-          className="grid gap-1 justify-items-center"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(66px, 1fr))' }}
+          className="grid gap-1.5 justify-items-center"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))' }}
         >
           {people.map(p => <PersonTile key={p.id} profile={p} onClick={onClick} theme={theme} />)}
         </div>
