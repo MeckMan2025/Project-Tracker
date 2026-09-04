@@ -80,6 +80,10 @@ export default function EngineeringNotebook() {
   const [projects, setProjects] = useState([])
   const [formData, setFormData] = useState({ ...INITIAL_ENTRY })
   const [meetingDate, setMeetingDate] = useState(todayLocal)
+  // Meeting days, so a late entry can be filed against the meeting it belongs
+  // to. These are the same days attendance is taken on, which is what decides
+  // whether a missing entry counts against you.
+  const [meetingDays, setMeetingDays] = useState([])
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [projectForm, setProjectForm] = useState({ ...INITIAL_PROJECT })
   const [editingProjectId, setEditingProjectId] = useState(null)
@@ -164,6 +168,22 @@ export default function EngineeringNotebook() {
       .catch(() => {})
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=session_date&order=session_date.desc`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    })
+      .then(res => (res.ok ? res.json() : []))
+      .then(rows => { if (active) setMeetingDays([...new Set((rows || []).map(r => r.session_date))]) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  // Meetings this person has no entry for yet — what they'd be marked absent for.
+  const missingDays = meetingDays.filter(
+    d => d <= todayLocal() && !entries.some(e => e.username === username && e.meeting_date === d)
+  )
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
 
@@ -641,15 +661,44 @@ export default function EngineeringNotebook() {
               {/* Meeting date */}
               <div>
                 <label className="text-sm font-medium text-gray-600 block mb-1">Meeting Date</label>
-                {isLead ? (
-                  <input
-                    type="date"
-                    value={meetingDate}
-                    onChange={e => { setMeetingDate(e.target.value); setEditingEntryId(null) }}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{formatDate(meetingDate)}</p>
+                {/* Anyone can date an entry, not just leads — missing one now
+                    marks you absent, so everyone needs a way to make it up.
+                    Capped at today: you can't write up a meeting that hasn't
+                    happened. */}
+                <input
+                  type="date"
+                  value={meetingDate}
+                  max={todayLocal()}
+                  onChange={e => { setMeetingDate(e.target.value || todayLocal()); setEditingEntryId(null) }}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                />
+                {meetingDate !== todayLocal() && (
+                  <p className="text-xs text-pastel-blue-dark mt-1">
+                    Writing this up for {formatDate(meetingDate)}, not today.
+                  </p>
+                )}
+                {missingDays.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-400 mb-1">
+                      No entry yet for {missingDays.length === 1 ? 'this meeting' : 'these meetings'} — tap one to write it up:
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {missingDays.map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => { setMeetingDate(d); setEditingEntryId(null) }}
+                          className={`px-2 py-1 text-xs rounded-lg transition-colors ${
+                            meetingDate === d
+                              ? 'bg-pastel-blue text-gray-800 font-semibold'
+                              : 'bg-pastel-orange/30 hover:bg-pastel-orange/50 text-gray-700'
+                          }`}
+                        >
+                          {formatDate(d)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 

@@ -12,6 +12,7 @@ const CHANGELOG = [
       '\u{1F49B} Daily Team Pulse is off the site for now \u2014 no daily popup, no Team Pulse under Special Controls, and no switch for it in Settings. Nothing anyone answered was deleted, and your on/off preference is remembered if it comes back',
       '\u{1F4F7} Notebook: adding a photo can\'t spin forever any more. A photo the browser couldn\'t open \u2014 usually an iPhone HEIC \u2014 left the loading circle going and the Submit button stuck grey with nothing to explain it. Now it says what went wrong and what to do instead',
       '\u2705 Notebook: the Submit button tells you what is still missing \u2014 what you did, why it mattered, a photo or a project link \u2014 instead of just being greyed out',
+      '\u{1F4C5} Anyone can date a notebook entry now, not just leads \u2014 so if you missed one, you can still write it up for the meeting it belongs to. The form lists the meetings you have no entry for, and you cannot date one in the future',
       '\u{1F4D3} Attendance now follows the notebook: if you did not write an entry for a meeting, you are marked absent for it. Applied to every meeting so far \u2014 41 present marks changed, including all of 18 August, where nobody wrote one',
       '\u{1F519} Back out of Attendance, Meeting Stats or Notebook Flash and you land where you started. Opening one from Home now returns you to Home instead of dropping you in the Special Controls menu you never went through',
       '\u{1F399}\uFE0F The meeting recorder card is off Home',
