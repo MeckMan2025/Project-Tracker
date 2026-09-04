@@ -251,6 +251,28 @@ export default function EngineeringNotebook() {
   }
 
   // Delete entry (co-founders only)
+  // Load an existing entry back into the form. handleSubmitEntry already
+  // PATCHes when editingEntryId is set — nothing ever set it until now.
+  const startEditEntry = (entry) => {
+    setFormData({
+      category: entry.category || 'Technical',
+      customCategory: entry.custom_category || '',
+      whatDid: entry.what_did || '',
+      whyOption: entry.why_option || '',
+      whyNote: entry.why_note || '',
+      engagement: entry.engagement || 'Somewhat',
+      mentorHelp: !!entry.mentor_help,
+      mentorName: entry.mentor_name || '',
+      mentorNote: entry.mentor_note || '',
+      projectId: entry.project_id || '',
+      projectLink: entry.project_link || '',
+      photoUrl: entry.photo_url || '',
+    })
+    setMeetingDate(entry.meeting_date || todayLocal())
+    setEditingEntryId(entry.id)
+    setView('entry')
+  }
+
   const handleDeleteEntry = (id) => {
     if (!window.confirm('Delete this notebook entry?')) return
     setEntries(prev => prev.filter(e => e.id !== id))
@@ -601,11 +623,24 @@ export default function EngineeringNotebook() {
                                             <span className={`w-2 h-2 rounded-full inline-block ${engDot}`} />
                                             {entry.engagement}
                                           </span>
-                                          {isLead && (
-                                            <button onClick={() => handleDeleteEntry(entry.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                                              <Trash2 size={14} />
-                                            </button>
-                                          )}
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            {/* Your own entry is yours to fix — a typo shouldn't need a
+                                                lead. Leads can edit anyone's. */}
+                                            {(entry.username === username || isLead) && (
+                                              <button
+                                                onClick={() => startEditEntry(entry)}
+                                                title="Edit this entry"
+                                                className="text-gray-300 hover:text-pastel-blue-dark transition-colors"
+                                              >
+                                                <Pencil size={14} />
+                                              </button>
+                                            )}
+                                            {isLead && (
+                                              <button onClick={() => handleDeleteEntry(entry.id)} title="Delete this entry" className="text-gray-300 hover:text-red-400 transition-colors">
+                                                <Trash2 size={14} />
+                                              </button>
+                                            )}
+                                          </div>
                                         </div>
                                         <p className="text-sm text-gray-800 mt-1 font-medium">{entry.what_did}</p>
                                         <p className="text-xs mt-1 flex items-start flex-wrap gap-x-1 text-gray-400">
@@ -657,6 +692,17 @@ export default function EngineeringNotebook() {
           {view === 'entry' && (
             <div className="space-y-4">
               <SectionHeader title={editingEntryId ? 'Update Entry' : 'New Notebook Entry'} />
+              {editingEntryId && (
+                <div className="flex items-center justify-between gap-2 bg-pastel-blue/20 rounded-lg px-3 py-2">
+                  <p className="text-xs text-gray-600">Editing an entry you already wrote — saving replaces it.</p>
+                  <button
+                    onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setMeetingDate(todayLocal()) }}
+                    className="text-xs font-semibold text-gray-500 hover:text-gray-700 shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
 
               {/* Meeting date */}
               <div>
@@ -669,7 +715,7 @@ export default function EngineeringNotebook() {
                   type="date"
                   value={meetingDate}
                   max={todayLocal()}
-                  onChange={e => { setMeetingDate(e.target.value || todayLocal()); setEditingEntryId(null) }}
+                  onChange={e => setMeetingDate(e.target.value || todayLocal())}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                 />
                 {meetingDate !== todayLocal() && (
@@ -687,7 +733,7 @@ export default function EngineeringNotebook() {
                         <button
                           key={d}
                           type="button"
-                          onClick={() => { setMeetingDate(d); setEditingEntryId(null) }}
+                          onClick={() => setMeetingDate(d)}
                           className={`px-2 py-1 text-xs rounded-lg transition-colors ${
                             meetingDate === d
                               ? 'bg-pastel-blue text-gray-800 font-semibold'

@@ -45,6 +45,11 @@ export default function AttendanceManager({ onBack }) {
   // handler reads (state updates are async and a fast second tap would miss it).
   const creatingRef = useRef(false)
   const [creating, setCreating] = useState(false)
+  // Who wrote a notebook entry, by meeting date. Attendance follows the
+  // notebook: no entry means absent, an entry means present. Being late or
+  // leaving early never decides it on its own.
+  const [notebookByDate, setNotebookByDate] = useState({})
+  const [applyingRule, setApplyingRule] = useState(false)
 
   // Mentors, coaches, team accounts and the ETS account are never part of
   // attendance — see lib/attendanceRoster.
@@ -57,10 +62,14 @@ export default function AttendanceManager({ onBack }) {
       fetch(`${REST_URL}/rest/v1/attendance_sessions?select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
-    ]).then(([s, r, p]) => {
+      fetch(`${REST_URL}/rest/v1/notebook_entries?select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
+    ]).then(([s, r, p, n]) => {
       setSessions(s)
       setRecords(r)
       setProfiles(p)
+      const by = {}
+      for (const e of n || []) (by[e.meeting_date] ||= new Set()).add(e.username)
+      setNotebookByDate(by)
     }).catch(() => {})
   }, [])
 
@@ -366,6 +375,71 @@ export default function AttendanceManager({ onBack }) {
       })()
     : []
 
+  // What the notebook rule would change for a session, in both directions.
+  // 'excused' is a lead's deliberate call and is left alone.
+  const notebookDiff = (session) => {
+    if (!session) return { toAbsent: [], toPresent: [] }
+    const wrote = notebookByDate[session.session_date] || new Set()
+    const real = records.filter(r => r.session_id === session.id)
+    return {
+      toAbsent: real.filter(r => r.status === 'present' && !wrote.has(r.username)),
+      toPresent: real.filter(r => r.status === 'absent' && wrote.has(r.username)),
+    }
+  }
+
+  const applyNotebookRule = async (session = selectedSession, quiet = false) => {
+    if (applyingRule || !session) return
+    const { toAbsent, toPresent } = notebookDiff(session)
+    if (toAbsent.length === 0 && toPresent.length === 0) return
+    setApplyingRule(true)
+    const ids = (list) => list.map(r => r.id).join(',')
+    const patch = async (list, status) => {
+      if (list.length === 0) return
+      await fetch(`${REST_URL}/rest/v1/attendance_records?id=in.(${ids(list)})`, {
+        method: 'PATCH', headers: REST_JSON,
+        body: JSON.stringify({ status, marked_by: username }),
+      })
+    }
+    const changed = new Map()
+    toAbsent.forEach(r => changed.set(r.id, 'absent'))
+    toPresent.forEach(r => changed.set(r.id, 'present'))
+    setRecords(prev => prev.map(r => changed.has(r.id) ? { ...r, status: changed.get(r.id), marked_by: username } : r))
+    try {
+      await Promise.all([patch(toAbsent, 'absent'), patch(toPresent, 'present')])
+      if (!quiet) {
+        const bits = [
+          toAbsent.length ? `${toAbsent.length} marked absent` : '',
+          toPresent.length ? `${toPresent.length} marked present` : '',
+        ].filter(Boolean).join(' · ')
+        showFeedback(bits)
+      }
+    } catch (err) {
+      console.error('Failed to apply the notebook rule:', err)
+      showFeedback('Could not apply it — try again')
+    } finally {
+      setApplyingRule(false)
+    }
+  }
+
+  // The deadline is the end of the meeting day. Once a day is over, anyone
+  // without an entry for it is absent — so any past session a lead opens gets
+  // settled automatically. Today's is left alone; there's still time to write.
+  const settledRef = useRef(false)
+  useEffect(() => {
+    if (settledRef.current || !hasLeadTag) return
+    if (sessions.length === 0 || records.length === 0) return
+    if (Object.keys(notebookByDate).length === 0) return
+    const today = todayStr()
+    const past = sessions.filter(s => s.session_date < today)
+    const pending = past.filter(s => {
+      const d = notebookDiff(s)
+      return d.toAbsent.length > 0 || d.toPresent.length > 0
+    })
+    if (pending.length === 0) return
+    settledRef.current = true
+    ;(async () => { for (const s of pending) await applyNotebookRule(s, true) })()
+  }, [sessions, records, notebookByDate, hasLeadTag]) // eslint-disable-line
+
   const getSessionSummary = (sessionId) => {
     const sr = records.filter(r => r.session_id === sessionId)
     const present = sr.filter(r => r.status === 'present').length
@@ -418,6 +492,27 @@ export default function AttendanceManager({ onBack }) {
           {feedback && (
             <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
           )}
+
+          {/* Today's session hasn't hit its deadline yet, so the rule is offered
+              rather than applied. Past days settle themselves on load. */}
+          {hasLeadTag && (() => {
+            const { toAbsent, toPresent } = notebookDiff(selectedSession)
+            if (toAbsent.length === 0 && toPresent.length === 0) return null
+            const bits = [
+              toAbsent.length ? `${toAbsent.length} without an entry → absent` : '',
+              toPresent.length ? `${toPresent.length} wrote one → present` : '',
+            ].filter(Boolean).join(' · ')
+            return (
+              <button
+                onClick={() => applyNotebookRule()}
+                disabled={applyingRule}
+                className="w-full px-4 py-2.5 rounded-xl bg-pastel-orange/30 hover:bg-pastel-orange/50 disabled:opacity-50 transition-colors text-sm font-semibold text-gray-700 text-left"
+              >
+                {applyingRule ? 'Applying…' : 'Match attendance to the notebook'}
+                <span className="block text-xs font-normal text-gray-500 mt-0.5">{bits}</span>
+              </button>
+            )
+          })()}
 
           <div className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
             <div className="text-sm text-gray-500">
