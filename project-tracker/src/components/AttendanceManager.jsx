@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -15,7 +15,9 @@ function genId() {
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 const STATUS_COLORS = {
@@ -38,6 +40,10 @@ export default function AttendanceManager({ onBack }) {
   const [addingUser, setAddingUser] = useState(false)
   const { partial, setSessionDurationMin, setTiming } = useAttendancePartial()
   const [expandedRec, setExpandedRec] = useState(null)
+  // Guards "Start Today's Session" against repeat taps. The ref is what the
+  // handler reads (state updates are async and a fast second tap would miss it).
+  const creatingRef = useRef(false)
+  const [creating, setCreating] = useState(false)
 
   // Team accounts and the ETS account are never part of attendance.
   const EXCLUDED_ATT_NAMES = ['ets', 'everythingthatsscrum']
@@ -112,80 +118,141 @@ export default function AttendanceManager({ onBack }) {
     return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
   }
 
-  const handleTakeAttendance = async () => {
-    const today = todayStr()
-    if (sessions.some(s => s.session_date === today)) {
-      showFeedback('A session already exists for today. Open it to edit.')
-      return
-    }
-
-    // Re-fetch profiles right now to get fresh last_seen_at
-    let freshProfiles = profiles
+  // Pull today's session (plus its records) straight from the server and show it.
+  // Used whenever a session already exists, so a second tap opens the real one
+  // instead of creating a rival.
+  const openExistingSession = async (existing) => {
+    setSessions(prev => prev.some(s => s.id === existing.id) ? prev : [existing, ...prev])
     try {
-      const res = await fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/attendance_records?session_id=eq.${existing.id}&select=*`, { headers: REST_HEADERS })
       if (res.ok) {
-        freshProfiles = await res.json()
-        setProfiles(freshProfiles)
+        const rows = await res.json()
+        setRecords(prev => {
+          const known = new Set(prev.map(r => r.id))
+          return [...prev, ...rows.filter(r => !known.has(r.id))]
+        })
       }
     } catch {}
+    setSelectedSession(existing)
+    setEditing(true)
+  }
 
-    const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
-    const isRecentlySeen = (name) => {
-      const p = freshProfiles.find(pr => pr.display_name === name)
-      if (!p?.last_seen_at) return false
-      return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
-    }
-
-    const sessionId = genId()
-    const session = {
-      id: sessionId,
-      session_date: today,
-      created_by: username,
-      notes: '',
-      created_at: new Date().toISOString(),
-    }
-
-    // Mark recently active users as present, rest as absent
-    const newRecords = freshMembers.map(p => ({
-      id: genId(),
-      session_id: sessionId,
-      username: p.display_name,
-      status: isRecentlySeen(p.display_name) ? 'present' : 'absent',
-      marked_by: username,
-      created_at: new Date().toISOString(),
-    }))
-
-    // Optimistic update
-    setSessions(prev => [session, ...prev])
-    setRecords(prev => [...prev, ...newRecords])
-
+  const handleTakeAttendance = async () => {
+    // Repeat taps used to each create their own session (12 duplicates for one
+    // meeting), because the guard below ran before the awaits and the button
+    // stayed live the whole time.
+    if (creatingRef.current) return
+    creatingRef.current = true
+    setCreating(true)
     try {
-      const sessRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions`, {
-        method: 'POST', headers: REST_JSON, body: JSON.stringify(session),
-      })
-      if (!sessRes.ok) {
-        const errText = await sessRes.text()
-        console.error('Session insert failed:', errText)
-        showFeedback('Error creating session: ' + errText)
+      const today = todayStr()
+      const localDupe = sessions.find(s => s.session_date === today)
+      if (localDupe) {
+        showFeedback('A session already exists for today. Opening it.')
+        await openExistingSession(localDupe)
         return
       }
-      // Insert records in batch
-      const recRes = await fetch(`${REST_URL}/rest/v1/attendance_records`, {
-        method: 'POST', headers: REST_JSON, body: JSON.stringify(newRecords),
-      })
-      if (!recRes.ok) {
-        const errText = await recRes.text()
-        console.error('Records insert failed:', errText)
-        showFeedback('Error saving records: ' + errText)
-        return
+
+      // Local state goes stale when a tab is left open and the realtime socket
+      // drops, so ask the server before inserting — that is how a second lead
+      // ended up starting a session someone else had already started.
+      try {
+        const res = await fetch(`${REST_URL}/rest/v1/attendance_sessions?session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
+        if (res.ok) {
+          const rows = await res.json()
+          if (rows.length > 0) {
+            showFeedback('A session already exists for today. Opening it.')
+            await openExistingSession(rows[0])
+            return
+          }
+        }
+      } catch {}
+
+      // Re-fetch profiles right now to get fresh last_seen_at
+      let freshProfiles = profiles
+      try {
+        const res = await fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
+        if (res.ok) {
+          freshProfiles = await res.json()
+          setProfiles(freshProfiles)
+        }
+      } catch {}
+
+      const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
+      const isRecentlySeen = (name) => {
+        const p = freshProfiles.find(pr => pr.display_name === name)
+        if (!p?.last_seen_at) return false
+        return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
       }
-      const presentCount = newRecords.filter(r => r.status === 'present').length
-      showFeedback(`Session created! ${presentCount}/${newRecords.length} present.`)
-      setSelectedSession(session)
-      setEditing(true)
-    } catch (err) {
-      console.error('Failed to take attendance:', err)
-      showFeedback('Error: ' + err.message)
+
+      const sessionId = genId()
+      const session = {
+        id: sessionId,
+        session_date: today,
+        created_by: username,
+        notes: '',
+        created_at: new Date().toISOString(),
+      }
+
+      // Mark recently active users as present, rest as absent
+      const newRecords = freshMembers.map(p => ({
+        id: genId(),
+        session_id: sessionId,
+        username: p.display_name,
+        status: isRecentlySeen(p.display_name) ? 'present' : 'absent',
+        marked_by: username,
+        created_at: new Date().toISOString(),
+      }))
+
+      // Optimistic update
+      setSessions(prev => [session, ...prev])
+      setRecords(prev => [...prev, ...newRecords])
+
+      try {
+        const sessRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions`, {
+          method: 'POST', headers: REST_JSON, body: JSON.stringify(session),
+        })
+        if (!sessRes.ok) {
+          // 409 = the one-session-per-day unique index caught a race we lost.
+          if (sessRes.status === 409) {
+            setSessions(prev => prev.filter(s => s.id !== sessionId))
+            setRecords(prev => prev.filter(r => r.session_id !== sessionId))
+            const dupeRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions?session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
+            const rows = dupeRes.ok ? await dupeRes.json() : []
+            if (rows.length > 0) {
+              showFeedback('Someone already started today\u2019s session. Opening it.')
+              await openExistingSession(rows[0])
+              return
+            }
+          }
+          const errText = await sessRes.text()
+          console.error('Session insert failed:', errText)
+          setSessions(prev => prev.filter(s => s.id !== sessionId))
+          setRecords(prev => prev.filter(r => r.session_id !== sessionId))
+          showFeedback('Error creating session: ' + errText)
+          return
+        }
+        // Insert records in batch
+        const recRes = await fetch(`${REST_URL}/rest/v1/attendance_records`, {
+          method: 'POST', headers: REST_JSON, body: JSON.stringify(newRecords),
+        })
+        if (!recRes.ok) {
+          const errText = await recRes.text()
+          console.error('Records insert failed:', errText)
+          showFeedback('Error saving records: ' + errText)
+          return
+        }
+        const presentCount = newRecords.filter(r => r.status === 'present').length
+        showFeedback(`Session created! ${presentCount}/${newRecords.length} present.`)
+        setSelectedSession(session)
+        setEditing(true)
+      } catch (err) {
+        console.error('Failed to take attendance:', err)
+        showFeedback('Error: ' + err.message)
+      }
+    } finally {
+      creatingRef.current = false
+      setCreating(false)
     }
   }
 
@@ -491,9 +558,10 @@ export default function AttendanceManager({ onBack }) {
 
         <button
           onClick={handleTakeAttendance}
-          className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 transition-colors text-sm font-semibold text-gray-700"
+          disabled={creating}
+          className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 disabled:hover:bg-pastel-blue/40 disabled:cursor-not-allowed transition-colors text-sm font-semibold text-gray-700"
         >
-          Start Today's Session
+          {creating ? 'Starting\u2026' : "Start Today's Session"}
         </button>
         <p className="text-xs text-gray-400 text-center -mt-2">
           {(() => {

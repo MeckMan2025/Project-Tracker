@@ -61,6 +61,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   // Auto-save can't run until the profile has actually loaded, or the empty
   // initial state would overwrite real data.
   const loadedRef = useRef(false)
+  // The display_name currently stored in the DB. Attendance rows are keyed by
+  // name, so a rename has to carry them along or the person shows up twice on
+  // every past meeting: once under the old name, once as a blank "no record".
+  const savedNameRef = useRef(null)
   const saveTimer = useRef(null)
   const [saved, setSaved] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
@@ -217,6 +221,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         const data = rows[0]
         if (!data) return
         setEditName(data.display_name || '')
+        savedNameRef.current = data.display_name || ''
         setEditNickname(data.nickname || '')
         setEditUseNickname(!!data.use_nickname)
         setTimeout(() => { loadedRef.current = true }, 0)
@@ -299,6 +304,26 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     return () => clearTimeout(saveTimer.current)
   }, [profile, editName, editNickname, editUseNickname]) // eslint-disable-line
 
+  // Point this person's attendance history at their new name. Without it the
+  // manager lists the old name (with its real status) alongside a fresh
+  // "no record" row for the new one.
+  const renameAttendanceRecords = async (oldName, newName) => {
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(oldName)}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ username: newName }),
+      })
+    } catch (err) {
+      console.error('Failed to migrate attendance records to the new name:', err)
+    }
+  }
+
   const handleSave = async () => {
     if (!user) return
     setSaving(true)
@@ -374,6 +399,9 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
 
       if (res.ok) {
         const newName = editName.trim() || username
+        const oldName = savedNameRef.current
+        savedNameRef.current = newName
+        if (oldName && oldName !== newName) await renameAttendanceRecords(oldName, newName)
         localStorage.setItem('scrum-username', newName)
         localStorage.setItem('scrum-nickname', editNickname.trim())
         localStorage.setItem('scrum-use-nickname', String(editUseNickname))
