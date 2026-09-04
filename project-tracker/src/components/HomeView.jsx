@@ -5,7 +5,6 @@ import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import NotebookGallery from './NotebookGallery'
-import MyDashboard from './MyDashboard'
 import TaskLoadButton from './TaskLoadButton'
 
 const STATUS_STYLES = {
@@ -499,8 +498,6 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           </div>
         )}
 
-        {/* Role dashboard(s) for the current user */}
-        <MyDashboard />
         {/* Sticky-note board: My Tasks (big notebook) + Season Kickoff + Next Meeting */}
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch pt-2">
 

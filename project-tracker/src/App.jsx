@@ -416,6 +416,10 @@ function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [specialView, setSpecialView] = useState(null)
+  // Where the current special view was opened from. Home's shortcut buttons set
+  // this to 'home' so Back returns to Home instead of dropping you in the
+  // Special Controls menu you never went through.
+  const [specialFrom, setSpecialFrom] = useState(null)
   const [viewTask, setViewTask] = useState(null)
   const [viewPersonTasks, setViewPersonTasks] = useState(null) // display_name
   const [prefillAssignee, setPrefillAssignee] = useState('')
@@ -764,7 +768,7 @@ function App() {
   // Save activeTab locally (each user picks their own view)
   useEffect(() => {
     localStorage.setItem('scrum-active-tab', activeTab)
-    if (activeTab !== 'special-controls') setSpecialView(null)
+    if (activeTab !== 'special-controls') { setSpecialView(null); setSpecialFrom(null) }
   }, [activeTab])
 
   const tasks = tasksByTab[activeTab] || []
@@ -784,6 +788,12 @@ function App() {
     const list = tasksByTab[boardId] || []
     const task = list.find(t => String(t.id) === String(taskId))
     if (task) setEditingTask(task)
+  }
+
+  // Back out of a special view to wherever it was opened from.
+  const closeSpecial = () => {
+    if (specialFrom === 'home') { setSpecialView(null); setSpecialFrom(null); setActiveTab('home') }
+    else setSpecialView(null)
   }
 
   const handleAddTab = async (name) => {
@@ -1411,7 +1421,7 @@ function App() {
       ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setActiveTab('special-controls') }} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />
       ) : activeTab === 'sw-programming' ? (
@@ -1562,9 +1572,9 @@ function App() {
           {specialView === 'quotes' ? (
             <QuotesManager onBack={() => setSpecialView(null)} />
           ) : specialView === 'attendance' ? (
-            <AttendanceManager onBack={() => setSpecialView(null)} />
+            <AttendanceManager onBack={closeSpecial} />
           ) : specialView === 'flash' ? (
-            <NotebookFlashDashboard onBack={() => setSpecialView(null)} />
+            <NotebookFlashDashboard onBack={closeSpecial} />
           ) : specialView === 'interested-teams' ? (
             <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
           ) : specialView === 'cleanup' ? (
@@ -1574,7 +1584,7 @@ function App() {
           ) : specialView === 'design-matrix' ? (
             <DesignMatrix onBack={() => setSpecialView(null)} />
           ) : specialView === 'meeting-stats' ? (
-            <MeetingStatsView onBack={() => setSpecialView(null)} />
+            <MeetingStatsView onBack={closeSpecial} />
           ) : specialView === 'team-pulse' && import.meta.env.DEV ? (
             <TeamPulseDashboard onBack={() => setSpecialView(null)} />
           ) : (
