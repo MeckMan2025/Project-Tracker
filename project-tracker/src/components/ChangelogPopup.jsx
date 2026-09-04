@@ -5,6 +5,25 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 159,
+    date: '2026-09-04',
+    items: [
+      '\u{1F511} Resetting someone\'s password keeps the temporary password on screen now, with a Copy button, instead of wiping it the second you hit Reset. Three people had been locked out of the app that way \u2014 nobody knew what password to give them',
+      '\u{1F9D1}\u200D\u{1F3EB} Mentors and coaches aren\'t marked present or absent any more \u2014 they run the meeting, they don\'t attend it. Their old attendance records were cleared out too',
+      '\u{1F5DD}\uFE0F The key and trashcan icons in User Management only appear for people who can actually use them \u2014 Co-Founders, Mentors, Coaches, Business Lead and Technical Lead. Before this, some leads saw buttons that failed every time they tapped them',
+    ],
+  },
+  {
+    id: 158,
+    date: '2026-09-03',
+    items: [
+      '\u{1F4CB} Starting today\'s attendance twice can\'t happen any more. Tapping the button again opens the session that already exists instead of starting a rival one \u2014 September 3rd had ended up with 13 copies of the same meeting',
+      '\u{1F557} Evening meetings are filed under the right day. After about 7pm they were being saved as tomorrow, in attendance and in notebook entries',
+      '\u{1F464} Changing your display name no longer makes you appear twice on every past meeting, once under your old name and once as a blank row under the new one',
+      '\u{1F4D3} The Engineering Notebook has an activity card: how many people wrote an entry that day, with a date picker for any other day. Leads can open it to see who has written one and who hasn\'t',
+    ],
+  },
+  {
     id: 157,
     date: '2026-08-17',
     items: [
