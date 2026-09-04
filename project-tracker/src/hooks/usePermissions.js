@@ -2,7 +2,8 @@ import { useUser } from '../contexts/UserContext'
 
 const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
-const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead']
+const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
+  'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
 
 // Account administration — resetting a password, creating someone's login,
 // deleting a member. These go through the admin-* edge functions, which check

@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 const ROLE_EMOJI = {
   'Co-Founder': '👑', 'Project Manager': '🚀', 'Mentor': '🎓', 'Coach': '🏆',
   'Business Lead': '💼', 'Technical Lead': '🛠️',
+  'Co-Project Manager': '🚀', 'Co-Business Lead': '💼', 'Co-Technical Lead': '🛠️', 'Co-Programming Lead': '💻',
   'Communications': '📣', 'Finance': '💰', 'Outreach': '🌍',
   'CAD': '📐', 'Assembly/Building': '🔩', 'Wiring': '⚡', 'Programming': '💻', 'Scouting': '🔭',
   'Guest': '👋',

@@ -28,7 +28,8 @@ const hasTag = (p, tag) => (p.function_tags || []).some(t => t === tag)
 
 // Pink "top" border = leadership, derived from the actual role tags so every
 // leader is highlighted consistently (the authority_tier field is unreliable).
-const LEADERSHIP_TAGS_FOR_BORDER = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead']
+const LEADERSHIP_TAGS_FOR_BORDER = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
+  'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
 function deriveTier(p) {
   const tags = p.function_tags || []
   if (tags.some(t => LEADERSHIP_TAGS_FOR_BORDER.includes(t))) return 'top'
@@ -68,15 +69,22 @@ const THEME = {
 }
 
 // Shared "___ Lead:" line
-function LeadLine({ label, leads, theme, onClick }) {
+function LeadLine({ label, leads, coLeads = [], theme, onClick }) {
+  // Lead and co-lead sit side by side as equals — the only difference is the
+  // small "co-lead" caption under the tile.
+  const all = [
+    ...leads.map(p => ({ p, co: false })),
+    ...coLeads.map(p => ({ p, co: true })),
+  ]
   return (
     <div className="flex flex-col items-center gap-1 mb-4">
       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{label} Lead</span>
-      {leads.length > 0 ? (
+      {all.length > 0 ? (
         <div className="flex flex-wrap justify-center gap-1">
-          {leads.map(p => (
-            <div key={p.id} className="w-[74px] flex justify-center">
+          {all.map(({ p, co }) => (
+            <div key={p.id} className="w-[76px] flex flex-col items-center">
               <PersonTile profile={p} onClick={onClick} theme={theme} lead />
+              {co && <span className="text-[9px] font-semibold uppercase tracking-wide text-gray-400 mt-0.5">co-lead</span>}
             </div>
           ))}
         </div>
@@ -149,7 +157,7 @@ const DEPT_ICON = { business: Briefcase, hardware: Wrench, software: Cpu }
 
 // ── One department box. Business, Hardware and Software are peers: each owns
 // its own lead, and none of them sits under another. ──
-function Department({ dept, leads, membersByTag, onClick }) {
+function Department({ dept, leads, coLeads, membersByTag, onClick }) {
   const theme = THEME[dept.color] || THEME.blue
   const Icon = DEPT_ICON[dept.key] || Cpu
   return (
@@ -158,7 +166,7 @@ function Department({ dept, leads, membersByTag, onClick }) {
         <Icon size={20} className={theme.title} />
         <h2 className={`text-lg font-black ${theme.title}`}>{dept.label}</h2>
       </div>
-      <LeadLine label={dept.label} leads={leads} theme={theme} onClick={onClick} />
+      <LeadLine label={dept.label} leads={leads} coLeads={coLeads} theme={theme} onClick={onClick} />
       <div className="grid grid-cols-1 gap-2.5 flex-1">
         {dept.roles.map(role => (
           <RoleBox key={role.tag} role={role} people={membersByTag(role.tag)} theme={theme} onClick={onClick} />
@@ -457,7 +465,7 @@ function OrgChart({ onViewProfile }) {
       ? { ...d, roles: [...d.roles, ...extraTech] }
       : d
   )
-  const projectManagers = profiles.filter(p => hasTag(p, 'Project Manager') || hasTag(p, 'Team Lead'))
+  const projectManagers = profiles.filter(p => hasTag(p, 'Project Manager') || hasTag(p, 'Team Lead') || hasTag(p, 'Co-Project Manager'))
   const mentorsCoaches = profiles.filter(p => hasTag(p, 'Mentor') || hasTag(p, 'Coach'))
 
   const handleCardClick = (profile) => setSelectedProfile(profile)
@@ -495,6 +503,7 @@ function OrgChart({ onViewProfile }) {
                     key={dept.key}
                     dept={dept}
                     leads={profiles.filter(p => hasTag(p, dept.leadTag))}
+                    coLeads={profiles.filter(p => hasTag(p, dept.coLeadTag))}
                     membersByTag={membersByTag}
                     onClick={handleCardClick}
                   />

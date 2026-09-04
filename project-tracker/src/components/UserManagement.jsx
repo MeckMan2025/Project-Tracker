@@ -12,6 +12,7 @@ import { ROLE_GUIDE } from '../data/roleGuide'
 
 const ALL_ROLES = [
   'Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
+  'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead',
   'Communications', 'Finance', 'Outreach',
   'CAD', 'Assembly/Building', 'Wiring', 'Programming', 'Scouting', 'Guest',
 ]
@@ -19,6 +20,7 @@ const ALL_ROLES = [
 // Roles grouped by department (mirrors the Org Chart) for the role pickers.
 const ROLE_GROUPS = [
   { label: 'Leadership', roles: ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead'] },
+  { label: 'Co-Leads', roles: ['Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead'] },
   { label: 'Business', roles: ['Communications', 'Finance', 'Outreach'] },
   { label: 'Technical · Hardware', roles: ['CAD', 'Assembly/Building', 'Wiring'] },
   { label: 'Technical · Software', roles: ['Programming', 'Scouting'] },
@@ -55,6 +57,10 @@ const ROLE_DESCRIPTIONS = {
   'Business Lead': 'Leads business plan, outreach, and fundraising',
   'Technical Lead': 'Leads robot design, build, and programming',
   'Programming Lead': 'Leads the software subteam and its members',
+  'Co-Project Manager': 'Shares the Project Manager job',
+  'Co-Business Lead': 'Shares the Business Lead job',
+  'Co-Technical Lead': 'Shares the Hardware lead job',
+  'Co-Programming Lead': 'Shares the Software lead job',
   'Communications': 'Team communications, the team website, and social media',
   'Finance': 'Manages the budget, fundraising, and reimbursements',
   'Outreach': 'Runs community events and STEM outreach',

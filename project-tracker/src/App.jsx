@@ -278,6 +278,10 @@ const ROLE_EMOJIS = {
   'Project Manager': { emoji: '🚀', label: 'Project Manager' },
   'Business Lead': { emoji: '💼', label: 'Business Lead' },
   'Technical Lead': { emoji: '⚙️', label: 'Technical Lead' },
+  'Co-Project Manager': { emoji: '🚀', label: 'Co-Project Manager' },
+  'Co-Business Lead': { emoji: '💼', label: 'Co-Business Lead' },
+  'Co-Technical Lead': { emoji: '⚙️', label: 'Co-Technical Lead' },
+  'Co-Programming Lead': { emoji: '💻', label: 'Co-Programming Lead' },
 }
 
 function RoleChangeModal({ alert, onDismiss }) {

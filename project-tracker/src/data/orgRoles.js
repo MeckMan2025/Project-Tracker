@@ -20,6 +20,7 @@ export const TECHNICAL_GROUPS = [
   {
     key: 'hardware', label: 'Hardware', color: 'blue',
     leadTag: 'Technical Lead',
+    coLeadTag: 'Co-Technical Lead',
     roles: [
       { tag: 'CAD', desc: 'Designs robot parts and assemblies in 3D CAD.' },
       { tag: 'Assembly/Building', desc: 'Fabricates and assembles the physical robot.' },
@@ -29,6 +30,7 @@ export const TECHNICAL_GROUPS = [
   {
     key: 'software', label: 'Software', color: 'green',
     leadTag: 'Programming Lead',
+    coLeadTag: 'Co-Programming Lead',
     roles: [
       { tag: 'Programming', desc: 'Writes autonomous and driver-control code.' },
       { tag: 'Scouting', desc: 'Collects and analyzes match data on other teams.' },
@@ -41,8 +43,8 @@ export const TECHNICAL_ROLES = TECHNICAL_GROUPS.flatMap(g => g.roles)
 
 // The three departments, side by side and equal. Each owns its own lead.
 export const DEPARTMENTS = [
-  { key: 'business', label: 'Business', color: 'orange', leadTag: 'Business Lead', roles: BUSINESS_ROLES },
-  ...TECHNICAL_GROUPS.map(g => ({ key: g.key, label: g.label, color: g.color, leadTag: g.leadTag, roles: g.roles })),
+  { key: 'business', label: 'Business', color: 'orange', leadTag: 'Business Lead', coLeadTag: 'Co-Business Lead', roles: BUSINESS_ROLES },
+  ...TECHNICAL_GROUPS.map(g => ({ key: g.key, label: g.label, color: g.color, leadTag: g.leadTag, coLeadTag: g.coLeadTag, roles: g.roles })),
 ]
 
 // Leadership / support role descriptions (tooltips for those sections)
@@ -51,6 +53,10 @@ export const LEAD_DESC = {
   'Technical Lead': 'Leads the hardware side — CAD, assembly, and wiring.',
   'Programming Lead': 'Leads the software side — programming and scouting.',
   'Project Manager': 'Coordinates timelines, tasks, and the whole team.',
+  'Co-Business Lead': 'Shares the Business Lead job.',
+  'Co-Technical Lead': 'Shares the Hardware lead job.',
+  'Co-Programming Lead': 'Shares the Software lead job.',
+  'Co-Project Manager': 'Shares the Project Manager job.',
   'Co-Founder': 'Founded and oversees the team.',
   'Mentor': 'Adult mentor guiding the team.',
   'Coach': 'Team coach and adult supervisor.',
@@ -60,6 +66,7 @@ export const LEAD_DESC = {
 export const LEADERSHIP_TAGS = new Set([
   'Co-Founder', 'Coach', 'Mentor', 'Team Lead', 'Project Manager',
   'Business Lead', 'Technical Lead', 'Programming Lead', 'Team', 'Business', 'Technical',
+  'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead',
 ])
 
 // Build a { tag -> description } lookup from everything above.
