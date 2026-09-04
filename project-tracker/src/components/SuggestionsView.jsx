@@ -252,7 +252,13 @@ After you've asked enough questions, write me a final polished feature suggestio
             {submitForm}
 
             {[
-              { key: 'pending', label: 'Pending', color: 'bg-amber-200', items: suggestions.filter(s => !s.status || s.status === 'pending') },
+              // Anything not yet decided counts as pending. Dismissing an idea
+              // from the bell's 💡 panel sets status 'reviewed', which matched
+              // no column and made the suggestion vanish from this board
+              // entirely — seen is not the same as answered. Written as
+              // "not approved and not denied" so a new status can never
+              // silently disappear again.
+              { key: 'pending', label: 'Pending', color: 'bg-amber-200', items: suggestions.filter(s => s.status !== 'approved' && s.status !== 'denied') },
               { key: 'approved', label: 'Approved', color: 'bg-green-200', items: suggestions.filter(s => s.status === 'approved') },
               { key: 'denied', label: 'Denied', color: 'bg-red-200', items: suggestions.filter(s => s.status === 'denied') },
             ].map(section => (

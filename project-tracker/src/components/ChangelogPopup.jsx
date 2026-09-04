@@ -12,6 +12,7 @@ const CHANGELOG = [
       '\u{1F49B} Daily Team Pulse is off the site for now \u2014 no daily popup, no Team Pulse under Special Controls, and no switch for it in Settings. Nothing anyone answered was deleted, and your on/off preference is remembered if it comes back',
       '\u{1F4F7} Notebook: adding a photo can\'t spin forever any more. A photo the browser couldn\'t open \u2014 usually an iPhone HEIC \u2014 left the loading circle going and the Submit button stuck grey with nothing to explain it. Now it says what went wrong and what to do instead',
       '\u2705 Notebook: the Submit button tells you what is still missing \u2014 what you did, why it mattered, a photo or a project link \u2014 instead of just being greyed out',
+      '\u{1F4A1} Suggestions come back. Dismissing an idea from the \u{1F4A1} panel in the bell was quietly marking it \u201creviewed\u201d, and the Suggestions board only knew Pending, Approved and Denied \u2014 so those ideas showed nowhere at all. Four had gone missing that way and are back under Pending. Seeing an idea is not the same as answering it',
       '\u{1F4D3} The notebook activity card is gone \u2014 no entries were touched',
       '\u{1F6A7} Unfinished Tabs is local-only now, so half-built pages aren\'t one tap away on the real site',
       '\u{1F4CA} RoleSpec is off the site for now, same as Team Pulse \u2014 still there when running locally. Nothing it showed was deleted',
