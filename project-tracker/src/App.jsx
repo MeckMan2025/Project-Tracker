@@ -45,8 +45,6 @@ import BirthdayConfetti from './components/BirthdayConfetti'
 import DailyPulsePopup from './components/DailyPulsePopup'
 import TeamPulseDashboard from './components/TeamPulseDashboard'
 import { useAppSettings } from './hooks/useAppSettings'
-import NotebookFlashRequired from './components/NotebookFlashRequired'
-import NotebookFlashDashboard from './components/NotebookFlashDashboard'
 import SettingsView from './components/SettingsView'
 import CompDayView from './components/CompDayView'
 import TestingDashboard from './components/TestingDashboard'
@@ -56,7 +54,6 @@ import { MeetingStatsView } from './components/MeetingRecorder'
 import { useUser } from './contexts/UserContext'
 import { usePermissions } from './hooks/usePermissions'
 import { usePresenceContext } from './contexts/PresenceContext'
-import { useNotebookFlash } from './hooks/useNotebookFlash'
 import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
 import TimelineView from './components/TimelineView'
@@ -374,9 +371,6 @@ function App() {
   const { addToast } = useToast()
   useNativePush() // iOS Capacitor only — registers for APNs and saves token
   const { onlineUsers, presenceState } = usePresenceContext()
-  const { activeFlash, presentUsers, completedUsers, exemptUsers: flashExemptUsers } = useNotebookFlash()
-  const flashUsername = username || localStorage.getItem('scrum-username') || ''
-  const flashRequired = activeFlash && flashUsername && presentUsers.includes(flashUsername) && !completedUsers.includes(flashUsername) && !(activeFlash.exempt_users || []).includes(flashUsername)
   useBackButton()
   const [isLoading, setIsLoading] = useState(() => !effectiveIsTeam)
   const [radicalMsg] = useState(() => {
@@ -1349,14 +1343,6 @@ function App() {
         />
       )}
       {import.meta.env.DEV && showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
-      {!isLoading && flashRequired && !hasLeadTag && (
-        <NotebookFlashRequired
-          username={flashUsername}
-          activeFlash={activeFlash}
-          presentUsers={presentUsers}
-          completedUsers={completedUsers}
-        />
-      )}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !effectiveIsTeam ? 'hidden' : ''}`}>
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
@@ -1573,8 +1559,6 @@ function App() {
             <QuotesManager onBack={() => setSpecialView(null)} />
           ) : specialView === 'attendance' ? (
             <AttendanceManager onBack={closeSpecial} />
-          ) : specialView === 'flash' ? (
-            <NotebookFlashDashboard onBack={closeSpecial} />
           ) : specialView === 'interested-teams' ? (
             <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
           ) : specialView === 'cleanup' ? (
@@ -1610,15 +1594,6 @@ function App() {
                       >
                         <span className="text-lg font-semibold text-gray-700">Attendance</span>
                         <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
-                      </button>
-                    )}
-                    {hasLeadTag && (
-                      <button
-                        onClick={() => setSpecialView('flash')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                      >
-                        <span className="text-lg font-semibold text-gray-700">Notebook Flash</span>
-                        <p className="text-sm text-gray-400 mt-1">Force notebook entries from present members</p>
                       </button>
                     )}
                     <button
