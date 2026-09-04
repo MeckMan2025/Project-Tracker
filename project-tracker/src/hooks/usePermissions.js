@@ -4,6 +4,14 @@ const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead']
 
+// Account administration — resetting a password, creating someone's login,
+// deleting a member. These go through the admin-* edge functions, which check
+// their own tag list server-side. This MUST mirror the LEAD_TAGS in
+// supabase/functions/admin-{reset-password,delete-user,create-user}/index.ts:
+// when it drifted wider, a Programming Lead was shown the buttons and every
+// click came back "Only leads can reset passwords".
+const ACCOUNT_ADMIN_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
+
 // Same rule as canAddEvents below, but computed from a raw function_tags array
 // so callers can re-check against a freshly-fetched profile (not cached state).
 // Team accounts / permanent co-founders are handled by the caller.
@@ -44,6 +52,8 @@ export function usePermissions() {
   const isBusinessLead = !!(functionTags && functionTags.includes('Business Lead'))
   const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
   const isProgrammingLead = !!(functionTags && functionTags.includes('Programming Lead'))
+  const canAdminAccounts = isCofounder || !!(functionTags && functionTags.some(t => ACCOUNT_ADMIN_TAGS.includes(t)))
+
   const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
   // Timeline: leads, mentors and coaches pin the notes; anyone holding a
   // role can comment. Guest and Team aren't roles — they're account kinds.
@@ -96,6 +106,7 @@ export function usePermissions() {
     canOrganizeNotebook: hasLeadTag,
     canApproveQuotes: hasLeadTag,
     canManageUsers: hasLeadTag,
+    canAdminAccounts,
     canDragAnyTask: hasLeadTag || isTeam,
     canDeleteAnyMessage: hasLeadTag,
     canChangeRoles: hasLeadTag,

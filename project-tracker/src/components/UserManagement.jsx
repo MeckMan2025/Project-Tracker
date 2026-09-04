@@ -116,7 +116,7 @@ const inviteName = (email) => {
 
 function UserManagement({ onViewProfile }) {
   const { user, username } = useUser()
-  const { canManageUsers, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
+  const { canManageUsers, canAdminAccounts, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
   const [activeSection, setActiveSection] = useState('radmems') // 'radmems' | 'mentors' | 'teamro'
@@ -1364,7 +1364,7 @@ function UserManagement({ onViewProfile }) {
                             <span className="text-sm font-medium text-gray-700 truncate hover:underline">{member.display_name}</span>
                             {isSelf && <span className="text-xs text-gray-400">(you)</span>}
                           </button>
-                          {canManageUsers && (
+                          {canAdminAccounts && (
                             <div className="flex items-center gap-1 shrink-0">
                               <button
                                 onClick={() => {
