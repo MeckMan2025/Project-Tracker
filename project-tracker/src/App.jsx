@@ -441,8 +441,11 @@ function App() {
     }
   }, [effectiveIsTeam])
 
-  // Daily Pulse trigger — once per day per user, skippable, disable-able in settings
+  // Daily Pulse trigger — once per day per user, skippable, disable-able in settings.
+  // Local-only for now: import.meta.env.DEV is false in a production build, so
+  // nobody on the deployed site gets the popup and it never queries for one.
   useEffect(() => {
+    if (!import.meta.env.DEV) return
     if (!user?.id || effectiveIsTeam || isLoading) return
     if (appSettings.teamPulseEnabled === false) return // team-wide off switch (Special Controls)
     const d = new Date()
@@ -1331,7 +1334,7 @@ function App() {
           onMove={canDragTask(viewTask) ? (st) => moveTask(viewTask.id, st) : null}
         />
       )}
-      {showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
+      {import.meta.env.DEV && showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
       {!isLoading && flashRequired && !hasLeadTag && (
         <NotebookFlashRequired
           username={flashUsername}
@@ -1568,7 +1571,7 @@ function App() {
             <DesignMatrix onBack={() => setSpecialView(null)} />
           ) : specialView === 'meeting-stats' ? (
             <MeetingStatsView onBack={() => setSpecialView(null)} />
-          ) : specialView === 'team-pulse' ? (
+          ) : specialView === 'team-pulse' && import.meta.env.DEV ? (
             <TeamPulseDashboard onBack={() => setSpecialView(null)} />
           ) : (
             <div className="flex-1 p-6">
@@ -1611,7 +1614,7 @@ function App() {
                       <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
                       <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
                     </button>
-                    {hasLeadTag && (
+                    {import.meta.env.DEV && hasLeadTag && (
                       <div className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
                         <button onClick={() => setSpecialView('team-pulse')} className="text-left w-full hover:opacity-80 transition-opacity">
                           <span className="text-lg font-semibold text-gray-700">Team Pulse</span>

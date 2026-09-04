@@ -158,7 +158,11 @@ export default function SettingsView() {
         )}
       </section>
 
-      {/* ─── Daily Pulse ─── */}
+      {/* ─── Daily Pulse — local-only for now, so the switch is hidden on the
+           deployed site rather than offering to toggle something that isn't
+           there. The stored preference is left alone and works again if the
+           feature comes back. ─── */}
+      {import.meta.env.DEV && (
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 className="font-semibold text-gray-700 mb-1 flex items-center gap-2">
           <Bell size={16} className="text-pastel-pink-dark" />
@@ -179,6 +183,7 @@ export default function SettingsView() {
           </button>
         </div>
       </section>
+      )}
 
       {/* ─── Startup Music ─── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

@@ -9,6 +9,7 @@ const CHANGELOG = [
     date: '2026-09-04',
     items: [
       '\u{1F389} A confetti pops up in the corner on someone\'s birthday, and everyone gets a Happy Birthday notification with their name. It reads the birthdays already on the calendar, so there is nothing extra to fill in \u2014 two people sharing a day get one message between them, and on your own birthday you get the confetti without being pinged about yourself',
+      '\u{1F49B} Daily Team Pulse is off the site for now \u2014 no daily popup, no Team Pulse under Special Controls, and no switch for it in Settings. Nothing anyone answered was deleted, and your on/off preference is remembered if it comes back',
       '\u{1F4F7} Notebook: adding a photo can\'t spin forever any more. A photo the browser couldn\'t open \u2014 usually an iPhone HEIC \u2014 left the loading circle going and the Submit button stuck grey with nothing to explain it. Now it says what went wrong and what to do instead',
       '\u2705 Notebook: the Submit button tells you what is still missing \u2014 what you did, why it mattered, a photo or a project link \u2014 instead of just being greyed out',
       '\u{1F5FA}\uFE0F Org chart is three equal departments now \u2014 Business, Hardware and Software side by side. Technical is gone as a layer above Hardware and Software, and each of the three shows its own lead',
