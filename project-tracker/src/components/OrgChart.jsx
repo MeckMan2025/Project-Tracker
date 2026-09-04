@@ -43,51 +43,73 @@ const THEME = {
     mini: 'border-orange-300 bg-white/70', miniLabel: 'text-orange-700',
     chip: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
     leadChip: 'bg-orange-500 text-white hover:bg-orange-600',
+    tile: 'text-orange-900 hover:bg-orange-100',
+    leadTile: 'text-orange-900 bg-orange-100/80 hover:bg-orange-200 ring-1 ring-orange-300',
   },
   blue: {
     box: 'bg-blue-50 border-blue-300', title: 'text-blue-700',
     mini: 'border-blue-300 bg-white/70', miniLabel: 'text-blue-700',
     chip: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
     leadChip: 'bg-blue-500 text-white hover:bg-blue-600',
+    tile: 'text-blue-900 hover:bg-blue-100',
+    leadTile: 'text-blue-900 bg-blue-100/80 hover:bg-blue-200 ring-1 ring-blue-300',
   },
   green: {
     box: 'bg-green-50 border-green-300', title: 'text-green-700',
     mini: 'border-green-300 bg-white/70', miniLabel: 'text-green-700',
     chip: 'bg-green-100 text-green-800 hover:bg-green-200',
     leadChip: 'bg-green-500 text-white hover:bg-green-600',
+    tile: 'text-green-900 hover:bg-green-100',
+    leadTile: 'text-green-900 bg-green-100/80 hover:bg-green-200 ring-1 ring-green-300',
   },
 }
 
 // Shared "___ Lead:" line
 function LeadLine({ label, leads, theme, onClick }) {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-      <span className="text-sm font-semibold text-gray-500">{label} Lead:</span>
-      {leads.length > 0
-        ? leads.map(p => <PersonChip key={p.id} profile={p} onClick={onClick} className={theme.leadChip} />)
-        : <span className="text-sm italic text-gray-300">Unassigned</span>}
+    <div className="flex flex-col items-center gap-1 mb-4">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{label} Lead</span>
+      {leads.length > 0 ? (
+        <div className="flex flex-wrap justify-center gap-1">
+          {leads.map(p => (
+            <div key={p.id} className="w-[74px] flex justify-center">
+              <PersonTile profile={p} onClick={onClick} theme={theme} lead />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <span className="text-sm italic text-gray-300">Unassigned</span>
+      )}
     </div>
   )
 }
 
-// ── Clickable name chip (keeps profiles) ──
-function PersonChip({ profile, onClick, className = '' }) {
+// ── Square tile: profile picture on top, name underneath ──
+function PersonTile({ profile, onClick, theme, lead = false }) {
   const { isOnline } = usePresenceContext()
+  const name = profile.display_name || 'Unknown'
   return (
     <button
       onClick={() => onClick(profile)}
-      className={`inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${className}`}
-      title={`View ${profile.display_name || 'member'}'s profile`}
+      title={`View ${name}'s profile`}
+      className={`flex flex-col items-center gap-1 w-full max-w-[74px] p-1.5 rounded-xl transition-all
+        hover:scale-105 active:scale-95 ${lead ? theme.leadTile : theme.tile}`}
     >
-      {profile.avatar_url ? (
-        <img src={profile.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-      ) : (
-        <span className="w-5 h-5 rounded-full bg-white/60 flex items-center justify-center text-[10px] font-bold">
-          {(profile.display_name || '?').charAt(0).toUpperCase()}
+      <div className="relative">
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover shadow-sm" />
+        ) : (
+          <div className="w-12 h-12 rounded-xl bg-white/80 shadow-sm flex items-center justify-center text-base font-bold text-gray-500">
+            {name.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className="absolute -bottom-0.5 -right-0.5">
+          <OnlineDot online={isOnline(name)} size={11} />
         </span>
-      )}
-      {profile.display_name || 'Unknown'}
-      <OnlineDot online={isOnline(profile.display_name)} size={7} ring={false} className="ml-0.5" />
+      </div>
+      <span className="text-[10px] font-semibold leading-[1.15] text-center w-full break-words hyphens-auto">
+        {name}
+      </span>
     </button>
   )
 }
@@ -98,8 +120,11 @@ function RoleBox({ role, people, theme, onClick }) {
     <div className={`group relative rounded-lg border-2 p-2.5 ${theme.mini}`}>
       <p className={`text-xs font-bold uppercase tracking-wide mb-1.5 text-center ${theme.miniLabel}`}>{role.tag}</p>
       {people.length > 0 ? (
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {people.map(p => <PersonChip key={p.id} profile={p} onClick={onClick} className={theme.chip} />)}
+        <div
+          className="grid gap-1 justify-items-center"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(66px, 1fr))' }}
+        >
+          {people.map(p => <PersonTile key={p.id} profile={p} onClick={onClick} theme={theme} />)}
         </div>
       ) : (
         <p className="text-xs italic text-gray-300 text-center">Unassigned</p>
