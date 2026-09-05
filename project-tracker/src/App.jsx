@@ -1578,15 +1578,6 @@ function App() {
                 <div>
                   <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Main</h2>
                   <div className="grid gap-3">
-                    {hasLeadTag && (
-                      <button
-                        onClick={() => setSpecialView('meeting-stats')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                      >
-                        <span className="text-lg font-semibold text-gray-700">Meeting Stats</span>
-                        <p className="text-sm text-gray-400 mt-1">What each recorded meeting got done</p>
-                      </button>
-                    )}
                     <button
                       onClick={() => setSpecialView('cleanup')}
                       className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
