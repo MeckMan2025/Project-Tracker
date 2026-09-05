@@ -1566,7 +1566,7 @@ function App() {
           ) : specialView === 'team-survey' ? (
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
-            <DesignMatrix onBack={() => setSpecialView(null)} />
+            <DesignMatrix onBack={closeSpecial} />
           ) : specialView === 'meeting-stats' ? (
             <MeetingStatsView onBack={closeSpecial} />
           ) : specialView === 'team-pulse' && import.meta.env.DEV ? (
@@ -1585,15 +1585,6 @@ function App() {
                       >
                         <span className="text-lg font-semibold text-gray-700">Meeting Stats</span>
                         <p className="text-sm text-gray-400 mt-1">What each recorded meeting got done</p>
-                      </button>
-                    )}
-                    {hasLeadTag && (
-                      <button
-                        onClick={() => setSpecialView('attendance')}
-                        className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                      >
-                        <span className="text-lg font-semibold text-gray-700">Attendance</span>
-                        <p className="text-sm text-gray-400 mt-1">Take and manage meeting attendance</p>
                       </button>
                     )}
                     <button

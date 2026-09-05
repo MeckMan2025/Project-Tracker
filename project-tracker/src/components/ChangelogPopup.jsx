@@ -19,6 +19,8 @@ const CHANGELOG = [
       '\u{1F4D3} Attendance now follows the notebook: if you did not write an entry for a meeting, you are marked absent for it. Applied to every meeting so far \u2014 41 present marks changed, including all of 18 August, where nobody wrote one',
       '\u{1F519} Back out of Attendance, Meeting Stats or Notebook Flash and you land where you started. Opening one from Home now returns you to Home instead of dropping you in the Special Controls menu you never went through',
       '\u{1F399}\uFE0F The meeting recorder card is off Home',
+      '\u{1F464} Open someone\'s profile and you now see their whole record: attendance percentage with a trend line and every meeting listed, the tasks they currently have open, and all their engineering notebook entries',
+      '\u{1F3E0} Home now holds Attendance, Meeting Stats and Design Matrix for leads, mentors and coaches. Attendance has left Special Controls \u2014 it is on the dashboard instead of buried a menu deep',
       '\u{1F3E0} Home has three shortcut buttons for leads \u2014 Attendance, Meeting Stats and Notebook Flash \u2014 so the pages you actually use during a meeting are one tap away instead of three. The \u201cMy Dashboard\u201d heading above them is gone; it only ever sat on top of the meeting recorder and said the same thing twice',
       '\u{1F4A1} Suggestions come back. Dismissing an idea from the \u{1F4A1} panel in the bell was quietly marking it \u201creviewed\u201d, and the Suggestions board only knew Pending, Approved and Denied \u2014 so those ideas showed nowhere at all. Four had gone missing that way and are back under Pending. Seeing an idea is not the same as answering it',
       '\u{1F4D3} The notebook activity card is gone \u2014 no entries were touched',

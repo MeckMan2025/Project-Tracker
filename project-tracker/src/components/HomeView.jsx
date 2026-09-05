@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy, ClipboardCheck, BarChart3 } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy, ClipboardCheck, BarChart3, Grid3x3 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -480,10 +480,11 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         {/* Lead shortcuts — the three Special Controls pages that actually get
             used during a meeting, one tap from Home instead of three. */}
         {hasLeadTag && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-blue', tint: 'bg-pastel-blue/20', text: 'text-pastel-blue-dark' },
               { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
+              { view: 'design-matrix', label: 'Design Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ].map(({ view, label, icon: Icon, ring, tint, text }) => (
               <button
                 key={view}
