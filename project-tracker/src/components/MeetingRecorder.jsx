@@ -49,6 +49,12 @@ async function takeSnapshot() {
 
 const DONE = (st) => st === 'done' || st === 'completed'
 
+// Local calendar date, to line a meeting up with its attendance session.
+const localDay = (ms) => {
+  const d = new Date(ms), pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 async function computeStats(startAt, snapshot) {
   const now = Date.now()
   const end = await takeSnapshot()
@@ -61,6 +67,22 @@ async function computeStats(startAt, snapshot) {
   const bugsAdded = end.bugIds.filter(id => !s.bugIds.includes(id)).length
   const bugsFixed = s.bugIds.filter(id => !end.bugIds.includes(id)).length
   const swTasksDone = Object.entries(end.swTasks).filter(([id, done]) => done && id in s.swTasks && !s.swTasks[id]).length
+  // Tasks that changed column without finishing — the ones already counted as
+  // completed aren't counted twice here.
+  const tasksMoved = Object.entries(end.tasks).filter(([id, st]) =>
+    id in s.tasks && st !== s.tasks[id] && !(DONE(st) && !DONE(s.tasks[id]))
+  ).length
+
+  // How much of the team was actually here, from the attendance session for
+  // this meeting's day.
+  let presentCount = 0, markedCount = 0, attendancePct = null
+  const sessions = await getRows(`attendance_sessions?select=id&session_date=eq.${localDay(startAt)}`)
+  if (sessions.length > 0) {
+    const recs = await getRows(`attendance_records?select=status&session_id=eq.${sessions[0].id}`)
+    presentCount = recs.filter(r => r.status === 'present').length
+    markedCount = recs.length
+    attendancePct = markedCount > 0 ? Math.round((presentCount / markedCount) * 100) : null
+  }
 
   // Time-windowed sources (these carry real timestamps).
   const [ledgerDoc, requests, notebook] = await Promise.all([
@@ -75,7 +97,8 @@ async function computeStats(startAt, snapshot) {
 
   return {
     durationMin: Math.max(1, Math.round((now - startAt) / 60000)),
-    tasksCreated, tasksCompleted,
+    tasksCreated, tasksCompleted, tasksMoved,
+    attendancePct, presentCount, markedCount,
     purchases: purchases.length, spent, raised,
     requestsMade: (requests || []).length,
     notebookEntries: (notebook || []).length,
@@ -89,6 +112,8 @@ export function StatChips({ stats }) {
   const chips = [
     stats.tasksCompleted > 0 && `✅ ${stats.tasksCompleted} task${stats.tasksCompleted === 1 ? '' : 's'} completed`,
     stats.tasksCreated > 0 && `📝 ${stats.tasksCreated} task${stats.tasksCreated === 1 ? '' : 's'} made`,
+    stats.tasksMoved > 0 && `🔀 ${stats.tasksMoved} task${stats.tasksMoved === 1 ? '' : 's'} moved`,
+    typeof stats.attendancePct === 'number' && `👥 ${stats.attendancePct}% here (${stats.presentCount}/${stats.markedCount})`,
     stats.swTasksDone > 0 && `💻 ${stats.swTasksDone} code task${stats.swTasksDone === 1 ? '' : 's'} done`,
     stats.purchases > 0 && `🛒 ${stats.purchases} purchase${stats.purchases === 1 ? '' : 's'} (${money(stats.spent)})`,
     stats.raised > 0 && `📈 ${money(stats.raised)} raised`,
