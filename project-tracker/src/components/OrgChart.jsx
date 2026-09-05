@@ -214,158 +214,6 @@ function PersonCard({ profile, onClick }) {
 }
 
 // ── Profile Detail Modal (unchanged) ──
-function ProfileModal({ profile, onClose, onViewProfile }) {
-  const { isOnline } = usePresenceContext()
-  const [full, setFull] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-  useEffect(() => {
-    if (!profile) return
-    setLoading(true)
-    fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${profile.id}&select=*`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-    })
-      .then(res => res.ok ? res.json() : [])
-      .then(rows => { if (rows[0]) setFull(rows[0]) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [profile?.id])
-
-  if (!profile) return null
-  const tier = deriveTier(profile)
-  const tags = profile.function_tags || []
-  const data = full || profile
-  const status = STATUS_MAP[data.status] || STATUS_MAP['available']
-  const StatusIcon = status.icon
-  const skills = data.skills || {}
-  const tools = data.tools || []
-  const systemsOwned = data.systems_owned || []
-  const safetyCerts = data.safety_certs || []
-  const permissions = data.permissions || []
-  const commStyle = data.comm_style || ''
-  const commNotes = data.comm_notes || ''
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-50" onClick={onClose} />
-      <div className="fixed inset-0 z-[51] flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm pointer-events-auto relative max-h-[85vh] overflow-y-auto">
-          <button onClick={onClose} className="absolute top-3 right-3 p-1 rounded hover:bg-gray-100 transition-colors">
-            <X size={16} className="text-gray-400" />
-          </button>
-
-          <div className="flex flex-col items-center mb-4">
-            <div className="relative mb-2">
-              {(data.avatar_url || profile.avatar_url) ? (
-                <img src={data.avatar_url || profile.avatar_url} alt="" className={`w-16 h-16 rounded-full object-cover border-2 ${TIER_BORDER[tier]}`} />
-              ) : (
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 border-2 ${TIER_BORDER[tier]} ${TIER_BG[tier]}`}>
-                  {(profile.display_name || '?').charAt(0).toUpperCase()}
-                </div>
-              )}
-              <span className="absolute bottom-0.5 right-0.5">
-                <OnlineDot online={isOnline(profile.display_name)} size={15} />
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-gray-800">{profile.display_name || 'Unknown'}</h2>
-            {profile.primary_role_label && <span className="text-sm text-gray-500">{profile.primary_role_label}</span>}
-          </div>
-
-          {full && (
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${status.bg}`}>
-              <StatusIcon size={16} className={status.color} />
-              <span className="text-sm font-medium text-gray-700">{status.label}</span>
-            </div>
-          )}
-
-          {tags.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Roles</p>
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map(tag => (
-                  <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-blue/30 text-pastel-blue-dark">{tag}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {data.short_bio && (
-            <div className="mb-4">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Bio</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{data.short_bio}</p>
-            </div>
-          )}
-
-          {loading && <p className="text-xs text-gray-400 text-center mb-4 animate-pulse">Loading full profile...</p>}
-
-          {full && (
-            <>
-              {data.discipline && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Discipline</p>
-                  <span className="text-sm px-2.5 py-1 rounded-full bg-pastel-orange/30 text-pastel-orange-dark font-medium">{data.discipline}</span>
-                </div>
-              )}
-              {systemsOwned.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Systems Owned</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {systemsOwned.map(s => <span key={s} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-pink/30 text-pastel-pink-dark">{s}</span>)}
-                  </div>
-                </div>
-              )}
-              {Object.keys(skills).length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Skills</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(skills).map(([skill, level]) => (
-                      <span key={skill} className={`px-2.5 py-1 rounded-full text-xs font-medium ${SKILL_LEVEL_COLORS[level] || 'bg-gray-100 text-gray-600'}`}>{skill} · {level}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {tools.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Tools</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tools.map(t => <span key={t} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-blue/20 text-pastel-blue-dark">{t}</span>)}
-                  </div>
-                </div>
-              )}
-              {(safetyCerts.length > 0 || permissions.length > 0) && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Safety & Permissions</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {safetyCerts.map(c => <span key={c} className="px-2.5 py-1 rounded-full text-xs font-medium bg-pastel-orange/20 text-orange-700">{c}</span>)}
-                    {permissions.map(p => <span key={p} className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{p}</span>)}
-                  </div>
-                </div>
-              )}
-              {(commStyle || commNotes) && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Communication</p>
-                  {commStyle && <p className="text-sm text-gray-700">Prefers: <span className="font-medium">{commStyle.replace('-', ' ')}</span></p>}
-                  {commNotes && <p className="text-sm text-gray-500 italic mt-1">{commNotes}</p>}
-                </div>
-              )}
-            </>
-          )}
-
-          <button
-            onClick={() => { onViewProfile(profile.id); onClose() }}
-            className="w-full mt-2 px-4 py-2.5 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium text-gray-700 text-center"
-          >
-            View Profile
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ── Bottom leadership section ──
 function LeaderSection({ title, icon: Icon, people, onClick, accent }) {
   if (!people.length) return null
   return (
@@ -409,7 +257,6 @@ function ProjectManagerNote({ people, onClick }) {
 function OrgChart({ onViewProfile }) {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedProfile, setSelectedProfile] = useState(null)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -468,7 +315,12 @@ function OrgChart({ onViewProfile }) {
   const projectManagers = profiles.filter(p => hasTag(p, 'Project Manager') || hasTag(p, 'Team Lead') || hasTag(p, 'Co-Project Manager'))
   const mentorsCoaches = profiles.filter(p => hasTag(p, 'Mentor') || hasTag(p, 'Coach'))
 
-  const handleCardClick = (profile) => setSelectedProfile(profile)
+  // Straight to the full profile. The popup that used to open here was a
+  // summary with a "View profile" button underneath it — a stop on the way to
+  // the page that actually holds their attendance, tasks and notebook.
+  const handleCardClick = (profile) => {
+    if (profile?.id) onViewProfile?.(profile.id)
+  }
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -520,9 +372,6 @@ function OrgChart({ onViewProfile }) {
         </div>
       </main>
 
-      {selectedProfile && (
-        <ProfileModal profile={selectedProfile} onClose={() => setSelectedProfile(null)} onViewProfile={onViewProfile} />
-      )}
     </div>
   )
 }
