@@ -477,36 +477,35 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           </div>
         </div>
 
-        {/* Lead shortcuts — the three Special Controls pages that actually get
-            used during a meeting, one tap from Home instead of three. */}
-        <div className="space-y-3">
-        {hasLeadTag && (
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-blue', tint: 'bg-pastel-blue/20', text: 'text-pastel-blue-dark' },
-              { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
+        {/* One row of shortcut tiles. Leads, mentors and coaches get the three
+            pages used during a meeting; Submit a Quote is for everyone, so on a
+            member's Home it's the only tile and fills the row on its own. */}
+        {(() => {
+          const tiles = [
+            ...(hasLeadTag ? [
+              { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-blue',   tint: 'bg-pastel-blue/20',   text: 'text-pastel-blue-dark' },
+              { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-pink',   tint: 'bg-pastel-pink/20',   text: 'text-pastel-pink-dark' },
               { view: 'design-matrix', label: 'Design Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
-            ].map(({ view, label, icon: Icon, ring, tint, text }) => (
-              <button
-                key={view}
-                onClick={() => onOpenSpecial?.(view)}
-                className={`flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 ${ring} ${tint} bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all`}
-              >
-                <Icon size={22} className={text} />
-                <span className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {/* Quotes is for everyone, so it sits outside the lead gate. */}
-        <button
-          onClick={() => onOpenSpecial?.('quotes')}
-          className="w-full flex items-center justify-center gap-2 py-3 px-2 rounded-2xl border-2 border-pastel-pink bg-pastel-pink/20 bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
-        >
-          <Quote size={18} className="text-pastel-pink-dark" />
-          <span className="text-sm font-bold text-gray-700">Submit a Quote</span>
-        </button>
-        </div>
+            ] : []),
+            { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
+          ]
+          // Four tiles read better as two rows of two than a cramped row of four.
+          const cols = tiles.length === 4 ? 2 : Math.min(tiles.length, 3)
+          return (
+            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+              {tiles.map(({ view, label, icon: Icon, ring, tint, text }) => (
+                <button
+                  key={view}
+                  onClick={() => onOpenSpecial?.(view)}
+                  className={`flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 ${ring} ${tint} bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all`}
+                >
+                  <Icon size={22} className={text} />
+                  <span className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })()}
 
         {/* Sticky-note board: My Tasks (big notebook) + Season Kickoff + Next Meeting */}
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch pt-2">

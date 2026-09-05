@@ -47,6 +47,23 @@ const DEFAULT_PROFILE_DATA = {
   avatar_url: '',
 }
 
+// Small presence-% sparkline for a profile.
+function MiniTrend({ points }) {
+  const pts = (points || []).slice(-12)
+  if (pts.length < 2) return null
+  const W = 300, H = 70, pad = 6
+  const x = i => pad + (i * (W - pad * 2)) / (pts.length - 1)
+  const y = v => pad + (H - pad * 2) - (Math.max(0, Math.min(100, v)) / 100) * (H - pad * 2)
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.pct).toFixed(1)}`).join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 80 }} preserveAspectRatio="none">
+      <path d={`${line} L${x(pts.length - 1).toFixed(1)},${y(0)} L${x(0)},${y(0)} Z`} fill="#6366f1" opacity="0.08" />
+      <path d={line} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.pct)} r="2.6" fill="#6366f1" />)}
+    </svg>
+  )
+}
+
 function ProfileView({ viewingProfileId, onClearViewing }) {
   const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio, isTeam, teamNumber } = useUser()
   const { isOnline } = usePresenceContext()
