@@ -1556,7 +1556,7 @@ function App() {
             </div>
           </header>
           {specialView === 'quotes' ? (
-            <QuotesManager onBack={() => setSpecialView(null)} />
+            <QuotesManager onBack={closeSpecial} />
           ) : specialView === 'attendance' ? (
             <AttendanceManager onBack={closeSpecial} />
           ) : specialView === 'interested-teams' ? (
@@ -1616,20 +1616,6 @@ function App() {
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-
-                {/* Fun */}
-                <div>
-                  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Fun</h2>
-                  <div className="grid gap-3">
-                    <button
-                      onClick={() => setSpecialView('quotes')}
-                      className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                    >
-                      <span className="text-lg font-semibold text-gray-700">Quotes</span>
-                      <p className="text-sm text-gray-400 mt-1">Submit a fun quote or joke</p>
-                    </button>
                   </div>
                 </div>
 

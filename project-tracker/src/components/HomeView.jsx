@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy, ClipboardCheck, BarChart3, Grid3x3 } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -479,6 +479,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
 
         {/* Lead shortcuts — the three Special Controls pages that actually get
             used during a meeting, one tap from Home instead of three. */}
+        <div className="space-y-3">
         {hasLeadTag && (
           <div className="grid grid-cols-3 gap-3">
             {[
@@ -497,6 +498,15 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             ))}
           </div>
         )}
+        {/* Quotes is for everyone, so it sits outside the lead gate. */}
+        <button
+          onClick={() => onOpenSpecial?.('quotes')}
+          className="w-full flex items-center justify-center gap-2 py-3 px-2 rounded-2xl border-2 border-pastel-pink bg-pastel-pink/20 bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
+        >
+          <Quote size={18} className="text-pastel-pink-dark" />
+          <span className="text-sm font-bold text-gray-700">Submit a Quote</span>
+        </button>
+        </div>
 
         {/* Sticky-note board: My Tasks (big notebook) + Season Kickoff + Next Meeting */}
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch pt-2">
