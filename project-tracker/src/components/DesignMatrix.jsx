@@ -633,7 +633,7 @@ function VoteView({ matrix, session, username, onSubmit, onCancel }) {
       <div>
         <h2 className="text-lg font-bold text-gray-700">{matrix.title}</h2>
         {matrix.description && <p className="text-sm text-gray-500">{matrix.description}</p>}
-        <p className="text-xs text-gray-400 mt-1">Rate each option 1–5 on every criterion. 5 is best.</p>
+        <p className="text-xs text-gray-400 mt-1">Rate each option out of 10 on every criterion — decimals are fine. 10 is best.</p>
       </div>
       {(matrix.options || []).map(o => (
         <div key={o.id} className="bg-white rounded-2xl border-2 border-gray-100 p-4 space-y-3">
@@ -649,14 +649,23 @@ function VoteView({ matrix, session, username, onSubmit, onCancel }) {
             return (
               <div key={c.id} className="flex items-center justify-between gap-2">
                 <span className="text-sm text-gray-600">{c.name || 'Criterion'}</span>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(n => (
-                    <button key={n} onClick={() => setV(prev => ({ ...prev, [k]: n }))}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-                        Number(v[k]) === n ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
-                      {n}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    type="range" min="0" max="10" step="0.1"
+                    value={Number(v[k]) || 0}
+                    onChange={e => setV(prev => ({ ...prev, [k]: Number(e.target.value) }))}
+                    className="w-28 sm:w-40 accent-pastel-pink-dark"
+                  />
+                  <input
+                    type="number" min="0" max="10" step="0.1" placeholder="—"
+                    value={v[k] ?? ''}
+                    onChange={e => {
+                      const n = e.target.value === '' ? '' : Math.max(0, Math.min(10, Number(e.target.value)))
+                      setV(prev => ({ ...prev, [k]: n }))
+                    }}
+                    className="w-16 text-sm text-center border rounded-lg px-1.5 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                  />
+                  <span className="text-xs text-gray-300">/10</span>
                 </div>
               </div>
             )
