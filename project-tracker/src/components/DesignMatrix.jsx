@@ -60,17 +60,30 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
           const se = sessionOf(m)
           const t = se ? tally(m, se) : null
           const done = se ? finishedVoters(m, se).length : 0
-          return (
-            <button key={m.id} onClick={() => onSelect(m)}
-              className="w-full text-left bg-white/80 rounded-xl border-2 border-gray-100 hover:border-pastel-pink p-3 transition-colors">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-gray-800">{m.title || 'Untitled'}</span>
-                {se?.status === 'closed' && t?.winner && <span className="text-xs font-bold text-pastel-pink-dark shrink-0">🏆 {t.winner.name}</span>}
-                {se?.status === 'open' && <span className="text-xs text-gray-400 shrink-0">{done}/{(se.participants || []).length} rated</span>}
+            // Only the person who made it can throw it away, and never from
+            // under people who are still rating it.
+            const canDelete = m.created_by === username && se?.status !== 'open'
+            return (
+              <div key={m.id} className="group flex items-center gap-2 bg-white/80 rounded-xl border-2 border-gray-100 hover:border-pastel-pink p-3 transition-colors">
+                <button onClick={() => onSelect(m)} className="flex-1 text-left min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-gray-800 truncate">{m.title || 'Untitled'}</span>
+                    {se?.status === 'closed' && t?.winner && <span className="text-xs font-bold text-pastel-pink-dark shrink-0">🏆 {t.winner.name}</span>}
+                    {se?.status === 'open' && <span className="text-xs text-gray-400 shrink-0">{done}/{(se.participants || []).length} rated</span>}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">by {m.created_by}{se ? ` · hosted by ${se.hostedBy}` : ''}</p>
+                </button>
+                {canDelete && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(m.id) }}
+                    title="Delete this matrix"
+                    className="shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">by {m.created_by}{se ? ` · hosted by ${se.hostedBy}` : ''}</p>
-            </button>
-          )
+            )
         })}
       </div>
     </div>
