@@ -15,6 +15,7 @@ export default function MatrixRatingRequired() {
   const { username } = useUser()
   const [pending, setPending] = useState([])
   const [reveal, setReveal] = useState(null)
+  const [results, setResults] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // Matrices this device has just submitted. The poll runs every few seconds,
@@ -65,7 +66,15 @@ export default function MatrixRatingRequired() {
         // it's unrevealed. A closed session with no flag was closed before the
         // flag existed; its host has long since had their reveal and will never
         // press the button again, so waiting on them is waiting forever.
-        setReveal({ id: justDecided.id, winner: t.winner, tied: t.tied, waiting: se.revealed === false })
+        setReveal({
+          id: justDecided.id,
+          title: justDecided.title,
+          winner: t.winner,
+          tied: t.tied,
+          byOption: t.byOption,
+          criteria: justDecided.criteria || [],
+          waiting: se.revealed === false,
+        })
       } else {
         setReveal(null)
       }
@@ -106,8 +115,58 @@ export default function MatrixRatingRequired() {
         tied={reveal.tied}
         autoStart
         waiting={reveal.waiting}
-        onDone={() => { markSeen(reveal.id); setReveal(null) }}
+        // "See the numbers" used to just close, dropping people back on
+        // whichever page they were on — the table is on the Decision Matrix
+        // page they were never taken to. Show it here instead.
+        onDone={() => { markSeen(reveal.id); setResults(reveal); setReveal(null) }}
       />
+    )
+  }
+
+  if (results) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
+        <div className="min-h-full flex items-start justify-center p-4 py-8">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-5 space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">{results.title}</h2>
+              <p className="text-xs text-gray-400">Everyone's ratings, averaged</p>
+            </div>
+            {results.winner && (
+              <div className="rounded-xl border-2 border-pastel-pink bg-pastel-pink/10 p-3 text-center">
+                <p className="text-lg font-black text-gray-800">🏆 {results.winner.name}</p>
+                <p className="text-xs text-gray-500">{results.winner.total.toFixed(1)} total</p>
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-400">
+                    <th className="text-left p-2">Option</th>
+                    {results.criteria.map(c => <th key={c.id} className="p-2 font-semibold">{c.name}</th>)}
+                    <th className="p-2 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.byOption.map((o, i) => (
+                    <tr key={o.id} className={i === 0 && o.total > 0 ? 'bg-pastel-pink/10' : ''}>
+                      <td className="p-2 font-semibold text-gray-700">{o.name}</td>
+                      {o.perCriterion.map(c => (
+                        <td key={c.id} className="p-2 text-center text-gray-600">{c.count ? c.avg.toFixed(1) : '—'}</td>
+                      ))}
+                      <td className="p-2 text-center font-bold text-gray-800">{o.total.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button onClick={() => setResults(null)}
+              className="w-full py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold">
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
