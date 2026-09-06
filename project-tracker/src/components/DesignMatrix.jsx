@@ -803,7 +803,10 @@ function SessionView({ matrix, session, username, onVote, onClose, onReopen }) {
       {showConfetti && <Confetti />}
       <div>
         <h2 className="text-lg font-bold text-gray-700">{matrix.title}</h2>
-        <p className="text-xs text-gray-400">Hosted by {session.hostedBy} · {done.length} of {(session.participants || []).length} have rated it</p>
+        <p className="text-sm font-semibold text-gray-600 mt-0.5">
+          {done.length} out of {(session.participants || []).length} {(session.participants || []).length === 1 ? 'person has' : 'people have'} submitted
+        </p>
+        <p className="text-xs text-gray-400">Hosted by {session.hostedBy}</p>
       </div>
 
       {closed && t.winner && (
@@ -820,19 +823,21 @@ function SessionView({ matrix, session, username, onVote, onClose, onReopen }) {
         </div>
       )}
 
-      {!closed && (
-        <div className="flex flex-wrap gap-1.5">
-          {(session.participants || []).map(n => (
-            <span key={n} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${done.includes(n) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-              {done.includes(n) ? '✓ ' : ''}{n}
-            </span>
-          ))}
+      {/* A count, not a register. Who has and hasn't submitted turns a rating
+          into a thing people are watched doing. */}
+      {!closed && (session.participants || []).length > 0 && (
+        <div className="w-full bg-gray-100 rounded-full h-2">
+          <div className="h-2 rounded-full bg-pastel-pink-dark transition-all duration-500"
+               style={{ width: `${Math.round((done.length / (session.participants || []).length) * 100)}%` }} />
         </div>
       )}
 
-      {!closed && (session.participants || []).includes(username) && (
-        <button onClick={onVote} className="w-full py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold">
-          {hasFinished(matrix, session, username) ? 'Change my ratings' : 'Rate this matrix'}
+      {/* Only offered once you're done. Before that the forced overlay is
+          already asking, and a second button here meant filling the same form
+          twice — the first save landing invisibly behind the overlay. */}
+      {!closed && (session.participants || []).includes(username) && hasFinished(matrix, session, username) && (
+        <button onClick={onVote} className="w-full py-3 rounded-xl border-2 border-pastel-pink text-sm font-semibold text-gray-700 hover:bg-pastel-pink/20">
+          Change my ratings
         </button>
       )}
 
