@@ -171,12 +171,7 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
     setScores(prev => { const n = { ...prev }; Object.keys(n).forEach(k => { if (k.endsWith('_' + id)) delete n[k] }); return n })
   }
 
-  const setScore = (optId, critId, value) => {
-    setScores(prev => ({ ...prev, [`${optId}_${critId}`]: value === '' ? '' : Number(value) }))
-  }
 
-  const getTotal = (optId) => criteria.reduce((sum, c) => sum + (Number(scores[`${optId}_${c.id}`]) || 0), 0)
-  const highestTotal = Math.max(...options.map(o => getTotal(o.id)), 0)
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -320,15 +315,11 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
                       </button>
                     </div>
                   </td>
+                  {/* No score boxes here. Whoever builds the matrix names the
+                      options and criteria; the numbers come from the people
+                      invited to rate it once it's hosted. */}
                   {options.map(opt => (
-                    <td key={opt.id} className="border border-gray-300 px-1 py-1 text-center">
-                      <input
-                        type="number" min="0" max="10"
-                        value={scores[`${opt.id}_${c.id}`] ?? ''}
-                        onChange={e => setScore(opt.id, c.id, e.target.value)}
-                        className="w-full text-center text-sm py-1 bg-transparent focus:outline-none focus:bg-blue-50 rounded"
-                      />
-                    </td>
+                    <td key={opt.id} className="border border-gray-300 px-1 py-2 text-center text-xs text-gray-300">—</td>
                   ))}
                   <td className="border border-gray-300" />
                 </tr>
@@ -345,23 +336,11 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
                 <td className="border border-gray-300" />
               </tr>
 
-              {/* Totals row */}
               {options.length > 0 && criteria.length > 0 && (
-                <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700 font-bold">
-                  <td className="border border-gray-300 px-3 py-2 text-sm">TOTAL</td>
-                  {options.map(opt => {
-                    const total = getTotal(opt.id)
-                    const isHighest = total > 0 && total === highestTotal
-                    return (
-                      <td key={opt.id} className={`border border-gray-300 px-2 py-2 text-center text-sm ${isHighest ? 'bg-amber-200/60 font-extrabold' : ''}`}>
-                        <span className="inline-flex items-center gap-1 justify-center">
-                          {isHighest && <Trophy size={13} />}
-                          {total}
-                        </span>
-                      </td>
-                    )
-                  })}
-                  <td className="border border-gray-300" />
+                <tr className="bg-gray-50 text-gray-400">
+                  <td className="border border-gray-300 px-3 py-2 text-xs" colSpan={options.length + 2}>
+                    Scores get filled in by the people you invite once you host this.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -509,20 +488,30 @@ function MatrixViewer({ matrix, onEdit }) {
                 ))}
               </tr>
             ))}
-            <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700 font-bold">
-              <td className="border border-gray-300 px-3 py-2 text-sm">TOTAL</td>
-              {matrix.options.map(opt => {
-                const total = getTotal(opt.id)
-                const isHighest = total > 0 && total === highestTotal
-                return (
-                  <td key={opt.id} className={`border border-gray-300 px-3 py-2 text-center text-sm ${isHighest ? 'bg-amber-200/60 font-extrabold' : ''}`}>
-                    <span className="inline-flex items-center gap-1 justify-center">
-                      {isHighest && <Trophy size={13} />} {total}
-                    </span>
-                  </td>
-                )
-              })}
-            </tr>
+            {/* Before it's hosted there are no scores, so a row of zeroes
+                would just read as "everything is equally bad". */}
+            {highestTotal > 0 ? (
+              <tr className="bg-gradient-to-r from-pastel-blue via-pastel-pink to-pastel-orange text-gray-700 font-bold">
+                <td className="border border-gray-300 px-3 py-2 text-sm">TOTAL</td>
+                {matrix.options.map(opt => {
+                  const total = getTotal(opt.id)
+                  const isHighest = total > 0 && total === highestTotal
+                  return (
+                    <td key={opt.id} className={`border border-gray-300 px-3 py-2 text-center text-sm ${isHighest ? 'bg-amber-200/60 font-extrabold' : ''}`}>
+                      <span className="inline-flex items-center gap-1 justify-center">
+                        {isHighest && <Trophy size={13} />} {total}
+                      </span>
+                    </td>
+                  )
+                })}
+              </tr>
+            ) : (
+              <tr className="bg-gray-50 text-gray-400">
+                <td className="border border-gray-300 px-3 py-2 text-xs" colSpan={matrix.options.length + 1}>
+                  Not rated yet — host this and the people you invite fill it in.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
