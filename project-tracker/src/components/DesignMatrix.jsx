@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters } from '../lib/matrixSession'
 import { ArrowLeft, Plus, Trash2, Trophy, Camera, X, Save, Edit3 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 
@@ -38,10 +39,45 @@ function getWinner(matrix) {
 
 // ─── Library View ───
 function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
+  // Three shelves: what's waiting on you, what's running, and what's decided.
+  const sessionOf = (m) => getSession(m)
+  const needsYou = matrices.filter(m => {
+    const se = sessionOf(m)
+    return se && se.status === 'open' && (se.participants || []).includes(username) && !hasFinished(m, se, username)
+  })
+  const running = matrices.filter(m => {
+    const se = sessionOf(m)
+    return se && se.status === 'open' && !needsYou.includes(m)
+  })
+  const decided = matrices.filter(m => sessionOf(m)?.status === 'closed')
+  const drafts = matrices.filter(m => !sessionOf(m))
+  const shelf = (title, list, note) => list.length === 0 ? null : (
+    <div className="space-y-2">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">{title}{note ? ` · ${note}` : ''}</h3>
+      <div className="grid gap-2">
+        {list.map(m => {
+          const se = sessionOf(m)
+          const t = se ? tally(m, se) : null
+          const done = se ? finishedVoters(m, se).length : 0
+          return (
+            <button key={m.id} onClick={() => onSelect(m)}
+              className="w-full text-left bg-white/80 rounded-xl border-2 border-gray-100 hover:border-pastel-pink p-3 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-gray-800">{m.title || 'Untitled'}</span>
+                {se?.status === 'closed' && t?.winner && <span className="text-xs font-bold text-pastel-pink-dark shrink-0">🏆 {t.winner.name}</span>}
+                {se?.status === 'open' && <span className="text-xs text-gray-400 shrink-0">{done}/{(se.participants || []).length} rated</span>}
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">by {m.created_by}{se ? ` · hosted by ${se.hostedBy}` : ''}</p>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-700">Design Matrix Library</h2>
+        <h2 className="text-lg font-bold text-gray-700">Decision Matrices</h2>
         <button
           onClick={onCreate}
           className="flex items-center gap-2 px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium"
@@ -49,14 +85,18 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
           <Plus size={16} /> New Matrix
         </button>
       </div>
+      {shelf('Waiting on you', needsYou, 'rate these')}
+      {shelf('Being rated', running)}
+      {shelf('Decided', decided)}
+      {drafts.length > 0 && <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Not hosted yet</h3>}
       {matrices.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
-          <p className="text-lg mb-2">No design matrices yet</p>
-          <p className="text-sm">Create one to start comparing design options</p>
+          <p className="text-lg mb-2">No decision matrices yet</p>
+          <p className="text-sm">Create one to compare the options and decide together</p>
         </div>
       ) : (
         <div className="grid gap-3">
-          {matrices.map(m => {
+          {drafts.map(m => {
             const winner = getWinner(m)
             const winnerOpt = winner ? m.options.find(o => o.id === winner.id) : null
             const thumbnail = winnerOpt?.imageUrl || m.options.find(o => o.imageUrl)?.imageUrl
@@ -197,7 +237,7 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
 
       {/* Full Matrix Table */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-4 space-y-3">
-        <h3 className="font-semibold text-gray-700">Design Matrix</h3>
+        <h3 className="font-semibold text-gray-700">Decision Matrix</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             {/* Column headers = Design Options */}
@@ -509,6 +549,215 @@ function MatrixViewer({ matrix, onEdit }) {
 }
 
 // ─── Main Component ───
+// ─── Confetti ───
+function Confetti() {
+  const bits = Array.from({ length: 60 }, (_, i) => ({
+    left: (i * 37) % 100,
+    delay: (i % 12) * 0.12,
+    dur: 2.4 + ((i % 5) * 0.35),
+    color: ['#f9a8d4', '#93c5fd', '#fcd34d', '#86efac', '#c4b5fd'][i % 5],
+    size: 6 + (i % 4) * 2,
+  }))
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden z-50" aria-hidden="true">
+      <style>{`@keyframes mx-fall{0%{transform:translateY(-12vh) rotate(0);opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}`}</style>
+      {bits.map((b, i) => (
+        <span key={i} style={{
+          position: 'absolute', top: 0, left: `${b.left}%`,
+          width: b.size, height: b.size * 1.6, background: b.color, borderRadius: 2,
+          animation: `mx-fall ${b.dur}s linear ${b.delay}s forwards`,
+        }} />
+      ))}
+    </div>
+  )
+}
+
+// ─── Choose who rates it ───
+function HostPicker({ matrix, username, onHost, onCancel }) {
+  const [people, setPeople] = useState([])
+  const [picked, setPicked] = useState([])
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags&order=display_name`, { headers: REST_HEADERS })
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => setPeople((rows || []).filter(p =>
+        p.display_name && p.authority_tier !== 'guest' &&
+        !(p.function_tags || []).includes('Team') &&
+        !['ets', 'everythingthatsscrum'].includes((p.display_name || '').trim().toLowerCase())
+      ).map(p => p.display_name)))
+      .catch(() => {})
+  }, [])
+  const toggle = (n) => setPicked(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-gray-700">Host “{matrix.title}”</h2>
+        <p className="text-sm text-gray-400">Pick who rates it. They each score every option against every criterion, and the results are the average.</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <button onClick={() => setPicked(people)} className="text-xs px-2.5 py-1 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50">Select all</button>
+        <button onClick={() => setPicked([])} className="text-xs px-2.5 py-1 rounded-lg border hover:bg-gray-50">Clear</button>
+        <span className="text-xs text-gray-400 ml-auto">{picked.length} chosen</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {people.map(n => (
+          <button key={n} onClick={() => toggle(n)}
+            className={`px-2.5 py-2 rounded-xl text-xs font-semibold border-2 transition-colors text-left ${
+              picked.includes(n) ? 'border-pastel-pink bg-pastel-pink/20 text-gray-800' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+            {picked.includes(n) ? '✓ ' : ''}{n}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border text-sm hover:bg-gray-50">Cancel</button>
+        <button
+          onClick={async () => { setBusy(true); await onHost(picked); setBusy(false) }}
+          disabled={picked.length === 0 || busy}
+          className="flex-1 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 text-sm font-semibold">
+          {busy ? 'Starting…' : `Start with ${picked.length}`}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Rating grid, for one participant ───
+function VoteView({ matrix, session, username, onSubmit, onCancel }) {
+  const [v, setV] = useState(() => ({ ...(session.votes?.[username] || {}) }))
+  const [busy, setBusy] = useState(false)
+  const missing = (matrix.options || []).flatMap(o =>
+    (matrix.criteria || []).filter(c => !(Number(v[scoreKey(o.id, c.id)]) > 0)).map(c => `${o.name} · ${c.name}`))
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-gray-700">{matrix.title}</h2>
+        {matrix.description && <p className="text-sm text-gray-500">{matrix.description}</p>}
+        <p className="text-xs text-gray-400 mt-1">Rate each option 1–5 on every criterion. 5 is best.</p>
+      </div>
+      {(matrix.options || []).map(o => (
+        <div key={o.id} className="bg-white rounded-2xl border-2 border-gray-100 p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            {o.imageUrl && <img src={o.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+            <div>
+              <p className="font-bold text-gray-800">{o.name || 'Untitled option'}</p>
+              {o.description && <p className="text-xs text-gray-400">{o.description}</p>}
+            </div>
+          </div>
+          {(matrix.criteria || []).map(c => {
+            const k = scoreKey(o.id, c.id)
+            return (
+              <div key={c.id} className="flex items-center justify-between gap-2">
+                <span className="text-sm text-gray-600">{c.name || 'Criterion'}</span>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => setV(prev => ({ ...prev, [k]: n }))}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
+                        Number(v[k]) === n ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+      {missing.length > 0 && (
+        <p className="text-xs text-gray-400">Still to rate: {missing.slice(0, 4).join(', ')}{missing.length > 4 ? ` +${missing.length - 4} more` : ''}</p>
+      )}
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border text-sm hover:bg-gray-50">Back</button>
+        <button onClick={async () => { setBusy(true); await onSubmit(v); setBusy(false) }}
+          disabled={missing.length > 0 || busy}
+          className="flex-1 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 text-sm font-semibold">
+          {busy ? 'Saving…' : 'Submit ratings'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Live progress + results ───
+function SessionView({ matrix, session, username, onVote, onClose, onReopen }) {
+  const isHost = session.hostedBy === username
+  const done = finishedVoters(matrix, session)
+  const t = tally(matrix, session)
+  const closed = session.status === 'closed'
+  const [showConfetti, setShowConfetti] = useState(false)
+  useEffect(() => { if (closed && t.winner) { setShowConfetti(true); const id = setTimeout(() => setShowConfetti(false), 5000); return () => clearTimeout(id) } }, [closed, t.winner?.id])
+  const everyone = done.length === (session.participants || []).length && done.length > 0
+  return (
+    <div className="space-y-4">
+      {showConfetti && <Confetti />}
+      <div>
+        <h2 className="text-lg font-bold text-gray-700">{matrix.title}</h2>
+        <p className="text-xs text-gray-400">Hosted by {session.hostedBy} · {done.length} of {(session.participants || []).length} have rated it</p>
+      </div>
+
+      {closed && t.winner && (
+        <div className="bg-white rounded-2xl border-2 border-pastel-pink p-5 text-center">
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">The decision</p>
+          <p className="text-2xl font-black text-gray-800 mt-1">🏆 {t.winner.name}</p>
+          <p className="text-sm text-gray-500 mt-1">{t.winner.total.toFixed(1)} average across {matrix.criteria.length} criteria</p>
+          {t.winner.imageUrl && <img src={t.winner.imageUrl} alt="" className="mt-3 mx-auto rounded-xl max-h-44 object-cover" />}
+        </div>
+      )}
+      {closed && !t.winner && (
+        <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 text-center">
+          <p className="text-sm text-gray-500">{t.tied.length > 1 ? `It's a tie between ${t.tied.map(o => o.name).join(' and ')}.` : 'No ratings were submitted.'}</p>
+        </div>
+      )}
+
+      {!closed && (
+        <div className="flex flex-wrap gap-1.5">
+          {(session.participants || []).map(n => (
+            <span key={n} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${done.includes(n) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+              {done.includes(n) ? '✓ ' : ''}{n}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {!closed && (session.participants || []).includes(username) && (
+        <button onClick={onVote} className="w-full py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold">
+          {hasFinished(matrix, session, username) ? 'Change my ratings' : 'Rate this matrix'}
+        </button>
+      )}
+
+      <div className="bg-white rounded-2xl border-2 border-gray-100 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-gray-400">
+              <th className="text-left p-2.5">Option</th>
+              {matrix.criteria.map(c => <th key={c.id} className="p-2.5 font-semibold">{c.name}</th>)}
+              <th className="p-2.5 font-semibold">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {t.byOption.map((o, i) => (
+              <tr key={o.id} className={i === 0 && o.total > 0 ? 'bg-pastel-pink/10' : ''}>
+                <td className="p-2.5 font-semibold text-gray-700">{o.name}</td>
+                {o.perCriterion.map(c => <td key={c.id} className="p-2.5 text-center text-gray-600">{c.count ? c.avg.toFixed(1) : '—'}</td>)}
+                <td className="p-2.5 text-center font-bold text-gray-800">{o.total.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isHost && !closed && (
+        <button onClick={onClose} disabled={done.length === 0}
+          className="w-full py-2.5 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-40 text-sm font-semibold">
+          {everyone ? 'Everyone has rated — see the result' : `Close early and decide (${done.length} rated)`}
+        </button>
+      )}
+      {isHost && closed && (
+        <button onClick={onReopen} className="w-full py-2.5 rounded-xl border text-sm hover:bg-gray-50">Reopen for more ratings</button>
+      )}
+    </div>
+  )
+}
+
 export default function DesignMatrix({ onBack }) {
   const { username } = useUser()
   const [matrices, setMatrices] = useState([])
@@ -542,6 +791,45 @@ export default function DesignMatrix({ onBack }) {
     await fetch(`${REST_URL}/rest/v1/design_matrices?id=eq.${id}`, { method: 'DELETE', headers: REST_HEADERS })
   }
 
+  // Every session change is a write of the whole scores blob, so read-modify-
+  // write off the freshest copy we hold rather than the one in `selected`.
+  const saveSession = async (matrix, session) => {
+    const scores = withSession(matrix.scores, session)
+    const next = { ...matrix, scores }
+    setMatrices(prev => prev.map(m => m.id === matrix.id ? next : m))
+    setSelected(next)
+    await fetch(`${REST_URL}/rest/v1/design_matrices?id=eq.${matrix.id}`, {
+      method: 'PATCH',
+      headers: { ...REST_HEADERS, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ scores, updated_at: new Date().toISOString() }),
+    }).catch(err => console.error('Failed to save the session:', err))
+    return next
+  }
+
+  const host = async (participants) => {
+    await saveSession(selected, {
+      status: 'open', participants, votes: {},
+      hostedBy: username, hostedAt: new Date().toISOString(),
+    })
+    setView('detail')
+  }
+
+  const submitVote = async (v) => {
+    const session = getSession(selected)
+    await saveSession(selected, { ...session, votes: { ...(session.votes || {}), [username]: v } })
+    setView('detail')
+  }
+
+  const closeSession = async () => {
+    const session = getSession(selected)
+    await saveSession(selected, { ...session, status: 'closed', closedAt: new Date().toISOString() })
+  }
+
+  const reopenSession = async () => {
+    const session = getSession(selected)
+    await saveSession(selected, { ...session, status: 'open', closedAt: null })
+  }
+
   return (
     <div className="flex-1 p-4 overflow-y-auto">
       <div className="max-w-3xl mx-auto space-y-4">
@@ -549,7 +837,7 @@ export default function DesignMatrix({ onBack }) {
           onClick={() => {
             if (view === 'library') onBack()
             else if (view === 'detail') { setView('library'); setSelected(null) }
-            else if (view === 'edit') setView('detail')
+            else if (view === 'edit' || view === 'host' || view === 'vote') setView('detail')
             else setView('library')
           }}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
@@ -565,8 +853,28 @@ export default function DesignMatrix({ onBack }) {
           <MatrixEditor onSave={handleSave} onCancel={() => setView('library')} username={username} />
         ) : view === 'edit' ? (
           <MatrixEditor initial={selected} onSave={handleSave} onCancel={() => setView('detail')} username={username} />
+        ) : view === 'host' && selected ? (
+          <HostPicker matrix={selected} username={username} onHost={host} onCancel={() => setView('detail')} />
+        ) : view === 'vote' && selected ? (
+          <VoteView matrix={selected} session={getSession(selected) || { votes: {} }} username={username}
+                    onSubmit={submitVote} onCancel={() => setView('detail')} />
         ) : view === 'detail' && selected ? (
-          <MatrixViewer matrix={selected} onEdit={() => setView('edit')} />
+          getSession(selected) ? (
+            <SessionView
+              matrix={selected} session={getSession(selected)} username={username}
+              onVote={() => setView('vote')} onClose={closeSession} onReopen={reopenSession}
+            />
+          ) : (
+            <>
+              <MatrixViewer matrix={selected} onEdit={() => setView('edit')} />
+              {selected.created_by === username && (selected.options || []).length > 0 && (selected.criteria || []).length > 0 && (
+                <button onClick={() => setView('host')}
+                  className="w-full py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold">
+                  Host this — pick who rates it
+                </button>
+              )}
+            </>
+          )
         ) : null}
       </div>
     </div>

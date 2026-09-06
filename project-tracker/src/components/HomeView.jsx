@@ -485,7 +485,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             ...(hasLeadTag ? [
               { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-blue',   tint: 'bg-pastel-blue/20',   text: 'text-pastel-blue-dark' },
               { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-pink',   tint: 'bg-pastel-pink/20',   text: 'text-pastel-pink-dark' },
-              { view: 'design-matrix', label: 'Design Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
+              { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
             { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
           ]

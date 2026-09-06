@@ -1439,7 +1439,7 @@ function App() {
                 ['hw-electrical', 'Electrical'], ['sw-design', 'Software Design'],
                 ['sw-programming', 'Programming'], ['sw-io', 'Robot I/O'],
                 ['bug-tracker', 'Bug Tracker'], ['testing', 'Testing'],
-                ['design-matrix', 'Design Matrix'], ['expense-requests', 'Expense Requests'],
+                ['design-matrix', 'Decision Matrix'], ['expense-requests', 'Expense Requests'],
                 ['ai-manual', 'AI Manual'], ['scouting', 'Scouting Form'],
                 ['schedule', 'Match Schedule'],
               ].map(([tab, label]) => (
@@ -1636,7 +1636,7 @@ function App() {
                         onClick={() => setSpecialView('design-matrix')}
                         className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
                       >
-                        <span className="text-lg font-semibold text-gray-700">Design Matrix</span>
+                        <span className="text-lg font-semibold text-gray-700">Decision Matrix</span>
                         <p className="text-sm text-gray-400 mt-1">Compare designs, score options & pick a winner</p>
                       </button>
                     </div>

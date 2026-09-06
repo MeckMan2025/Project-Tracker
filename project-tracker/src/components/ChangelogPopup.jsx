@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 161,
+    date: '2026-09-06',
+    items: [
+      '\u{1F5F3}\uFE0F Design Matrix is now the Decision Matrix, and it is something the whole team does together. Build it with your options and your criteria, then host it and pick who rates it. Everyone chosen scores each option 1\u20135 on every criterion; the app averages each criterion across everybody and the highest total wins, with confetti. The library sorts itself into what is waiting on you, what is still being rated, and what has been decided',
+    ],
+  },
+  {
     id: 160,
     date: '2026-09-04',
     items: [
