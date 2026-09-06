@@ -602,9 +602,12 @@ function fanfare() {
 }
 
 // ─── The reveal: ready → drumroll → winner ───
-export function RevealCeremony({ winner, tied, onDone, autoStart = false }) {
-  // The host presses the button; everyone else is just handed the moment.
-  const [stage, setStage] = useState(autoStart ? 'rolling' : 'ready')
+export function RevealCeremony({ winner, tied, onDone, autoStart = false, waiting = false, onReady }) {
+  // 'waiting' is everyone else, held until the host presses the button — the
+  // drumroll should start for all of them at the same moment, not whenever
+  // each person's screen happened to notice the session had closed.
+  const [stage, setStage] = useState(waiting ? 'waiting' : autoStart ? 'rolling' : 'ready')
+  useEffect(() => { if (!waiting && stage === 'waiting') setStage('rolling') }, [waiting]) // eslint-disable-line
   useEffect(() => {
     if (stage !== 'rolling') return
     const stop = drumroll(3)
@@ -620,12 +623,19 @@ export function RevealCeremony({ winner, tied, onDone, autoStart = false }) {
         @keyframes mx-pulse{0%,100%{opacity:.35}50%{opacity:1}}
       `}</style>
       {stage === 'winner' && <Confetti />}
+      {stage === 'waiting' && (
+        <div className="space-y-6">
+          <p className="text-5xl" style={{ animation: 'mx-pulse 1.6s ease-in-out infinite' }}>🥁</p>
+          <p className="text-2xl font-black text-white">Are you ready?</p>
+          <p className="text-sm text-gray-400">Waiting for the host to reveal it…</p>
+        </div>
+      )}
       {stage === 'ready' && (
         <div className="space-y-6">
           <p className="text-5xl">🥁</p>
           <p className="text-2xl font-black text-white">Are you ready?</p>
-          <p className="text-sm text-gray-400">Every rating is in.</p>
-          <button onClick={() => setStage('rolling')}
+          <p className="text-sm text-gray-400">Every rating is in. Everyone is waiting on you.</p>
+          <button onClick={async () => { await onReady?.(); setStage('rolling') }}
             className="px-8 py-3 rounded-2xl bg-pastel-pink hover:bg-pastel-pink-dark font-bold text-gray-800">
             Reveal the decision
           </button>
@@ -870,6 +880,23 @@ export default function DesignMatrix({ onBack }) {
 
   useEffect(() => { fetchMatrices() }, [])
 
+  // Anything that changes a session — including the forced overlay on top of
+  // this page — makes our copy stale. Re-read and re-point `selected` at the
+  // fresh row, or the page goes on showing the state from before the vote.
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*&order=created_at.desc`, { headers: REST_HEADERS })
+        if (!res.ok) return
+        const rows = await res.json()
+        setMatrices(rows)
+        setSelected(prev => prev ? (rows.find(m => m.id === prev.id) || prev) : prev)
+      } catch { /* keep what we have */ }
+    }
+    window.addEventListener('matrix-session-changed', refresh)
+    return () => window.removeEventListener('matrix-session-changed', refresh)
+  }, [])
+
   const fetchMatrices = async () => {
     try {
       const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*&order=created_at.desc`, { headers: REST_HEADERS })
@@ -968,12 +995,12 @@ export default function DesignMatrix({ onBack }) {
 
   const closeSession = async () => {
     const session = getSession(selected)
-    const next = await saveSession(selected, { ...session, status: 'closed', closedAt: new Date().toISOString() })
+    const next = await saveSession(selected, { ...session, status: 'closed', revealed: false, closedAt: new Date().toISOString() })
     const t = tally(next, getSession(next))
     // The host watches it here, so the global overlay shouldn't replay it at
     // them — same flag it checks.
     try { localStorage.setItem(`matrix-revealed-${next.id}`, '1') } catch { /* private mode */ }
-    setReveal({ winner: t.winner, tied: t.tied })
+    setReveal({ winner: t.winner, tied: t.tied, id: next.id })
     window.dispatchEvent(new Event('matrix-session-changed'))
   }
 
@@ -984,7 +1011,20 @@ export default function DesignMatrix({ onBack }) {
 
   return (
     <div className="flex-1 p-4 overflow-y-auto">
-      {reveal && <RevealCeremony winner={reveal.winner} tied={reveal.tied} onDone={() => setReveal(null)} />}
+      {reveal && (
+        <RevealCeremony
+          winner={reveal.winner}
+          tied={reveal.tied}
+          onReady={async () => {
+            // Flip the flag first — this is what starts everybody else's
+            // drumroll, so it goes out before ours begins.
+            const m = matrices.find(x => x.id === reveal.id) || selected
+            const se = getSession(m)
+            if (se) await saveSession(m, { ...se, revealed: true, revealedAt: new Date().toISOString() })
+          }}
+          onDone={() => setReveal(null)}
+        />
+      )}
       <div className="max-w-3xl mx-auto space-y-4">
         <button
           onClick={() => {

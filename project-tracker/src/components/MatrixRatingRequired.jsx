@@ -45,8 +45,13 @@ export default function MatrixRatingRequired() {
           && !alreadySeen(m.id)
       })
       if (justDecided) {
-        const t = tally(justDecided, getSession(justDecided))
-        setReveal({ id: justDecided.id, winner: t.winner, tied: t.tied })
+        const se = getSession(justDecided)
+        const t = tally(justDecided, se)
+        // Held on "Are you ready?" until the host actually reveals it, so
+        // everyone's drumroll starts together.
+        setReveal({ id: justDecided.id, winner: t.winner, tied: t.tied, waiting: !se.revealed })
+      } else {
+        setReveal(null)
       }
     } catch { /* offline — try again on the next change */ }
   }
@@ -79,6 +84,7 @@ export default function MatrixRatingRequired() {
         winner={reveal.winner}
         tied={reveal.tied}
         autoStart
+        waiting={reveal.waiting}
         onDone={() => { markSeen(reveal.id); setReveal(null) }}
       />
     )
@@ -98,6 +104,10 @@ export default function MatrixRatingRequired() {
         body: JSON.stringify({ scores: withSession(matrix.scores, next), updated_at: new Date().toISOString() }),
       })
       setPending(prev => prev.filter(m => m.id !== matrix.id))
+      // Tell the Decision Matrix page, which is sitting behind this overlay
+      // holding a copy of the matrix from before the vote. Without this it
+      // keeps offering "Rate this matrix" and it reads as being asked twice.
+      window.dispatchEvent(new Event('matrix-session-changed'))
     } catch (err) {
       console.error('Failed to save ratings:', err)
     } finally {
