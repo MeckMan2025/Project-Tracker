@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters } from '../lib/matrixSession'
+import { triggerPush } from '../utils/pushHelper'
 import { ArrowLeft, Plus, Trash2, Trophy, Camera, X, Save, Edit3 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 
@@ -806,11 +807,39 @@ export default function DesignMatrix({ onBack }) {
     return next
   }
 
+  // Tell the people who were picked. Without this the matrix just appears
+  // under "Waiting on you" and nobody knows to look.
+  const notifyParticipants = async (matrix, participants) => {
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/profiles?select=id,display_name`, { headers: REST_HEADERS })
+      if (!res.ok) return
+      const byName = Object.fromEntries((await res.json()).map(p => [p.display_name, p.id]))
+      for (const name of participants) {
+        const uid = byName[name]
+        if (!uid || name === username) continue
+        const notif = {
+          id: genId() + uid.slice(0, 4),
+          user_id: uid,
+          type: 'decision_matrix',
+          title: '🗳️ Rate a decision',
+          body: `${username} needs your ratings on "${matrix.title}"`,
+        }
+        await fetch(`${REST_URL}/rest/v1/notifications`, {
+          method: 'POST',
+          headers: { ...REST_HEADERS, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(notif),
+        })
+        triggerPush(notif)
+      }
+    } catch (err) { console.error('Failed to notify participants:', err) }
+  }
+
   const host = async (participants) => {
-    await saveSession(selected, {
+    const next = await saveSession(selected, {
       status: 'open', participants, votes: {},
       hostedBy: username, hostedAt: new Date().toISOString(),
     })
+    notifyParticipants(next, participants)
     setView('detail')
   }
 
