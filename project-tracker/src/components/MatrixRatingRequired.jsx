@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { VoteView, RevealCeremony } from './DesignMatrix'
@@ -16,6 +16,13 @@ export default function MatrixRatingRequired() {
   const [pending, setPending] = useState([])
   const [reveal, setReveal] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  // Matrices this device has just submitted. The poll runs every few seconds,
+  // so a request already in flight when you hit Submit comes back holding the
+  // state from before your vote and would put you straight back into the form.
+  // Anything in here stays out of the queue until the server is seen to have
+  // caught up.
+  const justSubmitted = useRef(new Set())
 
   // One reveal each, remembered per device — the moment shouldn't replay every
   // time someone reloads.
@@ -35,9 +42,13 @@ export default function MatrixRatingRequired() {
       const real = (rows || []).filter(m => (m.options || []).length && (m.criteria || []).length)
       setPending(real.filter(m => {
         const s = getSession(m)
-        return s && s.status === 'open'
-          && (s.participants || []).includes(username)
-          && !hasFinished(m, s, username)
+        if (!s || s.status !== 'open') return false
+        if (!(s.participants || []).includes(username)) return false
+        if (hasFinished(m, s, username)) {
+          justSubmitted.current.delete(m.id)   // server has it — guard can go
+          return false
+        }
+        return !justSubmitted.current.has(m.id)
       }))
       // A decision you helped make gets announced to you too, drumroll and all.
       const justDecided = real.find(m => {
@@ -113,6 +124,7 @@ export default function MatrixRatingRequired() {
         headers: { ...HEADERS, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ scores: withSession(matrix.scores, next), updated_at: new Date().toISOString() }),
       })
+      justSubmitted.current.add(matrix.id)
       setPending(prev => prev.filter(m => m.id !== matrix.id))
       // Tell the Decision Matrix page, which is sitting behind this overlay
       // holding a copy of the matrix from before the vote. Without this it
@@ -137,6 +149,7 @@ export default function MatrixRatingRequired() {
           </div>
           {/* No cancel — this is the point of hosting one. */}
           <VoteView
+            key={matrix.id}
             matrix={matrix}
             session={session}
             username={username}
