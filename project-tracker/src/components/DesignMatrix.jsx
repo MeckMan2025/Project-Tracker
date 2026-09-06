@@ -574,15 +574,44 @@ function drumroll(seconds = 3) {
   } catch { return () => {} }
 }
 
+// A little rising fanfare for the winner — same trick as the drumroll, no
+// audio file to ship.
+function fanfare() {
+  try {
+    if (localStorage.getItem('scrum-sfx-enabled') === 'false') return
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (!Ctx) return
+    const ctx = new Ctx()
+    // C E G C — a plain major arpeggio, which is what "you won" sounds like.
+    const notes = [523.25, 659.25, 783.99, 1046.5]
+    notes.forEach((freq, i) => {
+      const at = ctx.currentTime + i * 0.13
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.0001, at)
+      gain.gain.exponentialRampToValueAtTime(0.32, at + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + (i === notes.length - 1 ? 1.1 : 0.32))
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(at)
+      osc.stop(at + 1.3)
+    })
+    setTimeout(() => { try { ctx.close() } catch { /* already closed */ } }, 2600)
+  } catch { /* no audio, no problem */ }
+}
+
 // ─── The reveal: ready → drumroll → winner ───
-function RevealCeremony({ winner, tied, onDone }) {
-  const [stage, setStage] = useState('ready')
+export function RevealCeremony({ winner, tied, onDone, autoStart = false }) {
+  // The host presses the button; everyone else is just handed the moment.
+  const [stage, setStage] = useState(autoStart ? 'rolling' : 'ready')
   useEffect(() => {
     if (stage !== 'rolling') return
     const stop = drumroll(3)
     const id = setTimeout(() => setStage('winner'), 3000)
     return () => { stop(); clearTimeout(id) }
   }, [stage])
+  useEffect(() => { if (stage === 'winner') fanfare() }, [stage])
   return (
     <div className="fixed inset-0 z-[70] bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-6 text-center">
       <style>{`
@@ -941,7 +970,11 @@ export default function DesignMatrix({ onBack }) {
     const session = getSession(selected)
     const next = await saveSession(selected, { ...session, status: 'closed', closedAt: new Date().toISOString() })
     const t = tally(next, getSession(next))
+    // The host watches it here, so the global overlay shouldn't replay it at
+    // them — same flag it checks.
+    try { localStorage.setItem(`matrix-revealed-${next.id}`, '1') } catch { /* private mode */ }
     setReveal({ winner: t.winner, tied: t.tied })
+    window.dispatchEvent(new Event('matrix-session-changed'))
   }
 
   const reopenSession = async () => {

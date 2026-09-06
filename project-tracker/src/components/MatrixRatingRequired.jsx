@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
-import { VoteView } from './DesignMatrix'
-import { getSession, withSession, hasFinished } from '../lib/matrixSession'
+import { VoteView, RevealCeremony } from './DesignMatrix'
+import { getSession, withSession, hasFinished, tally } from '../lib/matrixSession'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -14,7 +14,14 @@ const HEADERS = { apikey: REST_KEY, Authorization: `Bearer ${REST_KEY}` }
 export default function MatrixRatingRequired() {
   const { username } = useUser()
   const [pending, setPending] = useState([])
+  const [reveal, setReveal] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  // One reveal each, remembered per device — the moment shouldn't replay every
+  // time someone reloads.
+  const seenKey = (id) => `matrix-revealed-${id}`
+  const alreadySeen = (id) => { try { return localStorage.getItem(seenKey(id)) === '1' } catch { return true } }
+  const markSeen = (id) => { try { localStorage.setItem(seenKey(id), '1') } catch { /* private mode */ } }
 
   const load = async () => {
     if (!username) return
@@ -22,14 +29,25 @@ export default function MatrixRatingRequired() {
       const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*`, { headers: HEADERS })
       if (!res.ok) return
       const rows = await res.json()
-      setPending((rows || []).filter(m => {
+      // An empty matrix has nothing to rate — never trap anyone behind one.
+      const real = (rows || []).filter(m => (m.options || []).length && (m.criteria || []).length)
+      setPending(real.filter(m => {
         const s = getSession(m)
-        // An empty matrix has nothing to rate — never trap anyone behind one.
-        if (!(m.options || []).length || !(m.criteria || []).length) return false
         return s && s.status === 'open'
           && (s.participants || []).includes(username)
           && !hasFinished(m, s, username)
       }))
+      // A decision you helped make gets announced to you too, drumroll and all.
+      const justDecided = real.find(m => {
+        const s = getSession(m)
+        return s && s.status === 'closed'
+          && (s.participants || []).includes(username)
+          && !alreadySeen(m.id)
+      })
+      if (justDecided) {
+        const t = tally(justDecided, getSession(justDecided))
+        setReveal({ id: justDecided.id, winner: t.winner, tied: t.tied })
+      }
     } catch { /* offline — try again on the next change */ }
   }
 
@@ -54,6 +72,17 @@ export default function MatrixRatingRequired() {
       clearInterval(poll)
     }
   }, [username])
+
+  if (reveal) {
+    return (
+      <RevealCeremony
+        winner={reveal.winner}
+        tied={reveal.tied}
+        autoStart
+        onDone={() => { markSeen(reveal.id); setReveal(null) }}
+      />
+    )
+  }
 
   const matrix = pending[0]
   if (!matrix) return null
