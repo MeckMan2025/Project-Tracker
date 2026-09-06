@@ -24,6 +24,8 @@ export default function MatrixRatingRequired() {
       const rows = await res.json()
       setPending((rows || []).filter(m => {
         const s = getSession(m)
+        // An empty matrix has nothing to rate — never trap anyone behind one.
+        if (!(m.options || []).length || !(m.criteria || []).length) return false
         return s && s.status === 'open'
           && (s.participants || []).includes(username)
           && !hasFinished(m, s, username)

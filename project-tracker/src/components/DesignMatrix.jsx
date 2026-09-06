@@ -368,35 +368,6 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
         )}
       </div>
 
-      {/* Final Decision */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-4 space-y-3">
-        <h3 className="font-semibold text-gray-700">Final Decision</h3>
-        <div>
-          <label className="text-xs text-gray-400 block mb-1">Chosen Option</label>
-          <select
-            value={decision.chosen} onChange={e => setDecision(prev => ({ ...prev, chosen: e.target.value }))}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-pastel-blue-dark focus:outline-none bg-white"
-          >
-            <option value="">Select winning option...</option>
-            {options.filter(o => o.name.trim()).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-400 block mb-1">Why was this chosen?</label>
-          <textarea value={decision.reason} onChange={e => setDecision(prev => ({ ...prev, reason: e.target.value }))}
-            placeholder="Explain the reasoning..." rows={2}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-pastel-blue-dark focus:outline-none resize-none"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-gray-400 block mb-1">Additional Notes (optional)</label>
-          <textarea value={decision.notes} onChange={e => setDecision(prev => ({ ...prev, notes: e.target.value }))}
-            placeholder="Any extra notes..." rows={2}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-pastel-blue-dark focus:outline-none resize-none"
-          />
-        </div>
-      </div>
-
       {/* Feedback & Actions */}
       {feedback && <div className="text-center text-amber-600 font-medium animate-pulse text-sm">{feedback}</div>}
       <div className="flex gap-3">
@@ -942,6 +913,12 @@ export default function DesignMatrix({ onBack }) {
   }
 
   const host = async (participants) => {
+    // An empty matrix is unratable: hasFinished vacuously passes on no options
+    // or criteria, so everyone counts as done and nobody is ever asked.
+    if (!(selected.options || []).length || !(selected.criteria || []).length) {
+      alert('Add at least one option and one criterion before hosting — there would be nothing to rate.')
+      return
+    }
     const next = await saveSession(selected, {
       status: 'open', participants, votes: {},
       hostedBy: username, hostedAt: new Date().toISOString(),
