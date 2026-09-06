@@ -717,7 +717,12 @@ function HostPicker({ matrix, username, onHost, onCancel }) {
   const [people, setPeople] = useState([])
   // The host rates their own matrix like everyone else, so they're in from the
   // start and can't be taken out.
-  const [picked, setPicked] = useState([username])
+  const [picked, setPicked] = useState([username].filter(Boolean))
+  // username can be empty on the first render; put the host in as soon as it
+  // isn't, or they'd be left out of their own session.
+  useEffect(() => {
+    if (username) setPicked(prev => prev.includes(username) ? prev : [username, ...prev])
+  }, [username])
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags&order=display_name`, { headers: REST_HEADERS })
@@ -865,12 +870,21 @@ function SessionView({ matrix, session, username, onVote, onClose, onReopen }) {
         </div>
       )}
 
-      {/* A count, not a register. Who has and hasn't submitted turns a rating
-          into a thing people are watched doing. */}
-      {!closed && (session.participants || []).length > 0 && (
-        <div className="w-full bg-gray-100 rounded-full h-2">
-          <div className="h-2 rounded-full bg-pastel-pink-dark transition-all duration-500"
-               style={{ width: `${Math.round((done.length / (session.participants || []).length) * 100)}%` }} />
+      {/* Who's rating it, with no indication of who has and hasn't — the count
+          above is all the host needs, and a tick list turns rating into a thing
+          people are watched doing. Naming them also makes it obvious the
+          selection saved. */}
+      {(session.participants || []).length > 0 && (
+        <div className="space-y-1.5">
+          {!closed && (
+            <div className="w-full bg-gray-100 rounded-full h-2">
+              <div className="h-2 rounded-full bg-pastel-pink-dark transition-all duration-500"
+                   style={{ width: `${Math.round((done.length / (session.participants || []).length) * 100)}%` }} />
+            </div>
+          )}
+          <p className="text-xs text-gray-400">
+            <span className="font-semibold">Rating this:</span> {(session.participants || []).join(', ')}
+          </p>
         </div>
       )}
 
@@ -1022,11 +1036,14 @@ export default function DesignMatrix({ onBack }) {
       alert('Add at least one option and one criterion before hosting — there would be nothing to rate.')
       return
     }
+    // Belt and braces: the picker puts the host in, but username can still be
+    // empty on first render, and a session without its host can never complete.
+    const withHost = participants.includes(username) ? participants : [username, ...participants]
     const next = await saveSession(selected, {
-      status: 'open', participants, votes: {},
+      status: 'open', participants: withHost.filter(Boolean), votes: {},
       hostedBy: username, hostedAt: new Date().toISOString(),
     })
-    notifyParticipants(next, participants)
+    notifyParticipants(next, withHost)
     // Don't wait for realtime to come back around — tell the rating overlay
     // now, so the host is asked the moment they finish setting it up.
     window.dispatchEvent(new Event('matrix-session-changed'))
