@@ -35,13 +35,24 @@ export default function MatrixRatingRequired() {
 
   useEffect(() => { load() }, [username])
 
+  // Three ways in, because only the first is instant and none is guaranteed:
+  // the app tells us directly when it hosts or records a vote, realtime covers
+  // other people's devices, and a slow poll catches the case where
+  // design_matrices never made it into the realtime publication.
   useEffect(() => {
     if (!username) return
+    const onSignal = () => load()
+    window.addEventListener('matrix-session-changed', onSignal)
     const ch = supabase
       .channel('matrix-rating-required')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'design_matrices' }, load)
       .subscribe()
-    return () => supabase.removeChannel(ch)
+    const poll = setInterval(load, 20000)
+    return () => {
+      window.removeEventListener('matrix-session-changed', onSignal)
+      supabase.removeChannel(ch)
+      clearInterval(poll)
+    }
   }, [username])
 
   const matrix = pending[0]

@@ -924,12 +924,16 @@ export default function DesignMatrix({ onBack }) {
       hostedBy: username, hostedAt: new Date().toISOString(),
     })
     notifyParticipants(next, participants)
+    // Don't wait for realtime to come back around — tell the rating overlay
+    // now, so the host is asked the moment they finish setting it up.
+    window.dispatchEvent(new Event('matrix-session-changed'))
     setView('detail')
   }
 
   const submitVote = async (v) => {
     const session = getSession(selected)
     await saveSession(selected, { ...session, votes: { ...(session.votes || {}), [username]: v } })
+    window.dispatchEvent(new Event('matrix-session-changed'))
     setView('detail')
   }
 
