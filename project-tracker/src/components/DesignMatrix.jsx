@@ -574,18 +574,60 @@ function drumroll(seconds = 3) {
   } catch { return () => {} }
 }
 
-// A little rising fanfare for the winner — same trick as the drumroll, no
-// audio file to ship.
-function fanfare() {
+// Everything the reveal makes noise with, all synthesised — no audio files in
+// the repo, and it all goes quiet with the existing sound toggle.
+function celebrate() {
   try {
     if (localStorage.getItem('scrum-sfx-enabled') === 'false') return
     const Ctx = window.AudioContext || window.webkitAudioContext
     if (!Ctx) return
     const ctx = new Ctx()
+    const now = ctx.currentTime
+
+    // Party poppers: short noise cracks, staggered so it sounds like several
+    // going off rather than one.
+    const popBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.18), ctx.sampleRate)
+    const pd = popBuf.getChannelData(0)
+    for (let i = 0; i < pd.length; i++) {
+      pd[i] = (Math.random() * 2 - 1) * (1 - i / pd.length) ** 5
+    }
+    ;[0, 0.09, 0.16, 0.27, 0.4].forEach((t, i) => {
+      const src = ctx.createBufferSource()
+      src.buffer = popBuf
+      const hp = ctx.createBiquadFilter()
+      hp.type = 'highpass'
+      hp.frequency.value = 900 + i * 220
+      const g = ctx.createGain()
+      g.gain.value = 0.5
+      src.connect(hp).connect(g).connect(ctx.destination)
+      src.start(now + t)
+    })
+
+    // A crowd: band-passed noise that swells, wobbling so it reads as voices
+    // rather than static.
+    const secs = 3
+    const cheerBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * secs), ctx.sampleRate)
+    const cd = cheerBuf.getChannelData(0)
+    for (let i = 0; i < cd.length; i++) {
+      const t = i / ctx.sampleRate
+      const swell = Math.min(1, t / 0.35) * Math.max(0, 1 - Math.max(0, t - 1.6) / 1.4)
+      const wobble = 0.75 + 0.25 * Math.sin(t * 11) * Math.sin(t * 4.3)
+      cd[i] = (Math.random() * 2 - 1) * swell * wobble
+    }
+    const cheer = ctx.createBufferSource()
+    cheer.buffer = cheerBuf
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 1100
+    bp.Q.value = 0.7
+    const cg = ctx.createGain()
+    cg.gain.value = 0.3
+    cheer.connect(bp).connect(cg).connect(ctx.destination)
+    cheer.start(now + 0.05)
     // C E G C — a plain major arpeggio, which is what "you won" sounds like.
     const notes = [523.25, 659.25, 783.99, 1046.5]
     notes.forEach((freq, i) => {
-      const at = ctx.currentTime + i * 0.13
+      const at = now + 0.1 + i * 0.13
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = 'triangle'
@@ -597,7 +639,7 @@ function fanfare() {
       osc.start(at)
       osc.stop(at + 1.3)
     })
-    setTimeout(() => { try { ctx.close() } catch { /* already closed */ } }, 2600)
+    setTimeout(() => { try { ctx.close() } catch { /* already closed */ } }, 3600)
   } catch { /* no audio, no problem */ }
 }
 
@@ -614,7 +656,7 @@ export function RevealCeremony({ winner, tied, onDone, autoStart = false, waitin
     const id = setTimeout(() => setStage('winner'), 3000)
     return () => { stop(); clearTimeout(id) }
   }, [stage])
-  useEffect(() => { if (stage === 'winner') fanfare() }, [stage])
+  useEffect(() => { if (stage === 'winner') celebrate() }, [stage])
   return (
     <div className="fixed inset-0 z-[70] bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-6 text-center">
       <style>{`

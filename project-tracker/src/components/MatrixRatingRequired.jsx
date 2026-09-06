@@ -25,6 +25,8 @@ export default function MatrixRatingRequired() {
 
   const load = async () => {
     if (!username) return
+    // Only the columns needed to decide what to show — this runs every few
+    // seconds, so don't drag whole matrices across for it.
     try {
       const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*`, { headers: HEADERS })
       if (!res.ok) return
@@ -70,7 +72,12 @@ export default function MatrixRatingRequired() {
       .channel('matrix-rating-required')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'design_matrices' }, load)
       .subscribe()
-    const poll = setInterval(load, 20000)
+    // Fast, because this is how the drumroll reaches everyone else's screen
+    // when the host presses reveal. Realtime would be instant, but it only
+    // fires if design_matrices actually made it into the publication, which
+    // can't be checked from here — so the poll has to be quick enough to carry
+    // a shared moment on its own.
+    const poll = setInterval(load, 3000)
     return () => {
       window.removeEventListener('matrix-session-changed', onSignal)
       supabase.removeChannel(ch)
