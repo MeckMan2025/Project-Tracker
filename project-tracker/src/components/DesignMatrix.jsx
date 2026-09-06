@@ -60,9 +60,10 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
           const se = sessionOf(m)
           const t = se ? tally(m, se) : null
           const done = se ? finishedVoters(m, se).length : 0
-            // Only the person who made it can throw it away, and never from
-            // under people who are still rating it.
-            const canDelete = m.created_by === username && se?.status !== 'open'
+            // Only the person who made it. Open sessions can go too — you may
+            // well want to bin one precisely because it was set up wrong; the
+            // confirm says what's being thrown away.
+            const canDelete = m.created_by === username
             return (
               <div key={m.id} className="group flex items-center gap-2 bg-white/80 rounded-xl border-2 border-gray-100 hover:border-pastel-pink p-3 transition-colors">
                 <button onClick={() => onSelect(m)} className="flex-1 text-left min-w-0">
@@ -75,7 +76,7 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
                 </button>
                 {canDelete && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(m.id) }}
+                    onClick={(e) => { e.stopPropagation(); onDelete(m.id, m, se, done) }}
                     title="Delete this matrix"
                     className="shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
                   >
@@ -136,7 +137,7 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
                         )}
                       </div>
                       {m.created_by === username && (
-                        <button onClick={e => { e.stopPropagation(); onDelete(m.id) }} className="text-gray-300 hover:text-red-400 transition-colors p-1 flex-shrink-0">
+                        <button onClick={e => { e.stopPropagation(); onDelete(m.id, m) }} className="text-gray-300 hover:text-red-400 transition-colors p-1 flex-shrink-0">
                           <Trash2 size={14} />
                         </button>
                       )}
@@ -887,8 +888,13 @@ export default function DesignMatrix({ onBack }) {
     setView('detail')
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this matrix?')) return
+  const handleDelete = async (id, matrix, session, ratedCount = 0) => {
+    // Say what goes with it. Binning one that people are part-way through
+    // throws their ratings away, and that shouldn't be a surprise.
+    const msg = session?.status === 'open' && ratedCount > 0
+      ? `Delete "${matrix?.title || 'this matrix'}"? ${ratedCount} ${ratedCount === 1 ? 'person has' : 'people have'} already rated it and those ratings go too.`
+      : `Delete "${matrix?.title || 'this matrix'}"?`
+    if (!confirm(msg)) return
     setMatrices(prev => prev.filter(m => m.id !== id))
     await fetch(`${REST_URL}/rest/v1/design_matrices?id=eq.${id}`, { method: 'DELETE', headers: REST_HEADERS })
   }
