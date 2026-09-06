@@ -49,9 +49,12 @@ export default function MatrixRatingRequired() {
       if (justDecided) {
         const se = getSession(justDecided)
         const t = tally(justDecided, se)
-        // Held on "Are you ready?" until the host actually reveals it, so
-        // everyone's drumroll starts together.
-        setReveal({ id: justDecided.id, winner: t.winner, tied: t.tied, waiting: !se.revealed })
+        // Held on "Are you ready?" until the host reveals it, so everyone's
+        // drumroll starts together — but only when the session actually says
+        // it's unrevealed. A closed session with no flag was closed before the
+        // flag existed; its host has long since had their reveal and will never
+        // press the button again, so waiting on them is waiting forever.
+        setReveal({ id: justDecided.id, winner: t.winner, tied: t.tied, waiting: se.revealed === false })
       } else {
         setReveal(null)
       }
