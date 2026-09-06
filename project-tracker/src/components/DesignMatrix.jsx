@@ -612,7 +612,7 @@ function HostPicker({ matrix, username, onHost, onCancel }) {
 }
 
 // ─── Rating grid, for one participant ───
-function VoteView({ matrix, session, username, onSubmit, onCancel }) {
+export function VoteView({ matrix, session, username, onSubmit, onCancel }) {
   const [v, setV] = useState(() => ({ ...(session.votes?.[username] || {}) }))
   const [busy, setBusy] = useState(false)
   const missing = (matrix.options || []).flatMap(o =>
@@ -665,7 +665,7 @@ function VoteView({ matrix, session, username, onSubmit, onCancel }) {
         <p className="text-xs text-gray-400">Still to rate: {missing.slice(0, 4).join(', ')}{missing.length > 4 ? ` +${missing.length - 4} more` : ''}</p>
       )}
       <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border text-sm hover:bg-gray-50">Back</button>
+        {onCancel && <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border text-sm hover:bg-gray-50">Back</button>}
         <button onClick={async () => { setBusy(true); await onSubmit(v); setBusy(false) }}
           disabled={missing.length > 0 || busy}
           className="flex-1 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 text-sm font-semibold">

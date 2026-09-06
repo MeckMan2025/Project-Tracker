@@ -42,6 +42,7 @@ import CleanUpChart from './components/CleanUpChart'
 import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
 import BirthdayConfetti from './components/BirthdayConfetti'
+import MatrixRatingRequired from './components/MatrixRatingRequired'
 import DailyPulsePopup from './components/DailyPulsePopup'
 import TeamPulseDashboard from './components/TeamPulseDashboard'
 import { useAppSettings } from './hooks/useAppSettings'
@@ -1343,6 +1344,9 @@ function App() {
         />
       )}
       {import.meta.env.DEV && showPulse && user?.id && <DailyPulsePopup userId={user.id} onClose={() => setShowPulse(false)} onComplete={() => setShowPulse(false)} />}
+      {/* Being picked to rate a decision matrix takes over the screen until
+          it's done — same reason it gets a notification. */}
+      {!isLoading && !effectiveIsTeam && !isGuest && <MatrixRatingRequired />}
     <div className={`min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col relative ${isLoading && !effectiveIsTeam ? 'hidden' : ''}`}>
       {loadError && (
         <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 text-sm text-center flex items-center justify-center gap-3">
