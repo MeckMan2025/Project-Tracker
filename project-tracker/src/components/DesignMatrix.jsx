@@ -562,10 +562,96 @@ function Confetti() {
   )
 }
 
+// A drumroll, built rather than downloaded — no audio file to ship.
+function drumroll(seconds = 3) {
+  try {
+    if (localStorage.getItem('scrum-sfx-enabled') === 'false') return () => {}
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (!Ctx) return () => {}
+    const ctx = new Ctx()
+    const len = Math.floor(ctx.sampleRate * seconds)
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    // Noise pulsed fast and swelling — a roll that builds to the reveal.
+    for (let i = 0; i < len; i++) {
+      const t = i / ctx.sampleRate
+      const pulse = Math.max(0, Math.sin(t * Math.PI * 2 * 18))
+      const swell = 0.15 + 0.85 * (t / seconds) ** 2
+      data[i] = (Math.random() * 2 - 1) * pulse * swell * 0.35
+    }
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const gain = ctx.createGain()
+    gain.gain.value = 0.9
+    src.connect(gain).connect(ctx.destination)
+    src.start()
+    return () => { try { src.stop(); ctx.close() } catch { /* already gone */ } }
+  } catch { return () => {} }
+}
+
+// ─── The reveal: ready → drumroll → winner ───
+function RevealCeremony({ winner, tied, onDone }) {
+  const [stage, setStage] = useState('ready')
+  useEffect(() => {
+    if (stage !== 'rolling') return
+    const stop = drumroll(3)
+    const id = setTimeout(() => setStage('winner'), 3000)
+    return () => { stop(); clearTimeout(id) }
+  }, [stage])
+  return (
+    <div className="fixed inset-0 z-[70] bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+      <style>{`
+        @keyframes mx-shake{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-3px,2px) rotate(-1.5deg)}75%{transform:translate(3px,-2px) rotate(1.5deg)}}
+        @keyframes mx-pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+        @keyframes mx-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+      `}</style>
+      {stage === 'winner' && <Confetti />}
+      {stage === 'ready' && (
+        <div className="space-y-6">
+          <p className="text-5xl">🥁</p>
+          <p className="text-2xl font-black text-white">Are you ready?</p>
+          <p className="text-sm text-gray-400">Every rating is in.</p>
+          <button onClick={() => setStage('rolling')}
+            className="px-8 py-3 rounded-2xl bg-pastel-pink hover:bg-pastel-pink-dark font-bold text-gray-800">
+            Reveal the decision
+          </button>
+        </div>
+      )}
+      {stage === 'rolling' && (
+        <div className="space-y-6">
+          <p className="text-6xl" style={{ animation: 'mx-shake .12s linear infinite' }}>🥁</p>
+          <p className="text-xl font-bold text-white" style={{ animation: 'mx-pulse 1s ease-in-out infinite' }}>Drumroll…</p>
+        </div>
+      )}
+      {stage === 'winner' && (
+        <div className="space-y-5" style={{ animation: 'mx-pop .6s cubic-bezier(.2,1.4,.4,1) both' }}>
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-pastel-pink">The decision is</p>
+          {winner ? (
+            <>
+              <p className="text-5xl font-black text-white">🏆 {winner.name}</p>
+              {winner.imageUrl && <img src={winner.imageUrl} alt="" className="mx-auto rounded-2xl max-h-52 object-cover" />}
+              <p className="text-sm text-gray-300">{winner.total.toFixed(1)} average across every criterion</p>
+            </>
+          ) : (
+            <p className="text-3xl font-black text-white">
+              {tied && tied.length > 1 ? `It's a tie — ${tied.map(t => t.name).join(' and ')}` : 'No ratings came in'}
+            </p>
+          )}
+          <button onClick={onDone} className="px-8 py-3 rounded-2xl bg-white/90 hover:bg-white font-bold text-gray-800">
+            See the numbers
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Choose who rates it ───
 function HostPicker({ matrix, username, onHost, onCancel }) {
   const [people, setPeople] = useState([])
-  const [picked, setPicked] = useState([])
+  // The host rates their own matrix like everyone else, so they're in from the
+  // start and can't be taken out.
+  const [picked, setPicked] = useState([username])
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags&order=display_name`, { headers: REST_HEADERS })
@@ -577,7 +663,10 @@ function HostPicker({ matrix, username, onHost, onCancel }) {
       ).map(p => p.display_name)))
       .catch(() => {})
   }, [])
-  const toggle = (n) => setPicked(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])
+  const toggle = (n) => {
+    if (n === username) return
+    setPicked(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])
+  }
   return (
     <div className="space-y-4">
       <div>
@@ -586,7 +675,7 @@ function HostPicker({ matrix, username, onHost, onCancel }) {
       </div>
       <div className="flex items-center gap-2">
         <button onClick={() => setPicked(people)} className="text-xs px-2.5 py-1 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50">Select all</button>
-        <button onClick={() => setPicked([])} className="text-xs px-2.5 py-1 rounded-lg border hover:bg-gray-50">Clear</button>
+        <button onClick={() => setPicked([username])} className="text-xs px-2.5 py-1 rounded-lg border hover:bg-gray-50">Clear</button>
         <span className="text-xs text-gray-400 ml-auto">{picked.length} chosen</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -594,7 +683,7 @@ function HostPicker({ matrix, username, onHost, onCancel }) {
           <button key={n} onClick={() => toggle(n)}
             className={`px-2.5 py-2 rounded-xl text-xs font-semibold border-2 transition-colors text-left ${
               picked.includes(n) ? 'border-pastel-pink bg-pastel-pink/20 text-gray-800' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
-            {picked.includes(n) ? '✓ ' : ''}{n}
+            {picked.includes(n) ? '✓ ' : ''}{n}{n === username ? ' (you)' : ''}
           </button>
         ))}
       </div>
@@ -747,7 +836,7 @@ function SessionView({ matrix, session, username, onVote, onClose, onReopen }) {
       {isHost && !closed && (
         <button onClick={onClose} disabled={done.length === 0}
           className="w-full py-2.5 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-40 text-sm font-semibold">
-          {everyone ? 'Everyone has rated — see the result' : `Close early and decide (${done.length} rated)`}
+          {everyone ? '🥁 Everyone has rated — reveal the decision' : `Close early and reveal (${done.length} rated)`}
         </button>
       )}
       {isHost && closed && (
@@ -763,6 +852,7 @@ export default function DesignMatrix({ onBack }) {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('library')
   const [selected, setSelected] = useState(null)
+  const [reveal, setReveal] = useState(null)
 
   useEffect(() => { fetchMatrices() }, [])
 
@@ -849,7 +939,9 @@ export default function DesignMatrix({ onBack }) {
 
   const closeSession = async () => {
     const session = getSession(selected)
-    await saveSession(selected, { ...session, status: 'closed', closedAt: new Date().toISOString() })
+    const next = await saveSession(selected, { ...session, status: 'closed', closedAt: new Date().toISOString() })
+    const t = tally(next, getSession(next))
+    setReveal({ winner: t.winner, tied: t.tied })
   }
 
   const reopenSession = async () => {
@@ -859,6 +951,7 @@ export default function DesignMatrix({ onBack }) {
 
   return (
     <div className="flex-1 p-4 overflow-y-auto">
+      {reveal && <RevealCeremony winner={reveal.winner} tied={reveal.tied} onDone={() => setReveal(null)} />}
       <div className="max-w-3xl mx-auto space-y-4">
         <button
           onClick={() => {

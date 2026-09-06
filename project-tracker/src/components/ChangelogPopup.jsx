@@ -8,7 +8,7 @@ const CHANGELOG = [
     id: 161,
     date: '2026-09-06',
     items: [
-      '\u{1F5F3}\uFE0F Design Matrix is now the Decision Matrix, and it is something the whole team does together. Build it with your options and your criteria, then host it and pick who rates it. Everyone chosen scores each option out of 10 on every criterion, decimals allowed; the app averages each criterion across everybody and the highest total wins, with confetti. Being picked takes over your screen until you have rated it, so it cannot be missed. The library also sorts itself into what is waiting on you, what is still being rated, and what has been decided',
+      '\u{1F5F3}\uFE0F Design Matrix is now the Decision Matrix, and it is something the whole team does together. Build it with your options and your criteria, then host it and pick who rates it. Everyone chosen scores each option out of 10 on every criterion, decimals allowed; the app averages each criterion across everybody and the highest total wins, with confetti. Whoever builds it rates it too, and being picked takes over your screen until you have — nobody scores after seeing what everyone else said. When the host reveals it there is a drumroll and a countdown before the winner lands, with confetti. The library also sorts itself into what is waiting on you, what is still being rated, and what has been decided',
     ],
   },
   {
