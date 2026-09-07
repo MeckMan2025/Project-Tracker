@@ -1,4 +1,5 @@
 import { useMemberNames, useMentorNames } from '../hooks/useMemberNames'
+import { TEAM_ASSIGNEES, isTeamAssignee } from '../lib/taskTeams'
 import { useState } from 'react'
 import { X, ArrowLeft } from 'lucide-react'
 
@@ -136,10 +137,13 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
                 <option value="">Select assignee…</option>
                 <option value="__up_for_grabs__">🙋 Up for Grabs</option>
                 <option value="__everyone__">👥 Everyone (whole team)</option>
+                {TEAM_ASSIGNEES.map(t => (
+                  <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+                ))}
                 {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
                 {/* A name from before the roster dropdown (or a removed member)
                     still shows so the select doesn't silently blank it. */}
-                {formData.assignee && formData.assignee !== '__up_for_grabs__' && formData.assignee !== '__everyone__' && !memberNames.includes(formData.assignee) && (
+                {formData.assignee && formData.assignee !== '__up_for_grabs__' && formData.assignee !== '__everyone__' && !isTeamAssignee(formData.assignee) && !memberNames.includes(formData.assignee) && (
                   <option value={formData.assignee}>{formData.assignee} (former)</option>
                 )}
               </select>

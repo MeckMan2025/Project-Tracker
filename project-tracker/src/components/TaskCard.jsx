@@ -1,4 +1,5 @@
 import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle, LifeBuoy } from 'lucide-react'
+import { isTeamAssignee, teamLabel } from '../lib/taskTeams'
 
 const UP_FOR_GRABS = '__up_for_grabs__'
 const EVERYONE = '__everyone__'
@@ -63,6 +64,10 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
           ) : isEveryone ? (
             <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">
               👥 Everyone
+            </span>
+          ) : isTeamAssignee(task.assignee) ? (
+            <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">
+              {teamLabel(task.assignee)}
             </span>
           ) : task.assignee ? (
             <span className="flex items-center gap-1">

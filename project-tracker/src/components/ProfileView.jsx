@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { EVERYONE, teamsForTags } from '../lib/taskTeams'
 import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -276,7 +277,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     async function loadTasks() {
       if (!username) return
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(username)},assignee.eq.__everyone__)&select=*`, {
+        const groups = [EVERYONE, ...teamsForTags(functionTags)].join(',')
+        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(username)},assignee.in.(${groups}))&select=*`, {
           headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         })
         if (!res.ok) return

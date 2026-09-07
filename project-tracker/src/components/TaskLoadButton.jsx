@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { assigneeLabel } from '../lib/taskTeams'
 import { createPortal } from 'react-dom'
 import { Users, AlertTriangle, X, Plus, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -68,7 +69,7 @@ export default function TaskLoadButton() {
           soon.push({
             id: t.id,
             title: t.title,
-            assignee: t.assignee === '__up_for_grabs__' ? 'Up for Grabs' : t.assignee === '__everyone__' ? 'Everyone' : (t.assignee || 'Unassigned'),
+            assignee: assigneeLabel(t.assignee),
             due,
             overdue: due < midnight,
           })

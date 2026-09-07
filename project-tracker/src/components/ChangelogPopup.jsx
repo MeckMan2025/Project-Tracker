@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 162,
+    date: '2026-09-07',
+    items: [
+      '\u{1F465} Tasks can be given to a whole side of the team \u2014 Business, Hardware or Software \u2014 not just one person or everyone. It lands in the task list of everyone on that side, worked out from their roles, so a CAD or Wiring person gets the hardware tasks without being named',
+      '\u{1F6E0}\uFE0F The Radical Rundown holds a \u201cour season has not started yet\u201d page until kickoff, with everything already written one tap away under past seasons',
+    ],
+  },
+  {
     id: 161,
     date: '2026-09-06',
     items: [

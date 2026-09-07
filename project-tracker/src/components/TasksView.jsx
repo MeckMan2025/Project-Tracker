@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isTeamAssignee } from '../lib/taskTeams'
 import { Calendar, User, Zap } from 'lucide-react'
 import { usePermissions } from '../hooks/usePermissions'
 import { useUser } from '../contexts/UserContext'
@@ -90,7 +91,7 @@ function TasksView({ tasksByTab, tabs }) {
                       {tasks.map(task => {
                         const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' && task.status !== 'completed'
                         const isUpForGrabs = task.assignee === '__up_for_grabs__'
-                        const isEveryone = task.assignee === '__everyone__'
+                        const isEveryone = task.assignee === '__everyone__' || isTeamAssignee(task.assignee)
                         const priorityBorder = {
                           critical: 'border-l-red-500',
                           high: 'border-l-orange-400',

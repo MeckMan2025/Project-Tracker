@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { EVERYONE, teamsForTags } from '../lib/taskTeams'
 import { ArrowLeft, AlertTriangle, Calendar, LifeBuoy, Plus, UserPlus } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../supabase'
@@ -25,14 +26,28 @@ const parseDate = (key) => {
 
 export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask }) {
   const [tasks, setTasks] = useState([])
+  // Which side of the team this person is on — a team task is theirs too.
+  const [groups, setGroups] = useState(EVERYONE)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    fetch(`${supabaseUrl}/rest/v1/profiles?display_name=eq.${encodeURIComponent(name)}&select=function_tags`, { headers })
+      .then(r => (r.ok ? r.json() : []))
+      .then(rows => {
+        if (!active) return
+        setGroups([EVERYONE, ...teamsForTags(rows?.[0]?.function_tags)].join(','))
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [name])
 
   useEffect(() => {
     let active = true
     const load = async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(name)},assignee.eq.__everyone__)&select=*`,
+          `${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(name)},assignee.in.(${groups}))&select=*`,
           { headers }
         )
         if (!active || !res.ok) return
@@ -46,7 +61,7 @@ export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, load)
       .subscribe()
     return () => { active = false; supabase.removeChannel(ch) }
-  }, [name])
+  }, [name, groups])
 
   const open = tasks.filter(t => (PCT[t.status] ?? 0) < 100)
   const done = tasks.filter(t => (PCT[t.status] ?? 0) === 100)

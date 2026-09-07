@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { isTeamAssignee, teamLabel } from './lib/taskTeams'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2, ArrowLeft } from 'lucide-react'
 import { downloadCSV } from './utils/csvUtils'
@@ -1855,6 +1856,8 @@ function App() {
                       <div className="flex items-center gap-3 text-[11px] text-gray-400">
                         {task.assignee === '__everyone__' ? (
                           <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">👥 Everyone</span>
+                        ) : isTeamAssignee(task.assignee) ? (
+                          <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">{teamLabel(task.assignee)}</span>
                         ) : task.assignee && task.assignee !== '__up_for_grabs__' ? (
                           <span className="flex items-center gap-1">
                             <User size={11} />
