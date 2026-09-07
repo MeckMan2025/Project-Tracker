@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History } from 'lucide-react'
+import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
 
 function ThemeSongPlayer() {
   const [playing, setPlaying] = useState(false)
@@ -226,19 +227,66 @@ function InterestForm() {
 }
 
 function TeamInfoPage({ onBack }) {
+  // Before kickoff there's no season to write about yet, so visitors get a
+  // holding page rather than last year's page pretending to be this year's.
+  // Everything that's already written stays one tap away.
+  const [showPast, setShowPast] = useState(false)
+  const holding = !SEASON_STARTED && !showPast
+
+  if (holding) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col">
+        <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/60 transition-colors">
+              <ArrowLeft size={20} className="text-gray-600" />
+            </button>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              The Radical Rundown
+            </h1>
+          </div>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 w-full max-w-lg text-center space-y-5">
+            <div className="text-6xl">🛠️</div>
+            <h2 className="text-2xl font-bold text-gray-800">Woops! Our season hasn't started yet.</h2>
+            <p className="text-gray-600 leading-relaxed">
+              The {ACTIVE_SEASON} season kicks off on <span className="font-semibold">{seasonStartLabel()}</span>.
+              Come back then and this page will be full of what we're building — the robot,
+              the team, and everything we get up to along the way.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+              <Clock size={15} /> Check back after kickoff
+            </div>
+            <button
+              onClick={() => setShowPast(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-semibold text-gray-700"
+            >
+              <History size={17} /> Look at past seasons
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={() => (showPast ? setShowPast(false) : onBack())}
             className="p-2 rounded-xl hover:bg-white/60 transition-colors"
           >
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-            The Radical Rundown
-          </h1>
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+              The Radical Rundown
+            </h1>
+            {showPast && <p className="text-xs text-gray-400 -mt-0.5">Looking back at past seasons</p>}
+          </div>
         </div>
       </header>
 

@@ -16,6 +16,14 @@ function seasonForDate(now) {
 
 export const ACTIVE_SEASON = seasonForDate(new Date())
 
+// When this season actually kicks off. Before it, the Radical Rundown greets
+// visitors with a holding page instead of season content, with the archive one
+// tap away. Set this to your real kickoff date; it flips itself on the day.
+export const SEASON_STARTS = '2026-09-13'
+export const SEASON_STARTED = new Date() >= new Date(SEASON_STARTS + 'T00:00:00')
+export const seasonStartLabel = () =>
+  new Date(SEASON_STARTS + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
 // The season immediately before the active one (used for untagged/legacy entries).
 export const PREVIOUS_SEASON = (() => {
   const [start, end] = ACTIVE_SEASON.split('-').map(Number)
