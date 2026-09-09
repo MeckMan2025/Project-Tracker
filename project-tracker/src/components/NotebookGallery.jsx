@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { BookOpen, ArrowRight, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { ACTIVE_SEASON, seasonOf } from '../data/season'
+
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -16,18 +16,37 @@ export default function NotebookGallery({ onTabChange }) {
     let active = true
     async function load() {
       try {
+        // Two trips on purpose. Photos are stored inline as data URIs, so
+        // pulling every entry's photo just to show fifteen would drag megabytes
+        // onto the home screen. Ask which entries have one first — ids only —
+        // then fetch the photos for the fifteen actually being shown.
+        const hasPhoto = 'or=(photo_url.like.data:*,photo_url.like.http*)'
+        const idRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/notebook_entries?select=id&${hasPhoto}`,
+          { headers: HEADERS }
+        )
+        if (!active) return
+        if (!idRes.ok) { setLoading(false); return }
+        const ids = (await idRes.json()).map(r => r.id)
+        if (ids.length === 0) { setLoading(false); return }
+
+        // A different mix every visit, drawn from the whole notebook rather
+        // than whichever entries happen to be newest.
+        for (let i = ids.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[ids[i], ids[j]] = [ids[j], ids[i]]
+        }
+        const pick = ids.slice(0, 15)
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/notebook_entries?select=id,username,meeting_date,what_did,photo_url,created_at,season&order=created_at.desc&limit=60`,
+          `${SUPABASE_URL}/rest/v1/notebook_entries?select=id,username,meeting_date,what_did,photo_url&id=in.(${pick.join(',')})`,
           { headers: HEADERS }
         )
         if (!active) return
         if (!res.ok) { setLoading(false); return }
-        const data = await res.json()
-        const withPhotos = (Array.isArray(data) ? data : [])
-          .filter(e => seasonOf(e) === ACTIVE_SEASON)
-          .filter(e => (e.photo_url && e.photo_url.startsWith('data:')) || (e.photo_url && e.photo_url.startsWith('http')))
-          .slice(0, 15)
-        setPhotos(withPhotos)
+        const rows = await res.json()
+        // in.() comes back in table order, so shuffle again to keep it a mix.
+        const byId = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.id, r]))
+        setPhotos(pick.map(id => byId[id]).filter(Boolean))
       } catch { /* ignore */ }
       finally { if (active) setLoading(false) }
     }
