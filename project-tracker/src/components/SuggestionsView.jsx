@@ -25,18 +25,29 @@ function SuggestionsView() {
   const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
   // Load suggestions
+  const [loadError, setLoadError] = useState('')
+
   useEffect(() => {
+    // Plain REST with the anon key, like the rest of the app. This was the one
+    // screen still reading through the Supabase JS client, and when that call
+    // failed it failed silently — leaving three empty columns that looked like
+    // the suggestions had never saved.
     async function load() {
       try {
-        let query = supabase.from('suggestions').select('*').order('created_at', { ascending: false })
-        if (!isReviewer && username) {
-          query = query.eq('author', username)
-        }
-        const { data, error } = await query
-        if (error) throw error
-        if (data) setSuggestions(data)
+        const filter = !isReviewer && username
+          ? `&author=eq.${encodeURIComponent(username)}`
+          : ''
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc${filter}`,
+          { headers }
+        )
+        if (!res.ok) throw new Error(await res.text() || res.statusText)
+        const data = await res.json()
+        setSuggestions(Array.isArray(data) ? data : [])
+        setLoadError('')
       } catch (err) {
         console.error('Failed to load suggestions:', err)
+        setLoadError("Couldn't load suggestions — pull down to retry.")
       }
     }
     if (username) load()
@@ -277,6 +288,7 @@ After you've asked enough questions, write me a final polished feature suggestio
           <div className="max-w-2xl mx-auto space-y-6">
             {/* Submit form for reviewers too */}
             {submitForm}
+            {loadError && <p className="text-sm text-red-500 text-center">{loadError}</p>}
 
             {[
               // Anything not yet decided counts as pending. Dismissing an idea
