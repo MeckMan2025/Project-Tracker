@@ -66,6 +66,32 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, username])
 
+  // A suggestion that nobody is told about is a suggestion nobody reads. This
+  // mirrors what the "not built yet" pages already do with their idea box.
+  const notifyReviewers = async (suggestion) => {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,function_tags`, { headers })
+      if (!res.ok) return
+      for (const p of await res.json()) {
+        if (!(p.function_tags || []).includes('Co-Founder')) continue
+        if (p.id === user?.id) continue
+        const notif = {
+          id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
+          user_id: p.id,
+          type: 'suggestion',
+          title: '💡 New suggestion',
+          body: `${suggestion.author}: "${suggestion.text.slice(0, 90)}${suggestion.text.length > 90 ? '…' : ''}"`,
+        }
+        await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(notif),
+        })
+        triggerPush(notif)
+      }
+    } catch (err) { console.error('Failed to notify about the suggestion:', err) }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newSuggestion.trim()) return
@@ -96,6 +122,7 @@ function SuggestionsView() {
         .select('*')
         .eq('id', suggestion.id)
         .single()
+      notifyReviewers(suggestion)
       if (verify) {
         setSuggestions(prev => prev.map(s => s.id === suggestion.id ? verify : s))
       } else {

@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 162,
     date: '2026-09-07',
     items: [
+      '\u{1F4A1} Submitting a suggestion now tells the co-founders. It was being saved and then sitting there silently \u2014 six had come in without anyone being told \u2014 so it only got read if someone happened to open the page',
       '\u26A1 The Engineering Notebook opens straight away instead of hanging. It was downloading every photo in the notebook \u2014 about 4 MB \u2014 before it could show you a single project. Now it loads the entries first, 68 KB of them, and the photos arrive behind that',
       '\u{1F5BC}\uFE0F The notebook photos on the home screen are a random mix of every photo anyone has ever added, not the newest few. There are 111 of them and you were only ever seeing the same 15 \u2014 now it is a different set each time you open it',
       '\u{1F4CA} A meeting you have no record for no longer counts against you. It meant you were never marked either way \u2014 usually a meeting from before you joined \u2014 but it was averaging in as a zero and dragging your percentage down. Those days are out of your rate, out of your trend line, and you are not asked to write a notebook entry for them either',
