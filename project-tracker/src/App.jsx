@@ -1293,11 +1293,11 @@ function App() {
     } catch (err) { console.error('Failed to move task:', err) }
   }
 
-  const canDragTask = (task) => {
-    if (canDragAnyTask) return true
-    if (!canDragOwnTask) return false
-    return task.assignee && task.assignee.toLowerCase() === username.toLowerCase()
-  }
+  // Anyone on the team can move a task along. It used to be leads, plus your
+  // own tasks matched by name — which meant nobody could move a task given to
+  // "Everyone" or to a whole team, since neither matches a person's name.
+  // Progress is something the person doing the work reports.
+  const canDragTask = () => canDragAnyTask || canDragOwnTask
 
   if (loading) {
     return (

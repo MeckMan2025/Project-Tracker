@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 162,
     date: '2026-09-07',
     items: [
+      '\u{1F504} Anyone on the team can move a task along now, not just leads and not just tasks with your name on them. Nobody could move a task given to Everyone or to a whole team, because neither matches a person\'s name \u2014 progress is reported by whoever did the work',
       '\u{1F4A1} Submitting a suggestion now tells the co-founders. It was being saved and then sitting there silently \u2014 six had come in without anyone being told \u2014 so it only got read if someone happened to open the page',
       '\u26A1 The Engineering Notebook opens straight away instead of hanging. It was downloading every photo in the notebook \u2014 about 4 MB \u2014 before it could show you a single project. Now it loads the entries first, 68 KB of them, and the photos arrive behind that',
       '\u{1F5BC}\uFE0F The notebook photos on the home screen are a random mix of every photo anyone has ever added, not the newest few. There are 111 of them and you were only ever seeing the same 15 \u2014 now it is a different set each time you open it',
