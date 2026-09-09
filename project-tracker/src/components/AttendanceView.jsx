@@ -110,9 +110,16 @@ export default function AttendanceView() {
   // Presence-weighted rate: average of "% of each meeting they were present for"
   // across all sessions (0 for absent/excused/no-record).
   const statusFor = (name, sid) => (records.find(r => r.session_id === sid && r.username === name)?.status) || 'no record'
-  const rateFor = (name) => sessions.length > 0
-    ? Math.round(sessions.reduce((sum, s) => sum + presencePct(s.id, name, statusFor(name, s.id), partial, s.session_date), 0) / sessions.length)
-    : 0
+  // Meetings this person was actually on the roster for. "No record" means they
+  // were never marked either way — usually a meeting from before they joined —
+  // so it shouldn't be averaged in as a zero against them.
+  const countedFor = (name) => sessions.filter(s => statusFor(name, s.id) !== 'no record')
+  const rateFor = (name) => {
+    const mine = countedFor(name)
+    return mine.length > 0
+      ? Math.round(mine.reduce((sum, s) => sum + presencePct(s.id, name, statusFor(name, s.id), partial, s.session_date), 0) / mine.length)
+      : 0
+  }
 
   // Personal stats
   const myRecords = records.filter(r => r.username === username)
@@ -167,7 +174,7 @@ export default function AttendanceView() {
             {sessions.length >= 1 && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Trend</h3>
-                <TrendChart points={[...sessions].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, selectedUser, userRecordMap[s.id] || 'no record', partial, s.session_date) }))} />
+                <TrendChart points={[...sessions].filter(s => userRecordMap[s.id]).reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, selectedUser, userRecordMap[s.id], partial, s.session_date) }))} />
               </div>
             )}
 
@@ -265,7 +272,7 @@ export default function AttendanceView() {
               <div className="flex items-end gap-4">
                 <div className="text-3xl font-bold text-gray-800">{myAttendanceRate}%</div>
                 <div className="text-xs text-gray-400 pb-1">
-                  {myPresent} present / {sessions.length} sessions
+                  {myPresent} present / {countedFor(username).length} meetings
                   {myExcused > 0 && ` (${myExcused} excused)`}
                 </div>
               </div>
@@ -285,7 +292,7 @@ export default function AttendanceView() {
           {sessions.length >= 1 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-2">Your Trend</h3>
-              <TrendChart points={[...sessions].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, username, statusFor(username, s.id), partial, s.session_date) }))} />
+              <TrendChart points={[...countedFor(username)].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, username, statusFor(username, s.id), partial, s.session_date) }))} />
             </div>
           )}
 

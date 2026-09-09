@@ -171,14 +171,22 @@ export default function EngineeringNotebook() {
 
   useEffect(() => {
     let active = true
-    fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=session_date&order=session_date.desc`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-    })
-      .then(res => (res.ok ? res.json() : []))
-      .then(rows => { if (active) setMeetingDays([...new Set((rows || []).map(r => r.session_date))]) })
+    // Only meetings this person was actually marked at. Someone with no record
+    // for a day was never on that meeting's roster — usually it happened before
+    // they joined — so there is nothing for them to write up.
+    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
+      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(username)}&select=session_id`, { headers: h }).then(r => r.ok ? r.json() : []),
+    ])
+      .then(([sessions, mine]) => {
+        if (!active) return
+        const marked = new Set((mine || []).map(r => r.session_id))
+        setMeetingDays([...new Set((sessions || []).filter(s => marked.has(s.id)).map(s => s.session_date))])
+      })
       .catch(() => {})
     return () => { active = false }
-  }, [])
+  }, [username])
 
   // Meetings this person has no entry for yet — what they'd be marked absent for.
   const missingDays = meetingDays.filter(

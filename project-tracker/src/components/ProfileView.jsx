@@ -692,9 +692,12 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               const { sessions, records, entries, tasks, loading } = otherWork
               if (loading) return <p className="text-sm text-gray-400 text-center py-4">Loading their work…</p>
               const byId = Object.fromEntries(records.map(r => [r.session_id, r.status]))
-              const pts = [...sessions].reverse().map(sn => ({
+              // Only meetings they were actually marked at. "No record" means
+              // never marked either way, so it isn't a zero against them.
+              const counted = sessions.filter(sn => byId[sn.id])
+              const pts = [...counted].reverse().map(sn => ({
                 date: sn.session_date,
-                pct: presencePct(sn.id, vp.display_name, byId[sn.id] || 'no record', partial, sn.session_date),
+                pct: presencePct(sn.id, vp.display_name, byId[sn.id], partial, sn.session_date),
               }))
               const rate = pts.length ? Math.round(pts.reduce((a, b) => a + b.pct, 0) / pts.length) : 0
               const present = records.filter(r => r.status === 'present').length
@@ -709,7 +712,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                       <>
                         <div className="flex items-end gap-4">
                           <div className="text-3xl font-bold text-gray-800">{rate}%</div>
-                          <div className="text-xs text-gray-400 pb-1">{present} present / {sessions.length} meetings</div>
+                          <div className="text-xs text-gray-400 pb-1">{present} present / {counted.length} meetings</div>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-2.5">
                           <div className="h-2.5 rounded-full transition-all duration-500" style={{
@@ -719,8 +722,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                         </div>
                         <MiniTrend points={pts} />
                         <div className="space-y-1.5 pt-1">
-                          {sessions.map(sn => {
-                            const st = byId[sn.id] || 'no record'
+                          {counted.map(sn => {
+                            const st = byId[sn.id]
                             const cls = st === 'present' ? 'bg-green-100 text-green-700'
                               : st === 'absent' ? 'bg-red-100 text-red-700'
                               : st === 'excused' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'
