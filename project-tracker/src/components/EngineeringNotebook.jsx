@@ -103,13 +103,20 @@ export default function EngineeringNotebook() {
   const [showRequestProjectModal, setShowRequestProjectModal] = useState(false)
   const [requestProjectName, setRequestProjectName] = useState('')
 
+  // Everything about an entry except the photo. Photos are stored inline as
+  // data URIs, so asking for select=* meant ~4 MB before the page could show
+  // anything — the projects and entries were waiting on image data nobody had
+  // scrolled to yet. They're fetched separately and merged in after.
+  const ENTRY_COLS = 'id,username,meeting_date,category,custom_category,what_did,why_option,why_note,' +
+    'engagement,mentor_help,mentor_name,mentor_note,project_id,project_link,flash_id,season,created_at'
+
   // Load data via direct fetch
   useEffect(() => {
     const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
     async function load() {
       try {
         const [eRes, pRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=*&order=created_at.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS}&order=created_at.desc`, { headers }),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&order=created_at.desc`, { headers }),
         ])
         if (eRes.ok) setEntries(await eRes.json())
@@ -117,6 +124,13 @@ export default function EngineeringNotebook() {
       } catch (err) {
         console.error('Failed to load notebook data:', err)
       }
+      // Now the photos, folded into the entries already on screen.
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=id,photo_url&or=(photo_url.like.data:*,photo_url.like.http*)`, { headers })
+        if (!res.ok) return
+        const byId = Object.fromEntries((await res.json()).map(r => [r.id, r.photo_url]))
+        setEntries(prev => prev.map(e => byId[e.id] ? { ...e, photo_url: byId[e.id] } : e))
+      } catch { /* the page works without them */ }
     }
     load()
   }, [])
