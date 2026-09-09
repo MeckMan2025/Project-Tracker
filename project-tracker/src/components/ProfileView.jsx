@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import { EVERYONE, teamsForTags } from '../lib/taskTeams'
 import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -206,6 +207,12 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       if (!res.ok) throw new Error(await res.text() || res.statusText)
       const rows = await res.json()
       if (!rows || rows.length === 0) throw new Error('Update did not affect any rows')
+      // Changing someone's roles is lead business; if a co-lead did it, the
+      // lead they share the job with hears about it.
+      notifyLeadOfCoLeadAction({
+        actor: username, tags: functionTags, type: 'role_request',
+        detail: `${wasAdded ? 'gave' : 'removed'} ${roleName}${viewedProfile?.display_name ? ` \u2014 ${viewedProfile.display_name}` : ''}`,
+      })
       // Notify the member their role changed (mirrors User Management)
       const notif = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),

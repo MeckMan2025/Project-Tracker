@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import {
   ChevronLeft, ChevronRight, Plus, X, Trash2, Pencil,
   CalendarDays, CalendarRange, Calendar as CalendarIcon, List,
@@ -439,6 +440,9 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
 
     setEvents(prev => [...prev, newEvent])
     addToast('Event created', 'success')
+    // A member would have had to request this; a co-lead just does it, so the
+    // lead they share the job with is told.
+    notifyLeadOfCoLeadAction({ actor: username, tags: functionTags, type: 'calendar_event', detail: newEvent.name })
 
     const url = import.meta.env.VITE_SUPABASE_URL
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY

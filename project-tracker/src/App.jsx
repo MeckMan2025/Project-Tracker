@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
 import { isTeamAssignee, teamLabel } from './lib/taskTeams'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2, ArrowLeft } from 'lucide-react'
@@ -803,6 +804,7 @@ function App() {
     if (isTeam && teamNumber) boardData.owner_team = teamNumber
     try {
       await restInsert('boards', boardData)
+      notifyLeadOfCoLeadAction({ actor: username, tags: functionTags, type: 'board', detail: name })
     } catch (err) {
       console.error('Failed to save board:', err.message)
       setTabs(prev => prev.filter(t => t.id !== newId))
@@ -1003,6 +1005,7 @@ function App() {
     try {
       await restInsert('tasks', task)
       if (task.assignee) notifyAssignee(task.assignee, task.title)
+      notifyLeadOfCoLeadAction({ actor: username, tags: functionTags, type: 'task', detail: task.title })
     } catch (err) {
       console.error('Failed to save task:', err.message)
       setTasksByTab(prev => {

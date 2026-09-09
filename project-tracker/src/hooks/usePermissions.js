@@ -11,6 +11,10 @@ const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business
 // supabase/functions/admin-{reset-password,delete-user,create-user}/index.ts:
 // when it drifted wider, a Programming Lead was shown the buttons and every
 // click came back "Only leads can reset passwords".
+// NOTE: the co-lead tags are in the edge functions' source but the deployed
+// functions are still running the old list until someone redeploys them. Adding
+// them here before that would show co-leads buttons that fail every time, which
+// is the bug this list exists to prevent. Add them once the functions are out.
 const ACCOUNT_ADMIN_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
 
 // Same rule as canAddEvents below, but computed from a raw function_tags array

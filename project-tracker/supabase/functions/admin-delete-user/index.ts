@@ -43,7 +43,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // Verify caller is a lead (has a lead-level function tag)
-    const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead'];
+    const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
+      // Co-leads do the same job as the lead they share it with.
+      'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead'];
     const { data: profile, error: profileError } = await supabaseUser
       .from("profiles")
       .select("function_tags")
