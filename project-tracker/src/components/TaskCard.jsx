@@ -1,5 +1,5 @@
 import { Calendar, User, Pencil, Trash2, Zap, LogOut, Hand, CheckCircle, LifeBuoy } from 'lucide-react'
-import { isTeamAssignee, teamLabel } from '../lib/taskTeams'
+import { isTeamAssignee, teamLabel, SIDES } from '../lib/taskTeams'
 
 const UP_FOR_GRABS = '__up_for_grabs__'
 const EVERYONE = '__everyone__'
@@ -8,7 +8,9 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
   const isUpForGrabs = task.assignee === UP_FOR_GRABS
   const isEveryone = task.assignee === EVERYONE
-  const isAssignedToMe = currentUser && task.assignee && task.assignee.toLowerCase() === currentUser.toLowerCase()
+  // A task can be on several people now, so it is mine if I'm anywhere on it.
+  const onIt = task.assignees?.length ? task.assignees : [task.assignee].filter(Boolean)
+  const isAssignedToMe = currentUser && onIt.some(a => a?.toLowerCase() === currentUser.toLowerCase())
 
   const priorityBorder = {
     critical: 'border-l-red-500',
@@ -69,12 +71,35 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
             <span className="flex items-center gap-1 text-pastel-blue-dark font-medium">
               {teamLabel(task.assignee)}
             </span>
-          ) : task.assignee ? (
-            <span className="flex items-center gap-1">
+          ) : onIt.length > 0 ? (
+            <span
+              className="flex items-center gap-1"
+              title={onIt.join(', ')}
+            >
               <User size={12} />
-              {task.assignee}
+              {/* The rest are counted rather than listed, so a task on five
+                  people doesn't push everything else off the card. */}
+              {onIt[0]}{onIt.length > 1 && ` +${onIt.length - 1}`}
             </span>
           ) : null}
+          {/* Which sides this one belongs to. On more than one it is the same
+              task on each of their boards, so say so — otherwise it reads as a
+              duplicate to whoever finds it twice. */}
+          {task.sides?.length > 0 && (() => {
+            const on = SIDES.filter(side => task.sides.includes(side.key))
+            if (on.length === 0) return null
+            return (
+              <span
+                className="flex items-center gap-1 text-pastel-blue-dark font-medium"
+                title={on.length > 1
+                  ? `Shared with ${on.length} boards — progress moves on all of them`
+                  : on[0].label}
+              >
+                {on.map(side => side.emoji).join(' ')}
+                {on.length > 1 ? ' shared' : ` ${on[0].label}`}
+              </span>
+            )
+          })()}
           {task.dueDate && (
             <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-400' : ''}`}>
               <Calendar size={12} />

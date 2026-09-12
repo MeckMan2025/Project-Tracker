@@ -29,9 +29,10 @@ export const tasksToCSV = (tasks) => {
   return Papa.unparse(data)
 }
 
-export const downloadCSV = (tasks, filename = 'tasks.csv') => {
-  const csv = tasksToCSV(tasks)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+// The BOM is what makes Excel open a UTF-8 file with the accents and emoji
+// intact instead of as mojibake. Sheets is fine either way.
+const saveCSV = (csv, filename) => {
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
 
@@ -41,4 +42,19 @@ export const downloadCSV = (tasks, filename = 'tasks.csv') => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
+
+export const downloadCSV = (tasks, filename = 'tasks.csv') => {
+  saveCSV(tasksToCSV(tasks), filename)
+}
+
+// Any screen with a table worth pulling into Sheets or Excel: hand it an array
+// of plain objects and Papa works out the header row and the quoting.
+export const downloadRowsCSV = (rows, filename) => {
+  saveCSV(Papa.unparse(rows), filename)
+}
+
+// A file name that sorts by date and says what it came from.
+export const csvName = (label) =>
+  `${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${new Date().toISOString().slice(0, 10)}.csv`

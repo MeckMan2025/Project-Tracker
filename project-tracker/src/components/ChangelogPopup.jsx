@@ -5,6 +5,18 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 163,
+    date: '2026-09-11',
+    items: [
+      '\u{1F9D1}\u200D\u{1F91D}\u200D\u{1F9D1} A task can be put on several people at once. \u201CWho\u2019s on it\u201D is now a list you tick down instead of a single dropdown \u2014 everyone ticked gets it in their tasks and gets told about it. The list scrolls inside a fixed box now, so it stops growing the window as you go down it',
+      '\u{1F465} A task can go to more than one side of the team at once. Pick any of Business, Hardware and Software on the task and it shows up on each of their boards \u2014 as one task, not a copy each. Move it from 25% to 50% on any board and it moves on all of them, because they are all looking at the same task',
+      '\u{1F5BC}\uFE0F Notebook photos are sharp again. Every photo was being shrunk to 480 pixels and saved at half quality, which is why they came out blurry and blocky \u2014 teammates had noticed. They now go up at full size and are stored properly instead of being stuffed into the entry itself, so the notebook loads faster too. Photos already added still show as they always did',
+      '\u{1F512} Decision matrices are the leads\u2019 to build. Everyone can still open one, read it and rate it when they are invited, but making, editing, deleting and hosting are now for leads, co-leads and mentors \u2014 the same people who can change anything else on the team page',
+      '\u{1F5F3}\uFE0F You can host a decision matrix somebody else built. Hosting was limited to whoever made it, so a matrix prepared in advance by one person could not be run by anyone else \u2014 there was no button. Anything sitting under \u201CNot hosted yet\u201D now has a Host button right on it that goes straight to picking who rates it. Building one has a \u201CSave & host\u201D next to Save as well, so you are not left at a dead end after making it',
+      '\u{1F4CA} Tasks and the Decision Matrix can be exported to a spreadsheet. Export gives you a CSV that opens straight in Google Sheets or Excel \u2014 tasks come out with real column names, and a matrix comes out as options down the side and criteria across the top with the totals, ready to chart',
+    ],
+  },
+  {
     id: 162,
     date: '2026-09-07',
     items: [

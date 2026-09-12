@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
-import { EVERYONE, teamsForTags } from '../lib/taskTeams'
+import { fetchMyTasks } from '../lib/taskTeams'
 import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -284,10 +284,12 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     async function loadTasks() {
       if (!username) return
       try {
-        const groups = [EVERYONE, ...teamsForTags(functionTags)].join(',')
-        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(username)},assignee.in.(${groups}))&select=*`, {
-          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-        })
+        const res = await fetchMyTasks(
+          supabaseUrl,
+          { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+          username,
+          functionTags,
+        )
         if (!res.ok) return
         const data = await res.json()
         setAssignedTasks(data)

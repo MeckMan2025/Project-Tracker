@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
-import { isTeamAssignee, teamLabel } from './lib/taskTeams'
+import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES } from './lib/taskTeams'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2, ArrowLeft } from 'lucide-react'
-import { downloadCSV } from './utils/csvUtils'
+import { downloadRowsCSV, csvName } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
 import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
@@ -92,6 +92,15 @@ async function restUpdate(table, filter, data) {
   })
   if (!res.ok) throw new Error(await res.text())
 }
+// Postgres rejects the whole write when a column is missing, so a task saved
+// with several people on it just silently reverts. Say which file to run
+// instead of the generic failure — otherwise it looks like the feature is broken.
+const MISSING_COLUMN = /(assignees|sides).*(column|schema cache)|column .*(assignees|sides)/i
+const saveError = (err, fallback) =>
+  MISSING_COLUMN.test(err?.message || '')
+    ? 'Run supabase/tasks_sides.sql in Supabase first — the database is missing the columns for multiple people and sides.'
+    : fallback
+
 async function restDelete(table, filter) {
   const res = await fetch(`${REST_URL}/rest/v1/${table}?${filter}`, {
     method: 'DELETE', headers: REST_HEADERS,
@@ -235,9 +244,18 @@ const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS
 
 const mapTask = (t) => ({
   id: t.id,
+  // The board it was made on, the sides it was given to, and the boards those
+  // work out of. No sides (including every row written before the column
+  // existed) means one board, and the task behaves exactly as it used to.
+  boardId: t.board_id,
+  sides: t.sides || [],
+  boardIds: (t.sides?.length ? boardsForSides(t.sides) : [t.board_id]).filter(Boolean),
   title: t.title,
   description: t.description,
   assignee: t.assignee,
+  // Everyone on the task. Rows written before the column existed (and rows
+  // given to Everyone / Up for Grabs) just have the one value.
+  assignees: t.assignees?.length ? t.assignees : [t.assignee].filter(Boolean),
   dueDate: t.due_date,
   mentor: t.mentor || '',
   assignedBy: t.assigned_by || '',
@@ -246,6 +264,35 @@ const mapTask = (t) => ({
   priority: t.priority || 'medium',
   createdAt: t.created_at,
 })
+
+// A task can sit on several boards at once, so a local change has to reach
+// every copy of it — otherwise the board you are not looking at stays stale
+// until the next reload. The row is shared, so the REST write is still one call.
+const patchEveryBoard = (byTab, taskId, patch) => {
+  const updated = {}
+  for (const boardId in byTab) {
+    updated[boardId] = byTab[boardId].map(t => t.id === taskId ? { ...t, ...patch } : t)
+  }
+  return updated
+}
+
+// Put a task on exactly the boards it names and take it off the rest, which is
+// what an edit that adds or drops a side has to do.
+const placeTask = (byTab, task) => {
+  const boards = task.boardIds?.length ? task.boardIds : [task.boardId]
+  const updated = {}
+  for (const boardId in byTab) {
+    const list = byTab[boardId]
+    if (boards.includes(boardId)) {
+      updated[boardId] = list.some(t => t.id === task.id)
+        ? list.map(t => t.id === task.id ? task : t)
+        : [...list, task]
+    } else {
+      updated[boardId] = list.filter(t => t.id !== task.id)
+    }
+  }
+  return updated
+}
 
 // Restore cached data from localStorage for instant load (only for Radical members)
 function getCachedData() {
@@ -660,9 +707,12 @@ function App() {
         const grouped = {}
         allBoards.forEach(b => { grouped[b.id] = [] })
         tasks.forEach(t => {
-          if (grouped[t.board_id] !== undefined) {
-            grouped[t.board_id].push(mapTask(t))
-          }
+          const mapped = mapTask(t)
+          // One row, filed under each of its boards — so the same task object
+          // shows on every side it was given to.
+          mapped.boardIds.forEach(b => {
+            if (grouped[b] !== undefined) grouped[b].push(mapped)
+          })
         })
         setTasksByTab(grouped)
 
@@ -677,9 +727,12 @@ function App() {
         const grouped = {}
         boards.forEach(b => { grouped[b.id] = [] })
         tasks.forEach(t => {
-          if (grouped[t.board_id] !== undefined) {
-            grouped[t.board_id].push(mapTask(t))
-          }
+          const mapped = mapTask(t)
+          // One row, filed under each of its boards — so the same task object
+          // shows on every side it was given to.
+          mapped.boardIds.forEach(b => {
+            if (grouped[b] !== undefined) grouped[b].push(mapped)
+          })
         })
         setTasksByTab(grouped)
       }
@@ -731,21 +784,24 @@ function App() {
       .channel('tasks-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks' }, (payload) => {
         const task = mapTask(payload.new)
-        const boardId = payload.new.board_id
         setTasksByTab(prev => {
-          if (prev[boardId] === undefined) return prev // Not our board
-          const existing = prev[boardId]
-          if (existing.some(t => t.id === task.id)) return prev
-          return { ...prev, [boardId]: [...existing, task] }
+          const updated = { ...prev }
+          let changed = false
+          task.boardIds.forEach(boardId => {
+            if (updated[boardId] === undefined) return // Not our board
+            if (updated[boardId].some(t => t.id === task.id)) return
+            updated[boardId] = [...updated[boardId], task]
+            changed = true
+          })
+          return changed ? updated : prev
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, (payload) => {
         const task = mapTask(payload.new)
-        const boardId = payload.new.board_id
-        setTasksByTab(prev => ({
-          ...prev,
-          [boardId]: (prev[boardId] || []).map(t => t.id === task.id ? task : t),
-        }))
+        // The sides can change in an edit, so walk every board: the task joins
+        // the ones it now names and leaves the ones it doesn't. Progress rides
+        // along with it, which is what keeps the boards showing the same thing.
+        setTasksByTab(prev => placeTask(prev, task))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (payload) => {
         const id = payload.old.id
@@ -866,14 +922,7 @@ function App() {
 
     // Update locally + sync cache
     setTasksByTab(prev => {
-      const updated = {
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).map(task =>
-          task.id === draggableId
-            ? { ...task, status: destination.droppableId }
-            : task
-        ),
-      }
+      const updated = patchEveryBoard(prev, draggableId, { status: destination.droppableId })
       syncCache(updated)
       return updated
     })
@@ -894,12 +943,7 @@ function App() {
     const taskTitle = doneTask?.title || 'a task'
 
     setTasksByTab(prev => {
-      const updated = {
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).map(task =>
-          task.id === taskId ? { ...task, status: 'completed' } : task
-        ),
-      }
+      const updated = patchEveryBoard(prev, taskId, { status: 'completed' })
       syncCache(updated)
       return updated
     })
@@ -973,12 +1017,23 @@ function App() {
       ? activeTab
       : (tabs.find(t => !t.type)?.id || 'business')
 
+    // The sides picked in the modal decide which boards the task lands on.
+    // With none picked it just lives on the board it was made from, as before.
+    const sides = newTask.sides || []
+    const sideBoards = boardsForSides(sides)
+    const boardList = sideBoards.length ? sideBoards : [targetBoard]
+    // The home board is what requests and calendar links read, so keep it on
+    // the board it was created from whenever that is one of the chosen sides.
+    const homeBoard = boardList.includes(targetBoard) ? targetBoard : boardList[0]
+
     const task = {
       id: String(Date.now()) + Math.random().toString(36).slice(2),
-      board_id: targetBoard,
+      board_id: homeBoard,
+      sides,
       title: newTask.title,
       description: newTask.description || '',
       assignee: newTask.assignee || '',
+      assignees: newTask.assignees || [],
       due_date: newTask.dueDate || '',
       mentor: newTask.mentor || '',
       status: newTask.status || 'todo',
@@ -991,10 +1046,7 @@ function App() {
     // Add to local state immediately (optimistic) + sync cache
     const localTask = mapTask(task)
     setTasksByTab(prev => {
-      const updated = {
-        ...prev,
-        [targetBoard]: [...(prev[targetBoard] || []), localTask],
-      }
+      const updated = placeTask(prev, localTask)
       syncCache(updated)
       return updated
     })
@@ -1004,19 +1056,22 @@ function App() {
     // Persist via REST
     try {
       await restInsert('tasks', task)
-      if (task.assignee) notifyAssignee(task.assignee, task.title)
+      // Everyone put on it hears about it, not just the first name.
+      const told = task.assignees?.length ? task.assignees : [task.assignee]
+      told.filter(Boolean).forEach(who => notifyAssignee(who, task.title))
       notifyLeadOfCoLeadAction({ actor: username, tags: functionTags, type: 'task', detail: task.title })
     } catch (err) {
       console.error('Failed to save task:', err.message)
+      const msg = saveError(err, 'Failed to save task.')
       setTasksByTab(prev => {
-        const updated = {
-          ...prev,
-          [targetBoard]: (prev[targetBoard] || []).filter(t => t.id !== task.id),
+        const updated = {}
+        for (const boardId in prev) {
+          updated[boardId] = prev[boardId].filter(t => t.id !== task.id)
         }
         syncCache(updated)
         return updated
       })
-      addToast('Failed to save task. Please try again.', 'error')
+      addToast(msg, 'error')
     }
   }
 
@@ -1131,18 +1186,13 @@ function App() {
   }
 
   const handleEditTask = async (updatedTask) => {
-    // Save for rollback
-    const prevTasks = tasksByTab[activeTab] || []
-    const oldTask = prevTasks.find(t => t.id === updatedTask.id)
+    // An edit can add or drop a side, so the whole map is the rollback unit.
+    const prevByTab = tasksByTab
+    const oldTask = Object.values(prevByTab).flat().find(t => t.id === updatedTask.id)
 
     // Update UI immediately + sync cache
     setTasksByTab(prev => {
-      const updated = {
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).map(task =>
-          task.id === updatedTask.id ? updatedTask : task
-        ),
-      }
+      const updated = placeTask(prev, updatedTask)
       syncCache(updated)
       return updated
     })
@@ -1153,25 +1203,37 @@ function App() {
         title: updatedTask.title,
         description: updatedTask.description || '',
         assignee: updatedTask.assignee || '',
+        assignees: updatedTask.assignees || [],
         due_date: updatedTask.dueDate || '',
         mentor: updatedTask.mentor || '',
         status: updatedTask.status || 'todo',
         skills: updatedTask.skills || [],
         priority: updatedTask.priority || 'medium',
+        sides: updatedTask.sides || [],
+        // Keep the home board pointing somewhere the task actually is, so the
+        // request and calendar links that read board_id still land on it.
+        ...(updatedTask.boardIds?.length && !updatedTask.boardIds.includes(updatedTask.boardId)
+          ? { board_id: updatedTask.boardIds[0] }
+          : {}),
       })
-      const newAssignee = updatedTask.assignee || ''
-      const oldAssignee = oldTask?.assignee || ''
-      if (newAssignee && newAssignee !== oldAssignee) {
-        notifyAssignee(newAssignee, updatedTask.title)
-      }
+      // Only people who weren't already on it get told, so an edit that
+      // changes the due date doesn't re-notify the whole list.
+      const before = new Set(oldTask?.assignees?.length
+        ? oldTask.assignees
+        : [oldTask?.assignee].filter(Boolean))
+      const after = updatedTask.assignees?.length
+        ? updatedTask.assignees
+        : [updatedTask.assignee].filter(Boolean)
+      after.filter(who => who && !before.has(who))
+        .forEach(who => notifyAssignee(who, updatedTask.title))
     } catch (err) {
       console.error('Failed to update task:', err.message)
-      setTasksByTab(prev => {
-        const updated = { ...prev, [activeTab]: prevTasks }
-        syncCache(updated)
-        return updated
+      const msg = saveError(err, 'Failed to update task.')
+      setTasksByTab(() => {
+        syncCache(prevByTab)
+        return prevByTab
       })
-      addToast('Failed to update task.', 'error')
+      addToast(msg, 'error')
     }
   }
 
@@ -1204,9 +1266,30 @@ function App() {
     }
   }
 
+  // Named columns in the order you'd read them, rather than a dump of the
+  // task object — this file is meant to be opened in Sheets or Excel.
   const handleExport = () => {
     const currentTab = tabs.find(t => t.id === activeTab)
-    downloadCSV(tasks, `${currentTab?.name || 'tasks'}.csv`)
+    const progress = (status) => {
+      if (status === 'todo') return 'To Do'
+      if (status === 'done' || status === 'completed') return 'Done'
+      return `${status}%`
+    }
+    const rows = tasks.map(t => ({
+      Title: t.title || '',
+      Description: t.description || '',
+      Assignee: (t.assignees?.length ? t.assignees : [t.assignee])
+        .filter(Boolean).map(assigneeLabel).join(', '),
+      Sides: (t.sides || []).map(k => SIDES.find(x => x.key === k)?.label || k).join(', '),
+      Progress: progress(t.status),
+      Priority: t.priority || '',
+      'Due Date': t.dueDate || '',
+      Mentor: t.mentor || '',
+      'Assigned By': t.assignedBy || '',
+      Skills: (t.skills || []).join(', '),
+      Board: currentTab?.name || '',
+    }))
+    downloadRowsCSV(rows, csvName(currentTab?.name || 'tasks'))
   }
 
   const handleImport = (event) => {

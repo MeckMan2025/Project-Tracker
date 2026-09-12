@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { EVERYONE, teamsForTags } from '../lib/taskTeams'
+import { fetchMyTasks } from '../lib/taskTeams'
 import { ArrowLeft, AlertTriangle, Calendar, LifeBuoy, Plus, UserPlus } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../supabase'
@@ -27,7 +27,7 @@ const parseDate = (key) => {
 export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask }) {
   const [tasks, setTasks] = useState([])
   // Which side of the team this person is on — a team task is theirs too.
-  const [groups, setGroups] = useState(EVERYONE)
+  const [tags, setTags] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask })
       .then(r => (r.ok ? r.json() : []))
       .then(rows => {
         if (!active) return
-        setGroups([EVERYONE, ...teamsForTags(rows?.[0]?.function_tags)].join(','))
+        setTags(rows?.[0]?.function_tags || [])
       })
       .catch(() => {})
     return () => { active = false }
@@ -46,10 +46,7 @@ export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask })
     let active = true
     const load = async () => {
       try {
-        const res = await fetch(
-          `${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(name)},assignee.in.(${groups}))&select=*`,
-          { headers }
-        )
+        const res = await fetchMyTasks(supabaseUrl, headers, name, tags)
         if (!active || !res.ok) return
         setTasks(await res.json())
       } catch { /* ignore */ }
@@ -61,7 +58,7 @@ export default function PersonTasksView({ name, onBack, onOpenTask, onAddTask })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, load)
       .subscribe()
     return () => { active = false; supabase.removeChannel(ch) }
-  }, [name, groups])
+  }, [name, tags])
 
   const open = tasks.filter(t => (PCT[t.status] ?? 0) < 100)
   const done = tasks.filter(t => (PCT[t.status] ?? 0) === 100)

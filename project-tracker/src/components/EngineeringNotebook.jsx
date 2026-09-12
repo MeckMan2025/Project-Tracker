@@ -8,6 +8,10 @@ import { ACTIVE_SEASON, seasonOf } from '../data/season'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 
+// Where notebook photos live. Entries made before this hold the image inline as
+// a data: URL, and both still render — the <img> only ever sees a src.
+const NOTEBOOK_PHOTO_BUCKET = 'notebook-photos'
+
 // Local calendar date. toISOString() is UTC, so after ~7pm Central it rolls to
 // tomorrow — an evening entry would default to the wrong meeting date and slip
 // out of today's activity count.
@@ -1000,7 +1004,10 @@ export default function EngineeringNotebook() {
                           img.onload = () => {
                             try {
                               const canvas = document.createElement('canvas')
-                              const MAX = 480
+                              // Big enough to still read a label or a wire in
+                              // the photo. The old 480px / 0.5 quality pair is
+                              // what made these look washed out and blocky.
+                              const MAX = 2000
                               let w = img.width, h = img.height
                               if (!w || !h) return fail(CANT_READ)
                               if (w > MAX || h > MAX) {
@@ -1012,8 +1019,31 @@ export default function EngineeringNotebook() {
                               const ctx = canvas.getContext('2d')
                               if (!ctx) return fail(CANT_READ)
                               ctx.drawImage(img, 0, 0, w, h)
-                              const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
-                              setFormData(prev => ({ ...prev, photoUrl: dataUrl, _uploading: false, _photoError: '' }))
+                              // The photo goes to storage and the row keeps a
+                              // link, instead of carrying the whole image as
+                              // base64 — that is what made the notebook slow.
+                              canvas.toBlob(async (blob) => {
+                                if (!blob) return fail(CANT_READ)
+                                const done = (url) => setFormData(prev => ({
+                                  ...prev, photoUrl: url, _uploading: false, _photoError: '',
+                                }))
+                                try {
+                                  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+                                  const { error: upErr } = await supabase.storage
+                                    .from(NOTEBOOK_PHOTO_BUCKET)
+                                    .upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+                                  if (upErr) throw upErr
+                                  const { data: pub } = supabase.storage
+                                    .from(NOTEBOOK_PHOTO_BUCKET).getPublicUrl(path)
+                                  if (!pub?.publicUrl) throw new Error('no public url')
+                                  done(pub.publicUrl)
+                                } catch (err) {
+                                  // Until the bucket exists the old inline route
+                                  // still works, so nobody is blocked on it.
+                                  console.error('Photo upload failed, keeping it inline:', err.message)
+                                  done(canvas.toDataURL('image/jpeg', 0.8))
+                                }
+                              }, 'image/jpeg', 0.9)
                             } catch {
                               fail(CANT_READ)
                             }

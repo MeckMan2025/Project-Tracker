@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { EVERYONE, teamsForTags } from '../lib/taskTeams'
+import { fetchMyTasks } from '../lib/taskTeams'
 import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Rocket, Target, Trophy, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -75,8 +75,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
       try {
         // Mine, plus anything given to everyone, plus anything given to a side
         // of the team I'm on — a Business task is a task for the business team.
-        const groups = [EVERYONE, ...teamsForTags(functionTags)].join(',')
-        const res = await fetch(`${supabaseUrl}/rest/v1/tasks?or=(assignee.ilike.${encodeURIComponent(username)},assignee.in.(${groups}))&select=*`, { headers })
+        const res = await fetchMyTasks(supabaseUrl, headers, username, functionTags)
         if (!res.ok) return
         const data = await res.json()
         const active = (Array.isArray(data) ? data : []).filter(t => t.status !== 'done' && t.status !== 'completed')

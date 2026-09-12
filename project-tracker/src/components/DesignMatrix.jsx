@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters } from '../lib/matrixSession'
 import { triggerPush } from '../utils/pushHelper'
-import { ArrowLeft, Plus, Trash2, Trophy, Camera, X, Save, Edit3 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Trophy, Camera, X, Save, Edit3, Download } from 'lucide-react'
+import { downloadRowsCSV, csvName } from '../utils/csvUtils'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -39,7 +41,7 @@ function getWinner(matrix) {
 }
 
 // ─── Library View ───
-function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
+function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, onHost, username, canEdit }) {
   // Three shelves: what's waiting on you, what's running, and what's decided.
   const sessionOf = (m) => getSession(m)
   const needsYou = matrices.filter(m => {
@@ -52,6 +54,8 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
   })
   const decided = matrices.filter(m => sessionOf(m)?.status === 'closed')
   const drafts = matrices.filter(m => !sessionOf(m))
+  // Nothing to rate means nobody can finish, so those can't be hosted at all.
+  const ratable = (m) => (m.options || []).length > 0 && (m.criteria || []).length > 0
   const shelf = (title, list, note) => list.length === 0 ? null : (
     <div className="space-y-2">
       <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">{title}{note ? ` · ${note}` : ''}</h3>
@@ -63,7 +67,7 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
             // Only the person who made it. Open sessions can go too — you may
             // well want to bin one precisely because it was set up wrong; the
             // confirm says what's being thrown away.
-            const canDelete = m.created_by === username
+            const canDelete = canEdit && m.created_by === username
             return (
               <div key={m.id} className="group flex items-center gap-2 bg-white/80 rounded-xl border-2 border-gray-100 hover:border-pastel-pink p-3 transition-colors">
                 <button onClick={() => onSelect(m)} className="flex-1 text-left min-w-0">
@@ -93,12 +97,14 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-700">Decision Matrices</h2>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium"
-        >
-          <Plus size={16} /> New Matrix
-        </button>
+        {canEdit && (
+          <button
+            onClick={onCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-pastel-pink hover:bg-pastel-pink-dark rounded-lg transition-colors text-sm font-medium"
+          >
+            <Plus size={16} /> New Matrix
+          </button>
+        )}
       </div>
       {shelf('Waiting on you', needsYou, 'rate these')}
       {shelf('Being rated', running)}
@@ -136,11 +142,25 @@ function MatrixLibrary({ matrices, onSelect, onCreate, onDelete, username }) {
                           </p>
                         )}
                       </div>
-                      {m.created_by === username && (
-                        <button onClick={e => { e.stopPropagation(); onDelete(m.id, m) }} className="text-gray-300 hover:text-red-400 transition-colors p-1 flex-shrink-0">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Straight to picking who rates it, without having to
+                            open the matrix first. Anyone can host one that is
+                            sitting here unhosted, not just whoever built it. */}
+                        {canEdit && ratable(m) && (
+                          <button
+                            onClick={e => { e.stopPropagation(); onHost(m) }}
+                            title="Pick who rates this"
+                            className="px-2.5 py-1 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-xs font-semibold transition-colors"
+                          >
+                            Host
+                          </button>
+                        )}
+                        {canEdit && m.created_by === username && (
+                          <button onClick={e => { e.stopPropagation(); onDelete(m.id, m) }} className="text-gray-300 hover:text-red-400 transition-colors p-1">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -201,7 +221,7 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
 
   const triggerUpload = (optId) => { uploadTargetRef.current = optId; fileInputRef.current?.click() }
 
-  const handleSave = async () => {
+  const handleSave = async (thenHost = false) => {
     if (!title.trim()) { showFeedback('Title is required'); return }
     if (options.length < 2) { showFeedback('Add at least 2 options'); return }
     if (criteria.length < 1) { showFeedback('Add at least 1 criterion'); return }
@@ -224,7 +244,7 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
         console.error('Save failed:', res.status, errText)
         throw new Error('Save failed: ' + res.status)
       }
-      onSave(data)
+      onSave(data, thenHost)
     } catch (err) { console.error(err); showFeedback(err.message || 'Failed to save') }
     finally { setSaving(false) }
   }
@@ -374,9 +394,15 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
         <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors text-sm font-medium">
           Cancel
         </button>
-        <button onClick={handleSave} disabled={saving}
+        <button onClick={() => handleSave(false)} disabled={saving}
           className="flex-1 py-3 rounded-xl bg-pastel-blue hover:bg-pastel-blue-dark transition-colors text-sm font-medium flex items-center justify-center gap-2">
           <Save size={16} /> {saving ? 'Saving...' : initial ? 'Update Matrix' : 'Save Matrix'}
+        </button>
+        {/* Building one and running it there and then is the common case, and
+            it was a dead end before: save, find it again, then host. */}
+        <button onClick={() => handleSave(true)} disabled={saving}
+          className="flex-1 py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark transition-colors text-sm font-semibold flex items-center justify-center gap-2">
+          {saving ? 'Saving…' : 'Save & host'}
         </button>
       </div>
 
@@ -396,6 +422,24 @@ function MatrixEditor({ initial, onSave, onCancel, username }) {
 }
 
 // ─── Matrix Viewer (read-only table) ───
+// The matrix as rows: one option per row, one column per criterion, plus the
+// total the screen shows. That shape drops straight into Sheets or Excel and
+// can be charted there without rearranging anything.
+function matrixRows(matrix) {
+  return matrix.options.map(opt => {
+    const row = { Option: opt.name }
+    let total = 0
+    matrix.criteria.forEach(c => {
+      const score = Number(matrix.scores[`${opt.id}_${c.id}`]) || 0
+      row[c.name] = score
+      total += score
+    })
+    row.Total = total
+    row.Chosen = matrix.decision?.chosen === opt.id ? 'yes' : ''
+    return row
+  })
+}
+
 function MatrixViewer({ matrix, onEdit }) {
   const [imagePreview, setImagePreview] = useState(null)
   const chosenOption = matrix.options.find(o => o.id === matrix.decision?.chosen)
@@ -411,9 +455,20 @@ function MatrixViewer({ matrix, onEdit }) {
           {matrix.description && <p className="text-sm text-gray-400 mt-1">{matrix.description}</p>}
           <p className="text-xs text-gray-400 mt-1">Created by {matrix.created_by} · {new Date(matrix.created_at).toLocaleDateString()}</p>
         </div>
-        <button onClick={onEdit} className="flex items-center gap-1 text-sm text-pastel-blue-dark hover:text-blue-600">
-          <Edit3 size={14} /> Edit
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => downloadRowsCSV(matrixRows(matrix), csvName(matrix.title || 'design-matrix'))}
+            className="flex items-center gap-1 text-sm text-pastel-blue-dark hover:text-blue-600"
+            title="Download as CSV for Sheets or Excel"
+          >
+            <Download size={14} /> Export
+          </button>
+          {onEdit && (
+            <button onClick={onEdit} className="flex items-center gap-1 text-sm text-pastel-blue-dark hover:text-blue-600">
+              <Edit3 size={14} /> Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Full table view */}
@@ -933,6 +988,10 @@ function SessionView({ matrix, session, username, onVote, onClose, onReopen }) {
 
 export default function DesignMatrix({ onBack }) {
   const { username } = useUser()
+  // Everyone reads and rates a matrix; only leads, co-leads and mentors build,
+  // change or run one. canEditContent is the same lead check the rest of the
+  // app uses, so a role change moves this with it.
+  const { canEditContent } = usePermissions()
   const [matrices, setMatrices] = useState([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('library')
@@ -966,17 +1025,20 @@ export default function DesignMatrix({ onBack }) {
     finally { setLoading(false) }
   }
 
-  const handleSave = (data) => {
+  const handleSave = (data, thenHost = false) => {
+    if (!canEditContent) return
     setMatrices(prev => {
       const exists = prev.find(m => m.id === data.id)
       if (exists) return prev.map(m => m.id === data.id ? data : m)
       return [data, ...prev]
     })
     setSelected(data)
-    setView('detail')
+    // Straight to picking who rates it when they asked to host it.
+    setView(thenHost ? 'host' : 'detail')
   }
 
   const handleDelete = async (id, matrix, session, ratedCount = 0) => {
+    if (!canEditContent) return
     // Say what goes with it. Binning one that people are part-way through
     // throws their ratings away, and that shouldn't be a surprise.
     const msg = session?.status === 'open' && ratedCount > 0
@@ -1030,6 +1092,7 @@ export default function DesignMatrix({ onBack }) {
   }
 
   const host = async (participants) => {
+    if (!canEditContent) return
     // An empty matrix is unratable: hasFinished vacuously passes on no options
     // or criteria, so everyone counts as done and nobody is ever asked.
     if (!(selected.options || []).length || !(selected.criteria || []).length) {
@@ -1105,7 +1168,7 @@ export default function DesignMatrix({ onBack }) {
         {loading ? (
           <div className="text-center py-12 text-gray-400">Loading...</div>
         ) : view === 'library' ? (
-          <MatrixLibrary matrices={matrices} onSelect={m => { setSelected(m); setView('detail') }} onCreate={() => { setSelected(null); setView('create') }} onDelete={handleDelete} username={username} />
+          <MatrixLibrary matrices={matrices} onSelect={m => { setSelected(m); setView('detail') }} onCreate={() => { setSelected(null); setView('create') }} onDelete={handleDelete} onHost={m => { setSelected(m); setView('host') }} username={username} canEdit={canEditContent} />
         ) : view === 'create' ? (
           <MatrixEditor onSave={handleSave} onCancel={() => setView('library')} username={username} />
         ) : view === 'edit' ? (
@@ -1123,8 +1186,10 @@ export default function DesignMatrix({ onBack }) {
             />
           ) : (
             <>
-              <MatrixViewer matrix={selected} onEdit={() => setView('edit')} />
-              {selected.created_by === username && (selected.options || []).length > 0 && (selected.criteria || []).length > 0 && (
+              <MatrixViewer matrix={selected} onEdit={canEditContent ? () => setView('edit') : null} />
+              {/* Anyone can host one that hasn't been hosted yet — a matrix is
+                  often built by one person and run by another. */}
+              {canEditContent && (selected.options || []).length > 0 && (selected.criteria || []).length > 0 && (
                 <button onClick={() => setView('host')}
                   className="w-full py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark text-sm font-semibold">
                   Host this — pick who rates it

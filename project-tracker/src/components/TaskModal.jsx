@@ -1,7 +1,14 @@
 import { useMemberNames, useMentorNames } from '../hooks/useMemberNames'
-import { TEAM_ASSIGNEES, isTeamAssignee } from '../lib/taskTeams'
+import { SIDES, boardsForSides, UP_FOR_GRABS, EVERYONE } from '../lib/taskTeams'
 import { useState } from 'react'
 import { X, ArrowLeft } from 'lucide-react'
+
+// These two answer "who's on it" by themselves, so picking one clears the names.
+const SPECIALS = [
+  { value: UP_FOR_GRABS, label: '🙋 Up for Grabs' },
+  { value: EVERYONE, label: '👥 Everyone (whole team)' },
+]
+const isSpecial = (v) => SPECIALS.some(sp => sp.value === v)
 
 const SKILL_OPTIONS = [
   'Programming', 'CAD', 'Mechanical', 'Electronics', 'Design',
@@ -16,7 +23,11 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
     title: task?.title || '',
     description: task?.description || '',
     status: task?.status || 'todo',
-    assignee: task?.assignee || '',
+    // One list for everyone on the task. Older tasks carry a single name.
+    assignees: task?.assignees?.length
+      ? task.assignees
+      : [task?.assignee].filter(Boolean),
+    sides: task?.sides || [],
     dueDate: task?.dueDate || '',
     mentor: task?.mentor || '',
     skills: task?.skills || [],
@@ -27,7 +38,9 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
   // Every category is required to make a task.
   const titleMissing = !formData.title.trim()
   const descriptionMissing = !formData.description.trim()
-  const assigneeMissing = !formData.assignee
+  // A task needs someone to own it: a person, or at least one side of the
+  // team. Picking sides is the way to give it to more than one at once.
+  const assigneeMissing = formData.assignees.length === 0 && formData.sides.length === 0
   const mentorMissing = !formData.mentor
   const dueDateMissing = !formData.dueDate
   const hasErrors = titleMissing || descriptionMissing || assigneeMissing || mentorMissing || dueDateMissing
@@ -46,8 +59,49 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
     onSave({
       ...task,
       ...formData,
+      // assignee stays the first name on the list, so everything that still
+      // reads a single assignee keeps working.
+      assignee: formData.assignees[0] || '',
+      // Recomputed here because the sides may have just changed, and the
+      // boards a task shows on follow straight from them.
+      boardIds: formData.sides.length
+        ? boardsForSides(formData.sides)
+        : [task?.boardId].filter(Boolean),
       id: task?.id,
     })
+  }
+
+  // Names that were on the task before they left the roster stay listed, so
+  // editing something else doesn't quietly drop them off it.
+  const chosenPeople = formData.assignees.filter(a => !isSpecial(a))
+  const people = [...memberNames, ...chosenPeople.filter(n => !memberNames.includes(n))]
+
+  const togglePerson = (name) => {
+    setFormData(prev => {
+      const withoutSpecials = prev.assignees.filter(a => !isSpecial(a))
+      return {
+        ...prev,
+        assignees: withoutSpecials.includes(name)
+          ? withoutSpecials.filter(a => a !== name)
+          : [...withoutSpecials, name],
+      }
+    })
+  }
+
+  const setSpecial = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      assignees: prev.assignees[0] === value ? [] : [value],
+    }))
+  }
+
+  const toggleSide = (key) => {
+    setFormData(prev => ({
+      ...prev,
+      sides: prev.sides.includes(key)
+        ? prev.sides.filter(s => s !== key)
+        : [...prev.sides, key],
+    }))
   }
 
   const toggleSkill = (skill) => {
@@ -122,32 +176,94 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
             )}
           </div>
 
+          <div>
+            {/* Picking sides is how a task goes to more than one part of the
+                team: it becomes one task sitting on each of their boards. */}
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sides of the team{' '}
+              <span className="text-xs font-normal text-gray-400">(it shows on each one's board)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {SIDES.map(side => (
+                <button
+                  key={side.key}
+                  type="button"
+                  onClick={() => toggleSide(side.key)}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    formData.sides.includes(side.key)
+                      ? 'bg-pastel-blue text-gray-700'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {side.emoji} {side.label}
+                </button>
+              ))}
+            </div>
+            {formData.sides.length > 1 && (
+              <p className="text-xs text-gray-400 mt-1">
+                One task on {formData.sides.length} boards — moving it along on any of them moves it on all of them.
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assignee *
+                Who's on it {formData.sides.length === 0 && '*'}{' '}
+                <span className="text-xs font-normal text-gray-400">(tick as many as you need)</span>
               </label>
-              <select
-                value={formData.assignee}
-                onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
-                  showErrors && assigneeMissing ? 'border-red-400' : ''
-                }`}
-              >
-                <option value="">Select assignee…</option>
-                <option value="__up_for_grabs__">🙋 Up for Grabs</option>
-                <option value="__everyone__">👥 Everyone (whole team)</option>
-                {TEAM_ASSIGNEES.map(t => (
-                  <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+
+              {/* Up for Grabs and Everyone are the whole answer on their own, so
+                  they clear the names rather than sit alongside them. */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {SPECIALS.map(sp => (
+                  <button
+                    key={sp.value}
+                    type="button"
+                    onClick={() => setSpecial(sp.value)}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                      formData.assignees[0] === sp.value
+                        ? 'bg-pastel-blue text-gray-700'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {sp.label}
+                  </button>
                 ))}
-                {memberNames.map(n => <option key={n} value={n}>{n}</option>)}
-                {/* A name from before the roster dropdown (or a removed member)
-                    still shows so the select doesn't silently blank it. */}
-                {formData.assignee && formData.assignee !== '__up_for_grabs__' && formData.assignee !== '__everyone__' && !isTeamAssignee(formData.assignee) && !memberNames.includes(formData.assignee) && (
-                  <option value={formData.assignee}>{formData.assignee} (former)</option>
+              </div>
+
+              {/* A fixed height, so the list scrolls inside itself instead of
+                  growing the dialog as you go down it. */}
+              <div className={`h-44 overflow-y-auto rounded-lg border divide-y ${
+                showErrors && assigneeMissing ? 'border-red-400' : 'border-gray-200'
+              }`}>
+                {people.map(n => (
+                  <label
+                    key={n}
+                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.assignees.includes(n)}
+                      onChange={() => togglePerson(n)}
+                      className="accent-pastel-blue-dark"
+                    />
+                    <span className={memberNames.includes(n) ? '' : 'text-gray-400 italic'}>
+                      {n}{memberNames.includes(n) ? '' : ' (former)'}
+                    </span>
+                  </label>
+                ))}
+                {people.length === 0 && (
+                  <p className="px-3 py-2 text-sm text-gray-400">No members on the roster yet.</p>
                 )}
-              </select>
-              {showErrors && assigneeMissing && <p className="text-red-500 text-sm mt-1">Pick an assignee</p>}
+              </div>
+
+              {chosenPeople.length > 1 && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {chosenPeople.length} people share this task — it lands in all of their lists.
+                </p>
+              )}
+              {showErrors && assigneeMissing && <p className="text-red-500 text-sm mt-1">Pick someone, or a side of the team</p>}
             </div>
             {task && (
               <div className="col-span-2 -mb-2">
