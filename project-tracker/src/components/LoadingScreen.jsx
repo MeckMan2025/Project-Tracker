@@ -65,9 +65,69 @@ function LoadingScreen({ onComplete, onMusicStart }) {
           animation: sweep 3s ease-in-out 1.6s infinite; }
         .sub { animation: fadeUp 1s ease 1.7s both; }
         .cta { animation: fadeUp 1s ease 2.2s both; }
+
+        /* Bees. The thing that makes flight read as a bee is that it isn't
+           smooth: quick darts, then a hover where it barely moves, then a
+           sudden change of mind — and it overshoots and corrects rather than
+           arriving neatly. So the keyframes are spaced unevenly, each dart is
+           linear and each arrival eases out, and the two bees fly different
+           paths instead of the same one at different speeds. */
+        @keyframes beeFly {
+          0%   { transform: translate(-14vw, 64vh) rotate(10deg) scale(.8);  opacity: 0; animation-timing-function: ease-out; }
+          7%   { transform: translate(4vw, 52vh)   rotate(-4deg) scale(.9);  opacity: 1; animation-timing-function: linear; }
+          13%  { transform: translate(16vw, 33vh)  rotate(-12deg) scale(1);  animation-timing-function: ease-out; }
+          17%  { transform: translate(19vw, 30vh)  rotate(2deg)  scale(1); }   /* overshoot, then hang */
+          24%  { transform: translate(18vw, 31vh)  rotate(-2deg) scale(1); animation-timing-function: linear; }
+          32%  { transform: translate(39vw, 47vh)  rotate(9deg)  scale(1.05); animation-timing-function: ease-out; }
+          36%  { transform: translate(41vw, 49vh)  rotate(3deg)  scale(1.05); }
+          43%  { transform: translate(40vw, 48vh)  rotate(-3deg) scale(1.04); animation-timing-function: linear; }
+          51%  { transform: translate(58vw, 26vh)  rotate(-11deg) scale(.98); animation-timing-function: ease-out; }
+          56%  { transform: translate(57vw, 24vh)  rotate(4deg)  scale(.98); }
+          64%  { transform: translate(59vw, 25vh)  rotate(-2deg) scale(1); animation-timing-function: linear; }
+          74%  { transform: translate(80vw, 44vh)  rotate(8deg)  scale(1); animation-timing-function: ease-out; }
+          79%  { transform: translate(82vw, 42vh)  rotate(-4deg) scale(.98); animation-timing-function: linear; }
+          93%  { transform: translate(106vw, 31vh) rotate(5deg)  scale(.88); opacity: 1; }
+          100% { transform: translate(120vw, 28vh) rotate(0deg)  scale(.82); opacity: 0; }
+        }
+        @keyframes beeFly2 {
+          0%   { transform: translate(-10vw, 22vh) rotate(-8deg) scale(.7); opacity: 0; animation-timing-function: linear; }
+          9%   { transform: translate(10vw, 30vh)  rotate(6deg)  scale(.78); opacity: .75; animation-timing-function: ease-out; }
+          15%  { transform: translate(13vw, 33vh)  rotate(-3deg) scale(.8); }
+          23%  { transform: translate(12vw, 32vh)  rotate(2deg)  scale(.8); animation-timing-function: linear; }
+          34%  { transform: translate(34vw, 18vh)  rotate(-10deg) scale(.76); animation-timing-function: ease-out; }
+          39%  { transform: translate(36vw, 16vh)  rotate(3deg)  scale(.76); animation-timing-function: linear; }
+          50%  { transform: translate(55vw, 38vh)  rotate(11deg) scale(.82); animation-timing-function: ease-out; }
+          55%  { transform: translate(54vw, 40vh)  rotate(-2deg) scale(.82); }
+          63%  { transform: translate(56vw, 39vh)  rotate(4deg)  scale(.8); animation-timing-function: linear; }
+          76%  { transform: translate(78vw, 20vh)  rotate(-9deg) scale(.76); animation-timing-function: ease-out; }
+          81%  { transform: translate(80vw, 22vh)  rotate(2deg)  scale(.76); animation-timing-function: linear; }
+          94%  { transform: translate(108vw, 34vh) rotate(6deg)  scale(.7); opacity: .75; }
+          100% { transform: translate(120vw, 32vh) rotate(0deg)  scale(.68); opacity: 0; }
+        }
+        /* Wingbeat: small and fast, or it reads as bobbing rather than flying. */
+        @keyframes buzz { 0%,100% { translate: 0 0; } 50% { translate: .4px -1.6px; } }
+
+        .bee {
+          position: absolute; top: 0; left: 0; pointer-events: none;
+          font-size: clamp(24px, 4.5vw, 44px); line-height: 1;
+          animation: beeFly 13s linear .4s infinite;
+          will-change: transform;
+        }
+        .bee span { display: inline-block; animation: buzz .12s linear infinite; }
+        .bee.two { animation-name: beeFly2; animation-duration: 16s; animation-delay: 5s; }
+
+        /* Someone who asked the OS for less motion gets a bee that sits still. */
+        @media (prefers-reduced-motion: reduce) {
+          .bee { animation: none; transform: translate(8vw, 26vh); }
+          .bee.two { transform: translate(72vw, 20vh); }
+          .bee span { animation: none; }
+        }
       `}</style>
 
       <div className="relative h-full flex flex-col items-center justify-center px-6 text-center">
+        <i className="bee" aria-hidden="true"><span>🐝</span></i>
+        <i className="bee two" aria-hidden="true"><span>🐝</span></i>
+
         <p className="pre text-gray-400 tracking-[0.5em] text-xs sm:text-sm font-bold uppercase mb-2 ml-[0.5em]">
           Everything That's
         </p>

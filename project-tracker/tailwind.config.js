@@ -17,6 +17,9 @@ export default {
           'pink-dark': '#F4A3B5',
           orange: '#FFD6A5',
           'orange-dark': '#FFBB70',
+          // Honey, for the bee-themed Home page.
+          yellow: '#FFE9A8',
+          'yellow-dark': '#F2C14E',
         }
       }
     },

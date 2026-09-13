@@ -30,8 +30,38 @@ function markMeasures(text) {
   // there's no need to re-test each piece to know which ones matched.
   return text.split(MEASURE_RE).map((part, i) =>
     i % 2 === 1
-      ? <u key={i} className="font-bold text-gray-800 decoration-pastel-pink-dark decoration-2 underline-offset-2">{part}</u>
+      ? <u key={i} className="font-bold text-gray-800 decoration-amber-800 decoration-2 underline-offset-2">{part}</u>
       : part
+  )
+}
+
+// Honeycomb, after the BioBuzz comb: flat-top cells in mixed honey tones. The
+// logo's black walls are what make it read as a badge; behind a page of text
+// that would fight everything on top of it, so the walls here are soft amber
+// and the whole thing is faint. Generated flat-top hexagons on a 3r x sqrt(3)r
+// tile, which is the smallest patch of a honeycomb that repeats seamlessly.
+const HONEYCOMB_CELLS = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='52' viewBox='0 0 90.00 51.96'%3E%3Cpolygon points='30.00,25.98 15.00,51.96 -15.00,51.96 -30.00,25.98 -15.00,0.00 15.00,0.00' fill='%23fde68a' fill-opacity='0.55'/%3E%3Cpolygon points='75.00,0.00 60.00,25.98 30.00,25.98 15.00,0.00 30.00,-25.98 60.00,-25.98' fill='%23fef3c7' fill-opacity='0.55'/%3E%3Cpolygon points='75.00,51.96 60.00,77.94 30.00,77.94 15.00,51.96 30.00,25.98 60.00,25.98' fill='%23fef3c7' fill-opacity='0.55'/%3E%3Cpolygon points='120.00,25.98 105.00,51.96 75.00,51.96 60.00,25.98 75.00,0.00 105.00,0.00' fill='%23f8d77a' fill-opacity='0.55'/%3E%3Cpolygon points='30.00,25.98 15.00,51.96 -15.00,51.96 -30.00,25.98 -15.00,0.00 15.00,0.00' fill='none' stroke='%23e0a92e' stroke-opacity='0.45' stroke-width='2.5'/%3E%3Cpolygon points='75.00,0.00 60.00,25.98 30.00,25.98 15.00,0.00 30.00,-25.98 60.00,-25.98' fill='none' stroke='%23e0a92e' stroke-opacity='0.45' stroke-width='2.5'/%3E%3Cpolygon points='75.00,51.96 60.00,77.94 30.00,77.94 15.00,51.96 30.00,25.98 60.00,25.98' fill='none' stroke='%23e0a92e' stroke-opacity='0.45' stroke-width='2.5'/%3E%3Cpolygon points='120.00,25.98 105.00,51.96 75.00,51.96 60.00,25.98 75.00,0.00 105.00,0.00' fill='none' stroke='%23e0a92e' stroke-opacity='0.45' stroke-width='2.5'/%3E%3C/svg%3E\")"
+
+// The honey the comb sits in.
+const HONEY_WASH = 'linear-gradient(160deg, #fffdf5 0%, #fff8e7 45%, #fdf0d5 100%)'
+
+// Little flowers where the task bullets go, cycling the team's three colours.
+// Drawn rather than an emoji so they sit on the baseline and take the colours.
+// Petals carry the colour, the middle is always yellow — that's what makes a
+// shape read as a flower rather than as a coloured blob.
+const FLOWER_PETALS = ['#FFCAD4', '#A8D8EA', '#FFD6A5'] // pink, blue, orange
+const FLOWER_HEART = '#F6C445'
+const FLOWER_HEART_EDGE = '#E0A92E'
+
+function Flower({ i = 0, size = 18 }) {
+  const petal = FLOWER_PETALS[i % FLOWER_PETALS.length]
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" className="shrink-0" aria-hidden="true">
+      {[0, 72, 144, 216, 288].map(a => (
+        <ellipse key={a} cx="10" cy="5.2" rx="3.1" ry="4.3" fill={petal} transform={`rotate(${a} 10 10)`} />
+      ))}
+      <circle cx="10" cy="10" r="2.9" fill={FLOWER_HEART} stroke={FLOWER_HEART_EDGE} strokeWidth="0.7" />
+    </svg>
   )
 }
 
@@ -366,16 +396,24 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 ml-14 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-yellow-dark via-pastel-orange-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Home Page
             </h1>
-            <p className="text-sm text-gray-500">Welcome back{username ? `, ${username}` : ''}!</p>
+            <p className="text-sm text-gray-500">
+              Welcome back{username ? `, ${username}` : ''}! <span title="Season kickoff">🐝</span>
+            </p>
           </div>
           <NotificationBell />
         </div>
       </header>
 
-      <main className="flex-1 p-4 overflow-y-auto space-y-4">
+      <main
+        className="flex-1 p-4 overflow-y-auto space-y-4"
+        style={{
+          backgroundImage: `${HONEYCOMB_CELLS}, ${HONEY_WASH}`,
+          backgroundAttachment: 'local',
+        }}
+      >
         {/* Lead strip: task coverage + what's due. First thing on Home so it
             can't be missed. */}
         {hasLeadTag && (
@@ -391,7 +429,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">This Week</h2>
             <button
               onClick={() => onTabChange('calendar')}
-              className="text-xs text-pastel-blue-dark hover:underline flex items-center gap-0.5"
+              className="text-xs text-pastel-yellow-dark hover:underline flex items-center gap-0.5"
             >
               Full Calendar <ArrowRight size={10} />
             </button>
@@ -406,20 +444,20 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                   key={day.key}
                   className={`flex flex-col items-center py-2 rounded-lg transition-colors ${
                     day.isToday
-                      ? 'bg-pastel-blue/30 ring-2 ring-pastel-blue-dark/40'
+                      ? 'bg-pastel-yellow/30 ring-2 ring-pastel-yellow-dark/40'
                       : isPast
                         ? 'opacity-40'
                         : 'hover:bg-gray-50'
                   }`}
                 >
                   <span className="text-[10px] text-gray-400 font-medium">{day.dayName}</span>
-                  <span className={`text-sm font-semibold mt-0.5 ${day.isToday ? 'text-pastel-blue-dark' : 'text-gray-700'}`}>
+                  <span className={`text-sm font-semibold mt-0.5 ${day.isToday ? 'text-pastel-yellow-dark' : 'text-gray-700'}`}>
                     {day.dayNum}
                   </span>
                   {hasEvents && (
                     <div className="flex gap-0.5 mt-1">
                       {dayEvts.slice(0, 3).map(ev => {
-                        const colors = { meeting: 'bg-pastel-blue-dark', competition: 'bg-pastel-pink-dark', other: 'bg-pastel-orange-dark' }
+                        const colors = { meeting: 'bg-pastel-yellow-dark', competition: 'bg-pastel-orange-dark', other: 'bg-pastel-orange-dark' }
                         return <span key={ev.id} className={`w-1 h-1 rounded-full ${colors[ev.event_type] || colors.other}`} />
                       })}
                     </div>
@@ -436,14 +474,14 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         {(() => {
           const tiles = [
             ...(hasLeadTag ? [
-              { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-blue',   tint: 'bg-pastel-blue/20',   text: 'text-pastel-blue-dark' },
-              { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-pink',   tint: 'bg-pastel-pink/20',   text: 'text-pastel-pink-dark' },
+              { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-yellow',   tint: 'bg-pastel-yellow/20',   text: 'text-pastel-yellow-dark' },
+              { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-orange',   tint: 'bg-pastel-orange/20',   text: 'text-pastel-orange-dark' },
               { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
-            { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
+            { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             // A tab of its own rather than a Special Controls page, so this one
             // switches tabs instead of opening a special view.
-            { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-blue', tint: 'bg-pastel-blue/20', text: 'text-pastel-blue-dark' },
+            { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
           ]
           // All on one row, however many there are. They are shortcuts, so they
           // are kept short — a member sees only Submit a Quote and it fills the
@@ -465,34 +503,23 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           )
         })()}
 
-        {/* Sticky-note board: My Tasks (big notebook) + Season Kickoff + Next Meeting */}
-        <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch pt-2">
+        {/* My Tasks and the season's goals, side by side. */}
+        <div className="flex flex-col md:flex-row gap-4 items-stretch">
 
-          {/* BIG notebook-paper sticky note — My Tasks */}
-          <div className="relative w-full md:flex-1 flex -rotate-[0.4deg]">
-            {/* piece of tape */}
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-amber-200/50 border border-amber-100/70 rotate-2 shadow-sm rounded-[2px] z-10" />
-            <div
-              className="relative flex-1 flex flex-col rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.12)] pt-7 pb-6 pl-12 pr-5 min-h-[240px] max-h-[442px] overflow-hidden"
-              style={{ background: '#ffffff' }}
-            >
-              {/* pink margin line */}
-              <div className="absolute top-0 bottom-0 left-9 w-[2px] bg-pink-300/60" />
+          <section className="w-full md:flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-h-[240px] max-h-[442px] overflow-hidden">
               <div className="flex items-center gap-2 mb-2">
-                <Target size={20} className="text-pastel-blue-dark" />
-                <h2 className="text-3xl leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
-                  My Tasks
-                </h2>
+                <Target size={18} className="text-pastel-yellow-dark" />
+                <h2 className="font-semibold text-gray-700">My Tasks</h2>
                 {myTaskTotal > myTasks.length && (
-                  <span className="ml-auto text-sm text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>
+                  <span className="ml-auto text-xs text-gray-400">
                     +{myTaskTotal - myTasks.length} more
                   </span>
                 )}
               </div>
               <div className="mt-1 relative flex-1">
                 {myTasks.length === 0 && (
-                  <div className="flex items-center h-[46px]" style={{ borderBottom: '1px solid rgba(59,130,246,0.45)' }}>
-                    <span className="text-2xl text-gray-400" style={{ fontFamily: "'Kalam', cursive" }}>Nothing assigned yet…</span>
+                  <div className="flex items-center h-[46px] border-b border-gray-100">
+                    <span className="text-sm text-gray-400">Nothing assigned yet</span>
                   </div>
                 )}
                 {myTasks.map((task, i) => {
@@ -505,30 +532,13 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                   return (
                   <Fragment key={task.id}>
                   <div
-                    className={`flex items-center gap-2.5 h-[46px] ${isOverdue ? 'border-l-2 border-red-400 -ml-2 pl-1.5' : ''}`}
-                    style={{ borderBottom: `1px solid ${i % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
+                    className={`flex items-center gap-2.5 h-[46px] border-b border-gray-100 ${isOverdue ? 'border-l-2 border-l-amber-800 -ml-2 pl-1.5' : ''}`}
                   >
-                    {/* Progress from the board column the task sits in. */}
-                    {(() => {
-                      const PCT = { todo: 0, '25': 25, '50': 50, '75': 75, done: 100, completed: 100 }
-                      const pct = PCT[task.status] ?? 0
-                      return (
-                        <span
-                          className="shrink-0 w-6 h-6 rounded-full grid place-items-center"
-                          title={`${pct}% done`}
-                          style={{
-                            background: `conic-gradient(#7EC8E3 ${pct * 3.6}deg, rgba(0,0,0,0.06) 0deg)`,
-                          }}
-                        >
-                          <span className="w-3.5 h-3.5 rounded-full bg-white grid place-items-center text-[8px] font-bold text-gray-500">
-                            {pct === 100 ? '✓' : ''}
-                          </span>
-                        </span>
-                      )
-                    })()}
+                    {/* The bullet. Progress is the number further along the
+                        row, so this doesn't need to show it twice. */}
+                    <Flower i={i} />
                     <span
-                      className={`flex-1 text-2xl truncate ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}
-                      style={{ fontFamily: "'Kalam', cursive" }}
+                      className={`flex-1 text-sm font-medium truncate ${isOverdue ? 'text-amber-900' : 'text-gray-700'}`}
                     >
                       {task.title}
                     </span>
@@ -537,8 +547,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                       const pct = PCT[task.status] ?? 0
                       return (
                         <span
-                          className={`shrink-0 text-base ${pct === 100 ? 'text-green-600' : 'text-gray-400'}`}
-                          style={{ fontFamily: "'Kalam', cursive" }}
+                          className={`shrink-0 text-xs font-semibold ${pct === 100 ? 'text-green-600' : 'text-gray-400'}`}
                         >
                           {pct}%
                         </span>
@@ -547,8 +556,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                     {/* Due date in the margin — red once it's past. */}
                     {dueDate && (
                       <span
-                        className={`shrink-0 text-base ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-400'}`}
-                        style={{ fontFamily: "'Kalam', cursive" }}
+                        className={`shrink-0 text-xs ${isOverdue ? 'text-amber-900 font-semibold' : 'text-gray-400'}`}
                         title={isOverdue ? 'Past due' : 'Due date'}
                       >
                         {dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -556,7 +564,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                     )}
                     <button
                       onClick={() => onOpenTask?.(task.board_id, task.id)}
-                      className="shrink-0 flex items-center gap-0.5 text-sm font-semibold text-pastel-blue-dark hover:underline"
+                      className="shrink-0 flex items-center gap-0.5 text-sm font-semibold text-pastel-yellow-dark hover:underline"
                     >
                       View <ArrowRight size={13} />
                     </button>
@@ -581,17 +589,12 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                   {Array.from({ length: Math.max(0, 7 - (myTasks.length === 0 ? 1 : myTasks.length * 2)) }).map((_, i) => {
                     const idx = myTasks.length + i + (myTasks.length === 0 ? 1 : 0)
                     return (
-                      <div
-                        key={`filler-${i}`}
-                        className="h-[46px]"
-                        style={{ borderBottom: `1px solid ${idx % 2 === 0 ? 'rgba(59,130,246,0.45)' : 'rgba(236,72,153,0.45)'}` }}
-                      />
+                      <div key={`filler-${i}`} className="h-[46px] border-b border-gray-100" />
                     )
                   })}
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
           {/* RIGHT column — the goals note. Wider than the countdowns were,
               since these are sentences rather than a number. */}
@@ -600,33 +603,27 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             {/* The season's goals, in place of the three countdowns. They are
                 what the team is actually measured against, so they earn the
                 space more than a ticking clock does. */}
-            <div
-              className="relative rounded-md shadow-[0_6px_18px_rgba(0,0,0,0.12)] rotate-1 flex flex-col min-h-0 max-h-[442px]"
-              style={{ background: 'linear-gradient(140deg, #dbeafe 0%, #fce7f3 55%, #ffedd5 100%)' }}
-            >
-              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white/50 border border-white/60 -rotate-3 rounded-[2px] z-10" />
-              <div className="flex items-center justify-center gap-1.5 pt-4 pb-2 px-4 shrink-0">
-                <Target size={15} className="text-pastel-pink-dark" />
-                <p className="text-lg leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>Our Goals</p>
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col min-h-0 max-h-[442px]">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2 shrink-0">
+                <Target size={18} className="text-pastel-orange-dark" />
+                <h2 className="font-semibold text-gray-700">Our Goals</h2>
               </div>
               <ol className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-2.5">
                 {SEASON_GOALS.map((g, i) => (
                   <li key={g.id} className="flex gap-2">
                     <span
-                      className="shrink-0 w-5 h-5 rounded-full bg-white/70 text-gray-600 text-[11px] font-bold flex items-center justify-center mt-0.5"
+                      className="shrink-0 w-5 h-5 rounded-full bg-pastel-yellow text-gray-700 text-[11px] font-bold flex items-center justify-center mt-0.5"
                     >
                       {i + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
-                        {g.label}
-                      </p>
+                      <p className="text-xs font-semibold text-gray-700">{g.label}</p>
                       <p className="text-[11px] text-gray-600 leading-snug mt-0.5">{markMeasures(g.text)}</p>
                     </div>
                   </li>
                 ))}
               </ol>
-            </div>
+            </section>
           </div>
         </div>
 
@@ -661,7 +658,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
               {compDayPreview.roles.map((r, i) => (
                 <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
                   <span className="text-sm text-gray-600">{r.blockName}</span>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-700">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-pastel-yellow/30 text-gray-700">
                     {r.emoji} {r.label}
                   </span>
                 </div>
@@ -669,7 +666,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             </div>
             <button
               onClick={() => onTabChange('comp-day')}
-              className="w-full mt-3 py-2 rounded-lg bg-pastel-pink/50 hover:bg-pastel-pink text-gray-700 text-sm font-medium transition-colors"
+              className="w-full mt-3 py-2 rounded-lg bg-pastel-orange/50 hover:bg-pastel-orange text-gray-700 text-sm font-medium transition-colors"
             >
               View Competition Day
             </button>
