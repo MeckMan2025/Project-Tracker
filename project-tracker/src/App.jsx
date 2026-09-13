@@ -416,7 +416,7 @@ function App() {
       'comms-announcements', 'content-studio', 'website-manager', 'marketing',
       'hw-design', 'hw-fabrication', 'hw-assembly', 'hw-electrical',
       'sw-design', 'sw-programming', 'sw-io', 'bug-tracker',
-      'testing', 'design-matrix', 'expense-requests', 'ai-manual',
+      'testing', 'design-matrix', 'expense-requests',
     )
   }
   const { addToast } = useToast()
@@ -1532,7 +1532,7 @@ function App() {
                 ['sw-programming', 'Programming'], ['sw-io', 'Robot I/O'],
                 ['bug-tracker', 'Bug Tracker'], ['testing', 'Testing'],
                 ['design-matrix', 'Decision Matrix'], ['expense-requests', 'Expense Requests'],
-                ['ai-manual', 'AI Manual'], ['scouting', 'Scouting Form'],
+                ['scouting', 'Scouting Form'],
                 ['schedule', 'Match Schedule'],
               ].map(([tab, label]) => (
                 <button
