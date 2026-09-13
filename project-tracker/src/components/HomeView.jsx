@@ -19,6 +19,22 @@ const STATUS_STYLES = {
 const SEASON_KICKOFF = new Date('2026-09-12T09:00:00')
 const FIRST_MEET = new Date('2026-10-19T09:00:00')
 
+// The numbers a goal is actually measured by — percentages, counts, ranges and
+// the month it's due — so the target can be found without reading the sentence
+// twice. Order matters: percentages before bare numbers, or 90% underlines as
+// just "90".
+const MEASURE_RE = /(\d+(?:\.\d+)?%|\b\d+\s*-\s*\d+\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b\.?(?:\s*\d{1,2})?|\b\d+\b)/
+
+function markMeasures(text) {
+  // split() with a capturing group leaves the matches at the odd indices, so
+  // there's no need to re-test each piece to know which ones matched.
+  return text.split(MEASURE_RE).map((part, i) =>
+    i % 2 === 1
+      ? <u key={i} className="font-bold text-gray-800 decoration-pastel-pink-dark decoration-2 underline-offset-2">{part}</u>
+      : part
+  )
+}
+
 function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   const { username, user, functionTags } = useUser()
   const { isGuest, hasLeadTag } = usePermissions()
@@ -602,7 +618,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                       <p className="text-sm leading-none text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
                         {g.label}
                       </p>
-                      <p className="text-[11px] text-gray-600 leading-snug mt-0.5">{g.text}</p>
+                      <p className="text-[11px] text-gray-600 leading-snug mt-0.5">{markMeasures(g.text)}</p>
                     </div>
                   </li>
                 ))}
