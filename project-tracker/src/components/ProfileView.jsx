@@ -551,7 +551,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               const counted = sessions.filter(sn => byId[sn.id])
               const pts = [...counted].reverse().map(sn => ({
                 date: sn.session_date,
-                pct: presencePct(sn.id, vp.display_name, byId[sn.id], partial, sn.session_date),
+                pct: presencePct(sn.id, shownName, byId[sn.id], partial, sn.session_date),
               }))
               const rate = pts.length ? Math.round(pts.reduce((a, b) => a + b.pct, 0) / pts.length) : 0
               const present = records.filter(r => r.status === 'present').length
