@@ -40,7 +40,6 @@ import AttendanceView from './components/AttendanceView'
 import InterestedTeams from './components/InterestedTeams'
 import TeamSurveyResponses from './components/TeamSurveyResponses'
 import WorkshopIdeas from './components/WorkshopIdeas'
-import CleanUpChart from './components/CleanUpChart'
 import DesignMatrix from './components/DesignMatrix'
 import ChangelogPopup from './components/ChangelogPopup'
 import BirthdayConfetti from './components/BirthdayConfetti'
@@ -1653,8 +1652,7 @@ function App() {
             <AttendanceManager onBack={closeSpecial} />
           ) : specialView === 'interested-teams' ? (
             <InterestedTeams onBack={() => setSpecialView(null)} canDelete={isCofounder} />
-          ) : specialView === 'cleanup' ? (
-            <CleanUpChart onBack={() => setSpecialView(null)} />
+
           ) : specialView === 'team-survey' ? (
             <TeamSurveyResponses onBack={() => setSpecialView(null)} />
           ) : specialView === 'design-matrix' ? (
@@ -1670,13 +1668,6 @@ function App() {
                 <div>
                   <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Main</h2>
                   <div className="grid gap-3">
-                    <button
-                      onClick={() => setSpecialView('cleanup')}
-                      className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all text-left"
-                    >
-                      <span className="text-lg font-semibold text-gray-700">Clean Up Chart</span>
-                      <p className="text-sm text-gray-400 mt-1">Cleanup job assignments & leaderboard</p>
-                    </button>
                     {import.meta.env.DEV && hasLeadTag && (
                       <div className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
                         <button onClick={() => setSpecialView('team-pulse')} className="text-left w-full hover:opacity-80 transition-opacity">

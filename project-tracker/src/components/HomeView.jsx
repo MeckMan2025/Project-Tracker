@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -441,16 +441,19 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
               { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
             { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
+            // A tab of its own rather than a Special Controls page, so this one
+            // switches tabs instead of opening a special view.
+            { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-blue', tint: 'bg-pastel-blue/20', text: 'text-pastel-blue-dark' },
           ]
           // All on one row, however many there are. They are shortcuts, so they
           // are kept short — a member sees only Submit a Quote and it fills the
           // row on its own.
           return (
             <div className="grid gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }}>
-              {tiles.map(({ view, label, icon: Icon, ring, tint, text }) => (
+              {tiles.map(({ view, tab, label, icon: Icon, ring, tint, text }) => (
                 <button
-                  key={view}
-                  onClick={() => onOpenSpecial?.(view)}
+                  key={view || tab}
+                  onClick={() => tab ? onTabChange?.(tab) : onOpenSpecial?.(view)}
                   title={label}
                   className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-1.5 rounded-xl border-2 ${ring} ${tint} bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all`}
                 >

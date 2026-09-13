@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction, Bot } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -505,20 +505,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               <hr className="my-2 border-gray-200" />
             </>
           )}
-
-          {/* AI Manual — FIRST's Competition Manual chatbot, in a tab. */}
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'ai-manual'
-                ? 'bg-pastel-pink text-gray-800'
-                : 'hover:bg-pastel-blue/30 text-gray-600'
-            }`}
-            onClick={() => { onTabChange('ai-manual'); onToggle() }}
-          >
-            <Bot size={16} className="text-pastel-blue-dark" />
-            <span className="truncate">AI Manual</span>
-          </div>
-          <hr className="my-2 border-gray-200" />
 
           {/* Boards Tab */}
           <div

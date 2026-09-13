@@ -339,11 +339,14 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   }, [profile, editName, editNickname, editUseNickname]) // eslint-disable-line
 
   const viewedName = viewedProfile?.display_name || ''
+  // Whoever this page is about — them, or you. The same work is loaded either
+  // way, so your own profile isn't the one place that can't show your tasks.
+  const shownName = isViewingOther ? viewedName : (profile?.display_name || username || '')
   useEffect(() => {
-    if (!isViewingOther || !viewedName) { setOtherWork({ sessions: [], records: [], tasks: [], entries: [], loading: false }); return }
+    if (!shownName) { setOtherWork({ sessions: [], records: [], tasks: [], entries: [], loading: false }); return }
     let active = true
     const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
-    const name = encodeURIComponent(viewedName)
+    const name = encodeURIComponent(shownName)
     setOtherWork(w => ({ ...w, loading: true }))
     Promise.all([
       fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
@@ -354,7 +357,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       if (active) setOtherWork({ sessions, records, tasks, entries, loading: false })
     }).catch(() => { if (active) setOtherWork(w => ({ ...w, loading: false })) })
     return () => { active = false }
-  }, [isViewingOther, viewedName]) // eslint-disable-line
+  }, [shownName]) // eslint-disable-line
 
   // Point this person's attendance history at their new name. Without it the
   // manager lists the old name (with its real status) alongside a fresh
@@ -536,6 +539,106 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     : 0
 
   // ── Read-only view for viewing someone else's profile ──
+  // Attendance, current tasks and notebook entries for whoever is being shown.
+  // Your own profile shows exactly what everyone else's does — there is no
+  // reason it should be the one page that tells you less about you.
+  const renderWork = (work) => {
+    const { sessions, records, entries, tasks, loading } = work
+              if (loading) return <p className="text-sm text-gray-400 text-center py-4">Loading their work…</p>
+              const byId = Object.fromEntries(records.map(r => [r.session_id, r.status]))
+              // Only meetings they were actually marked at. "No record" means
+              // never marked either way, so it isn't a zero against them.
+              const counted = sessions.filter(sn => byId[sn.id])
+              const pts = [...counted].reverse().map(sn => ({
+                date: sn.session_date,
+                pct: presencePct(sn.id, vp.display_name, byId[sn.id], partial, sn.session_date),
+              }))
+              const rate = pts.length ? Math.round(pts.reduce((a, b) => a + b.pct, 0) / pts.length) : 0
+              const present = records.filter(r => r.status === 'present').length
+              const openTasks = tasks.filter(t => t.status !== 'done')
+              return (
+                <>
+                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
+                    <h3 className="font-semibold text-gray-700">Attendance</h3>
+                    {sessions.length === 0 ? (
+                      <p className="text-sm text-gray-400">No meetings recorded yet.</p>
+                    ) : (
+                      <>
+                        <div className="flex items-end gap-4">
+                          <div className="text-3xl font-bold text-gray-800">{rate}%</div>
+                          <div className="text-xs text-gray-400 pb-1">{present} present / {counted.length} meetings</div>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                          <div className="h-2.5 rounded-full transition-all duration-500" style={{
+                            width: `${rate}%`,
+                            background: rate >= 80 ? '#86efac' : rate >= 50 ? '#fde68a' : '#fca5a5',
+                          }} />
+                        </div>
+                        <MiniTrend points={pts} />
+                        <div className="space-y-1.5 pt-1">
+                          {counted.map(sn => {
+                            const st = byId[sn.id]
+                            const cls = st === 'present' ? 'bg-green-100 text-green-700'
+                              : st === 'absent' ? 'bg-red-100 text-red-700'
+                              : st === 'excused' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'
+                            return (
+                              <div key={sn.id} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">
+                                  {new Date(sn.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                </span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{st}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </section>
+
+                  {/* ─── Current tasks ─── */}
+                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-2">
+                    <h3 className="font-semibold text-gray-700">
+                      Current tasks <span className="text-sm font-normal text-gray-400">({openTasks.length})</span>
+                    </h3>
+                    {openTasks.length === 0 ? (
+                      <p className="text-sm text-gray-400">Nothing assigned right now.</p>
+                    ) : openTasks.map(t => (
+                      <div key={t.id} className="border border-gray-100 rounded-lg p-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-800">{t.title || t.name || 'Untitled'}</p>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-600 shrink-0">{t.status}</span>
+                        </div>
+                        {t.due_date && <p className="text-xs text-gray-400 mt-0.5">Due {t.due_date}</p>}
+                      </div>
+                    ))}
+                  </section>
+
+                  {/* ─── Notebook ─── */}
+                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-2">
+                    <h3 className="font-semibold text-gray-700">
+                      Engineering notebook <span className="text-sm font-normal text-gray-400">({entries.length})</span>
+                    </h3>
+                    {entries.length === 0 ? (
+                      <p className="text-sm text-gray-400">No entries yet.</p>
+                    ) : entries.map(e => (
+                      <div key={e.id} className="border border-gray-100 rounded-lg p-2.5">
+                        <div className="flex items-center justify-between gap-2 text-xs text-gray-400">
+                          <span>{new Date(e.meeting_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-gray-100">{e.category}{e.category === 'Custom' && e.custom_category ? ` · ${e.custom_category}` : ''}</span>
+                        </div>
+                        <p className="text-sm text-gray-800 mt-1">{e.what_did}</p>
+                        {e.why_option && <p className="text-xs text-gray-400 mt-0.5">Why: {e.why_option === 'Other' ? e.why_note : e.why_option}</p>}
+                        {e.photo_url && <img src={e.photo_url} alt="" className="mt-2 rounded-lg max-h-40 object-cover" />}
+                        {e.project_link && (
+                          <a href={e.project_link} target="_blank" rel="noreferrer" className="text-xs text-pastel-blue-dark hover:underline break-all">{e.project_link}</a>
+                        )}
+                      </div>
+                    ))}
+                  </section>
+                </>
+              )
+  }
+
   if (isViewingOther) {
     const vp = viewedProfile
     if (viewedLoading || !vp) {
@@ -689,103 +792,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               </section>
             )}
 
-            {/* ─── Attendance ─── */}
-            {(() => {
-              const { sessions, records, entries, tasks, loading } = otherWork
-              if (loading) return <p className="text-sm text-gray-400 text-center py-4">Loading their work…</p>
-              const byId = Object.fromEntries(records.map(r => [r.session_id, r.status]))
-              // Only meetings they were actually marked at. "No record" means
-              // never marked either way, so it isn't a zero against them.
-              const counted = sessions.filter(sn => byId[sn.id])
-              const pts = [...counted].reverse().map(sn => ({
-                date: sn.session_date,
-                pct: presencePct(sn.id, vp.display_name, byId[sn.id], partial, sn.session_date),
-              }))
-              const rate = pts.length ? Math.round(pts.reduce((a, b) => a + b.pct, 0) / pts.length) : 0
-              const present = records.filter(r => r.status === 'present').length
-              const openTasks = tasks.filter(t => t.status !== 'done')
-              return (
-                <>
-                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
-                    <h3 className="font-semibold text-gray-700">Attendance</h3>
-                    {sessions.length === 0 ? (
-                      <p className="text-sm text-gray-400">No meetings recorded yet.</p>
-                    ) : (
-                      <>
-                        <div className="flex items-end gap-4">
-                          <div className="text-3xl font-bold text-gray-800">{rate}%</div>
-                          <div className="text-xs text-gray-400 pb-1">{present} present / {counted.length} meetings</div>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                          <div className="h-2.5 rounded-full transition-all duration-500" style={{
-                            width: `${rate}%`,
-                            background: rate >= 80 ? '#86efac' : rate >= 50 ? '#fde68a' : '#fca5a5',
-                          }} />
-                        </div>
-                        <MiniTrend points={pts} />
-                        <div className="space-y-1.5 pt-1">
-                          {counted.map(sn => {
-                            const st = byId[sn.id]
-                            const cls = st === 'present' ? 'bg-green-100 text-green-700'
-                              : st === 'absent' ? 'bg-red-100 text-red-700'
-                              : st === 'excused' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'
-                            return (
-                              <div key={sn.id} className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">
-                                  {new Date(sn.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                </span>
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{st}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </>
-                    )}
-                  </section>
-
-                  {/* ─── Current tasks ─── */}
-                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-2">
-                    <h3 className="font-semibold text-gray-700">
-                      Current tasks <span className="text-sm font-normal text-gray-400">({openTasks.length})</span>
-                    </h3>
-                    {openTasks.length === 0 ? (
-                      <p className="text-sm text-gray-400">Nothing assigned right now.</p>
-                    ) : openTasks.map(t => (
-                      <div key={t.id} className="border border-gray-100 rounded-lg p-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-gray-800">{t.title || t.name || 'Untitled'}</p>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-600 shrink-0">{t.status}</span>
-                        </div>
-                        {t.due_date && <p className="text-xs text-gray-400 mt-0.5">Due {t.due_date}</p>}
-                      </div>
-                    ))}
-                  </section>
-
-                  {/* ─── Notebook ─── */}
-                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-2">
-                    <h3 className="font-semibold text-gray-700">
-                      Engineering notebook <span className="text-sm font-normal text-gray-400">({entries.length})</span>
-                    </h3>
-                    {entries.length === 0 ? (
-                      <p className="text-sm text-gray-400">No entries yet.</p>
-                    ) : entries.map(e => (
-                      <div key={e.id} className="border border-gray-100 rounded-lg p-2.5">
-                        <div className="flex items-center justify-between gap-2 text-xs text-gray-400">
-                          <span>{new Date(e.meeting_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                          <span className="px-2 py-0.5 rounded-full bg-gray-100">{e.category}{e.category === 'Custom' && e.custom_category ? ` · ${e.custom_category}` : ''}</span>
-                        </div>
-                        <p className="text-sm text-gray-800 mt-1">{e.what_did}</p>
-                        {e.why_option && <p className="text-xs text-gray-400 mt-0.5">Why: {e.why_option === 'Other' ? e.why_note : e.why_option}</p>}
-                        {e.photo_url && <img src={e.photo_url} alt="" className="mt-2 rounded-lg max-h-40 object-cover" />}
-                        {e.project_link && (
-                          <a href={e.project_link} target="_blank" rel="noreferrer" className="text-xs text-pastel-blue-dark hover:underline break-all">{e.project_link}</a>
-                        )}
-                      </div>
-                    ))}
-                  </section>
-                </>
-              )
-            })()}
+            {renderWork(otherWork)}
 
           </div>
         </main>
@@ -969,6 +976,9 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
             )}
           </section>
 
+          {/* The same attendance, tasks and notebook summary anyone else's
+              profile shows — about you. */}
+          {renderWork(otherWork)}
 
         </div>
       </main>
