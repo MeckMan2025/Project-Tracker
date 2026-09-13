@@ -1,0 +1,86 @@
+Cleanup Duty chart — removed from the Home page on 2026-09-13.
+
+Kept here in full so it can be put back without digging through git history.
+Nothing else was touched: the cleanup_sessions / cleanup_assignments /
+cleanup_jobs tables are untouched, and the CleanUpChart page it mirrored is
+still in the app. This was only the read-only summary on Home.
+
+To restore, put these four pieces back into
+project-tracker/src/components/HomeView.jsx.
+
+================================================================
+1. Status styling — sat just above `function HomeView(...)`
+================================================================
+
+// Cleanup assignment status styling (mirrors CleanUpChart)
+const CLEANUP_STATUS = {
+  assigned: { label: 'Assigned', cls: 'bg-blue-100 text-blue-700' },
+  pending_confirmation: { label: 'Pending', cls: 'bg-yellow-100 text-yellow-700' },
+  confirmed: { label: 'Confirmed', cls: 'bg-green-100 text-green-700' },
+  denied: { label: 'Denied', cls: 'bg-red-100 text-red-700' },
+}
+
+================================================================
+2. State — with the other useState calls at the top of HomeView
+================================================================
+
+  const [cleanupRows, setCleanupRows] = useState([])
+
+================================================================
+3. Loader — an effect, after the "tasks assigned to me" one
+================================================================
+
+  // Load the latest cleanup session's assignments for the homepage chart
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sess, asg, jobs] = await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/cleanup_sessions?select=id&order=created_at.desc&limit=1`, { headers }).then(r => r.ok ? r.json() : []),
+          fetch(`${supabaseUrl}/rest/v1/cleanup_assignments?select=*`, { headers }).then(r => r.ok ? r.json() : []),
+          fetch(`${supabaseUrl}/rest/v1/cleanup_jobs?select=id,name`, { headers }).then(r => r.ok ? r.json() : []),
+        ])
+        const latestId = Array.isArray(sess) && sess[0] ? sess[0].id : null
+        const jobName = (id) => (Array.isArray(jobs) ? jobs.find(j => j.id === id)?.name : null) || 'Cleanup job'
+        const rows = latestId
+          ? (Array.isArray(asg) ? asg : [])
+              .filter(a => a.cleanup_session_id === latestId)
+              .map(a => ({ id: a.id, job: jobName(a.job_id), who: a.assigned_username, status: a.status }))
+          : []
+        setCleanupRows(rows)
+      } catch (err) {
+        console.error('Failed to load cleanup chart:', err)
+      }
+    })()
+  }, [])
+
+================================================================
+4. The section itself — sat between the sticky-note board and the
+   Comp Day banner. Needs the Trash2 icon from lucide-react.
+================================================================
+
+        {/* Cleanup Chart — current cleanup duty assignments */}
+        {cleanupRows.length > 0 && (
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 size={18} className="text-pastel-blue-dark" />
+              <h2 className="font-semibold text-gray-700">Cleanup Duty</h2>
+              <span className="text-xs text-gray-400">
+                · {cleanupRows.filter(r => r.status === 'confirmed').length}/{cleanupRows.length} done
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {cleanupRows.map(r => {
+                const s = CLEANUP_STATUS[r.status] || { label: r.status, cls: 'bg-gray-100 text-gray-500' }
+                return (
+                  <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{r.job}</p>
+                      <p className="text-xs text-gray-400 truncate">{r.who || 'Unassigned'}</p>
+                    </div>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${s.cls}`}>{s.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
