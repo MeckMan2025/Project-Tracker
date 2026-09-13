@@ -63,6 +63,7 @@ import TimelineView from './components/TimelineView'
 import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
+import AIManual from './components/AIManual'
 import ExpenseRequests from './components/ExpenseRequests'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
@@ -1591,7 +1592,7 @@ function App() {
       ) : activeTab === 'workshops' ? (
         <WorkshopIdeas />
       ) : activeTab === 'ai-manual' ? (
-        <WorkingOnIt title="AI Manual" />
+        <AIManual />
       ) : activeTab === 'org-chart' ? (
         <OrgChart onViewProfile={(profileId) => { setViewingProfileId(profileId); setActiveTab('profile') }} />
       ) : activeTab === 'suggestions' ? (

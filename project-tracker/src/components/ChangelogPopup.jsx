@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 164,
+    date: '2026-09-13',
+    items: [
+      '\u{1F916} The AI Manual tab works again. It is FIRST\u2019s own Competition Manual chatbot, in a tab here instead of a second window \u2014 ask it a rules question and it answers out of the current manual. There is an Open button if you would rather have it full screen, and a reset arrow to start the conversation over. The answers come from FIRST, so check the rule it quotes before taking it to a ref',
+      '\u{1F9D1}\u200D\u{1F3EB} A mentor is optional on a task now. It was required, so anyone making a quick task had to pick somebody arbitrary to get past the form \u2014 it defaults to \u201CNobody in particular\u201D and you fill it in when there really is someone to ask',
+    ],
+  },
+  {
     id: 163,
     date: '2026-09-11',
     items: [

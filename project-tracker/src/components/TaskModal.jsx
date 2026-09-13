@@ -35,15 +35,17 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
   })
   const [showErrors, setShowErrors] = useState(false)
 
-  // Every category is required to make a task.
+  // Everything but the mentor is required to make a task.
   const titleMissing = !formData.title.trim()
   const descriptionMissing = !formData.description.trim()
   // A task needs someone to own it: a person, or at least one side of the
   // team. Picking sides is the way to give it to more than one at once.
   const assigneeMissing = formData.assignees.length === 0 && formData.sides.length === 0
-  const mentorMissing = !formData.mentor
   const dueDateMissing = !formData.dueDate
-  const hasErrors = titleMissing || descriptionMissing || assigneeMissing || mentorMissing || dueDateMissing
+  // A mentor is optional: plenty of tasks are ordinary enough that there is
+  // nobody in particular to go to, and requiring one meant picking someone
+  // arbitrary just to get past the form.
+  const hasErrors = titleMissing || descriptionMissing || assigneeMissing || dueDateMissing
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -278,16 +280,14 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
             <div>
               {/* Who to go to when you're stuck on this task — mentors/coaches only. */}
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mentor <span className="text-xs font-normal text-gray-400">(who to ask for help)</span> *
+                Mentor <span className="text-xs font-normal text-gray-400">(who to ask for help — optional)</span>
               </label>
               <select
                 value={formData.mentor}
                 onChange={(e) => setFormData({ ...formData, mentor: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent ${
-                  showErrors && mentorMissing ? 'border-red-400' : ''
-                }`}
+                className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
               >
-                <option value="">Select a mentor…</option>
+                <option value="">Nobody in particular</option>
                 {mentorNames.map(n => <option key={n} value={n}>{n}</option>)}
                 {formData.mentor && !mentorNames.includes(formData.mentor) && (
                   <option value={formData.mentor}>{formData.mentor} (former)</option>
@@ -296,7 +296,7 @@ function TaskModal({ task, onSave, onClose, requestMode, isLead, isTeam, backToP
               {mentorNames.length === 0 && (
                 <p className="text-xs text-gray-400 mt-1">No mentors yet — add the Mentor or Coach role in User Management.</p>
               )}
-              {showErrors && mentorMissing && <p className="text-red-500 text-sm mt-1">Pick a mentor</p>}
+
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
