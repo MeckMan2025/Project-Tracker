@@ -491,18 +491,20 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             ] : []),
             { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
           ]
-          // Four tiles read better as two rows of two than a cramped row of four.
-          const cols = tiles.length === 4 ? 2 : Math.min(tiles.length, 3)
+          // All on one row, however many there are. They are shortcuts, so they
+          // are kept short — a member sees only Submit a Quote and it fills the
+          // row on its own.
           return (
-            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            <div className="grid gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }}>
               {tiles.map(({ view, label, icon: Icon, ring, tint, text }) => (
                 <button
                   key={view}
                   onClick={() => onOpenSpecial?.(view)}
-                  className={`flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 ${ring} ${tint} bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all`}
+                  title={label}
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-1.5 rounded-xl border-2 ${ring} ${tint} bg-white/70 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all`}
                 >
-                  <Icon size={22} className={text} />
-                  <span className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</span>
+                  <Icon size={18} className={`${text} shrink-0`} />
+                  <span className="text-[11px] sm:text-xs font-bold text-gray-700 text-center leading-tight">{label}</span>
                 </button>
               ))}
             </div>
