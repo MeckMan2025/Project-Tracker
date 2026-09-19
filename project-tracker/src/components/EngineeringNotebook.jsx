@@ -12,6 +12,31 @@ const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 // a data: URL, and both still render — the <img> only ever sees a src.
 const NOTEBOOK_PHOTO_BUCKET = 'notebook-photos'
 
+// Straight to the storage REST API with the anon key, like every other call in
+// here. supabase.storage.upload() first runs auth.getSession(), and when the
+// saved token has expired (a phone waking up) and the refresh stalls, that
+// never returns — the upload never even goes out, the spinner runs forever and
+// Submit stays disabled. The bucket policy lets anon insert, so no session is
+// needed. The timeout means a slow network lands in the inline fallback.
+const PHOTO_UPLOAD_TIMEOUT_MS = 20000
+async function uploadNotebookPhoto(supabaseUrl, supabaseKey, blob) {
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), PHOTO_UPLOAD_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${supabaseUrl}/storage/v1/object/${NOTEBOOK_PHOTO_BUCKET}/${path}`, {
+      method: 'POST',
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'image/jpeg', 'x-upsert': 'false' },
+      body: blob,
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`upload ${res.status}: ${await res.text().catch(() => '')}`)
+    return `${supabaseUrl}/storage/v1/object/public/${NOTEBOOK_PHOTO_BUCKET}/${path}`
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 // Local calendar date. toISOString() is UTC, so after ~7pm Central it rolls to
 // tomorrow — an evening entry would default to the wrong meeting date and slip
 // out of today's activity count.
@@ -1028,18 +1053,11 @@ export default function EngineeringNotebook() {
                                   ...prev, photoUrl: url, _uploading: false, _photoError: '',
                                 }))
                                 try {
-                                  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
-                                  const { error: upErr } = await supabase.storage
-                                    .from(NOTEBOOK_PHOTO_BUCKET)
-                                    .upload(path, blob, { contentType: 'image/jpeg', upsert: false })
-                                  if (upErr) throw upErr
-                                  const { data: pub } = supabase.storage
-                                    .from(NOTEBOOK_PHOTO_BUCKET).getPublicUrl(path)
-                                  if (!pub?.publicUrl) throw new Error('no public url')
-                                  done(pub.publicUrl)
+                                  done(await uploadNotebookPhoto(supabaseUrl, supabaseKey, blob))
                                 } catch (err) {
-                                  // Until the bucket exists the old inline route
-                                  // still works, so nobody is blocked on it.
+                                  // Bucket missing, upload refused, or timed out:
+                                  // the old inline route still works, so nobody
+                                  // is blocked on it.
                                   console.error('Photo upload failed, keeping it inline:', err.message)
                                   done(canvas.toDataURL('image/jpeg', 0.8))
                                 }

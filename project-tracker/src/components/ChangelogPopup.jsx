@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 165,
+    date: '2026-09-19',
+    items: [
+      '\u{1F4F7} Adding a photo to a notebook entry no longer spins forever. If the app had been sitting in the background, the photo waited on your sign-in to refresh first — and when that stalled, the photo never went up, the spinner never stopped and Submit stayed greyed out. Photos now go straight up without waiting on it, and if the connection is too slow they are kept with the entry instead, so you can always submit',
+    ],
+  },
+  {
     id: 164,
     date: '2026-09-13',
     items: [
