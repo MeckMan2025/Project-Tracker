@@ -1,0 +1,31 @@
+Leads strip — removed from the top of the Home page on 2026-09-20.
+
+A one-line bar above the week calendar, shown only to lead-tagged people,
+holding the TaskLoadButton (task coverage / what's due). Kept here whole so it
+can go back without digging through git history.
+
+TaskLoadButton.jsx itself is untouched and still in the app — this was only its
+placement on Home.
+
+To restore, put both pieces back into
+project-tracker/src/components/HomeView.jsx.
+
+================================================================
+1. The import — with the other component imports at the top
+================================================================
+
+import TaskLoadButton from './TaskLoadButton'
+
+================================================================
+2. The strip — it was the first thing inside <main>, above the
+   "Mini Week Calendar" block
+================================================================
+
+        {/* Lead strip: task coverage + what's due. First thing on Home so it
+            can't be missed. */}
+        {hasLeadTag && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-3 py-2 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">Leads</span>
+            <TaskLoadButton />
+          </div>
+        )}

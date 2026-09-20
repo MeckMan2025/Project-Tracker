@@ -375,7 +375,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
           {!isTeamAccount && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'data' || activeTab === 'attendance' || activeTab === 'role-spec'
+              activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'role-spec'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
@@ -393,12 +393,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
             {!isGuest && (
               <ChevronRight
                 size={14}
-                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'role-spec' ? 'rotate-90' : ''}`}
+                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'role-spec' ? 'rotate-90' : ''}`}
               />
             )}
           </div>
 
-          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'role-spec') && (
+          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'role-spec') && (
             <div className="ml-4 mt-1 space-y-1">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
@@ -423,6 +423,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
               >
                 <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
                 <span className="truncate">Attendance</span>
+              </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === 'engagement' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => { onTabChange('engagement'); onToggle() }}
+              >
+                <ChevronRight size={14} className={activeTab === 'engagement' ? 'rotate-90' : ''} />
+                <span className="truncate">Engagement</span>
               </div>
               {/* RoleSpec is local-only for now — import.meta.env.DEV is false
                   in a production build, so it isn't on the deployed site. */}

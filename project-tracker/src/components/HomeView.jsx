@@ -7,7 +7,6 @@ import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import NotebookGallery from './NotebookGallery'
-import TaskLoadButton from './TaskLoadButton'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -414,15 +413,6 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           backgroundAttachment: 'local',
         }}
       >
-        {/* Lead strip: task coverage + what's due. First thing on Home so it
-            can't be missed. */}
-        {hasLeadTag && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-3 py-2 flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">Leads</span>
-            <TaskLoadButton />
-          </div>
-        )}
-
         {/* Mini Week Calendar */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
           <div className="flex items-center justify-between mb-2">

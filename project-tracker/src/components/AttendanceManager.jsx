@@ -264,6 +264,38 @@ export default function AttendanceManager({ onBack }) {
     }
   }
 
+  // Meetings get logged on the wrong day — someone opens attendance the
+  // morning after, or a session is started early. The date is what every
+  // percentage and streak is counted against, so it has to be correctable.
+  const handleChangeDate = async (nextDate) => {
+    if (!nextDate || !selectedSession || nextDate === selectedSession.session_date) return
+    // Two sessions on one day would count everybody twice.
+    const clash = sessions.find(s => s.id !== selectedSession.id && s.session_date === nextDate)
+    if (clash) {
+      window.alert('There is already an attendance session on that date. Delete one of them first, or pick another day.')
+      return
+    }
+    const previous = selectedSession.session_date
+    const apply = (date) => {
+      setSessions(prev => prev
+        .map(s => s.id === selectedSession.id ? { ...s, session_date: date } : s)
+        .sort((a, b) => (a.session_date < b.session_date ? 1 : -1)))
+      setSelectedSession(prev => prev ? { ...prev, session_date: date } : prev)
+    }
+    apply(nextDate)
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/attendance_sessions?id=eq.${selectedSession.id}`, {
+        method: 'PATCH', headers: REST_JSON,
+        body: JSON.stringify({ session_date: nextDate }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (err) {
+      console.error('Failed to change the session date:', err)
+      apply(previous)
+      window.alert("Couldn't change the date. Check your connection and try again.")
+    }
+  }
+
   const handleDeleteSession = async (sessionId) => {
     if (!window.confirm('Delete this attendance session? This cannot be undone.')) return
     setSessions(prev => prev.filter(s => s.id !== sessionId))
@@ -469,10 +501,26 @@ export default function AttendanceManager({ onBack }) {
 
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-gray-800">
-                {new Date(selectedSession.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
-              </h2>
-              <p className="text-xs text-gray-400">Created by {selectedSession.created_by}</p>
+              {editing && hasLeadTag ? (
+                <>
+                  <input
+                    type="date"
+                    value={selectedSession.session_date}
+                    onChange={(e) => handleChangeDate(e.target.value)}
+                    className="text-lg font-bold text-gray-800 bg-white border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    The day this meeting counts as — attendance rates follow it.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold text-gray-800">
+                    {new Date(selectedSession.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </h2>
+                  <p className="text-xs text-gray-400">Created by {selectedSession.created_by}</p>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button
