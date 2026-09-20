@@ -21,15 +21,25 @@ const prettyDate = (d) =>
 
 export default function EngagementView() {
   const [entries, setEntries] = useState(null)
+  const [meetingDays, setMeetingDays] = useState(null)
   const [season, setSeason] = useState(ACTIVE_SEASON)
+  // Entries get written on days that weren't meetings, and one person logging
+  // on a Sunday becomes a whole data point. Attendance sessions are the record
+  // of what was actually a meeting, so that's the default.
+  const [meetingsOnly, setMeetingsOnly] = useState(true)
 
   useEffect(() => {
     let live = true
-    fetch(`${REST_URL}/rest/v1/notebook_entries?select=meeting_date,engagement,username,season&order=meeting_date`,
-      { headers })
-      .then(r => (r.ok ? r.json() : []))
-      .then(rows => { if (live) setEntries(Array.isArray(rows) ? rows : []) })
-      .catch(() => { if (live) setEntries([]) })
+    Promise.all([
+      fetch(`${REST_URL}/rest/v1/notebook_entries?select=meeting_date,engagement,username,season&order=meeting_date`,
+        { headers }).then(r => (r.ok ? r.json() : [])),
+      fetch(`${REST_URL}/rest/v1/attendance_sessions?select=session_date`,
+        { headers }).then(r => (r.ok ? r.json() : [])),
+    ]).then(([rows, sessions]) => {
+      if (!live) return
+      setEntries(Array.isArray(rows) ? rows : [])
+      setMeetingDays(new Set((Array.isArray(sessions) ? sessions : []).map(s => s.session_date)))
+    }).catch(() => { if (live) { setEntries([]); setMeetingDays(new Set()) } })
     return () => { live = false }
   }, [])
 
@@ -47,6 +57,7 @@ export default function EngagementView() {
     entries
       .filter(e => e.meeting_date && SCORE[e.engagement] !== undefined)
       .filter(e => season === 'all' || e.season === season)
+      .filter(e => !meetingsOnly || meetingDays.has(e.meeting_date))
       .forEach(e => {
         const d = (byDate[e.meeting_date] ||= { date: e.meeting_date, total: 0, n: 0, Very: 0, Somewhat: 0, Not: 0 })
         d.total += SCORE[e.engagement]
@@ -56,12 +67,15 @@ export default function EngagementView() {
     return Object.values(byDate)
       .map(d => ({ ...d, avg: Math.round(d.total / d.n) }))
       .sort((a, b) => (a.date < b.date ? -1 : 1))
-  }, [entries, season])
+  }, [entries, season, meetingsOnly, meetingDays])
 
   const stats = useMemo(() => {
     if (meetings.length === 0) return null
     const all = meetings.reduce((a, m) => a + m.total, 0) / meetings.reduce((a, m) => a + m.n, 0)
-    const people = new Set(entries.filter(e => season === 'all' || e.season === season).map(e => e.username))
+    const people = new Set(entries
+      .filter(e => season === 'all' || e.season === season)
+      .filter(e => !meetingsOnly || meetingDays.has(e.meeting_date))
+      .map(e => e.username))
     // Last three against the three before, so "trending" means something more
     // than one good meeting.
     const recent = meetings.slice(-3)
@@ -73,9 +87,19 @@ export default function EngagementView() {
       people: people.size,
       trend: prior.length ? Math.round(mean(recent) - mean(prior)) : null,
     }
-  }, [meetings, entries, season])
+  }, [meetings, entries, season, meetingsOnly, meetingDays])
 
-  if (entries === null) {
+  // How many days the filter is hiding, so it's visible rather than silent.
+  const hiddenDays = useMemo(() => {
+    if (!entries || !meetingDays || !meetingsOnly) return 0
+    const all = new Set(entries
+      .filter(e => e.meeting_date && SCORE[e.engagement] !== undefined)
+      .filter(e => season === 'all' || e.season === season)
+      .map(e => e.meeting_date))
+    return [...all].filter(d => !meetingDays.has(d)).length
+  }, [entries, meetingDays, meetingsOnly, season])
+
+  if (entries === null || meetingDays === null) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <p className="text-gray-400 animate-pulse">Loading engagement…</p>
@@ -114,6 +138,23 @@ export default function EngagementView() {
             ))}
           </div>
         )}
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setMeetingsOnly(v => !v)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              meetingsOnly ? 'bg-pastel-blue text-gray-800' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-100'
+            }`}
+          >
+            {meetingsOnly ? '✓ Meeting days only' : 'Meeting days only'}
+          </button>
+          {meetingsOnly && hiddenDays > 0 && (
+            <span className="text-[11px] text-gray-400">
+              {hiddenDays} {hiddenDays === 1 ? 'day is' : 'days are'} hidden — entries written on a day with no
+              attendance session
+            </span>
+          )}
+        </div>
 
         {meetings.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
