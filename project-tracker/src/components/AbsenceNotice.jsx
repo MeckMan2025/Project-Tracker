@@ -14,14 +14,13 @@ const NOTICE_HOURS = 24
 // and the team's meetings start at four.
 const DEFAULT_START = '16:00'
 
-// Three things someone might be telling us. Missing the whole meeting is the
-// one the 24-hour rule really bites on; the other two are about how much of it
-// they'll miss, which attendance already tracks as lateMin and earlyMin.
-const KINDS = [
-  { key: 'out',   label: "Out for the whole meeting", verb: 'be out' },
-  { key: 'late',  label: 'Arriving late',             verb: 'arrive late' },
-  { key: 'early', label: 'Leaving early',             verb: 'leave early' },
-]
+const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+const pretty = (t) => {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${ampm}`
+}
 
 const genId = () => String(Date.now()) + Math.random().toString(36).slice(2, 8)
 
@@ -44,8 +43,11 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const [events, setEvents] = useState([])
   const [mine, setMine] = useState([])
   const [date, setDate] = useState(localDay(2))
-  const [kind, setKind] = useState('out')
-  const [atTime, setAtTime] = useState('')
+  // Either they're not coming at all, or they're telling us the window they
+  // will be there for. Two times, said the way people say it.
+  const [outAll, setOutAll] = useState(false)
+  const [arriveAt, setArriveAt] = useState('')
+  const [leaveAt, setLeaveAt] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(null)
@@ -83,22 +85,33 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
     () => (target.at - new Date()) / 3600000,
     [target, date]) // eslint-disable-line
 
-  // What they picked on the clock, turned into the figure attendance keeps:
-  // minutes late is measured from the start, minutes early from the end, and
-  // the meeting's length is the same default the attendance screen uses.
-  const missed = useMemo(() => {
-    if (kind === 'out' || !atTime) return null
-    const [h, m] = atTime.split(':').map(Number)
-    if (Number.isNaN(h)) return null
-    const chosen = new Date(`${date}T00:00:00`)
-    chosen.setHours(h, m || 0, 0, 0)
+  // The meeting's own window, which the two boxes default to and are measured
+  // against. Same length the attendance screen uses.
+  const meeting = useMemo(() => {
     const start = target.at
-    const end = new Date(start.getTime() + defaultDurationForDate(date) * 60000)
-    const mins = kind === 'late'
-      ? Math.round((chosen - start) / 60000)
-      : Math.round((end - chosen) / 60000)
-    return { mins: Math.max(0, mins), end, before: chosen < start, after: chosen > end }
-  }, [kind, atTime, date, target])
+    const mins = defaultDurationForDate(date)
+    return { start, end: new Date(start.getTime() + mins * 60000), mins }
+  }, [target, date])
+
+  // Start people at the meeting's own hours, so they only change the end they
+  // need to — and an untouched box never silently claims missed time.
+  useEffect(() => {
+    setArriveAt(hhmm(meeting.start))
+    setLeaveAt(hhmm(meeting.end))
+  }, [meeting.start, meeting.end])
+
+  // The window turned into what attendance records: minutes late off the
+  // start, minutes early off the end.
+  const window_ = useMemo(() => {
+    if (outAll || !arriveAt || !leaveAt) return null
+    const at = (t) => { const [h, m] = t.split(':').map(Number); const d = new Date(date + 'T00:00:00'); d.setHours(h, m || 0, 0, 0); return d }
+    const a = at(arriveAt), l = at(leaveAt)
+    const late = Math.max(0, Math.round((a - meeting.start) / 60000))
+    const early = Math.max(0, Math.round((meeting.end - l) / 60000))
+    const there = Math.max(0, Math.round((l - a) / 60000))
+    return { a, l, late, early, there, backwards: l <= a,
+             pct: Math.max(0, Math.min(100, Math.round((there / meeting.mins) * 100))) }
+  }, [outAll, arriveAt, leaveAt, date, meeting])
   const inTime = hoursAhead >= NOTICE_HOURS
   const past = hoursAhead <= 0
 
@@ -108,9 +121,10 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
     // and they'd have to come and ask — which is the thing this is meant to
     // save. Checked in order, so the message points at the first gap.
     if (!date) { setError('Pick the day you\'ll miss.'); return }
-    if (!kind) { setError("Say whether you're out, arriving late or leaving early."); return }
-    if (kind !== 'out' && !atTime) {
-      setError(kind === 'late' ? "Pick the time you'll get there." : "Pick the time you'll leave.")
+    if (!outAll && (!arriveAt || !leaveAt)) { setError('Put in both times.'); return }
+    if (!outAll && window_?.backwards) { setError("You'd be leaving before you arrive — check the times."); return }
+    if (!outAll && window_ && window_.late === 0 && window_.early === 0) {
+      setError("Those are the meeting's own hours, so there's nothing to report. Tick \u201cI won't be there at all\u201d if you're missing it.")
       return
     }
     if (!reason.trim()) { setError('Say why, even briefly — a lead has to make a call on it.'); return }
@@ -123,9 +137,11 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
       event_id: target.ev?.id || null,
       event_name: target.ev?.name || null,
       reason: reason.trim(),
-      kind,
-      at_time: kind === 'out' ? null : (atTime || null),
-      minutes: missed ? missed.mins : null,
+      kind: outAll ? 'out' : 'partial',
+      arrive_at: outAll ? null : arriveAt,
+      leave_at: outAll ? null : leaveAt,
+      late_min: outAll ? null : (window_ ? window_.late : null),
+      early_min: outAll ? null : (window_ ? window_.early : null),
       hours_before: Math.round(hoursAhead * 10) / 10,
       on_time: inTime,
     }
@@ -138,8 +154,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
         body: JSON.stringify(row),
       })
       if (!res.ok) throw new Error(await res.text())
-      setDone({ date, inTime, kind })
-      setReason(''); setAtTime('')
+      setDone({ date, inTime, outAll })
+      setReason('')
       loadMine()
     } catch (err) {
       console.error('Failed to file the notice:', err)
@@ -186,7 +202,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
               <p className={`text-xs ${done.inTime ? 'text-green-700' : 'text-red-700'}`}>
                 {done.inTime
                   ? `Your leads will see this before ${prettyDay(done.date)}.`
-                  : done.kind === 'out'
+                  : done.outAll
                     ? `This is under ${NOTICE_HOURS} hours before the meeting, so it counts absent. Your leads will still see the reason.`
                     : `This is under ${NOTICE_HOURS} hours before the meeting, so the time you miss won't be excused. Your leads will still see the reason.`}
               </p>
@@ -199,44 +215,49 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">What's happening?</label>
-                <div className="flex flex-wrap gap-2">
-                  {KINDS.map(k => (
-                    <button key={k.key} onClick={() => setKind(k.key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                        kind === k.key ? 'bg-pastel-blue text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}>
-                      {k.label}
-                    </button>
-                  ))}
-                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={outAll}
+                    onChange={(e) => setOutAll(e.target.checked)}
+                    className="accent-pastel-blue-dark" />
+                  <span className="text-sm text-gray-700">I won't be there at all</span>
+                </label>
               </div>
 
-              {kind !== 'out' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                    {kind === 'late' ? "What time will you get there?" : "What time will you leave?"}
-                  </label>
-                  <input type="time" value={atTime} step="300"
-                    onChange={(e) => setAtTime(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
-                  {/* The minutes are worked out from the clock time rather than
-                      asked for — nobody knows offhand that 4:45 is 45 minutes
-                      late, and attendance wants the minutes. */}
-                  {missed && (
-                    <p className="text-[11px] text-gray-500 mt-1">
-                      {missed.mins === 0
-                        ? (kind === 'late' ? "That's the start — you won't miss any." : "That's the end — you won't miss any.")
-                        : <>That's <b>{missed.mins} minutes</b> missed, {kind === 'late'
-                            ? `from the ${target.time} start`
-                            : `before it ends at ${missed.end.toTimeString().slice(0, 5)}`}.</>}
-                      {kind === 'late' && missed.before && " You'd be there before it starts, so nothing missed."}
-                      {kind === 'early' && missed.after && " That's after it ends, so nothing missed."}
-                    </p>
+              {!outAll && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">I'll arrive at</label>
+                    <input type="time" value={arriveAt} step="300"
+                      onChange={(e) => setArriveAt(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">and leave at</label>
+                    <input type="time" value={leaveAt} step="300"
+                      onChange={(e) => setLeaveAt(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                  </div>
+                </div>
+              )}
+
+              {/* What those two times mean for attendance, worked out as they
+                  type — the minutes are what gets recorded, and nobody should
+                  have to do that arithmetic in their head. */}
+              {!outAll && window_ && (
+                <div className={`rounded-lg px-3 py-2 text-xs ${
+                  window_.backwards ? 'bg-red-50 text-red-800' : 'bg-gray-50 text-gray-600'}`}>
+                  {window_.backwards ? (
+                    "That's leaving before you arrive — check the times."
+                  ) : window_.late === 0 && window_.early === 0 ? (
+                    <>That's the whole meeting ({pretty(hhmm(meeting.start))} – {pretty(hhmm(meeting.end))}), so there's nothing to report.</>
+                  ) : (
+                    <>
+                      There for <b>{Math.floor(window_.there / 60)}h {window_.there % 60}m</b> of{' '}
+                      {Math.floor(meeting.mins / 60)}h — <b>{window_.pct}%</b> of the meeting.
+                      {window_.late > 0 && <> {window_.late} min late.</>}
+                      {window_.early > 0 && <> Leaving {window_.early} min early.</>}
+                    </>
                   )}
-                  <p className="text-[11px] text-gray-400 mt-0.5">
-                    A lead records the real figure on the day.
-                  </p>
                 </div>
               )}
 
@@ -264,7 +285,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                     <p className="text-xs opacity-80 mt-0.5">
                       {inTime
                         ? `That's over ${NOTICE_HOURS} hours, so it counts.`
-                        : kind === 'out'
+                        : outAll
                           ? `That's under ${NOTICE_HOURS} hours, so this would count absent.`
                           : `That's under ${NOTICE_HOURS} hours, so the time missed won't be excused.`}
                     </p>
@@ -286,7 +307,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
               {error && <p className="text-xs text-red-500">{error}</p>}
 
               <button onClick={submit}
-                disabled={saving || past || !date || !reason.trim() || (kind !== 'out' && !atTime)}
+                disabled={saving || past || !date || !reason.trim() || (!outAll && (!arriveAt || !leaveAt))}
                 className="w-full py-2.5 rounded-xl bg-pastel-blue hover:bg-pastel-blue-dark disabled:opacity-40 text-sm font-semibold transition-colors">
                 {saving ? 'Sending…' : past ? 'That day has passed' : "Let them know"}
               </button>
@@ -309,8 +330,10 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                           { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
                       <p className="text-gray-500">
-                        {n.kind === 'late' ? `arriving ${n.at_time || 'late'}${n.minutes ? ` · ${n.minutes} min late` : ''}`
-                          : n.kind === 'early' ? `leaving ${n.at_time || 'early'}${n.minutes ? ` · ${n.minutes} min early` : ''}`
+                        {n.kind === 'partial'
+                          ? `${pretty(n.arrive_at)} – ${pretty(n.leave_at)}`
+                            + (n.late_min ? ` · ${n.late_min} min late` : '')
+                            + (n.early_min ? ` · left ${n.early_min} min early` : '')
                           : 'out for the meeting'}
                       </p>
                       <p className="text-gray-400 break-words">{n.reason}</p>

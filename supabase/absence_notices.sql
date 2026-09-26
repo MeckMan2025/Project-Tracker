@@ -35,19 +35,19 @@ create index if not exists absence_notices_user_idx    on absence_notices (usern
 create unique index if not exists absence_notices_one_each
   on absence_notices (username, meeting_date);
 
--- ── Arriving late / leaving early ───────────────────────────────────────────
--- Added after the fact. Run this part too if the table already exists.
+-- ── When you'll actually be there ───────────────────────────────────────────
+-- Added after the table. Run this part too.
 --
--- kind: 'out' for the whole meeting, 'late' for arriving after the start,
--- 'early' for leaving before the end. minutes is how long, for the last two —
--- attendance already tracks lateMin and earlyMin per person, so a lead has
--- somewhere to put it.
+-- People say it as times — "I'll get there at 5 and leave at 7" — not as
+-- minutes missed. So that is what's stored, and the minutes are worked out
+-- from the meeting's own start and length, because minutes is what attendance
+-- records as lateMin and earlyMin.
+--
+-- kind is 'out' for the whole meeting, or 'partial' when they'll be there for
+-- some of it. arrive_at / leave_at are HH:MM and only apply to 'partial'.
 
-alter table absence_notices add column if not exists kind    text    not null default 'out';
-alter table absence_notices add column if not exists minutes integer;
-
--- People think in clock times, not in minutes missed: "I get there at 4:45",
--- not "I'll be 45 minutes late". at_time is what they picked; minutes is still
--- filled in, worked out against the meeting's start and length, because that is
--- what attendance actually records.
-alter table absence_notices add column if not exists at_time text;
+alter table absence_notices add column if not exists kind      text not null default 'out';
+alter table absence_notices add column if not exists arrive_at text;
+alter table absence_notices add column if not exists leave_at  text;
+alter table absence_notices add column if not exists late_min  integer;
+alter table absence_notices add column if not exists early_min integer;

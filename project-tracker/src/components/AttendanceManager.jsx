@@ -586,8 +586,10 @@ export default function AttendanceManager({ onBack }) {
                       {/* Which kind, so it's obvious at a glance whether this
                           is a whole meeting or a chunk of one. */}
                       <p className="text-gray-500">
-                        {n.kind === 'late' ? `arriving ${n.at_time || 'late'}${n.minutes ? ` · ${n.minutes} min late` : ''}`
-                          : n.kind === 'early' ? `leaving ${n.at_time || 'early'}${n.minutes ? ` · ${n.minutes} min early` : ''}`
+                        {n.kind === 'partial'
+                          ? `there ${n.arrive_at || '?'} – ${n.leave_at || '?'}`
+                            + (n.late_min ? ` · ${n.late_min} min late` : '')
+                            + (n.early_min ? ` · left ${n.early_min} min early` : '')
                           : 'out for the meeting'}
                       </p>
                       <p className="text-gray-400 break-words">{n.reason}</p>
