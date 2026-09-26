@@ -45,3 +45,9 @@ create unique index if not exists absence_notices_one_each
 
 alter table absence_notices add column if not exists kind    text    not null default 'out';
 alter table absence_notices add column if not exists minutes integer;
+
+-- People think in clock times, not in minutes missed: "I get there at 4:45",
+-- not "I'll be 45 minutes late". at_time is what they picked; minutes is still
+-- filled in, worked out against the meeting's start and length, because that is
+-- what attendance actually records.
+alter table absence_notices add column if not exists at_time text;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
+import { defaultDurationForDate } from '../lib/attendancePartial'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -44,7 +45,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const [mine, setMine] = useState([])
   const [date, setDate] = useState(localDay(2))
   const [kind, setKind] = useState('out')
-  const [minutes, setMinutes] = useState('')
+  const [atTime, setAtTime] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(null)
@@ -81,6 +82,23 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const hoursAhead = useMemo(
     () => (target.at - new Date()) / 3600000,
     [target, date]) // eslint-disable-line
+
+  // What they picked on the clock, turned into the figure attendance keeps:
+  // minutes late is measured from the start, minutes early from the end, and
+  // the meeting's length is the same default the attendance screen uses.
+  const missed = useMemo(() => {
+    if (kind === 'out' || !atTime) return null
+    const [h, m] = atTime.split(':').map(Number)
+    if (Number.isNaN(h)) return null
+    const chosen = new Date(`${date}T00:00:00`)
+    chosen.setHours(h, m || 0, 0, 0)
+    const start = target.at
+    const end = new Date(start.getTime() + defaultDurationForDate(date) * 60000)
+    const mins = kind === 'late'
+      ? Math.round((chosen - start) / 60000)
+      : Math.round((end - chosen) / 60000)
+    return { mins: Math.max(0, mins), end, before: chosen < start, after: chosen > end }
+  }, [kind, atTime, date, target])
   const inTime = hoursAhead >= NOTICE_HOURS
   const past = hoursAhead <= 0
 
@@ -97,7 +115,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
       event_name: target.ev?.name || null,
       reason: reason.trim(),
       kind,
-      minutes: kind === 'out' ? null : (Number(minutes) || null),
+      at_time: kind === 'out' ? null : (atTime || null),
+      minutes: missed ? missed.mins : null,
       hours_before: Math.round(hoursAhead * 10) / 10,
       on_time: inTime,
     }
@@ -111,7 +130,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
       })
       if (!res.ok) throw new Error(await res.text())
       setDone({ date, inTime, kind })
-      setReason(''); setMinutes('')
+      setReason(''); setAtTime('')
       loadMine()
     } catch (err) {
       console.error('Failed to file the notice:', err)
@@ -187,14 +206,27 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
               {kind !== 'out' && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">
-                    Roughly how many minutes will you miss?
+                    {kind === 'late' ? "What time will you get there?" : "What time will you leave?"}
                   </label>
-                  <input type="number" min="0" step="5" value={minutes}
-                    onChange={(e) => setMinutes(e.target.value)}
-                    placeholder={kind === 'late' ? 'e.g. 30 minutes late' : 'e.g. leaving 45 minutes early'}
+                  <input type="time" value={atTime} step="300"
+                    onChange={(e) => setAtTime(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    A guess is fine — a lead records the real figure on the day.
+                  {/* The minutes are worked out from the clock time rather than
+                      asked for — nobody knows offhand that 4:45 is 45 minutes
+                      late, and attendance wants the minutes. */}
+                  {missed && (
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {missed.mins === 0
+                        ? (kind === 'late' ? "That's the start — you won't miss any." : "That's the end — you won't miss any.")
+                        : <>That's <b>{missed.mins} minutes</b> missed, {kind === 'late'
+                            ? `from the ${target.time} start`
+                            : `before it ends at ${missed.end.toTimeString().slice(0, 5)}`}.</>}
+                      {kind === 'late' && missed.before && " You'd be there before it starts, so nothing missed."}
+                      {kind === 'early' && missed.after && " That's after it ends, so nothing missed."}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    A lead records the real figure on the day.
                   </p>
                 </div>
               )}
@@ -267,8 +299,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                           { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
                       <p className="text-gray-500">
-                        {n.kind === 'late' ? `arriving late${n.minutes ? ` · ${n.minutes} min` : ''}`
-                          : n.kind === 'early' ? `leaving early${n.minutes ? ` · ${n.minutes} min` : ''}`
+                        {n.kind === 'late' ? `arriving ${n.at_time || 'late'}${n.minutes ? ` · ${n.minutes} min late` : ''}`
+                          : n.kind === 'early' ? `leaving ${n.at_time || 'early'}${n.minutes ? ` · ${n.minutes} min early` : ''}`
                           : 'out for the meeting'}
                       </p>
                       <p className="text-gray-400 break-words">{n.reason}</p>
