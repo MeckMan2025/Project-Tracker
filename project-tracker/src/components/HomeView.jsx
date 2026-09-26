@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3, Quote } from 'lucide-react'
+import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3, Quote } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -471,6 +471,11 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             // A tab of its own rather than a Special Controls page, so this one
             // switches tabs instead of opening a special view.
             { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
+            // Not for guests — the notebook is teammate-only, and a tile that
+            // lands on "access restricted" is worse than no tile.
+            ...(isGuest ? [] : [
+              { tab: 'notebook', label: 'Engineering Notebook', icon: BookOpen, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
+            ]),
           ]
           // All on one row, however many there are. They are shortcuts, so they
           // are kept short — a member sees only Submit a Quote and it fills the
