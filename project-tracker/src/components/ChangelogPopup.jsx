@@ -5,6 +5,21 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 166,
+    date: '2026-09-26',
+    items: [
+      '\u{1F4C5} You can tell us ahead of a meeting that you\u2019ll miss some of it. It\u2019s on the Attendance page, folded away until you need it: say the day, whether you\u2019re out altogether or when you\u2019ll arrive and leave, and why. It works out what that means \u2014 \u201cthere for 2h of 4h, 60 minutes late\u201d \u2014 and tells you before you send it whether you beat the 24 hours. Under 24 and missing the whole meeting counts absent; under 24 and missing part of it means that time isn\u2019t excused. Filing again for the same day corrects the first one rather than adding a second',
+      '\u{1F440} Leads see who said they\u2019d be out when they take attendance, in time or late, with the reason. Nothing is marked from it \u2014 excusing is still a decision someone makes, and there\u2019s now a one-tap excuse button on any absence instead of having to cycle a record through \u201cpresent\u201d to get there. Leads can also correct a notice: the times, the reason, or remove it',
+      '\u{1F4DD} An absence carries why it happened. It shows on your profile beside each meeting, where your attendance is read end to end \u2014 not buried in a session list. If you filed a notice that reason is used; if you didn\u2019t, a lead can write down what they were told',
+      '\u{1F4CA} Engagement has a page of its own under Data. The notebook has always asked how engaged you felt and nothing ever read the answers back \u2014 now it plots them across the season, meeting by meeting, with the split of answers rather than just an average. And engagement no longer fills itself in as \u201cSomewhat\u201d: it has to be picked, and there\u2019s a box to say why you felt that way, which is the half anyone can act on',
+      '\u{1F4D3} Nobody is chased for a notebook entry on a meeting they were excused from \u2014 being excused is the point of asking ahead. And you can\u2019t write one up for a day a lead marked you absent: an entry is what shows you were there, so it can\u2019t be used to claim a meeting you missed. Days the notebook rule marked you absent are still open, since writing that entry is exactly how you win one back',
+      '\u{1F550} Saturday meetings start at 9. Everything that assumes a start time now agrees on it, so the minutes-late maths lines up',
+      '\u{1F5D3}\uFE0F A lead can change the date of an attendance session \u2014 meetings get logged on the wrong day, and the date is what every percentage counts against. Starting a second session on a day that already has one asks which day it\u2019s for instead of quietly opening the first, because two on one day counts everybody twice',
+      '\u{1F4CB} Submit a Quote works for everyone again. Holding a role \u2014 CAD, Programming, Outreach \u2014 was locking you out of it, because it opened through a leads-only page',
+      '\u{1F5C2}\uFE0F Boards are renamed and removed from the board itself, not from a bin on every row of the sidebar where it was easy to hit by accident. Leads and mentors only, and deleting one now says how many tasks go with it',
+    ],
+  },
+  {
     id: 165,
     date: '2026-09-19',
     items: [

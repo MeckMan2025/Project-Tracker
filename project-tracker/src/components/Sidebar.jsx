@@ -5,7 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
 import { notifyRequestReviewers } from '../utils/requestRouting'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
   const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
   const { addToast } = useToast()
@@ -556,20 +556,6 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, onDeleteTab, isOpen, 
                   />
                   <span className="truncate">{tab.name}</span>
                 </div>
-                {!tab.permanent && canEditContent && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      if (confirm(`Delete "${tab.name}" board?`)) {
-                        onDeleteTab(tab.id)
-                      }
-                    }}
-                    className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
               </div>
             ))}
 

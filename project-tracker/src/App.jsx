@@ -242,6 +242,12 @@ const DEFAULT_BOARDS = [
   { id: 'programming', name: 'Programming', permanent: true },
 ]
 
+// Special Controls is a lead page, but a few things reached through it are for
+// everybody. canViewSpecialControls is false for anyone holding a role — CAD,
+// Programming, Outreach — so routing these through the tab locked them out of
+// their own features. The tab check is skipped when one of these is open.
+const OPEN_SPECIAL_VIEWS = ['quotes', 'absence']
+
 const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, USER_MGMT_TAB, SPECIAL_TAB]
 
 const mapTask = (t) => ({
@@ -856,6 +862,22 @@ function App() {
     else setSpecialView(null)
   }
 
+  // Renaming a board. The id never changes, so every task on it stays put.
+  const handleRenameTab = async (tabId, name) => {
+    const clean = (name || '').trim()
+    if (!clean || !canEditContent) return
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, name: clean } : t))
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/boards?id=eq.${tabId}`, {
+        method: 'PATCH', headers: REST_JSON, body: JSON.stringify({ name: clean }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (err) {
+      console.error('Failed to rename the board:', err)
+      addToast('Failed to rename the board.', 'error')
+    }
+  }
+
   const handleAddTab = async (name) => {
     const newId = String(Date.now()) + Math.random().toString(36).slice(2)
     // Update UI immediately (optimistic)
@@ -884,7 +906,15 @@ function App() {
   const handleDeleteTab = async (tabId) => {
     if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'comp-day' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
     const board = tabs.find(t => t.id === tabId)
-    if (board?.permanent) return
+    const count = (tasksByTab[tabId] || []).length
+    // Default boards come back empty on the next load — the app re-seeds them —
+    // so deleting one really means clearing it. Say that, rather than letting
+    // someone discover it.
+    const warning = board?.permanent
+      ? `"${board.name}" is one of the three default boards. Deleting it removes its ${count} `
+        + `task${count === 1 ? '' : 's'}, and the board itself will come back empty. Continue?`
+      : `Delete "${board?.name || 'this board'}"${count ? ` and its ${count} task${count === 1 ? '' : 's'}` : ''}? This cannot be undone.`
+    if (!window.confirm(warning)) return
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -1337,6 +1367,8 @@ function App() {
   }
 
   const currentTabName = tabs.find(t => t.id === activeTab)?.name || 'Board'
+  // A real board, not one of the system pages — those have no type set.
+  const isBoardTab = !tabs.find(t => t.id === activeTab)?.type
 
   const handleLoadingComplete = useCallback(() => {
     setIsLoading(false)
@@ -1466,7 +1498,6 @@ function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onAddTab={handleAddTab}
-        onDeleteTab={handleDeleteTab}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         isPlaying={isPlaying}
@@ -1505,7 +1536,8 @@ function App() {
           }}
           onAddTask={() => { setPrefillAssignee(viewPersonTasks); setCameFromPerson(viewPersonTasks); setIsModalOpen(true) }}
         />
-      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs) ? (
+      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs)
+          && !(activeTab === 'special-controls' && OPEN_SPECIAL_VIEWS.includes(specialView)) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
         effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
@@ -1805,6 +1837,28 @@ function App() {
                   Everything That's Scrum
                 </h1>
                 <p className="text-sm text-gray-500">{currentTabName}</p>
+                {/* Renaming and removing live with the board you're looking at,
+                    rather than as a bin on every row of the sidebar where it's
+                    easy to hit by accident. Leads and mentors only. */}
+                {isBoardTab && canEditContent && (
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <button
+                      onClick={() => {
+                        const name = window.prompt('Rename this board', currentTabName)
+                        if (name && name.trim() && name.trim() !== currentTabName) handleRenameTab(activeTab, name)
+                      }}
+                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-600"
+                    >
+                      Rename
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTab(activeTab)}
+                      className="text-[11px] font-semibold text-gray-400 hover:text-red-500"
+                    >
+                      Remove board
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-2 items-center">
