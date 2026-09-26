@@ -148,7 +148,7 @@ export default function AttendanceManager({ onBack }) {
     setEditing(true)
   }
 
-  const handleTakeAttendance = async () => {
+  const handleTakeAttendance = async (forDate) => {
     if (!hasLeadTag) return
     // Repeat taps used to each create their own session (12 duplicates for one
     // meeting), because the guard below ran before the awaits and the button
@@ -157,12 +157,31 @@ export default function AttendanceManager({ onBack }) {
     creatingRef.current = true
     setCreating(true)
     try {
-      const today = todayStr()
-      const localDupe = sessions.find(s => s.session_date === today)
-      if (localDupe) {
-        showFeedback('A session already exists for today. Opening it.')
-        await openExistingSession(localDupe)
-        return
+      // The day this session is for. Normally today; a second session on a day
+      // that already has one double-counts everybody, so that case asks which
+      // day is meant rather than silently opening the first.
+      let today = forDate || todayStr()
+      if (!forDate) {
+        const localDupe = sessions.find(s => s.session_date === today)
+        if (localDupe) {
+          const pick = window.prompt(
+            `There's already a session for today (${today}).\n\n` +
+            'If this one is for a different day, type it as YYYY-MM-DD. ' +
+            "Leave it empty to open today's.", '')
+          const wanted = (pick || '').trim()
+          if (!wanted) { await openExistingSession(localDupe); return }
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(wanted)) {
+            showFeedback('That date needs to look like 2026-09-26.')
+            return
+          }
+          const other = sessions.find(s => s.session_date === wanted)
+          if (other) {
+            showFeedback(`There's already a session for ${wanted}. Opening it.`)
+            await openExistingSession(other)
+            return
+          }
+          today = wanted
+        }
       }
 
       // Local state goes stale when a tab is left open and the realtime socket
@@ -671,18 +690,6 @@ export default function AttendanceManager({ onBack }) {
                     <div className="min-w-0">
                       <span className="text-sm font-medium text-gray-700">{r.username}</span>
                       {present && timingLine && <div className="text-[11px] text-gray-400 mt-0.5">{timingLine}</div>}
-                      {/* Why they were gone, next to the fact that they were.
-                          A filed notice wins — it's what they actually said. */}
-                      {!present && (() => {
-                        const filed = notices.find(n => n.username === r.username)
-                        const why = filed?.reason || r.reason
-                        if (!why) return null
-                        return (
-                          <div className="text-[11px] text-gray-500 mt-0.5 italic truncate" title={why}>
-                            “{why}”{filed && <span className="not-italic text-gray-400"> · {filed.on_time ? 'filed in time' : 'filed late'}</span>}
-                          </div>
-                        )
-                      })()}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {present && (

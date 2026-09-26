@@ -546,6 +546,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     const { sessions, records, entries, tasks, loading } = work
               if (loading) return <p className="text-sm text-gray-400 text-center py-4">Loading their work…</p>
               const byId = Object.fromEntries(records.map(r => [r.session_id, r.status]))
+              // The whole record, so a missed meeting can say why. This is
+              // where someone's absences are read end to end, which is the
+              // place the reason is actually worth having.
+              const recById = Object.fromEntries(records.map(r => [r.session_id, r]))
               // Only meetings they were actually marked at. "No record" means
               // never marked either way, so it isn't a zero against them.
               const counted = sessions.filter(sn => byId[sn.id])
@@ -581,12 +585,18 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                             const cls = st === 'present' ? 'bg-green-100 text-green-700'
                               : st === 'absent' ? 'bg-red-100 text-red-700'
                               : st === 'excused' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'
+                            const why = recById[sn.id]?.reason
                             return (
-                              <div key={sn.id} className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">
-                                  {new Date(sn.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                </span>
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{st}</span>
+                              <div key={sn.id} className="flex items-start justify-between gap-2 text-sm">
+                                <div className="min-w-0">
+                                  <span className="text-gray-600">
+                                    {new Date(sn.session_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                  </span>
+                                  {st !== 'present' && why && (
+                                    <p className="text-[11px] text-gray-500 italic truncate" title={why}>“{why}”</p>
+                                  )}
+                                </div>
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${cls}`}>{st}</span>
                               </div>
                             )
                           })}

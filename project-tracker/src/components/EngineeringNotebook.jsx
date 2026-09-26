@@ -237,20 +237,27 @@ export default function EngineeringNotebook() {
   // the one case that has to be refused — the rule's own absences stay open,
   // because winning those back by writing the entry is the point.
   const [leadAbsentDays, setLeadAbsentDays] = useState(new Set())
+  const [excusedDays, setExcusedDays] = useState(new Set())
   useEffect(() => {
-    if (!username) { setLeadAbsentDays(new Set()); return }
+    if (!username) { setLeadAbsentDays(new Set()); setExcusedDays(new Set()); return }
     let live = true
     const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
     Promise.all([
       fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date`, { headers: h })
         .then(r => (r.ok ? r.json() : [])),
-      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(username)}&status=eq.absent&select=session_id,marked_by`, { headers: h })
+      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(username)}&status=in.(absent,excused)&select=session_id,status,marked_by`, { headers: h })
         .then(r => (r.ok ? r.json() : [])),
     ]).then(([sess, recs]) => {
       if (!live) return
       const dateOf = Object.fromEntries((sess || []).map(x => [x.id, x.session_date]))
       setLeadAbsentDays(new Set((recs || [])
-        .filter(r => r.marked_by && r.marked_by !== 'notebook-rule')
+        .filter(r => r.status === 'absent' && r.marked_by && r.marked_by !== 'notebook-rule')
+        .map(r => dateOf[r.session_id])
+        .filter(Boolean)))
+      // Being excused is the point of asking ahead of time. Nobody should then
+      // be chased for a write-up of a meeting they were excused from.
+      setExcusedDays(new Set((recs || [])
+        .filter(r => r.status === 'excused')
         .map(r => dateOf[r.session_id])
         .filter(Boolean)))
     }).catch(() => {})
@@ -266,6 +273,7 @@ export default function EngineeringNotebook() {
     d => d <= todayLocal()
       && !entries.some(e => e.username === username && e.meeting_date === d)
       && !leadAbsentDays.has(d)
+      && !excusedDays.has(d)
   )
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))

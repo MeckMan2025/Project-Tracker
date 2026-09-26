@@ -5,7 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import AbsenceNotice from './AbsenceNotice'
 import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
-import { ArrowLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { ArrowLeft, ChevronRight, CalendarDays, CalendarX } from 'lucide-react'
 import { useAttendancePartial, presencePct, recordTiming } from '../lib/attendancePartial'
 import { excludedAttName, excludedNamesFrom } from '../lib/attendanceRoster'
 
@@ -52,6 +52,7 @@ function TrendChart({ points, color = '#6366f1' }) {
 }
 
 export default function AttendanceView({ onOpenSessions }) {
+  const [noticeOpen, setNoticeOpen] = useState(false)
   const { username } = useUser()
   const { canViewAllAttendance, canViewOwnAttendance, hasLeadTag } = usePermissions()
 
@@ -282,10 +283,27 @@ export default function AttendanceView({ onOpenSessions }) {
             <ChevronRight size={16} className="text-gray-300 shrink-0" />
           </button>
 
-          {/* Telling people ahead of a meeting. It belongs with attendance —
-              it's the thing that decides whether a day counts against you. */}
-          <section className="bg-white rounded-2xl p-4 shadow-sm">
-            <AbsenceNotice embedded />
+          {/* Folded away by default. It belongs on this page, but most visits
+              are to check a percentage, not to file something — open it a
+              whole form tall and it buries everything people came for. */}
+          <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <button
+              onClick={() => setNoticeOpen(v => !v)}
+              className="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-gray-50 transition-colors"
+            >
+              <CalendarX size={16} className="text-pastel-blue-dark shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-700 text-sm">Let us know you'll miss a meeting</p>
+                <p className="text-xs text-gray-400">Out, or arriving late and leaving early</p>
+              </div>
+              <ChevronRight size={16}
+                className={`text-gray-300 shrink-0 transition-transform ${noticeOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {noticeOpen && (
+              <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                <AbsenceNotice embedded />
+              </div>
+            )}
           </section>
 
           {/* Personal Stats Card */}

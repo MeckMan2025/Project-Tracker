@@ -1478,7 +1478,7 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit, departments 
   // Meetings run after school on weekdays and all morning at the weekend, so
   // the default follows the day the event lands on. Every other category keeps
   // the 4–8 PM default.
-  const WEEKEND_HOURS = { start: '08:00', end: '14:00' }
+  const WEEKEND_HOURS = { start: '09:00', end: '15:00' }
   const WEEKDAY_HOURS = { start: '16:00', end: '20:00' }
   const hoursForDate = (key) => {
     const day = fromKey(key || dateKey).getDay()

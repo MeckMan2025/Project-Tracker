@@ -10,6 +10,16 @@ import { supabase } from '../supabase'
 const DOC_ID = 'attendance_partial'
 export const DEFAULT_DURATION = 240
 
+// When a meeting starts, when the calendar doesn't say. Saturdays run from the
+// morning; weeknights start after school. One place, because the absence form,
+// the attendance maths and anything else asking all have to agree — a wrong
+// start time turns into wrong minutes-late for everybody.
+export function defaultStartForDate(sessionDate) {
+  if (!sessionDate) return '16:00'
+  const day = new Date(sessionDate + 'T00:00:00').getDay() // 0 = Sun … 6 = Sat
+  return day === 6 ? '09:00' : '16:00'
+}
+
 // Automatic meeting length until a lead overrides it:
 // 240 min on weekdays, 360 min on weekends (Sat/Sun).
 export function defaultDurationForDate(sessionDate) {

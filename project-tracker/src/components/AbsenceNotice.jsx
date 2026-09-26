@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
-import { defaultDurationForDate } from '../lib/attendancePartial'
+import { defaultDurationForDate, defaultStartForDate } from '../lib/attendancePartial'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -10,9 +10,6 @@ const JSON_HEADERS = { ...HEADERS, 'Content-Type': 'application/json' }
 
 // The rule. Filing this far ahead is what makes a notice count for anything.
 const NOTICE_HOURS = 24
-// Meetings that aren't on the calendar still need a time to measure against,
-// and the team's meetings start at four.
-const DEFAULT_START = '16:00'
 
 const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 const pretty = (t) => {
@@ -77,7 +74,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const target = useMemo(() => {
     const ev = events.find(e => e.date_key === date && e.event_type === 'meeting')
       || events.find(e => e.date_key === date)
-    const time = (ev?.start_time || DEFAULT_START).slice(0, 5)
+    const time = (ev?.start_time || defaultStartForDate(date)).slice(0, 5)
     return { ev, at: new Date(`${date}T${time}:00`), time, assumed: !ev?.start_time }
   }, [events, date])
 
@@ -168,17 +165,21 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   return (
     <Shell embedded={embedded} onBack={onBack}>
 
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
-              <CalendarX size={20} className="text-gray-700" />
+          {/* The tab it sits in already names it, so this header only belongs
+              on the standalone page. */}
+          {!embedded && (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
+                <CalendarX size={20} className="text-gray-700" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-800 leading-tight">Let us know you'll miss some</h1>
+                <p className="text-xs text-gray-400">
+                  Out, arriving late or leaving early — {NOTICE_HOURS} hours ahead and a lead can excuse it.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-800 leading-tight">Let us know you'll miss some</h1>
-              <p className="text-xs text-gray-400">
-                Out, arriving late or leaving early — {NOTICE_HOURS} hours ahead and a lead can excuse it.
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* The rule, up front. Reading it after being marked absent is no use. */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
