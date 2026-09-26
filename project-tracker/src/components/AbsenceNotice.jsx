@@ -206,26 +206,33 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
               </div>
 
-              {/* What the 24 hours is being measured against, before they commit
-                  to it — so a late notice is never a surprise. */}
-              <div className={`rounded-lg px-3 py-2 flex items-start gap-2 text-xs ${
+              {/* The number is the whole point, so it leads — how far ahead
+                  this notice is, against the day they picked. Seeing it before
+                  they submit is what stops a late one being a surprise. */}
+              <div className={`rounded-lg px-3 py-2.5 flex items-start gap-2.5 ${
                 past ? 'bg-gray-100 text-gray-500'
                   : inTime ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                <Clock size={14} className="shrink-0 mt-0.5" />
-                <span>
-                  {past
-                    ? 'That meeting has already started.'
-                    : <>
-                        <b>{Math.floor(hoursAhead)} hours</b> before {prettyDay(date)}
-                        {' '}at {target.time}
-                        {target.assumed && <span className="opacity-70"> (assumed start time — it isn't on the calendar)</span>}.
-                        {' '}{inTime
-                          ? 'That counts.'
-                          : kind === 'out'
-                            ? `Under ${NOTICE_HOURS} hours, so this would count absent.`
-                            : `Under ${NOTICE_HOURS} hours, so the time missed won't be excused.`}
-                      </>}
-                </span>
+                <Clock size={15} className="shrink-0 mt-0.5" />
+                {past ? (
+                  <span className="text-xs">That day has already started.</span>
+                ) : (
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight">
+                      {Math.floor(hoursAhead)} hours before {prettyDay(date)}
+                    </p>
+                    <p className="text-xs opacity-80 mt-0.5">
+                      {inTime
+                        ? `That's over ${NOTICE_HOURS} hours, so it counts.`
+                        : kind === 'out'
+                          ? `That's under ${NOTICE_HOURS} hours, so this would count absent.`
+                          : `That's under ${NOTICE_HOURS} hours, so the time missed won't be excused.`}
+                    </p>
+                    <p className="text-[11px] opacity-60 mt-0.5">
+                      Measured from {target.time}
+                      {target.assumed ? ', the usual start — that day isn\'t on the calendar' : ', off the calendar'}.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
