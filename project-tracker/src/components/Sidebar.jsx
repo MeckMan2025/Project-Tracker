@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ScrollText, Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, BookOpen, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction } from 'lucide-react'
+import { ScrollText, Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -475,23 +475,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
             </>
           )}
 
-          {/* Engineering Notebook — also reachable from the Home gallery. */}
+          {/* The Engineering Notebook is reached from Home and from the
+              gallery, not from here. */}
           {!isGuest && (
             <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'notebook'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange('notebook'); onToggle() }}
-              >
-                <BookOpen size={16} className="text-pastel-orange-dark" />
-                <span className="truncate">Engineering Notebook</span>
-              </div>
-
-              <hr className="my-2 border-gray-200" />
-
               {/* Logs holds three, so it opens rather than being one page —
                   the same as Data. Open it by the arrow; it also opens itself
                   when you're already on one of its pages. */}
