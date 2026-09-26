@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Receipt, Plus, X, Loader2, ExternalLink, Trash2, Check } from 'lucide-react'
+import { Receipt, Plus, X, Loader2, ExternalLink, Trash2, Check, Pencil } from 'lucide-react'
 import { Field, inputClass as input, todayLocal, prettyDate, newId } from './logForm'
 
 const RECEIPT_BUCKET = 'expense-receipts'
@@ -60,6 +60,7 @@ export default function ExpenseLog() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -84,6 +85,7 @@ export default function ExpenseLog() {
   }, []) // eslint-disable-line
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+  const canRemoveAny = rows.some(r => isLead || r.username === username)
 
   // The form's own rule: a receipt is required when reimbursement is needed.
   const needsReceipt = form.reimbursement === 'Yes'
@@ -159,12 +161,28 @@ export default function ExpenseLog() {
             </h1>
             <p className="text-xs text-gray-400 mt-0.5">Log ALL team expenses here</p>
           </div>
-          <button
-            onClick={() => { setShowForm(v => !v); setError('') }}
-            className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium shrink-0"
-          >
-            {showForm ? <><X size={14} /> Close</> : <><Plus size={14} /> Log an expense</>}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Deleting lives behind the pencil rather than sitting on every
+                row. A bin beside each one is easy to hit by accident, and
+                most of the time you are here to read, not to tidy. */}
+            {canRemoveAny && (
+              <button
+                onClick={() => setEditing(v => !v)}
+                title={editing ? 'Done' : 'Edit the log'}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  editing ? 'bg-pastel-pink text-gray-800' : 'text-gray-400 hover:bg-pastel-blue/30'
+                }`}
+              >
+                {editing ? <Check size={15} /> : <Pencil size={15} />}
+              </button>
+            )}
+            <button
+              onClick={() => { setShowForm(v => !v); setError('') }}
+              className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
+            >
+              {showForm ? <><X size={14} /> Close</> : <><Plus size={14} /> Log an expense</>}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -324,7 +342,7 @@ export default function ExpenseLog() {
                           </a>
                         )}
                         {/* Your own mistakes, and a lead can clear anyone's. */}
-                        {(isLead || r.username === username) && (
+                        {editing && (isLead || r.username === username) && (
                           <button
                             onClick={() => remove(r.id)}
                             className="text-gray-300 hover:text-red-400 transition-colors"

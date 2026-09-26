@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Globe, Plus, X, Loader2, Trash2, Check } from 'lucide-react'
+import { Globe, Plus, X, Loader2, Trash2, Check, Pencil } from 'lucide-react'
 import { Field, inputClass as input, todayLocal, prettyDate, newId } from './logForm'
 
 // Individual Contribution isn't asked for — it's members × hours, which holds
@@ -29,6 +29,7 @@ export default function OutreachLog() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -60,6 +61,7 @@ export default function OutreachLog() {
     Number(form.team_hours) > 0
 
   const preview = totalHours(form.members, form.team_hours)
+  const canRemoveAny = rows.some(r => isLead || r.username === username)
 
   // What the season adds up to — the number outreach actually gets asked for.
   const totals = useMemo(() => ({
@@ -126,12 +128,28 @@ export default function OutreachLog() {
               {totals.events} {totals.events === 1 ? 'event' : 'events'} · {totals.hours} member-hours
             </p>
           </div>
-          <button
-            onClick={() => { setShowForm(v => !v); setError('') }}
-            className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium shrink-0"
-          >
-            {showForm ? <><X size={14} /> Close</> : <><Plus size={14} /> Log an event</>}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Deleting lives behind the pencil rather than sitting on every
+                row. A bin beside each one is easy to hit by accident, and
+                most of the time you are here to read, not to tidy. */}
+            {canRemoveAny && (
+              <button
+                onClick={() => setEditing(v => !v)}
+                title={editing ? 'Done' : 'Edit the log'}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  editing ? 'bg-pastel-pink text-gray-800' : 'text-gray-400 hover:bg-pastel-blue/30'
+                }`}
+              >
+                {editing ? <Check size={15} /> : <Pencil size={15} />}
+              </button>
+            )}
+            <button
+              onClick={() => { setShowForm(v => !v); setError('') }}
+              className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
+            >
+              {showForm ? <><X size={14} /> Close</> : <><Plus size={14} /> Log an event</>}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -226,7 +244,7 @@ export default function OutreachLog() {
                         <td className="px-3 py-2 text-gray-600 text-right">{r.team_hours}</td>
                         <td className="px-3 py-2 text-gray-800 text-right font-medium">{r.individual_hours}</td>
                         <td className="px-3 py-2 text-right">
-                          {(isLead || r.username === username) && (
+                          {editing && (isLead || r.username === username) && (
                             <button
                               onClick={() => remove(r.id)}
                               className="text-gray-300 hover:text-red-400 transition-colors"
