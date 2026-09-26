@@ -104,6 +104,15 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
 
   const submit = async () => {
     setError('')
+    // Everything is required. A half-filled notice is one a lead can't act on,
+    // and they'd have to come and ask — which is the thing this is meant to
+    // save. Checked in order, so the message points at the first gap.
+    if (!date) { setError('Pick the day you\'ll miss.'); return }
+    if (!kind) { setError("Say whether you're out, arriving late or leaving early."); return }
+    if (kind !== 'out' && !atTime) {
+      setError(kind === 'late' ? "Pick the time you'll get there." : "Pick the time you'll leave.")
+      return
+    }
     if (!reason.trim()) { setError('Say why, even briefly — a lead has to make a call on it.'); return }
     setSaving(true)
     const row = {
@@ -276,7 +285,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
 
               {error && <p className="text-xs text-red-500">{error}</p>}
 
-              <button onClick={submit} disabled={saving || past}
+              <button onClick={submit}
+                disabled={saving || past || !date || !reason.trim() || (kind !== 'out' && !atTime)}
                 className="w-full py-2.5 rounded-xl bg-pastel-blue hover:bg-pastel-blue-dark disabled:opacity-40 text-sm font-semibold transition-colors">
                 {saving ? 'Sending…' : past ? 'That day has passed' : "Let them know"}
               </button>

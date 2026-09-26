@@ -77,7 +77,7 @@ const INITIAL_ENTRY = {
   whatDid: '',
   whyOption: '',
   whyNote: '',
-  engagement: 'Somewhat',
+  engagement: '',
   mentorHelp: false,
   mentorName: '',
   mentorNote: '',
@@ -274,6 +274,9 @@ export default function EngineeringNotebook() {
     if (!formData.whyOption) return
     if (formData.whyOption === 'Other' && !formData.whyNote.trim()) return
     if (!formData.photoUrl && !formData.projectLink.trim()) return
+    // Engagement used to default to Somewhat, so an untouched form still
+    // reported one — which is worth nothing as data. It has to be chosen.
+    if (!formData.engagement) return
 
     if (localStorage.getItem('scrum-sfx-enabled') !== 'false') new Audio('/sounds/click.mp3').play().catch(() => {})
 
@@ -344,7 +347,7 @@ export default function EngineeringNotebook() {
       whatDid: entry.what_did || '',
       whyOption: entry.why_option || '',
       whyNote: entry.why_note || '',
-      engagement: entry.engagement || 'Somewhat',
+      engagement: entry.engagement || '',
       mentorHelp: !!entry.mentor_help,
       mentorName: entry.mentor_name || '',
       mentorNote: entry.mentor_note || '',
@@ -902,7 +905,7 @@ export default function EngineeringNotebook() {
 
               {/* Engagement */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">How engaged were you?</label>
+                <label className="text-sm font-medium text-gray-600 block mb-1">How engaged were you? *</label>
                 <div className="flex gap-2">
                   {ENGAGEMENT_OPTIONS.map(opt => (
                     <button
@@ -917,6 +920,9 @@ export default function EngineeringNotebook() {
                     </button>
                   ))}
                 </div>
+                {!formData.engagement && (
+                  <p className="text-xs text-gray-400 mt-1">Pick one — it isn't filled in for you.</p>
+                )}
               </div>
 
               {/* Mentor help — FTC judges care whether the work was student-led,
