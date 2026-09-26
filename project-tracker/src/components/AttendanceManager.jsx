@@ -583,6 +583,13 @@ export default function AttendanceManager({ onBack }) {
                     </span>
                     <div className="min-w-0">
                       <p className="font-medium text-gray-700">{n.username}</p>
+                      {/* Which kind, so it's obvious at a glance whether this
+                          is a whole meeting or a chunk of one. */}
+                      <p className="text-gray-500">
+                        {n.kind === 'late' ? `arriving late${n.minutes ? ` · ${n.minutes} min` : ''}`
+                          : n.kind === 'early' ? `leaving early${n.minutes ? ` · ${n.minutes} min` : ''}`
+                          : 'out for the meeting'}
+                      </p>
                       <p className="text-gray-400 break-words">{n.reason}</p>
                       {n.hours_before != null && (
                         <p className="text-gray-300">{Math.floor(n.hours_before)}h before</p>

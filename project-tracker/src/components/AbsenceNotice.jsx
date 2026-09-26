@@ -13,6 +13,15 @@ const NOTICE_HOURS = 24
 // and the team's meetings start at four.
 const DEFAULT_START = '16:00'
 
+// Three things someone might be telling us. Missing the whole meeting is the
+// one the 24-hour rule really bites on; the other two are about how much of it
+// they'll miss, which attendance already tracks as lateMin and earlyMin.
+const KINDS = [
+  { key: 'out',   label: "Out for the whole meeting", verb: 'be out' },
+  { key: 'late',  label: 'Arriving late',             verb: 'arrive late' },
+  { key: 'early', label: 'Leaving early',             verb: 'leave early' },
+]
+
 const genId = () => String(Date.now()) + Math.random().toString(36).slice(2, 8)
 
 const prettyDay = (d) =>
@@ -34,6 +43,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const [events, setEvents] = useState([])
   const [mine, setMine] = useState([])
   const [date, setDate] = useState(localDay(2))
+  const [kind, setKind] = useState('out')
+  const [minutes, setMinutes] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(null)
@@ -85,6 +96,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
       event_id: target.ev?.id || null,
       event_name: target.ev?.name || null,
       reason: reason.trim(),
+      kind,
+      minutes: kind === 'out' ? null : (Number(minutes) || null),
       hours_before: Math.round(hoursAhead * 10) / 10,
       on_time: inTime,
     }
@@ -97,8 +110,8 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
         body: JSON.stringify(row),
       })
       if (!res.ok) throw new Error(await res.text())
-      setDone({ date, inTime })
-      setReason('')
+      setDone({ date, inTime, kind })
+      setReason(''); setMinutes('')
       loadMine()
     } catch (err) {
       console.error('Failed to file the notice:', err)
@@ -116,9 +129,9 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
               <CalendarX size={20} className="text-gray-700" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-800 leading-tight">Let us know you'll be out</h1>
+              <h1 className="text-lg font-bold text-gray-800 leading-tight">Let us know you'll miss some</h1>
               <p className="text-xs text-gray-400">
-                Tell us {NOTICE_HOURS} hours before a meeting and a lead can excuse you.
+                Out, arriving late or leaving early — {NOTICE_HOURS} hours ahead and a lead can excuse it.
               </p>
             </div>
           </div>
@@ -145,7 +158,9 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
               <p className={`text-xs ${done.inTime ? 'text-green-700' : 'text-red-700'}`}>
                 {done.inTime
                   ? `Your leads will see this before ${prettyDay(done.date)}.`
-                  : `This is under ${NOTICE_HOURS} hours before the meeting, so it counts absent. Your leads will still see the reason.`}
+                  : done.kind === 'out'
+                    ? `This is under ${NOTICE_HOURS} hours before the meeting, so it counts absent. Your leads will still see the reason.`
+                    : `This is under ${NOTICE_HOURS} hours before the meeting, so the time you miss won't be excused. Your leads will still see the reason.`}
               </p>
               <button onClick={() => setDone(null)}
                 className="mt-3 text-xs font-semibold text-gray-600 hover:text-gray-800 underline">
@@ -156,7 +171,36 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Which day will you miss?</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">What's happening?</label>
+                <div className="flex flex-wrap gap-2">
+                  {KINDS.map(k => (
+                    <button key={k.key} onClick={() => setKind(k.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        kind === k.key ? 'bg-pastel-blue text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}>
+                      {k.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {kind !== 'out' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    Roughly how many minutes will you miss?
+                  </label>
+                  <input type="number" min="0" step="5" value={minutes}
+                    onChange={(e) => setMinutes(e.target.value)}
+                    placeholder={kind === 'late' ? 'e.g. 30 minutes late' : 'e.g. leaving 45 minutes early'}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    A guess is fine — a lead records the real figure on the day.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Which day?</label>
                 <input type="date" value={date} min={localDay()}
                   onChange={(e) => setDate(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
@@ -175,7 +219,11 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                         <b>{Math.floor(hoursAhead)} hours</b> before {prettyDay(date)}
                         {' '}at {target.time}
                         {target.assumed && <span className="opacity-70"> (assumed start time — it isn't on the calendar)</span>}.
-                        {' '}{inTime ? 'That counts.' : `Under ${NOTICE_HOURS} hours, so this would count absent.`}
+                        {' '}{inTime
+                          ? 'That counts.'
+                          : kind === 'out'
+                            ? `Under ${NOTICE_HOURS} hours, so this would count absent.`
+                            : `Under ${NOTICE_HOURS} hours, so the time missed won't be excused.`}
                       </>}
                 </span>
               </div>
@@ -210,6 +258,11 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                       <p className="text-gray-700 font-medium">
                         {new Date(n.meeting_date + 'T00:00:00').toLocaleDateString('en-US',
                           { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                      <p className="text-gray-500">
+                        {n.kind === 'late' ? `arriving late${n.minutes ? ` · ${n.minutes} min` : ''}`
+                          : n.kind === 'early' ? `leaving early${n.minutes ? ` · ${n.minutes} min` : ''}`
+                          : 'out for the meeting'}
                       </p>
                       <p className="text-gray-400 break-words">{n.reason}</p>
                     </div>

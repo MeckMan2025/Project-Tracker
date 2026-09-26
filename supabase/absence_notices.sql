@@ -34,3 +34,14 @@ create index if not exists absence_notices_user_idx    on absence_notices (usern
 -- not stack up a second — and the app upserts on this.
 create unique index if not exists absence_notices_one_each
   on absence_notices (username, meeting_date);
+
+-- ── Arriving late / leaving early ───────────────────────────────────────────
+-- Added after the fact. Run this part too if the table already exists.
+--
+-- kind: 'out' for the whole meeting, 'late' for arriving after the start,
+-- 'early' for leaving before the end. minutes is how long, for the last two —
+-- attendance already tracks lateMin and earlyMin per person, so a lead has
+-- somewhere to put it.
+
+alter table absence_notices add column if not exists kind    text    not null default 'out';
+alter table absence_notices add column if not exists minutes integer;
