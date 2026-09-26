@@ -887,6 +887,7 @@ function App() {
   const handleRenameTab = async (tabId, name) => {
     const clean = (name || '').trim()
     if (!clean || !canEditContent) return
+    if (tabId === 'main' || tabs.find(t => t.id === tabId)?.readOnly) return
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, name: clean } : t))
     try {
       const res = await fetch(`${REST_URL}/rest/v1/boards?id=eq.${tabId}`, {
@@ -925,6 +926,10 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
+    // Main is a view of the other boards, not a board — there is nothing on it
+    // to delete, and removing it would only take away the one place that shows
+    // everything at once.
+    if (tabId === 'main' || tabs.find(t => t.id === tabId)?.readOnly) return
     if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId.startsWith('logs') || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'comp-day' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
     const board = tabs.find(t => t.id === tabId)
     const count = (tasksByTab[tabId] || []).length
@@ -1873,7 +1878,7 @@ function App() {
                 {/* Renaming and removing live with the board you're looking at,
                     rather than as a bin on every row of the sidebar where it's
                     easy to hit by accident. Leads and mentors only. */}
-                {isBoardTab && canEditContent && (
+                {isBoardTab && canEditContent && !tabs.find(t => t.id === activeTab)?.readOnly && (
                   <div className="flex items-center gap-3 mt-0.5">
                     <button
                       onClick={() => {
