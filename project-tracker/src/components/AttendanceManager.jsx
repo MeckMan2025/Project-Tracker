@@ -50,6 +50,9 @@ export default function AttendanceManager({ onBack }) {
   // leaving early never decides it on its own.
   const [notebookByDate, setNotebookByDate] = useState({})
   const [applyingRule, setApplyingRule] = useState(false)
+  // Absence notices filed for the open session's date. Shown to leads, never
+  // applied automatically.
+  const [notices, setNotices] = useState([])
 
   // Mentors, coaches, team accounts and the ETS account are never part of
   // attendance — see lib/attendanceRoster.
@@ -459,6 +462,19 @@ export default function AttendanceManager({ onBack }) {
   // The deadline is the end of the meeting day. Once a day is over, anyone
   // without an entry for it is absent — so any past session a lead opens gets
   // settled automatically. Today's is left alone; there's still time to write.
+  // A missing absence_notices table (the SQL not run yet) just means no notices.
+  const noticeDate = selectedSession?.session_date
+  useEffect(() => {
+    setNotices([])
+    if (!noticeDate) return
+    let cancelled = false
+    fetch(`${REST_URL}/rest/v1/absence_notices?meeting_date=eq.${noticeDate}&select=*`, { headers: REST_HEADERS })
+      .then(r => (r.ok ? r.json() : []))
+      .then(rows => { if (!cancelled) setNotices(Array.isArray(rows) ? rows : []) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [noticeDate])
+
   const settledRef = useRef(false)
   useEffect(() => {
     if (settledRef.current || !hasLeadTag) return
