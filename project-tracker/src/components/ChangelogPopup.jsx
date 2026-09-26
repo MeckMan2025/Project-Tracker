@@ -5,6 +5,16 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 168,
+    date: '2026-09-26',
+    items: [
+      '\u{1F30D} There is a Logs section in the sidebar, holding three: Outreach, Expenses and Mentor. Outreach is the outreach sheet, in the app \u2014 date, event, how many members went and how long it ran. It works out the member-hours itself rather than asking, so the total can\u2019t drift from the numbers it came from, and the events already on the sheet are in there',
+      '\u{1F9FE} The Radical Expense Form is in the app too, under Logs. Date, what was bought, where from, which team it was for, and whether reimbursement is needed \u2014 with the receipt attached to the same row instead of living in a separate folder. A reimbursement without a receipt can\u2019t be submitted, because that\u2019s the one nobody can act on later',
+      '\u{1F393} The mentor log fills itself in. Every notebook entry already says whether a mentor helped, who and with what, so the log is that read back \u2014 grouped by mentor, with nothing extra to fill in and no way for it to disagree with the notebook. You see your own unless you\u2019re a lead, exactly as in the notebook',
+      '\u{1F4D6} Your profile shows your notebook as a notebook \u2014 the contents of dates and a page per entry, turned from the corner \u2014 rather than a stack of cards showing the same entries a second way',
+    ],
+  },
+  {
     id: 167,
     date: '2026-09-26',
     items: [
