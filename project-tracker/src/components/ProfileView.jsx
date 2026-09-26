@@ -8,6 +8,7 @@ import { usePresenceContext } from '../contexts/PresenceContext'
 import OnlineDot from './OnlineDot'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
+import NotebookBook from './NotebookBook'
 import { getSideStyle, getSideLabel, getSides, SIDE_HEX, SIDE_LABEL } from '../utils/sideColors'
 import { triggerPush } from '../utils/pushHelper'
 import { useAttendancePartial, presencePct } from '../lib/attendancePartial'
@@ -624,26 +625,15 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
                   </section>
 
                   {/* ─── Notebook ─── */}
-                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-2">
+                  {/* Read as the notebook it is, rather than as a stack of
+                      cards: contents of dates, a page each, turned from the
+                      corner. Same as the notebook tab, so a profile and the
+                      notebook don't show the same entries two different ways. */}
+                  <section className="space-y-2">
                     <h3 className="font-semibold text-gray-700">
                       Engineering notebook <span className="text-sm font-normal text-gray-400">({entries.length})</span>
                     </h3>
-                    {entries.length === 0 ? (
-                      <p className="text-sm text-gray-400">No entries yet.</p>
-                    ) : entries.map(e => (
-                      <div key={e.id} className="border border-gray-100 rounded-lg p-2.5">
-                        <div className="flex items-center justify-between gap-2 text-xs text-gray-400">
-                          <span>{new Date(e.meeting_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                          <span className="px-2 py-0.5 rounded-full bg-gray-100">{e.category}{e.category === 'Custom' && e.custom_category ? ` · ${e.custom_category}` : ''}</span>
-                        </div>
-                        <p className="text-sm text-gray-800 mt-1">{e.what_did}</p>
-                        {e.why_option && <p className="text-xs text-gray-400 mt-0.5">Why: {e.why_option === 'Other' ? e.why_note : e.why_option}</p>}
-                        {e.photo_url && <img src={e.photo_url} alt="" className="mt-2 rounded-lg max-h-40 object-cover" />}
-                        {e.project_link && (
-                          <a href={e.project_link} target="_blank" rel="noreferrer" className="text-xs text-pastel-blue-dark hover:underline break-all">{e.project_link}</a>
-                        )}
-                      </div>
-                    ))}
+                    <NotebookBook entries={entries} projectName={`${shownName}'s notebook`} />
                   </section>
                 </>
               )
