@@ -231,9 +231,40 @@ export default function EngineeringNotebook() {
     return () => { active = false }
   }, [username])
 
-  // Meetings this person has no entry for yet — what they'd be marked absent for.
+  // Days a lead marked this person absent themselves. An entry is what proves
+  // you were at a meeting, so writing one for a day a lead says you missed is
+  // the one case that has to be refused — the rule's own absences stay open,
+  // because winning those back by writing the entry is the point.
+  const [leadAbsentDays, setLeadAbsentDays] = useState(new Set())
+  useEffect(() => {
+    if (!username) { setLeadAbsentDays(new Set()); return }
+    let live = true
+    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date`, { headers: h })
+        .then(r => (r.ok ? r.json() : [])),
+      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(username)}&status=eq.absent&select=session_id,marked_by`, { headers: h })
+        .then(r => (r.ok ? r.json() : [])),
+    ]).then(([sess, recs]) => {
+      if (!live) return
+      const dateOf = Object.fromEntries((sess || []).map(x => [x.id, x.session_date]))
+      setLeadAbsentDays(new Set((recs || [])
+        .filter(r => r.marked_by && r.marked_by !== 'notebook-rule')
+        .map(r => dateOf[r.session_id])
+        .filter(Boolean)))
+    }).catch(() => {})
+    return () => { live = false }
+  }, [username])
+
+  const blockedDay = leadAbsentDays.has(meetingDate)
+
+  // Meetings this person has no entry for yet — what they'd be marked absent
+  // for. Days a lead already marked them absent aren't offered: there is
+  // nothing to win back there.
   const missingDays = meetingDays.filter(
-    d => d <= todayLocal() && !entries.some(e => e.username === username && e.meeting_date === d)
+    d => d <= todayLocal()
+      && !entries.some(e => e.username === username && e.meeting_date === d)
+      && !leadAbsentDays.has(d)
   )
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
@@ -270,6 +301,7 @@ export default function EngineeringNotebook() {
 
   // Submit entry
   const handleSubmitEntry = async () => {
+    if (blockedDay) return
     if (!formData.whatDid.trim()) return
     if (!formData.whyOption) return
     if (formData.whyOption === 'Other' && !formData.whyNote.trim()) return
@@ -806,6 +838,18 @@ export default function EngineeringNotebook() {
                   onChange={e => setMeetingDate(e.target.value || todayLocal())}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                 />
+                {/* Say why it's refused, right under the date that caused it. */}
+                {blockedDay && (
+                  <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <p className="text-xs text-red-800 font-semibold">
+                      A lead marked you absent for {formatDate(meetingDate)}.
+                    </p>
+                    <p className="text-[11px] text-red-700 mt-0.5">
+                      An entry is what shows you were at a meeting, so it can't be written for a day
+                      you were marked down for. Talk to a lead if that's wrong.
+                    </p>
+                  </div>
+                )}
                 {meetingDate !== todayLocal() && (
                   <p className="text-xs text-pastel-blue-dark mt-1">
                     Writing this up for {formatDate(meetingDate)}, not today.
@@ -1092,6 +1136,7 @@ export default function EngineeringNotebook() {
                   !formData.whyOption && 'why it mattered',
                   formData.whyOption === 'Other' && !formData.whyNote.trim() && 'a note for "Other"',
                   !formData.photoUrl && !formData.projectLink.trim() && 'a photo or a project link',
+                  !formData.engagement && 'how engaged you were',
                 ].filter(Boolean)
                 return (
                   <>
@@ -1102,7 +1147,7 @@ export default function EngineeringNotebook() {
                     )}
                     <button
                       onClick={handleSubmitEntry}
-                      disabled={missing.length > 0}
+                      disabled={missing.length > 0 || blockedDay}
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-colors bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Send size={18} />
