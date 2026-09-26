@@ -74,3 +74,24 @@ create policy "anyone can add an expense receipt"
   on storage.objects for insert
   to anon, authenticated
   with check (bucket_id = 'expense-receipts');
+
+
+-- ── 4. The outreach already on the sheet ────────────────────────────────────
+-- The five events that have happened, carried over so the log doesn't start
+-- empty. Individual Contribution isn't inserted — it's generated, and the
+-- sheet's own numbers agree with it on every row.
+--
+-- The ids are fixed and spelled out, so running this file again updates
+-- nothing and duplicates nothing.
+--
+-- 09/27 "Flourish and Bots FLL Team Volunteering" is deliberately not here:
+-- the sheet has no members or hours for it because it hasn't happened yet.
+-- Log it through the form once it has.
+
+insert into outreach_log (id, username, event_date, event_name, members, team_hours) values
+  ('sheet-20260913-flourish',  'Outreach sheet', '2026-09-13', 'Flourish and Bots FLL Team Volunteering',   5, 3),
+  ('sheet-20260917-homecoming','Outreach sheet', '2026-09-17', 'Homecoming Carnival',                        4, 3),
+  ('sheet-20260919-spike',     'Outreach sheet', '2026-09-19', 'FLL Kickoff Spike Programming Presentation', 5, 4),
+  ('sheet-20260919-team',      'Outreach sheet', '2026-09-19', 'FLL Kickoff Team Presentation',              4, 4),
+  ('sheet-20260920-flourish',  'Outreach sheet', '2026-09-20', 'Flourish and Bots FLL Team Volunteering',    2, 3)
+on conflict (id) do nothing;
