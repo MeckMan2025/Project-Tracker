@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters } from '../lib/matrixSession'
+import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters, withSeen } from '../lib/matrixSession'
 import { triggerPush } from '../utils/pushHelper'
 import { ArrowLeft, Plus, Trash2, Trophy, Camera, X, Save, Edit3, Download } from 'lucide-react'
 import { downloadRowsCSV, csvName } from '../utils/csvUtils'
@@ -1122,11 +1122,15 @@ export default function DesignMatrix({ onBack }) {
 
   const closeSession = async () => {
     const session = getSession(selected)
-    const next = await saveSession(selected, { ...session, status: 'closed', revealed: false, closedAt: new Date().toISOString() })
+    // The host watches the reveal here, so they are marked as having seen it in
+    // the same breath — otherwise the global overlay ambushes them with it
+    // again on their next login, which is exactly the bug this closes.
+    const next = await saveSession(selected, {
+      ...withSeen(session, username),
+      status: 'closed', revealed: false, closedAt: new Date().toISOString(),
+    })
     const t = tally(next, getSession(next))
-    // The host watches it here, so the global overlay shouldn't replay it at
-    // them — same flag it checks.
-    try { localStorage.setItem(`matrix-revealed-${next.id}`, '1') } catch { /* private mode */ }
+    try { localStorage.setItem(`matrix-revealed-${next.id}-${username || 'anon'}`, '1') } catch { /* private mode */ }
     setReveal({ winner: t.winner, tied: t.tied, id: next.id })
     window.dispatchEvent(new Event('matrix-session-changed'))
   }

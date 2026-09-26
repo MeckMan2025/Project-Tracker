@@ -18,6 +18,17 @@ export const withSession = (scores, session) => {
   return n
 }
 
+// Who has already watched the reveal. This lives on the session rather than in
+// localStorage because it is about a person, not a browser: the same account on
+// a phone, or after clearing site data, had already seen it.
+export const hasSeenReveal = (session, name) =>
+  !!name && (session?.seenBy || []).includes(name)
+
+export const withSeen = (session, name) => ({
+  ...session,
+  seenBy: [...new Set([...((session && session.seenBy) || []), name])].filter(Boolean),
+})
+
 export const scoreKey = (optId, critId) => `${optId}_${critId}`
 
 // Has this person rated every option against every criterion?

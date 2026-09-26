@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { VoteView, RevealCeremony } from './DesignMatrix'
-import { getSession, withSession, hasFinished, tally } from '../lib/matrixSession'
+import { getSession, withSession, hasFinished, tally, hasSeenReveal, withSeen } from '../lib/matrixSession'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -25,11 +25,40 @@ export default function MatrixRatingRequired() {
   // caught up.
   const justSubmitted = useRef(new Set())
 
-  // One reveal each, remembered per device — the moment shouldn't replay every
-  // time someone reloads.
-  const seenKey = (id) => `matrix-revealed-${id}`
-  const alreadySeen = (id) => { try { return localStorage.getItem(seenKey(id)) === '1' } catch { return true } }
-  const markSeen = (id) => { try { localStorage.setItem(seenKey(id), '1') } catch { /* private mode */ } }
+  // One reveal each. The record lives on the session, so it follows the account
+  // to another device and survives clearing site data — localStorage alone meant
+  // the drumroll replayed on every new browser and every fresh login.
+  // The local key is kept as a fallback for when the write can't go through, and
+  // is keyed by name so two accounts on one device don't silence each other.
+  const seenKey = (id) => `matrix-revealed-${id}-${username || 'anon'}`
+  const alreadySeen = (matrix) => {
+    if (hasSeenReveal(getSession(matrix), username)) return true
+    try { return localStorage.getItem(seenKey(matrix.id)) === '1' } catch { return true }
+  }
+
+  const markSeen = async (id) => {
+    try { localStorage.setItem(seenKey(id), '1') } catch { /* private mode */ }
+    if (!username) return
+    try {
+      // Re-read first: several people can finish watching at once, and this is a
+      // read-modify-write on one jsonb column.
+      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?id=eq.${id}&select=scores`, { headers: HEADERS })
+      if (!res.ok) return
+      const rows = await res.json()
+      const scores = rows?.[0]?.scores
+      const se = getSession({ scores })
+      if (!se || hasSeenReveal(se, username)) return
+      await fetch(`${REST_URL}/rest/v1/design_matrices?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { ...HEADERS, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ scores: withSession(scores, withSeen(se, username)) }),
+      })
+    } catch (err) {
+      // The local flag already stopped it here; worst case it replays on a
+      // different device, which is what it did before anyway.
+      console.error('Could not record that the reveal was seen:', err)
+    }
+  }
 
   const load = async () => {
     if (!username) return
@@ -56,7 +85,7 @@ export default function MatrixRatingRequired() {
         const s = getSession(m)
         return s && s.status === 'closed'
           && (s.participants || []).includes(username)
-          && !alreadySeen(m.id)
+          && !alreadySeen(m)
       })
       if (justDecided) {
         const se = getSession(justDecided)

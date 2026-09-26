@@ -544,6 +544,35 @@ export default function AttendanceManager({ onBack }) {
             <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
           )}
 
+          {notices.length > 0 && (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Said they'd be out ({notices.length})
+              </h3>
+              <div className="space-y-2">
+                {/* In-time notices first — those are the ones a lead is deciding on. */}
+                {[...notices].sort((a, b) => (b.on_time ? 1 : 0) - (a.on_time ? 1 : 0)).map(n => (
+                  <div key={n.id} className="flex items-start gap-2 text-xs">
+                    <span className={`shrink-0 mt-0.5 px-1.5 py-0.5 rounded font-semibold ${
+                      n.on_time ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {n.on_time ? 'in time' : 'late'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-700">{n.username}</p>
+                      <p className="text-gray-400 break-words">{n.reason}</p>
+                      {n.hours_before != null && (
+                        <p className="text-gray-300">{Math.floor(n.hours_before)}h before</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                Nothing is marked from this — a late notice counts absent.
+              </p>
+            </section>
+          )}
+
           {/* Today's session hasn't hit its deadline yet, so the rule is offered
               rather than applied. Past days settle themselves on load. */}
           {hasLeadTag && (() => {

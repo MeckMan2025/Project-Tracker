@@ -63,6 +63,7 @@ import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import EngagementView from './components/EngagementView'
+import AbsenceNotice from './components/AbsenceNotice'
 import AIManual from './components/AIManual'
 import ExpenseRequests from './components/ExpenseRequests'
 import NotificationBell from './components/NotificationBell'
@@ -1649,7 +1650,9 @@ function App() {
               <NotificationBell />
             </div>
           </header>
-          {specialView === 'quotes' ? (
+          {specialView === 'absence' ? (
+            <AbsenceNotice onBack={closeSpecial} />
+          ) : specialView === 'quotes' ? (
             <QuotesManager onBack={closeSpecial} />
           ) : specialView === 'attendance' ? (
             <AttendanceManager onBack={closeSpecial} />

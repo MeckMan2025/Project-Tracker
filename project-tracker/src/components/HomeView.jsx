@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, CalendarX, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -469,6 +469,10 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
               { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
             { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
+            // Everyone needs this one, and missing the 24 hours by an hour
+            // costs an absence — so it goes where people actually land rather
+            // than somewhere they'd have to go looking.
+            { view: 'absence', label: "I'll be out", icon: CalendarX, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
             // A tab of its own rather than a Special Controls page, so this one
             // switches tabs instead of opening a special view.
             { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
