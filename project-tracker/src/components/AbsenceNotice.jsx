@@ -27,7 +27,9 @@ const localDay = (offsetDays = 0) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function AbsenceNotice({ onBack }) {
+// Lives inside the Attendance tab, so it takes `embedded` and drops its own
+// page chrome — no back button, no outer padding, no duplicate heading.
+export default function AbsenceNotice({ onBack, embedded = false }) {
   const { username } = useUser()
   const [events, setEvents] = useState([])
   const [mine, setMine] = useState([])
@@ -114,14 +116,7 @@ export default function AbsenceNotice({ onBack }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-        <div className="max-w-lg mx-auto space-y-4">
-
-          <button onClick={onBack}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            <ArrowLeft size={14} /> Back
-          </button>
+    <Shell embedded={embedded} onBack={onBack}>
 
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pastel-blue to-pastel-pink flex items-center justify-center shrink-0">
@@ -246,6 +241,22 @@ export default function AbsenceNotice({ onBack }) {
               </div>
             </section>
           )}
+    </Shell>
+  )
+}
+
+// A page when it's opened on its own, a plain block when it sits in a tab.
+function Shell({ embedded, onBack, children }) {
+  if (embedded) return <div className="space-y-4">{children}</div>
+  return (
+    <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+        <div className="max-w-lg mx-auto space-y-4">
+          <button onClick={onBack}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            <ArrowLeft size={14} /> Back
+          </button>
+          {children}
         </div>
       </div>
     </div>

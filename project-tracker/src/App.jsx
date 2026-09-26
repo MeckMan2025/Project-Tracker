@@ -466,6 +466,10 @@ function App() {
   // this to 'home' so Back returns to Home instead of dropping you in the
   // Special Controls menu you never went through.
   const [specialFrom, setSpecialFrom] = useState(null)
+  // The session screen renders inside the Attendance tab rather than through
+  // Special Controls — that tab is blocked for most people, so routing members
+  // through it would just bounce them off the access check.
+  const [showSessions, setShowSessions] = useState(false)
   const [viewTask, setViewTask] = useState(null)
   const [viewPersonTasks, setViewPersonTasks] = useState(null) // display_name
   const [prefillAssignee, setPrefillAssignee] = useState('')
@@ -1633,7 +1637,9 @@ function App() {
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (
-        <AttendanceView />
+        showSessions
+          ? <AttendanceManager onBack={() => setShowSessions(false)} />
+          : <AttendanceView onOpenSessions={() => setShowSessions(true)} />
       ) : activeTab === 'chat-all' ? (
         <QuickChat channel="all" />
       ) : activeTab === 'chat-alliances' ? (

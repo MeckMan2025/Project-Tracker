@@ -149,6 +149,7 @@ export default function AttendanceManager({ onBack }) {
   }
 
   const handleTakeAttendance = async () => {
+    if (!hasLeadTag) return
     // Repeat taps used to each create their own session (12 duplicates for one
     // meeting), because the guard below ran before the awaits and the button
     // stayed live the whole time.
@@ -271,6 +272,7 @@ export default function AttendanceManager({ onBack }) {
   // morning after, or a session is started early. The date is what every
   // percentage and streak is counted against, so it has to be correctable.
   const handleChangeDate = async (nextDate) => {
+    if (!hasLeadTag) return
     if (!nextDate || !selectedSession || nextDate === selectedSession.session_date) return
     // Two sessions on one day would count everybody twice.
     const clash = sessions.find(s => s.id !== selectedSession.id && s.session_date === nextDate)
@@ -300,6 +302,7 @@ export default function AttendanceManager({ onBack }) {
   }
 
   const handleDeleteSession = async (sessionId) => {
+    if (!hasLeadTag) return
     if (!window.confirm('Delete this attendance session? This cannot be undone.')) return
     setSessions(prev => prev.filter(s => s.id !== sessionId))
     setRecords(prev => prev.filter(r => r.session_id !== sessionId))
@@ -317,6 +320,7 @@ export default function AttendanceManager({ onBack }) {
   }
 
   const handleToggleStatus = async (record) => {
+    if (!hasLeadTag) return
     // A "no record" placeholder (member added after this meeting) has no DB row
     // yet — the first tap creates one, marked present, then it cycles normally.
     if (record.virtual) {
@@ -538,22 +542,26 @@ export default function AttendanceManager({ onBack }) {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setEditing(!editing)}
-                className={`p-2 rounded-lg transition-colors ${editing ? 'bg-pastel-blue text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                title={editing ? 'Done editing' : 'Edit'}
-              >
-                <Edit3 size={16} />
-              </button>
-              <button
-                onClick={() => handleDeleteSession(selectedSession.id)}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete session"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+            {/* Anyone can read a session; changing one is for leads and
+                co-leads. hasLeadTag already covers every Co- role. */}
+            {hasLeadTag && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditing(!editing)}
+                  className={`p-2 rounded-lg transition-colors ${editing ? 'bg-pastel-blue text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                  title={editing ? 'Done editing' : 'Edit'}
+                >
+                  <Edit3 size={16} />
+                </button>
+                <button
+                  onClick={() => handleDeleteSession(selectedSession.id)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete session"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
           </div>
 
           {feedback && (
@@ -746,13 +754,15 @@ export default function AttendanceManager({ onBack }) {
           <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
         )}
 
-        <button
-          onClick={handleTakeAttendance}
-          disabled={creating}
-          className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 disabled:hover:bg-pastel-blue/40 disabled:cursor-not-allowed transition-colors text-sm font-semibold text-gray-700"
-        >
-          {creating ? 'Starting\u2026' : "Start Today's Session"}
-        </button>
+        {hasLeadTag && (
+          <button
+            onClick={handleTakeAttendance}
+            disabled={creating}
+            className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 disabled:hover:bg-pastel-blue/40 disabled:cursor-not-allowed transition-colors text-sm font-semibold text-gray-700"
+          >
+            {creating ? 'Starting\u2026' : "Start Today's Session"}
+          </button>
+        )}
         <p className="text-xs text-gray-400 text-center -mt-2">
           {(() => {
             const online = teamMembers.filter(p => recentlySeen(p.display_name))

@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import AbsenceNotice from './AbsenceNotice'
 import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
-import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useAttendancePartial, presencePct, recordTiming } from '../lib/attendancePartial'
 import { excludedAttName, excludedNamesFrom } from '../lib/attendanceRoster'
 
@@ -50,7 +51,7 @@ function TrendChart({ points, color = '#6366f1' }) {
   )
 }
 
-export default function AttendanceView() {
+export default function AttendanceView({ onOpenSessions }) {
   const { username } = useUser()
   const { canViewAllAttendance, canViewOwnAttendance, hasLeadTag } = usePermissions()
 
@@ -264,6 +265,28 @@ export default function AttendanceView() {
 
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-lg mx-auto space-y-6">
+
+          {/* The meeting sessions themselves. Everyone can look; the buttons
+              that change anything are lead-only inside that screen. */}
+          <button
+            onClick={() => onOpenSessions?.()}
+            className="w-full bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all text-left flex items-center gap-3"
+          >
+            <CalendarDays size={18} className="text-pastel-blue-dark shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-700 text-sm">Meeting sessions</p>
+              <p className="text-xs text-gray-400">
+                {sessions.length} logged · {hasLeadTag ? 'you can take and edit attendance' : 'view only'}
+              </p>
+            </div>
+            <ChevronRight size={16} className="text-gray-300 shrink-0" />
+          </button>
+
+          {/* Telling people ahead of a meeting. It belongs with attendance —
+              it's the thing that decides whether a day counts against you. */}
+          <section className="bg-white rounded-2xl p-4 shadow-sm">
+            <AbsenceNotice embedded />
+          </section>
 
           {/* Personal Stats Card */}
           {canViewOwnAttendance && (
