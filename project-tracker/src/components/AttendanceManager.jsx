@@ -292,6 +292,50 @@ export default function AttendanceManager({ onBack }) {
   // percentage and streak is counted against, so it has to be correctable.
   // A reason travels with the absence rather than living in someone's memory.
   // The filed notice is used when there is one; this is for the rest.
+  // Excusing is a lead's call, made deliberately. An absence stays unexcused
+  // until one of them says otherwise — filing a notice asks, it doesn't decide.
+  // A lead can correct what somebody filed — times change, reasons get typed
+  // in a hurry. on_time is deliberately left alone: whether they told us in
+  // time is a fact about when they filed, not something to be edited after.
+  const patchNotice = async (notice, fields) => {
+    if (!hasLeadTag) return
+    setNotices(prev => prev.map(n => n.id === notice.id ? { ...n, ...fields } : n))
+    try {
+      await fetch(`${REST_URL}/rest/v1/absence_notices?id=eq.${notice.id}`, {
+        method: 'PATCH', headers: REST_JSON, body: JSON.stringify(fields),
+      })
+    } catch (err) {
+      console.error('Failed to change the notice:', err)
+    }
+  }
+
+  const deleteNotice = async (notice) => {
+    if (!hasLeadTag) return
+    if (!window.confirm(`Remove ${notice.username}'s notice for this meeting?`)) return
+    setNotices(prev => prev.filter(n => n.id !== notice.id))
+    try {
+      await fetch(`${REST_URL}/rest/v1/absence_notices?id=eq.${notice.id}`, {
+        method: 'DELETE', headers: REST_HEADERS,
+      })
+    } catch (err) {
+      console.error('Failed to remove the notice:', err)
+    }
+  }
+
+  const setExcused = async (record, excused) => {
+    if (!hasLeadTag) return
+    const status = excused ? 'excused' : 'absent'
+    setRecords(prev => prev.map(r => r.id === record.id ? { ...r, status, marked_by: username } : r))
+    try {
+      await fetch(`${REST_URL}/rest/v1/attendance_records?id=eq.${record.id}`, {
+        method: 'PATCH', headers: REST_JSON,
+        body: JSON.stringify({ status, marked_by: username }),
+      })
+    } catch (err) {
+      console.error('Failed to change excused:', err)
+    }
+  }
+
   const setReason = async (record, text) => {
     if (!hasLeadTag) return
     setRecords(prev => prev.map(r => r.id === record.id ? { ...r, reason: text } : r))
@@ -626,7 +670,29 @@ export default function AttendanceManager({ onBack }) {
                             + (n.early_min ? ` · left ${n.early_min} min early` : '')
                           : 'out for the meeting'}
                       </p>
-                      <p className="text-gray-400 break-words">{n.reason}</p>
+                      {editing && hasLeadTag ? (
+                        <div className="space-y-1 mt-0.5">
+                          {n.kind === 'partial' && (
+                            <div className="flex items-center gap-1">
+                              <input type="time" step="300" defaultValue={n.arrive_at || ''}
+                                onBlur={e => e.target.value !== (n.arrive_at || '') && patchNotice(n, { arrive_at: e.target.value })}
+                                className="border rounded px-1 py-0.5 text-[11px]" />
+                              <span className="text-gray-400 text-[11px]">–</span>
+                              <input type="time" step="300" defaultValue={n.leave_at || ''}
+                                onBlur={e => e.target.value !== (n.leave_at || '') && patchNotice(n, { leave_at: e.target.value })}
+                                className="border rounded px-1 py-0.5 text-[11px]" />
+                            </div>
+                          )}
+                          <input defaultValue={n.reason || ''}
+                            onBlur={e => e.target.value !== (n.reason || '') && patchNotice(n, { reason: e.target.value })}
+                            placeholder="Reason"
+                            className="w-full border rounded px-1.5 py-0.5 text-[11px]" />
+                          <button onClick={() => deleteNotice(n)}
+                            className="text-[11px] text-gray-400 hover:text-red-500">Remove</button>
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 break-words">{n.reason}</p>
+                      )}
                       {n.hours_before != null && (
                         <p className="text-gray-300">{Math.floor(n.hours_before)}h before</p>
                       )}
@@ -636,6 +702,7 @@ export default function AttendanceManager({ onBack }) {
               </div>
               <p className="text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
                 Nothing is marked from this — a late notice counts absent.
+                {editing && hasLeadTag && ' Edit mode: you can correct times and reasons here.'}
               </p>
             </section>
           )}
@@ -701,6 +768,19 @@ export default function AttendanceManager({ onBack }) {
                       >
                         {r.status}
                       </button>
+                      {/* One tap either way, rather than cycling through
+                          present to get there. */}
+                      {editing && !present && r.status !== 'no record' && (
+                        <button
+                          onClick={() => setExcused(r, r.status !== 'excused')}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                            r.status === 'excused'
+                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        >
+                          {r.status === 'excused' ? 'excused' : 'excuse'}
+                        </button>
+                      )}
                       {editing && present && (
                         <button
                           onClick={() => setExpandedRec(open ? null : r.id)}
