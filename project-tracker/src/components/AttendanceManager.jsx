@@ -271,6 +271,21 @@ export default function AttendanceManager({ onBack }) {
   // Meetings get logged on the wrong day — someone opens attendance the
   // morning after, or a session is started early. The date is what every
   // percentage and streak is counted against, so it has to be correctable.
+  // A reason travels with the absence rather than living in someone's memory.
+  // The filed notice is used when there is one; this is for the rest.
+  const setReason = async (record, text) => {
+    if (!hasLeadTag) return
+    setRecords(prev => prev.map(r => r.id === record.id ? { ...r, reason: text } : r))
+    try {
+      await fetch(`${REST_URL}/rest/v1/attendance_records?id=eq.${record.id}`, {
+        method: 'PATCH', headers: REST_JSON, body: JSON.stringify({ reason: text }),
+      })
+    } catch (err) {
+      // The column may not exist yet (supabase/attendance_reason.sql).
+      console.error('Failed to save the reason:', err)
+    }
+  }
+
   const handleChangeDate = async (nextDate) => {
     if (!hasLeadTag) return
     if (!nextDate || !selectedSession || nextDate === selectedSession.session_date) return
@@ -656,6 +671,18 @@ export default function AttendanceManager({ onBack }) {
                     <div className="min-w-0">
                       <span className="text-sm font-medium text-gray-700">{r.username}</span>
                       {present && timingLine && <div className="text-[11px] text-gray-400 mt-0.5">{timingLine}</div>}
+                      {/* Why they were gone, next to the fact that they were.
+                          A filed notice wins — it's what they actually said. */}
+                      {!present && (() => {
+                        const filed = notices.find(n => n.username === r.username)
+                        const why = filed?.reason || r.reason
+                        if (!why) return null
+                        return (
+                          <div className="text-[11px] text-gray-500 mt-0.5 italic truncate" title={why}>
+                            “{why}”{filed && <span className="not-italic text-gray-400"> · {filed.on_time ? 'filed in time' : 'filed late'}</span>}
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {present && (
@@ -678,6 +705,16 @@ export default function AttendanceManager({ onBack }) {
                       )}
                     </div>
                   </div>
+                  {editing && !present && !notices.some(n => n.username === r.username) && (
+                    <div className="px-3 pb-3 -mt-1">
+                      <input
+                        defaultValue={r.reason || ''}
+                        onBlur={e => { if (e.target.value !== (r.reason || '')) setReason(r, e.target.value) }}
+                        placeholder="Why were they gone?"
+                        className="w-full text-xs border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                      />
+                    </div>
+                  )}
                   {editing && present && open && (
                     <div className="px-3 pb-3 pt-2 border-t border-gray-100 space-y-2">
                       <div className="flex items-center gap-2">
