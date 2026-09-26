@@ -5,6 +5,15 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 167,
+    date: '2026-09-26',
+    items: [
+      '\u{1F4D3} Writing a notebook entry asks one thing at a time instead of putting the whole form in front of you at once. Same questions, one per page, with Back and Next \u2014 it was overwhelming to fill out, and a wall of boxes is why entries got rushed. Nothing moves on until the question in front of you is answered',
+      '\u{1F4D6} The notebook can be read as a notebook. Ruled paper, a contents page of every meeting date you can tap to jump straight to that day, then one page per entry, turned with the arrow in the bottom corner \u2014 which is how a judge reads it, and how nobody could read it before. The project list is still there for searching and filtering',
+      '\u27A1\uFE0F Every topic has its own notebook. The arrow on a topic opens just that topic\u2019s entries, read the same way, headed with the topic\u2019s name \u2014 so a topic can be read start to finish without everything else in between. You still see only your own entries unless you are a lead, exactly as in the folders',
+    ],
+  },
+  {
     id: 166,
     date: '2026-09-26',
     items: [

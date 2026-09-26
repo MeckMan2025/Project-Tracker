@@ -2,15 +2,51 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap } from 'lucide-react'
+import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, BookOpen } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
+import NotebookBook from './NotebookBook'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 
 // Where notebook photos live. Entries made before this hold the image inline as
 // a data: URL, and both still render — the <img> only ever sees a src.
 const NOTEBOOK_PHOTO_BUCKET = 'notebook-photos'
+
+// One page of the entry, drawn as a page: cream stock, faint rules, and the
+// red margin a notebook has. The question is the heading, in the handwriting
+// the rest of the app uses for anything paper.
+// Ruled in the team's two colours, alternating. RULE is the gap between lines —
+// the contents rows are set to the same height so each date sits on a line
+// instead of drifting between them.
+const RULE = 36
+const PAPER = {
+  backgroundColor: '#ffffff',
+  backgroundImage: [
+    'repeating-linear-gradient(',
+    `#ffffff 0px, #ffffff ${RULE - 1}px, #bfdbfe ${RULE}px,`,
+    `#ffffff ${RULE + 1}px, #ffffff ${RULE * 2 - 1}px, #fbcfe8 ${RULE * 2}px`,
+    ')',
+  ].join(''),
+}
+
+function Page({ title, sub, children }) {
+  return (
+    <div className="relative rounded-lg border border-gray-200 shadow-sm overflow-hidden" style={PAPER}>
+      {/* The margin line, and the gutter that keeps text off it. */}
+      <div className="absolute top-0 bottom-0 left-8 w-px bg-red-300/60" />
+      <div className="relative pl-12 pr-4 py-4 space-y-3">
+        <div>
+          <h3 className="text-xl leading-tight text-gray-700" style={{ fontFamily: "'Kalam', cursive" }}>
+            {title}
+          </h3>
+          {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 // Straight to the storage REST API with the anon key, like every other call in
 // here. supabase.storage.upload() first runs auth.getSession(), and when the
@@ -110,6 +146,9 @@ export default function EngineeringNotebook() {
   const [projects, setProjects] = useState([])
   const [formData, setFormData] = useState({ ...INITIAL_ENTRY })
   const [meetingDate, setMeetingDate] = useState(todayLocal)
+  // Which page of the entry is open.
+  const [step, setStep] = useState(0)
+  const LAST_STEP = 6
   // Meeting days, so a late entry can be filed against the meeting it belongs
   // to. These are the same days attendance is taken on, which is what decides
   // whether a missing entry counts against you.
@@ -130,6 +169,8 @@ export default function EngineeringNotebook() {
   const [mentors, setMentors] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   const [expandedProject, setExpandedProject] = useState(null)
+  // Which topic's notebook is being read. null is the whole notebook.
+  const [bookProject, setBookProject] = useState(null)
   const [showRequestProjectModal, setShowRequestProjectModal] = useState(false)
   const [requestProjectName, setRequestProjectName] = useState('')
 
@@ -265,6 +306,16 @@ export default function EngineeringNotebook() {
   }, [username])
 
   const blockedDay = leadAbsentDays.has(meetingDate)
+
+  // What each page needs before it will let you turn over. Only the pages that
+  // actually require something are listed; the rest are free to skip.
+  const stepReady = (() => {
+    if (step === 0) return !!meetingDate && !blockedDay
+    if (step === 1) return !!formData.whatDid.trim()
+    if (step === 2) return !!formData.whyOption && (formData.whyOption !== 'Other' || !!formData.whyNote.trim())
+    if (step === 3) return !!formData.engagement && !!formData.engagementNote.trim()
+    return true
+  })()
 
   // Meetings this person has no entry for yet — what they'd be marked absent
   // for. Days a lead already marked them absent aren't offered: there is
@@ -655,9 +706,46 @@ export default function EngineeringNotebook() {
         <div className="max-w-2xl mx-auto space-y-3">
 
           {/* ========== PROJECTS VIEW ========== */}
+          {/* Reading it as a book: contents first, then a page per meeting.
+              The project list is still there for searching and filtering. */}
+          {view === 'book' && (
+            <>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  onClick={() => { setView('projects'); setBookProject(null) }}
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  ← Back to projects
+                </button>
+                {bookProject && (
+                  <span className="text-xs text-gray-400">
+                    {bookProject.name}'s notebook
+                  </span>
+                )}
+              </div>
+              {/* A topic's notebook is that topic's entries, read the same way:
+                  contents of dates, then a page each. getProjectEntries already
+                  applies the season and the own-entries-only rule, so scoping
+                  the book can't show anyone more than the folder did.
+                  Keyed so switching topics opens at the contents rather than
+                  keeping the page you were on in the last one. */}
+              <NotebookBook
+                key={bookProject?.id || 'all'}
+                entries={bookProject ? getProjectEntries(bookProject.id) : filteredEntries}
+                projectName={bookProject?.name}
+              />
+            </>
+          )}
+
           {view === 'projects' && (
             <>
               <div className="flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  onClick={() => { setBookProject(null); setView('book') }}
+                  className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-orange/30 hover:bg-pastel-orange/50 transition-colors font-medium"
+                >
+                  <BookOpen size={14} /> Read as a notebook
+                </button>
                 {isLead ? (
                   <button
                     onClick={() => { setProjectForm({ ...INITIAL_PROJECT }); setEditingProjectId(null); setShowProjectModal(true) }}
@@ -722,6 +810,17 @@ export default function EngineeringNotebook() {
                               </button>
                             </>
                           )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBookProject({ id: project.id, name: project.name })
+                              setView('book')
+                            }}
+                            title={`Read ${project.name} as a notebook`}
+                            className="text-gray-300 hover:text-pastel-orange-dark transition-colors"
+                          >
+                            <ArrowRight size={16} />
+                          </button>
                           {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                         </div>
                       </div>
@@ -830,11 +929,20 @@ export default function EngineeringNotebook() {
           {view === 'entry' && (
             <div className="space-y-4">
               <SectionHeader title={editingEntryId ? 'Update Entry' : 'New Notebook Entry'} />
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-full bg-pastel-blue-dark transition-all"
+                       style={{ width: `${((step + 1) / (LAST_STEP + 1)) * 100}%` }} />
+                </div>
+                <span className="text-[11px] text-gray-400 shrink-0">
+                  {step + 1} of {LAST_STEP + 1}
+                </span>
+              </div>
               {editingEntryId && (
                 <div className="flex items-center justify-between gap-2 bg-pastel-blue/20 rounded-lg px-3 py-2">
                   <p className="text-xs text-gray-600">Editing an entry you already wrote — saving replaces it.</p>
                   <button
-                    onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setMeetingDate(todayLocal()) }}
+                    onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setMeetingDate(todayLocal()); setStep(0) }}
                     className="text-xs font-semibold text-gray-500 hover:text-gray-700 shrink-0"
                   >
                     Cancel
@@ -842,9 +950,10 @@ export default function EngineeringNotebook() {
                 </div>
               )}
 
+              {step === 0 && (
+                <Page title="Which meeting is this for?" sub="Start with the day.">
               {/* Meeting date */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Meeting Date</label>
                 {/* Anyone can date an entry, not just leads — missing one now
                     marks you absent, so everyone needs a way to make it up.
                     Capped at today: you can't write up a meeting that hasn't
@@ -899,38 +1008,13 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
-              {/* Project */}
-              <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Project</label>
-                <div className="flex flex-wrap gap-2">
-                  {['Technical', 'Business', 'Programming'].map(name => (
-                    <button
-                      key={name}
-                      onClick={() => { updateField('category', name); updateField('projectId', '') }}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        formData.category === name && !formData.projectId ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                  {activeProjects.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => { updateField('projectId', p.id); updateField('category', p.category || 'Technical') }}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        formData.projectId === p.id ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                </Page>
+              )}
 
+              {step === 1 && (
+                <Page title="What did you do?" sub="One or two lines is plenty.">
               {/* What did you do */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">What did you do?</label>
                 <input
                   type="text"
                   value={formData.whatDid}
@@ -942,9 +1026,13 @@ export default function EngineeringNotebook() {
                 <p className="text-xs text-gray-400 text-right mt-0.5">{formData.whatDid.length}/150</p>
               </div>
 
+                </Page>
+              )}
+
+              {step === 2 && (
+                <Page title="Why did it matter?" sub="What it moved forward.">
               {/* Why it matters */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Why it matters</label>
                 <select
                   value={formData.whyOption}
                   onChange={e => updateField('whyOption', e.target.value)}
@@ -965,9 +1053,13 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
+                </Page>
+              )}
+
+              {step === 3 && (
+                <Page title="How engaged were you?" sub="And what made it that way.">
               {/* Engagement */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">How engaged were you? *</label>
                 <div className="flex gap-2">
                   {ENGAGEMENT_OPTIONS.map(opt => (
                     <button
@@ -1006,10 +1098,47 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
+                </Page>
+              )}
+
+              {step === 4 && (
+                <Page title="Which project?" sub="Leave it if this wasn't project work.">
+              {/* Project */}
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  {['Technical', 'Business', 'Programming'].map(name => (
+                    <button
+                      key={name}
+                      onClick={() => { updateField('category', name); updateField('projectId', '') }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        formData.category === name && !formData.projectId ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                  {activeProjects.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { updateField('projectId', p.id); updateField('category', p.category || 'Technical') }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        formData.projectId === p.id ? 'bg-pastel-pink text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+                </Page>
+              )}
+
+              {step === 5 && (
+                <Page title="Did a mentor help?" sub="Judges care whether the work was student-led.">
               {/* Mentor help — FTC judges care whether the work was student-led,
                   so record it per entry rather than guessing later. */}
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-1">Did a mentor help?</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setFormData(prev => ({ ...prev, mentorHelp: false, mentorName: '', mentorNote: '' }))}
@@ -1050,6 +1179,11 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
+                </Page>
+              )}
+
+              {step === 6 && (
+                <Page title="Show it" sub="A photo, or a link to the work.">
               {/* Project link (optional) */}
               <div>
                 <label className="text-sm font-medium text-gray-600 block mb-1">Project link {formData.photoUrl ? '(optional)' : '(required if no photo)'}</label>
@@ -1166,6 +1300,30 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
+                </Page>
+              )}
+
+              {/* One page at a time. The whole form on one screen was a wall;
+                  a notebook asks you one thing, you answer it, you turn over. */}
+              <div className="flex items-center gap-2 pt-1">
+                {step > 0 && (
+                  <button
+                    onClick={() => setStep(s => s - 1)}
+                    className="px-4 py-2.5 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+                  >
+                    ← Back
+                  </button>
+                )}
+                {step < LAST_STEP ? (
+                  <button
+                    onClick={() => setStep(s => s + 1)}
+                    disabled={!stepReady}
+                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-pastel-blue hover:bg-pastel-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next →
+                  </button>
+                ) : (
+                  <div className="flex-1">
               {/* Submit — say what's still missing rather than just greying out */}
               {(() => {
                 const missing = [
@@ -1194,6 +1352,9 @@ export default function EngineeringNotebook() {
                   </>
                 )
               })()}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
