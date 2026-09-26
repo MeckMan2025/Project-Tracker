@@ -489,6 +489,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <span className="truncate">Engineering Notebook</span>
               </div>
 
+              <hr className="my-2 border-gray-200" />
+
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'logs'
