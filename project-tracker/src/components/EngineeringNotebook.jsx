@@ -78,6 +78,7 @@ const INITIAL_ENTRY = {
   whyOption: '',
   whyNote: '',
   engagement: '',
+  engagementNote: '',
   mentorHelp: false,
   mentorName: '',
   mentorNote: '',
@@ -137,7 +138,7 @@ export default function EngineeringNotebook() {
   // anything — the projects and entries were waiting on image data nobody had
   // scrolled to yet. They're fetched separately and merged in after.
   const ENTRY_COLS = 'id,username,meeting_date,category,custom_category,what_did,why_option,why_note,' +
-    'engagement,mentor_help,mentor_name,mentor_note,project_id,project_link,flash_id,season,created_at'
+    'engagement,engagement_note,mentor_help,mentor_name,mentor_note,project_id,project_link,flash_id,season,created_at'
 
   // Load data via direct fetch
   useEffect(() => {
@@ -309,6 +310,7 @@ export default function EngineeringNotebook() {
     // Engagement used to default to Somewhat, so an untouched form still
     // reported one — which is worth nothing as data. It has to be chosen.
     if (!formData.engagement) return
+    if (!formData.engagementNote.trim()) return
 
     if (localStorage.getItem('scrum-sfx-enabled') !== 'false') new Audio('/sounds/click.mp3').play().catch(() => {})
 
@@ -321,6 +323,7 @@ export default function EngineeringNotebook() {
       why_option: formData.whyOption,
       why_note: formData.whyNote.trim(),
       engagement: formData.engagement,
+      engagement_note: formData.engagementNote.trim(),
       mentor_help: !!formData.mentorHelp,
       mentor_name: formData.mentorHelp ? formData.mentorName.trim() : '',
       mentor_note: formData.mentorHelp ? formData.mentorNote.trim() : '',
@@ -380,6 +383,7 @@ export default function EngineeringNotebook() {
       whyOption: entry.why_option || '',
       whyNote: entry.why_note || '',
       engagement: entry.engagement || '',
+      engagementNote: entry.engagement_note || '',
       mentorHelp: !!entry.mentor_help,
       mentorName: entry.mentor_name || '',
       mentorNote: entry.mentor_note || '',
@@ -738,7 +742,8 @@ export default function EngineeringNotebook() {
                                     return (
                                       <div key={entry.id} className="bg-white rounded-lg p-3 shadow-sm">
                                         <div className="flex items-start justify-between gap-2">
-                                          <span className="flex items-center gap-1 text-xs text-gray-400">
+                                          <span className="flex items-center gap-1 text-xs text-gray-400"
+                                                title={entry.engagement_note || undefined}>
                                             <span className={`w-2 h-2 rounded-full inline-block ${engDot}`} />
                                             {entry.engagement}
                                           </span>
@@ -763,6 +768,11 @@ export default function EngineeringNotebook() {
                                           </div>
                                         </div>
                                         <p className="text-sm text-gray-800 mt-1 font-medium">{entry.what_did}</p>
+                                        {/* Read on the page, not just as a tooltip — this is the
+                                            half of engagement anyone can actually act on. */}
+                                        {entry.engagement_note && (
+                                          <p className="text-xs text-gray-500 mt-1 italic">“{entry.engagement_note}”</p>
+                                        )}
                                         <p className="text-xs mt-1 flex items-start flex-wrap gap-x-1 text-gray-400">
                                           {entry.mentor_help ? (
                                             <>
@@ -967,6 +977,25 @@ export default function EngineeringNotebook() {
                 {!formData.engagement && (
                   <p className="text-xs text-gray-400 mt-1">Pick one — it isn't filled in for you.</p>
                 )}
+                {/* The level says a meeting went badly; this says what went
+                    wrong, which is the part anyone can act on. */}
+                {formData.engagement && (
+                  <div className="mt-2">
+                    <label className="text-sm font-medium text-gray-600 block mb-1">
+                      Why did you feel {formData.engagement.toLowerCase()} engaged? *
+                    </label>
+                    <textarea
+                      value={formData.engagementNote}
+                      onChange={e => updateField('engagementNote', e.target.value)}
+                      rows={2}
+                      placeholder={
+                        formData.engagement === 'Very' ? 'What made it a good one?'
+                          : formData.engagement === 'Somewhat' ? 'What would have made it better?'
+                          : 'What got in the way?'}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent resize-none"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Mentor help — FTC judges care whether the work was student-led,
@@ -1137,6 +1166,7 @@ export default function EngineeringNotebook() {
                   formData.whyOption === 'Other' && !formData.whyNote.trim() && 'a note for "Other"',
                   !formData.photoUrl && !formData.projectLink.trim() && 'a photo or a project link',
                   !formData.engagement && 'how engaged you were',
+                  formData.engagement && !formData.engagementNote.trim() && 'why you felt that way',
                 ].filter(Boolean)
                 return (
                   <>
