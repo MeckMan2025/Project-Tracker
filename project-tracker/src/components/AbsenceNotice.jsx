@@ -58,11 +58,14 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   }
   useEffect(loadMine, [username])
 
-  // Meetings on the calendar, offered as shortcuts. There often aren't any —
-  // meetings get added late or not at all — so the date picker is the real
-  // control and these are a convenience on top of it.
+  // The next few meetings on the calendar, offered as shortcuts. Five is
+  // enough to cover the fortnight anyone is planning around; past that the row
+  // is just noise. The fetch is already date-ordered and starts from today.
+  //
+  // There often aren't any — meetings get added late or not at all — so the
+  // date picker is the real control and these sit on top of it.
   const meetings = useMemo(
-    () => events.filter(e => e.event_type === 'meeting').slice(0, 6),
+    () => events.filter(e => e.event_type === 'meeting').slice(0, 5),
     [events])
 
   // The meeting being reported on, and therefore what the 24 hours counts
@@ -166,12 +169,18 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">Upcoming meetings</label>
                   <div className="flex flex-wrap gap-2">
+                    {/* The name is shown, not just the date: these come from
+                        whatever the calendar calls a meeting, so anything
+                        mislabelled there is visible here instead of silently
+                        offering a wrong day. */}
                     {meetings.map(m => (
-                      <button key={m.id} onClick={() => setDate(m.date_key)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      <button key={m.id} onClick={() => setDate(m.date_key)} title={m.name}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors text-left ${
                           date === m.date_key ? 'bg-pastel-blue text-gray-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}>
-                        {new Date(m.date_key + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {new Date(m.date_key + 'T00:00:00').toLocaleDateString('en-US',
+                          { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {m.name && <span className="block font-normal opacity-70 truncate max-w-[9rem]">{m.name}</span>}
                       </button>
                     ))}
                   </div>
