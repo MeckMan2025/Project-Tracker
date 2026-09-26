@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 
-function LoginScreen({ sessionExpired, onBack, initialMode }) {
+function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
   const [loginMode, setLoginMode] = useState(initialMode === 'team' ? 'team' : 'member')
@@ -279,7 +279,7 @@ function LoginScreen({ sessionExpired, onBack, initialMode }) {
               We sent a password reset link to <span className="font-medium text-gray-700">{email}</span>.
             </p>
             <p className="text-sm text-gray-600">
-              Check your inbox (and spam/junk folder) and follow the link to reset your password.
+              Check your inbox (and spam/junk folder) and follow the link to reset your password. Only the link in the newest email works.
             </p>
             <p className="text-xs text-gray-400 mt-2">
               Note: Emails can take a few minutes. If it never arrives, ask a team lead to reset your password from the Supabase dashboard.
@@ -413,6 +413,12 @@ function LoginScreen({ sessionExpired, onBack, initialMode }) {
             <h1 className={heading}>Sign In</h1>
             <p className="text-sm text-gray-500 mt-1">Welcome back</p>
           </div>
+
+          {linkError && (
+            <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">
+              {linkError}
+            </div>
+          )}
 
           {sessionExpired && (
             <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">

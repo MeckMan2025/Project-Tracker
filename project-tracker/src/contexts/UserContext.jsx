@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { supabase } from '../supabase'
+import { supabase, arrivedFromRecoveryLink } from '../supabase'
 
 const UserContext = createContext(null)
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
@@ -34,7 +34,7 @@ export function UserProvider({ children }) {
   const [useNickname, setUseNickname] = useState(() => localStorage.getItem('scrum-use-nickname') === 'true')
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [passwordRecovery, setPasswordRecovery] = useState(arrivedFromRecoveryLink)
   const [mustChangePassword, setMustChangePassword] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [isTeam, setIsTeam] = useState(() => localStorage.getItem('scrum-is-team') === 'true')
@@ -190,6 +190,7 @@ export function UserProvider({ children }) {
 
   const clearState = () => {
     setUser(null)
+    setPasswordRecovery(false)
     setUsername('')
     setIsLead(false)
     setRole('member')
@@ -247,7 +248,10 @@ export function UserProvider({ children }) {
           // was lost (it's only written on SIGNED_IN). Treat now as the start
           // rather than expiring — otherwise isSessionExpired() returns true and
           // logs the user out on every visit.
-          if (!localStorage.getItem('session-start')) {
+          // A reset link is a brand new session too. Without this, a stale
+          // session-start left over from a lapsed login expires it on arrival
+          // and the user lands back on the landing page.
+          if (arrivedFromRecoveryLink || !localStorage.getItem('session-start')) {
             localStorage.setItem('session-start', Date.now().toString())
           }
           if (isSessionExpired()) {
@@ -326,6 +330,9 @@ export function UserProvider({ children }) {
       } catch (err) {
         console.error('Failed to restore session:', err)
       }
+      // The link looked like a reset but no session came of it, so there is
+      // nothing to set a password on. Fall back to the normal sign-in path.
+      if (mounted) setPasswordRecovery(false)
       if (mounted) setLoading(false)
     }
 

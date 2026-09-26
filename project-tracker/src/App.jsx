@@ -69,7 +69,7 @@ import ExpenseRequests from './components/ExpenseRequests'
 import NotificationBell from './components/NotificationBell'
 import { useToast } from './components/ToastProvider'
 import { useNativePush } from './hooks/useNativePush'
-import { supabase } from './supabase'
+import { supabase, authLinkError } from './supabase'
 
 // REST API helpers (avoids Supabase JS client auth token issues)
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -474,7 +474,8 @@ function App() {
   const [cameFromPerson, setCameFromPerson] = useState('')
   const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings()
   const [loadError, setLoadError] = useState(null)
-  const [landingChoice, setLandingChoice] = useState(null)
+  // A rejected email link goes straight to Sign In, where the reason is shown.
+  const [landingChoice, setLandingChoice] = useState(authLinkError ? 'login' : null)
   const [viewingProfileId, setViewingProfileId] = useState(null)
   const [profileReturnTab, setProfileReturnTab] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -1393,12 +1394,15 @@ function App() {
     )
   }
 
+  // Following a reset link signs the user in, so this has to come before the
+  // !user check or the Set New Password screen can never show.
+  if (passwordRecovery) {
+    return <LoginScreen sessionExpired={sessionExpired} />
+  }
+
   if (!user) {
-    if (passwordRecovery) {
-      return <LoginScreen sessionExpired={sessionExpired} />
-    }
     if (landingChoice === 'login') {
-      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} />
+      return <LoginScreen sessionExpired={sessionExpired} linkError={authLinkError} onBack={() => setLandingChoice(null)} />
     }
     if (landingChoice === 'team-login') {
       return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} initialMode={import.meta.env.DEV ? 'team' : 'member'} />
