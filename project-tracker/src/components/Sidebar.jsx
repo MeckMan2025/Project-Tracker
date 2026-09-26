@@ -454,44 +454,21 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           {/* Only show separator if non-team Data section was rendered (team Data has its own hr) */}
           {!isTeamAccount && <hr className="my-2 border-gray-200" />}
 
-          {/* Season Progress — holds the Calendar and the Timeline. */}
+          {/* Just the Calendar now — a section that holds one page is a
+              folder with one file in it. */}
           {!isTeamAccount && (
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'calendar' || activeTab === 'timeline'
+                  activeTab === 'calendar'
                     ? 'bg-pastel-pink text-gray-800'
                     : 'hover:bg-pastel-blue/30 text-gray-600'
                 }`}
-                onClick={() => setCalendarOpen(prev => !prev)}
+                onClick={() => { onTabChange('calendar'); onToggle() }}
               >
                 <Calendar size={16} className="text-pastel-pink-dark" />
-                <span className="truncate flex-1">Season Progress</span>
-                <ChevronRight
-                  size={14}
-                  className={`transition-transform ${calendarOpen || activeTab === 'calendar' || activeTab === 'timeline' ? 'rotate-90' : ''}`}
-                />
+                <span className="truncate flex-1">Calendar</span>
               </div>
-
-              {(calendarOpen || activeTab === 'calendar' || activeTab === 'timeline') && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {[
-                    { tab: 'calendar', label: 'Calendar' },
-                    { tab: 'timeline', label: 'Timeline' },
-                  ].map(({ tab, label }) => (
-                    <div
-                      key={tab}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                        activeTab === tab ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                      }`}
-                      onClick={() => { onTabChange(tab); onToggle() }}
-                    >
-                      <ChevronRight size={14} className={activeTab === tab ? 'rotate-90' : ''} />
-                      <span className="truncate">{label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               <hr className="my-2 border-gray-200" />
             </>

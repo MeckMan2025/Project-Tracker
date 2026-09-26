@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, BarChart3, Grid3x3, Quote } from 'lucide-react'
+import { Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3, Quote } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -465,7 +465,6 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           const tiles = [
             ...(hasLeadTag ? [
               { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-yellow',   tint: 'bg-pastel-yellow/20',   text: 'text-pastel-yellow-dark' },
-              { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3,      ring: 'border-pastel-orange',   tint: 'bg-pastel-orange/20',   text: 'text-pastel-orange-dark' },
               { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
             { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },

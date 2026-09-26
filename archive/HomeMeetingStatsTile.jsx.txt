@@ -1,0 +1,12 @@
+Meeting Stats tile — removed from the Home dashboard on 2026-09-26.
+
+Only the dashboard tile was removed. MeetingStatsView.jsx is untouched and the
+specialView route ('meeting-stats') still works, so it can be reached again by
+putting this tile back, or from anywhere else that calls onOpenSpecial.
+
+To restore, put this back in the tiles array in
+project-tracker/src/components/HomeView.jsx, inside the hasLeadTag group:
+
+  { view: 'meeting-stats', label: 'Meeting Stats', icon: BarChart3, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
+
+BarChart3 comes from lucide-react.

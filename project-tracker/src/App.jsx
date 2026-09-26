@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
-import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES } from './lib/taskTeams'
+import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES, sidesForTags, EVERYONE, UP_FOR_GRABS } from './lib/taskTeams'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2, ArrowLeft } from 'lucide-react'
 import { downloadRowsCSV, csvName } from './utils/csvUtils'
@@ -58,7 +58,6 @@ import { usePermissions } from './hooks/usePermissions'
 import { usePresenceContext } from './contexts/PresenceContext'
 import { useBackButton } from './hooks/useBackButton'
 import ScreenBoundary from './components/ScreenBoundary'
-import TimelineView from './components/TimelineView'
 import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
@@ -113,7 +112,7 @@ async function restDelete(table, filter) {
 // Tab access requirements: which minimum tier is needed
 const TAB_ACCESS = {
   // All tiers (including guest)
-  'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest', 'timeline': 'guest',
+  'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
   'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'engagement': 'teammate', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
@@ -236,7 +235,13 @@ const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
 const SPECIAL_TAB = { id: 'special-controls', name: 'Special Controls', type: 'special-controls' }
 
+// Main is every board's tasks at once, so nobody has to go round three boards
+// to see what's outstanding. It's a view rather than a real board — nothing is
+// ever filed on it, so it has no row in `boards` and can't be removed.
+const MAIN_BOARD = { id: 'main', name: 'Main', permanent: true, readOnly: true }
+
 const DEFAULT_BOARDS = [
+  MAIN_BOARD,
   { id: 'business', name: 'Business', permanent: true },
   { id: 'technical', name: 'Technical', permanent: true },
   { id: 'programming', name: 'Programming', permanent: true },
@@ -695,7 +700,8 @@ function App() {
       if (!isTeam) {
         // Seed default boards if missing (only for Radical members)
         const existingIds = boards.map(b => b.id)
-        const missing = DEFAULT_BOARDS.filter(b => !existingIds.includes(b.id))
+        // Main is a view over the others, so it never gets a row of its own.
+        const missing = DEFAULT_BOARDS.filter(b => !b.readOnly && !existingIds.includes(b.id))
         if (missing.length > 0) {
           try {
             for (const b of missing) {
@@ -837,7 +843,15 @@ function App() {
     if (activeTab !== 'special-controls') { setSpecialView(null); setSpecialFrom(null) }
   }, [activeTab])
 
-  const tasks = tasksByTab[activeTab] || []
+  const isMain = activeTab === MAIN_BOARD.id
+  // Main gathers every board. A task on two sides is one row, not two, so it
+  // is keyed by id — the multi-side tasks genuinely live on several boards.
+  const tasks = isMain
+    ? Object.entries(tasksByTab)
+        .filter(([id]) => id !== MAIN_BOARD.id)
+        .flatMap(([, list]) => list)
+        .filter((t, i, all) => all.findIndex(x => x.id === t.id) === i)
+    : (tasksByTab[activeTab] || [])
 
   // Home opens the read-only task details (everyone can read; editing stays
   // with leads inside that popup) rather than jumping to the board editor.
@@ -1049,7 +1063,9 @@ function App() {
     // Tasks created outside a board (e.g. from a member's task page, where
     // activeTab is still 'home') would otherwise be filed under a non-board id
     // and never show up anywhere. Fall back to a real board.
-    const boardIds = new Set(tabs.filter(t => !t.type).map(t => t.id))
+    // Main holds nothing of its own, so a task made while looking at it has to
+    // land on a real board.
+    const boardIds = new Set(tabs.filter(t => !t.type && t.id !== MAIN_BOARD.id).map(t => t.id))
     const targetBoard = boardIds.has(activeTab)
       ? activeTab
       : (tabs.find(t => !t.type)?.id || 'business')
@@ -1415,11 +1431,21 @@ function App() {
     } catch (err) { console.error('Failed to move task:', err) }
   }
 
-  // Anyone on the team can move a task along. It used to be leads, plus your
-  // own tasks matched by name — which meant nobody could move a task given to
-  // "Everyone" or to a whole team, since neither matches a person's name.
-  // Progress is something the person doing the work reports.
-  const canDragTask = () => canDragAnyTask || canDragOwnTask
+  // You move the tasks you're responsible for. Leads move anything.
+  //
+  // "Yours" has to cover every way a task reaches you, or this repeats the old
+  // bug where nobody could move a task given to Everyone or to a whole side:
+  // your name among the assignees, the single assignee field, Everyone, Up for
+  // Grabs, or a side your roles put you on.
+  const mySides = sidesForTags(functionTags)
+  const isMyTask = (task) => {
+    if (!task || !username) return false
+    const names = task.assignees?.length ? task.assignees : [task.assignee].filter(Boolean)
+    if (names.some(n => n && n.toLowerCase() === username.toLowerCase())) return true
+    if (names.includes(EVERYONE) || names.includes(UP_FOR_GRABS)) return true
+    return (task.sides || []).some(sd => mySides.includes(sd))
+  }
+  const canDragTask = (task) => canDragAnyTask || (canDragOwnTask && isMyTask(task))
 
   if (loading) {
     return (
@@ -1647,8 +1673,6 @@ function App() {
             setEditingTask(task)
           }}
         />
-      ) : activeTab === 'timeline' ? (
-        <TimelineView />
       ) : activeTab === 'user-management' ? (
         <UserManagement onViewProfile={(id) => { setViewingProfileId(id); setProfileReturnTab('user-management'); setActiveTab('profile') }} />
       ) : activeTab === 'requests' ? (

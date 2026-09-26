@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Send, Trash2, Check, Clock } from 'lucide-react'
+import { Send, Trash2, Check, Clock, X } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -192,12 +192,22 @@ function SuggestionsView() {
     }
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    const before = suggestions
     setSuggestions(prev => prev.filter(s => s.id !== id))
-    fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
-      method: 'DELETE',
-      headers,
-    }).catch(err => console.error('Failed to delete suggestion:', err))
+    try {
+      // Checked, because a refused delete used to look exactly like a
+      // successful one until the page was reloaded and the row came back.
+      const res = await fetch(`${supabaseUrl}/rest/v1/suggestions?id=eq.${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      if (!res.ok) throw new Error(await res.text() || res.statusText)
+    } catch (err) {
+      console.error('Failed to delete suggestion:', err)
+      setSuggestions(before)
+      setLoadError("That one couldn't be deleted — it's still there.")
+    }
   }
 
   const formatDate = (timestamp) => {
@@ -333,7 +343,7 @@ After you've asked enough questions, write me a final polished feature suggestio
                                 onClick={() => handleSetStatus(s.id, 'denied')}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-red-500 text-xs font-medium"
                               >
-                                <Trash2 size={14} />
+                                <X size={14} />
                                 Deny
                               </button>
                             </>
