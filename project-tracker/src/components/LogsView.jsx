@@ -1,4 +1,6 @@
 import { Globe, Receipt, GraduationCap } from 'lucide-react'
+import OutreachLog from './OutreachLog'
+import ExpenseLog from './ExpenseLog'
 
 // One page per log, chosen from the sidebar the way Data's pages are. The
 // shape is here; what fills each one hasn't been decided yet, so each says so
@@ -15,6 +17,10 @@ export const LOGS = [
 export default function LogsView({ log }) {
   const active = LOGS.find(l => l.id === log) || LOGS[0]
   const Icon = active.icon
+
+  // The two that are built bring their own page. Mentor is still a placeholder.
+  if (active.id === 'logs-outreach') return <OutreachLog />
+  if (active.id === 'logs-expenses') return <ExpenseLog />
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
