@@ -124,7 +124,7 @@ const TAB_ACCESS = {
   'sw-design': 'teammate', 'sw-programming': 'teammate', 'sw-io': 'teammate', 'bug-tracker': 'teammate',
   'notebook': 'teammate', 'workshops': 'teammate', 'special-controls': 'teammate', 'team-scouting-data': 'teammate',
   'attendance': 'teammate', 'user-management': 'teammate', 'requests': 'teammate',
-  'logs': 'teammate',
+  'logs-outreach': 'teammate', 'logs-expenses': 'teammate', 'logs-mentor': 'teammate',
 }
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
@@ -234,7 +234,11 @@ const CALENDAR_TAB = { id: 'calendar', name: 'Calendar', type: 'calendar' }
 const SCHEDULE_TAB = { id: 'schedule', name: 'Schedule', type: 'schedule' }
 const WORKSHOPS_TAB = { id: 'workshops', name: 'Workshops', type: 'workshops' }
 const ATTENDANCE_TAB = { id: 'attendance', name: 'Attendance', type: 'attendance' }
-const LOGS_TAB = { id: 'logs', name: 'Logs', type: 'logs' }
+const LOG_TABS = [
+  { id: 'logs-outreach', name: 'Outreach', type: 'logs' },
+  { id: 'logs-expenses', name: 'Expenses', type: 'logs' },
+  { id: 'logs-mentor',   name: 'Mentor',   type: 'logs' },
+]
 const USER_MGMT_TAB = { id: 'user-management', name: 'User Management', type: 'user-management' }
 const SPECIAL_TAB = { id: 'special-controls', name: 'Special Controls', type: 'special-controls' }
 
@@ -256,7 +260,7 @@ const DEFAULT_BOARDS = [
 // their own features. The tab check is skipped when one of these is open.
 const OPEN_SPECIAL_VIEWS = ['quotes', 'absence']
 
-const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, LOGS_TAB, USER_MGMT_TAB, SPECIAL_TAB]
+const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, ...LOG_TABS, USER_MGMT_TAB, SPECIAL_TAB]
 
 const mapTask = (t) => ({
   id: t.id,
@@ -921,7 +925,7 @@ function App() {
   }
 
   const handleDeleteTab = async (tabId) => {
-    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId === 'logs' || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'comp-day' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
+    if (tabId === 'home' || tabId === 'scouting' || tabId === 'boards' || tabId === 'data' || tabId === 'ai-manual' || tabId === 'tasks' || tabId === 'workshops' || tabId === 'notebook' || tabId === 'org-chart' || tabId === 'calendar' || tabId === 'attendance' || tabId.startsWith('logs') || tabId === 'user-management' || tabId === 'profile' || tabId === 'settings' || tabId === 'comp-day' || tabId === 'requests' || tabId === 'schedule' || tabId === 'special-controls') return
     const board = tabs.find(t => t.id === tabId)
     const count = (tasksByTab[tabId] || []).length
     // Default boards come back empty on the next load — the app re-seeds them —
@@ -1693,8 +1697,8 @@ function App() {
         <EngagementView />
       ) : activeTab === 'role-spec' && import.meta.env.DEV ? (
         <RoleSpec />
-      ) : activeTab === 'logs' ? (
-        <LogsView />
+      ) : activeTab === 'logs' || activeTab.startsWith('logs-') ? (
+        <LogsView log={activeTab} />
       ) : activeTab === 'notebook' ? (
         <EngineeringNotebook />
       ) : activeTab === 'attendance' ? (

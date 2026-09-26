@@ -14,6 +14,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
   const [menuOpen, setMenuOpen] = useState(false)
   const [boardsOpen, setBoardsOpen] = useState(isTeamAccount)
   const [dataOpen, setDataOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [navFilter, setNavFilter] = useState(() => localStorage.getItem('scrum-nav-filter') || 'general')
@@ -86,7 +87,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'logs' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'timeline' && activeTab !== 'attendance' && activeTab !== 'logs' && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'testing' && activeTab !== 'design-matrix' && activeTab !== 'sw-design' && activeTab !== 'sw-programming' && activeTab !== 'sw-io' && activeTab !== 'bug-tracker'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'timeline' && activeTab !== 'attendance' && !activeTab.startsWith('logs') && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'testing' && activeTab !== 'design-matrix' && activeTab !== 'sw-design' && activeTab !== 'sw-programming' && activeTab !== 'sw-io' && activeTab !== 'bug-tracker'
 
   return (
     <>
@@ -491,17 +492,56 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
 
               <hr className="my-2 border-gray-200" />
 
+              {/* Logs holds three, so it opens rather than being one page —
+                  the same as Data. Open it by the arrow; it also opens itself
+                  when you're already on one of its pages. */}
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'logs'
+                  activeTab === 'logs-outreach' || activeTab === 'logs-expenses' || activeTab === 'logs-mentor'
                     ? 'bg-pastel-pink text-gray-800'
                     : 'hover:bg-pastel-blue/30 text-gray-600'
                 }`}
-                onClick={() => { onTabChange('logs'); onToggle() }}
+                onClick={() => setLogsOpen(prev => !prev)}
               >
                 <ScrollText size={16} className="text-pastel-blue-dark" />
-                <span className="truncate">Logs</span>
+                <span className="truncate flex-1">Logs</span>
+                <ChevronRight
+                  size={14}
+                  className={`transition-transform ${logsOpen || activeTab === 'logs-outreach' || activeTab === 'logs-expenses' || activeTab === 'logs-mentor' ? 'rotate-90' : ''}`}
+                />
               </div>
+
+              {(logsOpen || activeTab === 'logs-outreach' || activeTab === 'logs-expenses' || activeTab === 'logs-mentor') && (
+                <div className="ml-4 mt-1 space-y-1">
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'logs-outreach' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => { onTabChange('logs-outreach'); onToggle() }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'logs-outreach' ? 'rotate-90' : ''} />
+                    <span className="truncate">Outreach</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'logs-expenses' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => { onTabChange('logs-expenses'); onToggle() }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'logs-expenses' ? 'rotate-90' : ''} />
+                    <span className="truncate">Expenses</span>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                      activeTab === 'logs-mentor' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                    }`}
+                    onClick={() => { onTabChange('logs-mentor'); onToggle() }}
+                  >
+                    <ChevronRight size={14} className={activeTab === 'logs-mentor' ? 'rotate-90' : ''} />
+                    <span className="truncate">Mentor</span>
+                  </div>
+                </div>
+              )}
 
               <hr className="my-2 border-gray-200" />
             </>
