@@ -422,7 +422,11 @@ export default function AttendanceManager({ onBack }) {
       return
     }
 
-    const cycle = ['present', 'absent', 'excused']
+    // Present and absent only. Excusing is its own button beside this one,
+    // because it is a decision a lead makes with a reason attached — not a
+    // third stop you pass through while tapping. Tapping an already-excused
+    // pill (not in the cycle, so indexOf is -1) brings them back to present.
+    const cycle = ['present', 'absent']
     const nextIdx = (cycle.indexOf(record.status) + 1) % cycle.length
     const newStatus = cycle[nextIdx]
 
