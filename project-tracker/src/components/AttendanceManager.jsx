@@ -157,35 +157,17 @@ export default function AttendanceManager({ onBack }) {
     creatingRef.current = true
     setCreating(true)
     try {
-      // The day this session is for. Normally today; a second session on a day
-      // that already has one double-counts everybody, so that case asks which
-      // day is meant rather than silently opening the first.
-      // Only a real YYYY-MM-DD counts. Anything else — a click event handed
-      // in by an onClick={fn} — falls back to today instead of becoming the
-      // session's date and going into the request body.
+      // One session per day, full stop. A second one on the same date counts
+      // everybody twice, so if today already has one we say so and open it
+      // rather than offering to start another.
       const wantedDate = typeof forDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(forDate) ? forDate : null
-      let today = wantedDate || todayStr()
-      if (!wantedDate) {
-        const localDupe = sessions.find(s => s.session_date === today)
-        if (localDupe) {
-          const pick = window.prompt(
-            `There's already a session for today (${today}).\n\n` +
-            'If this one is for a different day, type it as YYYY-MM-DD. ' +
-            "Leave it empty to open today's.", '')
-          const wanted = (pick || '').trim()
-          if (!wanted) { await openExistingSession(localDupe); return }
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(wanted)) {
-            showFeedback('That date needs to look like 2026-09-26.')
-            return
-          }
-          const other = sessions.find(s => s.session_date === wanted)
-          if (other) {
-            showFeedback(`There's already a session for ${wanted}. Opening it.`)
-            await openExistingSession(other)
-            return
-          }
-          today = wanted
-        }
+      const today = wantedDate || todayStr()
+
+      const localDupe = sessions.find(s => s.session_date === today)
+      if (localDupe) {
+        showFeedback(`There's already a session for ${today}. Opening it.`)
+        await openExistingSession(localDupe)
+        return
       }
 
       // Local state goes stale when a tab is left open and the realtime socket
@@ -196,7 +178,7 @@ export default function AttendanceManager({ onBack }) {
         if (res.ok) {
           const rows = await res.json()
           if (rows.length > 0) {
-            showFeedback('A session already exists for today. Opening it.')
+            showFeedback(`There's already a session for ${today}. Opening it.`)
             await openExistingSession(rows[0])
             return
           }
@@ -214,10 +196,24 @@ export default function AttendanceManager({ onBack }) {
       } catch {}
 
       const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
-      const isRecentlySeen = (name) => {
-        const p = freshProfiles.find(pr => pr.display_name === name)
-        if (!p?.last_seen_at) return false
-        return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
+
+      // Whoever already told us they'd miss this meeting. Marking them present
+      // and waiting for a lead to undo it would throw away the one thing they
+      // did right, so their notice is honoured from the start: excused if they
+      // filed in time, absent if they filed late. A 'partial' notice means
+      // they'll be here for some of it, so that still starts present.
+      const noticed = new Map()
+      try {
+        const nres = await fetch(
+          `${REST_URL}/rest/v1/absence_notices?meeting_date=eq.${today}&select=username,on_time,kind`,
+          { headers: REST_HEADERS })
+        if (nres.ok) for (const n of await nres.json()) noticed.set(n.username, n)
+      } catch {}
+
+      const startingStatus = (name) => {
+        const n = noticed.get(name)
+        if (n && n.kind === 'out') return n.on_time ? 'excused' : 'absent'
+        return 'present'
       }
 
       const sessionId = genId()
@@ -229,12 +225,15 @@ export default function AttendanceManager({ onBack }) {
         created_at: new Date().toISOString(),
       }
 
-      // Mark recently active users as present, rest as absent
+      // Everyone starts present and a lead taps down the few who aren't. That
+      // is the shorter job at almost every meeting, and it beats the old rule
+      // — present only if the app had been open in the last 30 seconds —
+      // which marked the whole room absent whenever nobody had it open.
       const newRecords = freshMembers.map(p => ({
         id: genId(),
         session_id: sessionId,
         username: p.display_name,
-        status: isRecentlySeen(p.display_name) ? 'present' : 'absent',
+        status: startingStatus(p.display_name),
         marked_by: username,
         created_at: new Date().toISOString(),
       }))
