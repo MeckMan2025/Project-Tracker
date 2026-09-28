@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { defaultDurationForDate, defaultStartForDate } from '../lib/attendancePartial'
+import { alertLeadsOfLateNotice } from '../lib/lateNoticeAlert'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -151,6 +152,19 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
         body: JSON.stringify(row),
       })
       if (!res.ok) throw new Error(await res.text())
+      // Only once it's actually stored, and only when it's late — an in-time
+      // notice is seen when attendance is taken, which is soon enough.
+      if (!inTime) {
+        alertLeadsOfLateNotice({
+          actor: username,
+          date,
+          hoursBefore: hoursAhead,
+          outAll,
+          reason: reason.trim(),
+          arriveAt,
+          leaveAt,
+        })
+      }
       setDone({ date, inTime, outAll })
       setReason('')
       loadMine()

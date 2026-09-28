@@ -160,8 +160,12 @@ export default function AttendanceManager({ onBack }) {
       // The day this session is for. Normally today; a second session on a day
       // that already has one double-counts everybody, so that case asks which
       // day is meant rather than silently opening the first.
-      let today = forDate || todayStr()
-      if (!forDate) {
+      // Only a real YYYY-MM-DD counts. Anything else — a click event handed
+      // in by an onClick={fn} — falls back to today instead of becoming the
+      // session's date and going into the request body.
+      const wantedDate = typeof forDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(forDate) ? forDate : null
+      let today = wantedDate || todayStr()
+      if (!wantedDate) {
         const localDupe = sessions.find(s => s.session_date === today)
         if (localDupe) {
           const pick = window.prompt(
@@ -889,7 +893,7 @@ export default function AttendanceManager({ onBack }) {
 
         {hasLeadTag && (
           <button
-            onClick={handleTakeAttendance}
+            onClick={() => handleTakeAttendance()}
             disabled={creating}
             className="w-full px-4 py-3 rounded-xl bg-pastel-blue/40 hover:bg-pastel-blue/60 disabled:opacity-50 disabled:hover:bg-pastel-blue/40 disabled:cursor-not-allowed transition-colors text-sm font-semibold text-gray-700"
           >
