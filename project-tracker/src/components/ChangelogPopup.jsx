@@ -5,6 +5,18 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 169,
+    date: '2026-09-28',
+    items: [
+      '\u{1F6E0}\uFE0F Taking attendance works again. Starting a session hit an error and stopped \u2014 the button was handing the tap itself in where the date belonged',
+      '\u2705 Everyone starts present and a lead taps down the few who aren\u2019t. It used to start everyone absent unless they\u2019d had the app open in the last thirty seconds, so most meetings began by marking the whole room present. Anyone who already filed a notice for that day is the exception: excused if they filed in time, absent if they filed late \u2014 telling us shouldn\u2019t be undone by the default',
+      '\u{1F4C5} One attendance session per day. Starting a second one now says there\u2019s already one and opens it, rather than asking which other day you meant \u2014 two on a date counts everybody twice',
+      '\u23F0 You can say you\u2019ll be gone even inside the 24 hours. It still counts absent \u2014 that part isn\u2019t a negotiation \u2014 but telling people late beats not telling them, and leads and co-leads now get a notification the moment a late one is filed, with how many hours\u2019 notice, whether it\u2019s the whole meeting, and why',
+      '\u{1F4D6} The Engineering Notebook is on Home now, next to AI Manual and Submit a Quote, and has come off the sidebar \u2014 it was three ways to the same page',
+      '\u270F\uFE0F The logs don\u2019t have a bin on every row any more. The pencil at the top turns them on when you actually mean to delete something, and turns into a tick to put them away',
+    ],
+  },
+  {
     id: 168,
     date: '2026-09-26',
     items: [
