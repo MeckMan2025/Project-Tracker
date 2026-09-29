@@ -184,6 +184,14 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             required
           />
 
+          {/* Said here because this is where the choice gets made, and it is
+              only discovered later — when the reset email never arrives and
+              nobody can do anything about it from this end. */}
+          <p className="text-xs text-gray-400 text-center -mt-1">
+            Use a personal email if you can. School accounts often block the
+            password reset email, and there's no way to get you back in without it.
+          </p>
+
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
           <button type="submit" disabled={submitting} className={btn}>
@@ -325,6 +333,11 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             autoFocus
             required
           />
+
+          <p className="text-xs text-gray-400 text-center -mt-1">
+            If this is a school address and nothing arrives, it was probably
+            blocked — ask a lead to change your email to a personal one.
+          </p>
 
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
