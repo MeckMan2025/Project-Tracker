@@ -148,6 +148,17 @@ function UserManagement({ onViewProfile }) {
     w => !memberNameSet.has(inviteName(w.email).trim().toLowerCase())
   )
 
+  // profiles has no email column — the address lives on auth.users, which the
+  // anon key can't read. So a member's sign-up address is taken from the
+  // whitelist row they were approved on, matched by the name that row resolves
+  // to. Anyone approved outside the whitelist, or whose display name was
+  // changed after signing up, won't match and simply shows no address rather
+  // than a wrong one.
+  const emailByName = new Map(
+    whitelistedEmails.map(w => [inviteName(w.email).trim().toLowerCase(), w.email])
+  )
+  const emailFor = (m) => emailByName.get((m?.display_name || '').trim().toLowerCase()) || ''
+
   // Mentors and coaches are adults, not students — they get their own tab.
   const rosterRows = [
     ...registeredMembers.filter(m => !(m.function_tags || []).includes('Team')),
@@ -277,7 +288,7 @@ function UserManagement({ onViewProfile }) {
 
       const [emailsRes, membersRes, teamsRes] = await Promise.allSettled([
         fetchTable('approved_emails', 'id,email,role,created_at', headers),
-        fetchTable('profiles', 'id,display_name,email,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
+        fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
         fetchTable('team_accounts', 'team_number,team_name,user_id,created_at', headers),
       ])
 
@@ -1372,9 +1383,9 @@ function UserManagement({ onViewProfile }) {
                                 {member.display_name}
                                 {isSelf && <span className="ml-1 text-xs font-normal text-gray-400">(you)</span>}
                               </span>
-                              {(invite?.email || member.email) && (
+                              {(invite?.email || emailFor(member)) && (
                                 <span className="block text-[11px] text-gray-400 truncate">
-                                  {invite?.email || member.email}
+                                  {invite?.email || emailFor(member)}
                                 </span>
                               )}
                             </span>
