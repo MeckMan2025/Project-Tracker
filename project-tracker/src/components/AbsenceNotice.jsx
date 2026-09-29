@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
+import { Pencil, Check as CheckIcon, Trash2, ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { defaultDurationForDate, defaultStartForDate } from '../lib/attendancePartial'
 import { alertLeadsOfLateNotice } from '../lib/lateNoticeAlert'
@@ -48,6 +48,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const [leaveAt, setLeaveAt] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
+  const [editingMine, setEditingMine] = useState(false)
   const [done, setDone] = useState(null)
   const [error, setError] = useState('')
 
@@ -125,6 +126,27 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
       setError("Those are the meeting's own hours, so there's nothing to report. Tick \u201cI won't be there at all\u201d if you're missing it.")
       return
     }
+  // Only for a meeting that hasn't happened yet. Once it has, the notice is
+  // part of the record of that day — a lead can still remove it, but taking
+  // back what you told everyone after the fact is a different thing from
+  // fixing a mistake you just made.
+  const canRemove = (n) => {
+    try { return new Date(n.meeting_date + 'T23:59:59') > new Date() } catch { return false }
+  }
+
+  const removeMine = async (n) => {
+    setMine(prev => prev.filter(x => x.id !== n.id))
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/absence_notices?id=eq.${n.id}`, {
+        method: 'DELETE', headers: JSON_HEADERS,
+      })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (err) {
+      console.error('Failed to remove notice:', err)
+      setMine(prev => [n, ...prev])  // put it back rather than let it look gone
+    }
+  }
+
     if (!reason.trim()) { setError('Say why, even briefly — a lead has to make a call on it.'); return }
     setSaving(true)
     const row = {
@@ -331,7 +353,22 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
 
           {mine.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-              <h2 className="font-semibold text-gray-700 mb-2 text-sm">What you've filed</h2>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h2 className="font-semibold text-gray-700 text-sm">What you've filed</h2>
+                {/* Same as the logs: the bin lives behind the pencil rather
+                    than sitting on every row. */}
+                {mine.some(canRemove) && (
+                  <button
+                    onClick={() => setEditingMine(v => !v)}
+                    title={editingMine ? 'Done' : 'Remove one you filed by mistake'}
+                    className={`p-1 rounded-lg transition-colors ${
+                      editingMine ? 'bg-pastel-pink text-gray-800' : 'text-gray-400 hover:bg-pastel-blue/30'
+                    }`}
+                  >
+                    {editingMine ? <CheckIcon size={14} /> : <Pencil size={14} />}
+                  </button>
+                )}
+              </div>
               <div className="space-y-2">
                 {mine.map(n => (
                   <div key={n.id} className="flex items-start gap-2 text-xs">
@@ -353,6 +390,15 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                       </p>
                       <p className="text-gray-400 break-words">{n.reason}</p>
                     </div>
+                    {editingMine && canRemove(n) && (
+                      <button
+                        onClick={() => removeMine(n)}
+                        title="Remove this notice"
+                        className="ml-auto shrink-0 text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
