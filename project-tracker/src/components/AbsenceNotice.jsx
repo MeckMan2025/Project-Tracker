@@ -114,18 +114,6 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const inTime = hoursAhead >= NOTICE_HOURS
   const past = hoursAhead <= 0
 
-  const submit = async () => {
-    setError('')
-    // Everything is required. A half-filled notice is one a lead can't act on,
-    // and they'd have to come and ask — which is the thing this is meant to
-    // save. Checked in order, so the message points at the first gap.
-    if (!date) { setError('Pick the day you\'ll miss.'); return }
-    if (!outAll && (!arriveAt || !leaveAt)) { setError('Put in both times.'); return }
-    if (!outAll && window_?.backwards) { setError("You'd be leaving before you arrive — check the times."); return }
-    if (!outAll && window_ && window_.late === 0 && window_.early === 0) {
-      setError("Those are the meeting's own hours, so there's nothing to report. Tick \u201cI won't be there at all\u201d if you're missing it.")
-      return
-    }
   // Only for a meeting that hasn't happened yet. Once it has, the notice is
   // part of the record of that day — a lead can still remove it, but taking
   // back what you told everyone after the fact is a different thing from
@@ -147,6 +135,18 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
     }
   }
 
+  const submit = async () => {
+    setError('')
+    // Everything is required. A half-filled notice is one a lead can't act on,
+    // and they'd have to come and ask — which is the thing this is meant to
+    // save. Checked in order, so the message points at the first gap.
+    if (!date) { setError('Pick the day you\'ll miss.'); return }
+    if (!outAll && (!arriveAt || !leaveAt)) { setError('Put in both times.'); return }
+    if (!outAll && window_?.backwards) { setError("You'd be leaving before you arrive — check the times."); return }
+    if (!outAll && window_ && window_.late === 0 && window_.early === 0) {
+      setError("Those are the meeting's own hours, so there's nothing to report. Tick \u201cI won't be there at all\u201d if you're missing it.")
+      return
+    }
     if (!reason.trim()) { setError('Say why, even briefly — a lead has to make a call on it.'); return }
     setSaving(true)
     const row = {
