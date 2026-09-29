@@ -39,11 +39,18 @@ async function uploadReceipt(supabaseUrl, supabaseKey, file) {
 const BLANK = {
   purchase_date: todayLocal(),
   item: '',
+  quantity: '1',
+  cost: '',
   store: '',
   team: '',
   team_other: '',
   reimbursement: '',
 }
+
+const money = (n) =>
+  Number.isFinite(Number(n))
+    ? Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    : ''
 
 export default function ExpenseLog() {
   const { username } = useUser()
@@ -87,11 +94,20 @@ export default function ExpenseLog() {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
   const canRemoveAny = rows.some(r => isLead || r.username === username)
 
+  // Cost is per item, so the line total is the product. Shown while you type
+  // rather than asked for, so the two can't disagree.
+  const lineTotal = (Number(form.quantity) || 0) * (Number(form.cost) || 0)
+  // What the log adds up to. Rows filed before cost existed count as nothing
+  // rather than breaking the sum.
+  const spentTotal = rows.reduce((sum, r) => sum + (Number(r.total_cost) || 0), 0)
+
   // The form's own rule: a receipt is required when reimbursement is needed.
   const needsReceipt = form.reimbursement === 'Yes'
   const ready =
     form.purchase_date &&
     form.item.trim() &&
+    Number(form.quantity) > 0 &&
+    form.cost !== '' && Number(form.cost) >= 0 &&
     form.store.trim() &&
     form.team &&
     (form.team !== 'Other' || form.team_other.trim()) &&
@@ -111,6 +127,8 @@ export default function ExpenseLog() {
         username,
         purchase_date: form.purchase_date,
         item: form.item.trim(),
+        quantity: Number(form.quantity),
+        cost: Number(form.cost),
         store: form.store.trim(),
         team: form.team,
         team_other: form.team === 'Other' ? form.team_other.trim() : null,
@@ -124,8 +142,9 @@ export default function ExpenseLog() {
         body: JSON.stringify(row),
       })
       if (!res.ok) throw new Error(await res.text())
+      const [written] = await res.json().catch(() => [])
 
-      setRows(prev => [row, ...prev])
+      setRows(prev => [written || { ...row, total_cost: lineTotal }, ...prev])
       setForm({ ...BLANK })
       setFile(null)
       setShowForm(false)
@@ -159,7 +178,9 @@ export default function ExpenseLog() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Expense Log
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Log ALL team expenses here</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Log ALL team expenses here{rows.length > 0 && ` · ${money(spentTotal)} spent`}
+            </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Deleting lives behind the pencil rather than sitting on every
@@ -215,6 +236,26 @@ export default function ExpenseLog() {
                   placeholder="Your answer"
                   className={input}
                 />
+              </Field>
+
+              <Field label="How many?" required>
+                <input type="number" min="1" step="1" value={form.quantity}
+                       onChange={e => set('quantity', e.target.value)}
+                       placeholder="1" className={input} />
+              </Field>
+
+              <Field label="Cost per item" required>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm text-gray-400">$</span>
+                  <input type="number" min="0" step="0.01" value={form.cost}
+                         onChange={e => set('cost', e.target.value)}
+                         placeholder="0.00" className={input} />
+                </div>
+                {Number(form.quantity) > 1 && lineTotal > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {form.quantity} × {money(form.cost)} = <span className="font-semibold text-gray-700">{money(lineTotal)}</span>
+                  </p>
+                )}
               </Field>
 
               <Field label="Link or name of store purchased from" required>
@@ -315,7 +356,20 @@ export default function ExpenseLog() {
                   <div key={r.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-800 truncate">{r.item}</p>
+                        <p className="font-medium text-gray-800 truncate">
+                          {r.item}
+                          {Number(r.quantity) > 1 && (
+                            <span className="text-gray-400 font-normal"> × {r.quantity}</span>
+                          )}
+                        </p>
+                        {r.total_cost != null && (
+                          <p className="text-sm font-semibold text-gray-700 mt-0.5">
+                            {money(r.total_cost)}
+                            {Number(r.quantity) > 1 && (
+                              <span className="text-xs font-normal text-gray-400"> ({money(r.cost)} each)</span>
+                            )}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-400 mt-0.5">
                           {prettyDate(r.purchase_date)}
                           <span className="mx-1.5 text-gray-300">·</span>
