@@ -277,7 +277,7 @@ function UserManagement({ onViewProfile }) {
 
       const [emailsRes, membersRes, teamsRes] = await Promise.allSettled([
         fetchTable('approved_emails', 'id,email,role,created_at', headers),
-        fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
+        fetchTable('profiles', 'id,display_name,email,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
         fetchTable('team_accounts', 'team_number,team_name,user_id,created_at', headers),
       ])
 
@@ -1367,8 +1367,17 @@ function UserManagement({ onViewProfile }) {
                                 </span>
                               )}
                             </span>
-                            <span className="text-sm font-medium text-gray-700 truncate hover:underline">{member.display_name}</span>
-                            {isSelf && <span className="text-xs text-gray-400">(you)</span>}
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-gray-700 truncate hover:underline">
+                                {member.display_name}
+                                {isSelf && <span className="ml-1 text-xs font-normal text-gray-400">(you)</span>}
+                              </span>
+                              {(invite?.email || member.email) && (
+                                <span className="block text-[11px] text-gray-400 truncate">
+                                  {invite?.email || member.email}
+                                </span>
+                              )}
+                            </span>
                           </button>
                           {canAdminAccounts && (
                             <div className="flex items-center gap-1 shrink-0">

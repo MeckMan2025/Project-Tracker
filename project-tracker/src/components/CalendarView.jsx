@@ -26,6 +26,9 @@ const CATEGORIES = {
   birthday:    { label: 'Birthday',    emoji: '🎂', color: '#ec4899', soft: '#fce7f3', text: '#be185d', dept: ['team'] },
   fundraising: { label: 'Fundraising', emoji: '💰', color: '#f97316', soft: '#ffedd5', text: '#c2410c', dept: ['business'] },
   finance:     { label: 'Finance Deadline', emoji: '💸', color: '#eab308', soft: '#fef9c3', text: '#a16207', dept: ['business'] },
+  // A deadline rather than something you turn up to. Teal so it doesn't read
+  // as a Finance Deadline, which is yellow and means money specifically.
+  due:         { label: 'Due Date',    emoji: '📋', color: '#06b6d4', soft: '#cffafe', text: '#0e7490', dept: ['team', 'business', 'programming', 'technical'] },
   // For anything that isn't one of the above — kept neutral so it doesn't
   // read as a category with its own meaning.
   other:       { label: 'Other',       emoji: '📌', color: '#6b7280', soft: '#f3f4f6', text: '#4b5563', dept: ['team'] },
