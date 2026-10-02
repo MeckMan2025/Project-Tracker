@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, GraduationCap, ExternalLink } from 'lucide-react'
+import { thumbUrl, thumbFallback } from '../lib/photos'
 
 // The notebook read as a notebook: a contents page, then one page per meeting
 // date, turned with the arrow in the corner. The list view is still there for
@@ -190,10 +191,10 @@ export default function NotebookBook({ entries, projectName }) {
                   <a href={entry.photo_url} target="_blank" rel="noopener noreferrer">
                     {/* Sized to the ruling too, so the text after it lands back
                         on a line. */}
-                    <img src={entry.photo_url} alt="" loading="lazy"
+                    <img src={thumbUrl(entry.photo_url)} alt="" loading="lazy" decoding="async"
                          className="rounded border border-gray-200 object-cover"
                          style={{ height: RULE * 5 }}
-                         onError={ev => { ev.target.style.display = 'none' }} />
+                         onError={thumbFallback(entry.photo_url, el => { el.style.display = 'none' })} />
                   </a>
                 )}
                 {entry.project_link && (

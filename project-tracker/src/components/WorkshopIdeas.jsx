@@ -10,6 +10,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import NotificationBell from './NotificationBell'
+import { uploadImageFile } from '../lib/photos'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -135,23 +136,8 @@ function CreateWorkshopModal({ onClose, onSave, editing }) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingStep(idx)
-    const ext = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     try {
-      const uploadRes = await fetch(
-        `${supabaseUrl}/storage/v1/object/workshop-steps/${fileName}`,
-        {
-          method: 'POST',
-          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': file.type },
-          body: file,
-        }
-      )
-      if (uploadRes.ok) {
-        const publicUrl = `${supabaseUrl}/storage/v1/object/public/workshop-steps/${fileName}`
-        setStepImage(idx, publicUrl)
-      } else {
-        console.error('Step image upload failed:', await uploadRes.text())
-      }
+      setStepImage(idx, await uploadImageFile(supabaseUrl, supabaseKey, 'workshop-steps', file))
     } catch (err) {
       console.error('Step image upload error:', err)
     }
@@ -744,20 +730,8 @@ function WorkshopViewer({ workshop, onClose, userId, username, onComplete, onSav
     let photoUrl = null
     if (finishPhoto) {
       setFinishUploading(true)
-      const ext = finishPhoto.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       try {
-        const uploadRes = await fetch(
-          `${supabaseUrl}/storage/v1/object/workshop-gallery/${fileName}`,
-          {
-            method: 'POST',
-            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': finishPhoto.type },
-            body: finishPhoto,
-          }
-        )
-        if (uploadRes.ok) {
-          photoUrl = `${supabaseUrl}/storage/v1/object/public/workshop-gallery/${fileName}`
-        }
+        photoUrl = await uploadImageFile(supabaseUrl, supabaseKey, 'workshop-gallery', finishPhoto)
       } catch (err) {
         console.error('Finish photo upload error:', err)
       }
@@ -1740,7 +1714,7 @@ export default function WorkshopIdeas() {
                 <div className="grid grid-cols-2 gap-3">
                   {galleryItems.map(item => (
                     <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                      <img src={item.image_url} alt={item.caption || 'Gallery'} className="w-full h-40 object-cover" />
+                      <img src={item.image_url} alt={item.caption || 'Gallery'} loading="lazy" decoding="async" className="w-full h-40 object-cover" />
                       <div className="p-3">
                         {item.caption && <p className="text-sm text-gray-700 mb-1">{item.caption}</p>}
                         {item.workshop_title && (

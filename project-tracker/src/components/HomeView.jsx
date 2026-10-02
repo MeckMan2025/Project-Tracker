@@ -7,6 +7,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import NotebookGallery from './NotebookGallery'
+import { uploadImageFile } from '../lib/photos'
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -225,32 +226,16 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
     if (!file) return
     setUploading(true)
 
-    const ext = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
     try {
-      // Upload to storage
-      const uploadRes = await fetch(
-        `${supabaseUrl}/storage/v1/object/season-photos/${fileName}`,
-        {
-          method: 'POST',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': file.type,
-          },
-          body: file,
-        }
-      )
-
-      if (!uploadRes.ok) {
-        console.error('Upload failed:', await uploadRes.text())
+      // Shrunk and cached for a year — see lib/photos.js.
+      let publicUrl
+      try {
+        publicUrl = await uploadImageFile(supabaseUrl, supabaseKey, 'season-photos', file)
+      } catch (err) {
+        console.error('Upload failed:', err.message)
         setUploading(false)
         return
       }
-
-      // Get public URL
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/season-photos/${fileName}`
 
       // Save record
       await fetch(`${supabaseUrl}/rest/v1/season_photos`, {

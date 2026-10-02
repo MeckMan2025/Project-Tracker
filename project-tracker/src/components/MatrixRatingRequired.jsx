@@ -62,10 +62,11 @@ export default function MatrixRatingRequired() {
 
   const load = async () => {
     if (!username) return
-    // Only the columns needed to decide what to show — this runs every few
-    // seconds, so don't drag whole matrices across for it.
+    // Only what deciding and the vote form need. Most of the weight is the
+    // votes inside `scores`, which both need, so the real saving is in how
+    // rarely this runs — see the effect below.
     try {
-      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*`, { headers: HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=id,title,description,options,criteria,scores`, { headers: HEADERS })
       if (!res.ok) return
       const rows = await res.json()
       // An empty matrix has nothing to rate — never trap anyone behind one.
@@ -112,10 +113,10 @@ export default function MatrixRatingRequired() {
 
   useEffect(() => { load() }, [username])
 
-  // Three ways in, because only the first is instant and none is guaranteed:
-  // the app tells us directly when it hosts or records a vote, realtime covers
-  // other people's devices, and a slow poll catches the case where
-  // design_matrices never made it into the realtime publication.
+  // Three ways in: the app tells us directly when it hosts or records a vote,
+  // realtime carries other people's changes (design_matrices is in the
+  // supabase_realtime publication), and a slow poll is the safety net for a
+  // dropped socket. Coming back to the tab re-checks straight away.
   useEffect(() => {
     if (!username) return
     const onSignal = () => load()
@@ -124,14 +125,17 @@ export default function MatrixRatingRequired() {
       .channel('matrix-rating-required')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'design_matrices' }, load)
       .subscribe()
-    // Fast, because this is how the drumroll reaches everyone else's screen
-    // when the host presses reveal. Realtime would be instant, but it only
-    // fires if design_matrices actually made it into the publication, which
-    // can't be checked from here — so the poll has to be quick enough to carry
-    // a shared moment on its own.
-    const poll = setInterval(load, 3000)
+    // This used to run every 3s in every open tab, hidden ones included, and
+    // pulled the whole table each time — on its own it used up the Supabase
+    // free tier's monthly egress. Realtime is the fast path now.
+    const poll = setInterval(() => {
+      if (document.visibilityState === 'visible') load()
+    }, 60 * 1000)
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       window.removeEventListener('matrix-session-changed', onSignal)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(ch)
       clearInterval(poll)
     }

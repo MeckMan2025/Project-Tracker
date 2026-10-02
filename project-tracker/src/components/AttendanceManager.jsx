@@ -122,11 +122,11 @@ export default function AttendanceManager({ onBack }) {
   // All profiles with a display name (exclude explicit guests)
   const teamMembers = profiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
 
-  // Who's been seen in the last 15 seconds (heartbeat pings every 10s)
+  // Who's been seen recently (heartbeat pings every 30s; allow a couple missed)
   const recentlySeen = (name) => {
     const p = profiles.find(pr => pr.display_name === name)
     if (!p?.last_seen_at) return false
-    return (Date.now() - new Date(p.last_seen_at).getTime()) < 30 * 1000
+    return (Date.now() - new Date(p.last_seen_at).getTime()) < 90 * 1000
   }
 
   // Pull today's session (plus its records) straight from the server and show it.

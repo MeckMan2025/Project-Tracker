@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { BookOpen, ArrowRight, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { thumbUrl, thumbFallback } from '../lib/photos'
 
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -95,10 +96,12 @@ export default function NotebookGallery({ onTabChange }) {
               className="relative flex-shrink-0 w-40 h-32 rounded-lg overflow-hidden snap-center group"
             >
               <img
-                src={p.photo_url}
+                src={thumbUrl(p.photo_url)}
                 alt={p.what_did || 'Notebook photo'}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-                onError={e => { e.target.parentElement.style.display = 'none' }}
+                onError={thumbFallback(p.photo_url, el => { el.parentElement.style.display = 'none' })}
               />
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
                 <p className="text-[11px] text-white font-medium truncate">{p.username}</p>

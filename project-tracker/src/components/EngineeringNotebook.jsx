@@ -6,6 +6,7 @@ import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDow
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import NotebookBook from './NotebookBook'
+import { loadImageFile, resizeToBlob, uploadPhotoWithThumb, newPhotoName, thumbUrl, thumbFallback } from '../lib/photos'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
 
@@ -46,31 +47,6 @@ function Page({ title, sub, children }) {
       </div>
     </div>
   )
-}
-
-// Straight to the storage REST API with the anon key, like every other call in
-// here. supabase.storage.upload() first runs auth.getSession(), and when the
-// saved token has expired (a phone waking up) and the refresh stalls, that
-// never returns — the upload never even goes out, the spinner runs forever and
-// Submit stays disabled. The bucket policy lets anon insert, so no session is
-// needed. The timeout means a slow network lands in the inline fallback.
-const PHOTO_UPLOAD_TIMEOUT_MS = 20000
-async function uploadNotebookPhoto(supabaseUrl, supabaseKey, blob) {
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), PHOTO_UPLOAD_TIMEOUT_MS)
-  try {
-    const res = await fetch(`${supabaseUrl}/storage/v1/object/${NOTEBOOK_PHOTO_BUCKET}/${path}`, {
-      method: 'POST',
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'image/jpeg', 'x-upsert': 'false' },
-      body: blob,
-      signal: controller.signal,
-    })
-    if (!res.ok) throw new Error(`upload ${res.status}: ${await res.text().catch(() => '')}`)
-    return `${supabaseUrl}/storage/v1/object/public/${NOTEBOOK_PHOTO_BUCKET}/${path}`
-  } finally {
-    clearTimeout(timer)
-  }
 }
 
 // Local calendar date. toISOString() is UTC, so after ~7pm Central it rolls to
@@ -901,7 +877,7 @@ export default function EngineeringNotebook() {
                                           )}
                                           {entry.photo_url && (
                                             <a href={entry.photo_url} target="_blank" rel="noopener noreferrer">
-                                              <img src={entry.photo_url} alt="Entry photo" className="mt-1 max-h-32 rounded-lg object-cover" onError={e => { e.target.style.display = 'none' }} />
+                                              <img src={thumbUrl(entry.photo_url)} alt="Entry photo" loading="lazy" decoding="async" className="mt-1 max-h-32 rounded-lg object-cover" onError={thumbFallback(entry.photo_url, el => { el.style.display = 'none' })} />
                                             </a>
                                           )}
                                         </div>
@@ -1242,54 +1218,33 @@ export default function EngineeringNotebook() {
                         const fail = (msg) => setFormData(prev => ({ ...prev, _uploading: false, _photoError: msg }))
                         const CANT_READ = "Couldn't read that photo. If it came from an iPhone it may be HEIC — open it, screenshot it, and add the screenshot, or use the project link instead."
 
-                        const img = new Image()
-                        const reader = new FileReader()
-                        reader.onerror = () => fail(CANT_READ)
-                        reader.onload = (ev) => {
-                          img.onerror = () => fail(CANT_READ)
-                          img.onload = () => {
+                        ;(async () => {
+                          let img
+                          try { img = await loadImageFile(file) } catch { return fail(CANT_READ) }
+                          const done = (url) => setFormData(prev => ({
+                            ...prev, photoUrl: url, _uploading: false, _photoError: '',
+                          }))
+                          // The photo goes to storage with a small thumbnail beside it, and the
+                          // row keeps a link — sizes and why are in lib/photos.js.
+                          try {
+                            done(await uploadPhotoWithThumb(supabaseUrl, supabaseKey, NOTEBOOK_PHOTO_BUCKET, img, newPhotoName()))
+                          } catch (err) {
+                            // Bucket missing, upload refused, or timed out: keep it inline so
+                            // nobody is blocked on it, but smaller, since it rides along with
+                            // every notebook read.
+                            console.error('Photo upload failed, keeping it inline:', err.message)
                             try {
-                              const canvas = document.createElement('canvas')
-                              // Big enough to still read a label or a wire in
-                              // the photo. The old 480px / 0.5 quality pair is
-                              // what made these look washed out and blocky.
-                              const MAX = 2000
-                              let w = img.width, h = img.height
-                              if (!w || !h) return fail(CANT_READ)
-                              if (w > MAX || h > MAX) {
-                                if (w > h) { h = Math.round(h * MAX / w); w = MAX }
-                                else { w = Math.round(w * MAX / h); h = MAX }
-                              }
-                              canvas.width = w
-                              canvas.height = h
-                              const ctx = canvas.getContext('2d')
-                              if (!ctx) return fail(CANT_READ)
-                              ctx.drawImage(img, 0, 0, w, h)
-                              // The photo goes to storage and the row keeps a
-                              // link, instead of carrying the whole image as
-                              // base64 — that is what made the notebook slow.
-                              canvas.toBlob(async (blob) => {
-                                if (!blob) return fail(CANT_READ)
-                                const done = (url) => setFormData(prev => ({
-                                  ...prev, photoUrl: url, _uploading: false, _photoError: '',
-                                }))
-                                try {
-                                  done(await uploadNotebookPhoto(supabaseUrl, supabaseKey, blob))
-                                } catch (err) {
-                                  // Bucket missing, upload refused, or timed out:
-                                  // the old inline route still works, so nobody
-                                  // is blocked on it.
-                                  console.error('Photo upload failed, keeping it inline:', err.message)
-                                  done(canvas.toDataURL('image/jpeg', 0.8))
-                                }
-                              }, 'image/jpeg', 0.9)
+                              const blob = await resizeToBlob(img, { max: 1024, quality: 0.7 })
+                              if (!blob) return fail(CANT_READ)
+                              const r = new FileReader()
+                              r.onload = () => done(r.result)
+                              r.onerror = () => fail(CANT_READ)
+                              r.readAsDataURL(blob)
                             } catch {
                               fail(CANT_READ)
                             }
                           }
-                          img.src = ev.target.result
-                        }
-                        reader.readAsDataURL(file)
+                        })()
                       }}
                     />
                     {formData._uploading && <Loader2 size={16} className="animate-spin text-pastel-blue-dark ml-auto" />}

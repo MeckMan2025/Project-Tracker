@@ -411,7 +411,7 @@ export function UserProvider({ children }) {
       }
     }, 60 * 1000)
 
-    // Poll the profile so a role change lands within ~15s even when realtime
+    // Poll the profile so a role change lands within ~30s even when realtime
     // isn't delivering. Realtime and the focus refresh are still the fast paths;
     // this is the floor that makes access changes actually take effect.
     // Only re-applies when something access-related moved, so it doesn't
@@ -448,7 +448,7 @@ export function UserProvider({ children }) {
       } catch { /* ignore */ }
     }
     pollProfileRef.current = pollProfile
-    const profilePoll = setInterval(pollProfile, 5 * 1000)
+    const profilePoll = setInterval(pollProfile, 30 * 1000)
 
     // Re-read the profile whenever the tab regains focus. Realtime below covers
     // the live case, but it only fires if `profiles` is in the supabase_realtime

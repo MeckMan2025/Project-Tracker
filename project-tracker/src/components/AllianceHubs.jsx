@@ -152,8 +152,12 @@ function AllianceHubs() {
   useEffect(() => {
     if (!activeHub) { setMessages([]); return }
     fetchMessages()
-    const interval = setInterval(fetchMessages, 5000)
-    return () => clearInterval(interval)
+    // Realtime below delivers new messages; this is the safety net for a
+    // dropped socket, so it's slow and sits out while the tab is hidden.
+    const poll = () => { if (document.visibilityState === 'visible') fetchMessages() }
+    const interval = setInterval(poll, 20000)
+    document.addEventListener('visibilitychange', poll)
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', poll) }
   }, [activeHub])
 
   useEffect(() => {

@@ -135,13 +135,14 @@ function QuickChat({ channel = 'all' }) {
     }).catch(err => console.error('Failed to clean up old messages:', err))
   }, [username, channel])
 
-  // Re-fetch on tab wake + poll every 15s as safety net for dropped realtime
+  // Re-fetch on tab wake + poll every 30s (while visible) as a safety net for
+  // dropped realtime
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') fetchMessages()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-    const interval = setInterval(fetchMessages, 15000)
+    const interval = setInterval(handleVisibility, 30000)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
       clearInterval(interval)

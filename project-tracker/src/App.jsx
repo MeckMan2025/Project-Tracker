@@ -558,18 +558,19 @@ function App() {
     const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
 
     const check = async () => {
+      if (document.visibilityState !== 'visible') return
       try {
         // Find active session
-        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1`, { headers })
+        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1&select=id`, { headers })
         const sessions = await sessRes.json()
         if (!Array.isArray(sessions) || sessions.length === 0) { if (!cancelled) setCompDayLock(null); return }
         const sessionId = sessions[0].id
         // Find active block
-        const blockRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?session_id=eq.${sessionId}&is_active=eq.true&limit=1`, { headers })
+        const blockRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?session_id=eq.${sessionId}&is_active=eq.true&limit=1&select=id`, { headers })
         const blocks = await blockRes.json()
         if (!Array.isArray(blocks) || blocks.length === 0) { if (!cancelled) setCompDayLock(null); return }
         // Find my assignment
-        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?block_id=eq.${blocks[0].id}&username=eq.${encodeURIComponent(username)}&limit=1`, { headers })
+        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?block_id=eq.${blocks[0].id}&username=eq.${encodeURIComponent(username)}&limit=1&select=role`, { headers })
         const assigns = await assignRes.json()
         if (!cancelled) {
           if (Array.isArray(assigns) && assigns.length > 0) {
@@ -581,7 +582,10 @@ function App() {
       } catch { if (!cancelled) setCompDayLock(null) }
     }
     check()
-    const interval = setInterval(check, 15000)
+    // Realtime below is the fast path; this is the safety net, and it sits
+    // out while the tab is hidden. Coming back re-checks at once.
+    const interval = setInterval(check, 30000)
+    document.addEventListener('visibilitychange', check)
 
     // Also listen for realtime changes
     const channel = supabase
@@ -591,7 +595,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comp_day_assignments' }, check)
       .subscribe()
 
-    return () => { cancelled = true; clearInterval(interval); supabase.removeChannel(channel) }
+    return () => { cancelled = true; clearInterval(interval); document.removeEventListener('visibilitychange', check); supabase.removeChannel(channel) }
   }, [username, hasLeadTag, effectiveIsTeam])
 
   // Force tab when comp day lock is active
@@ -613,17 +617,22 @@ function App() {
     }
   }, [compDayLock, activeTab])
 
-  // Heartbeat: update last_seen_at every 10s so attendance knows who's online
-  // Users who stop pinging for >15s are considered offline
+  // Heartbeat: update last_seen_at every 30s while the app is on screen, so
+  // presence dots and attendance know who's online (both allow a few missed
+  // beats). Every write also fans out over realtime to everyone listening on
+  // profiles, so it stays slow and stops while the tab is hidden; coming back
+  // pings straight away.
   useEffect(() => {
     if (!username) return
     const filter = `display_name=eq.${encodeURIComponent(username)}`
     const ping = () => {
+      if (document.visibilityState !== 'visible') return
       restUpdate('profiles', filter, { last_seen_at: new Date().toISOString() }).catch(() => {})
     }
     ping() // immediate on login
-    const interval = setInterval(ping, 10000)
-    return () => clearInterval(interval)
+    const interval = setInterval(ping, 30000)
+    document.addEventListener('visibilitychange', ping)
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', ping) }
   }, [username])
 
   // Scheduled-notification processor: leads poll every 60s to fire due notifications
