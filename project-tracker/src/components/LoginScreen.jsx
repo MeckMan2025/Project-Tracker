@@ -366,7 +366,9 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
         <form onSubmit={handleTeamLogin} className={card}>
           <div className="text-center">
             <h1 className={heading}>Team Login</h1>
-            <p className="text-sm text-gray-500 mt-1">Log in with your team number</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Your team number and the password your host team gave you.
+            </p>
           </div>
 
           {sessionExpired && (
@@ -397,6 +399,15 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
           <button type="submit" disabled={submitting} className={btn}>
             {submitting ? 'Signing in...' : 'Sign In'}
           </button>
+
+          {/* No "forgot password" here on purpose: a team account's address
+              isn't a real one, so a reset email could never arrive. Say who
+              can actually fix it instead of offering a link that does
+              nothing. */}
+          <p className="text-xs text-center text-gray-400">
+            Forgotten the password? Ask the team who gave you this login — they
+            can set a new one.
+          </p>
 
           <p className="text-sm text-center text-gray-500">
             <button
@@ -475,17 +486,15 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             No account? Ask a team lead to add you.
           </p>
 
-          {import.meta.env.DEV && (
-            <p className="text-sm text-center text-gray-500">
-              <button
-                type="button"
-                onClick={() => { setLoginMode('team'); setError(''); setPassword('') }}
-                className="text-pastel-blue-dark font-semibold hover:underline"
-              >
-                Team login (local only)
-              </button>
-            </p>
-          )}
+          <p className="text-sm text-center text-gray-500">
+            <button
+              type="button"
+              onClick={() => { setLoginMode('team'); setError(''); setPassword('') }}
+              className="text-pastel-blue-dark font-semibold hover:underline"
+            >
+              Another FTC team? Log in with your team number
+            </button>
+          </p>
 
           {onBack && (
             <p className="text-sm text-center text-gray-500">

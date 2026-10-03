@@ -1489,7 +1489,7 @@ function App() {
       return <LoginScreen sessionExpired={sessionExpired} linkError={authLinkError} onBack={() => setLandingChoice(null)} />
     }
     if (landingChoice === 'team-login') {
-      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} initialMode={import.meta.env.DEV ? 'team' : 'member'} />
+      return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} initialMode="member" />
     }
     if (landingChoice === 'team-info') {
       return <TeamInfoPage onBack={() => setLandingChoice(null)} />
