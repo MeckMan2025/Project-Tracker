@@ -509,7 +509,7 @@ function UserManagement({ onViewProfile }) {
       return
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newTeamEmail.trim())) {
-      setTeamError('Enter a real email for the team — it is how they sign in and how they reset their own password.')
+      setTeamError("Enter the coach's email — it is how they sign in and how they reset their own password.")
       return
     }
     if (newTeamPassword.length < 6) {
@@ -1264,7 +1264,7 @@ function UserManagement({ onViewProfile }) {
                         type="email"
                         value={newTeamEmail}
                         onChange={(e) => setNewTeamEmail(e.target.value)}
-                        placeholder="Their email (how they sign in)"
+                        placeholder="Coach email"
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                         required
                       />
@@ -1275,8 +1275,9 @@ function UserManagement({ onViewProfile }) {
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                       />
                       <p className="text-[11px] text-gray-400">
-                        They sign in with all three: team number, this email,
-                        and this password. Send them those.
+                        The coach signs in with the team number, this email and
+                        this password — and adds the rest of their team
+                        themselves.
                       </p>
                       {teamError && <p className="text-sm text-red-500">{teamError}</p>}
                       <div className="flex gap-2">
