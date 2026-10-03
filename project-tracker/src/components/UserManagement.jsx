@@ -541,13 +541,19 @@ function UserManagement({ onViewProfile }) {
       if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
 
-      // Update profile: set function_tags to ['Team'], must_change_password = false
-      // Use teammate tier so they can add/edit tasks on their boards
+      // Tags, tier, the team they run, and the address to reach them at —
+      // written by the app rather than relying on a trigger.
       await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ function_tags: ['Team'], must_change_password: false, authority_tier: 'teammate' }),
-      })
+        body: JSON.stringify({
+          function_tags: ['Team'],
+          must_change_password: false,
+          authority_tier: 'teammate',
+          email: contactEmail,
+          team_number: newTeamNumber.trim(),
+        }),
+      }).catch(err => console.error('Could not finish the team profile:', err))
 
       // Insert into team_accounts
       const teamRes = await fetch(`${supabaseUrl}/rest/v1/team_accounts`, {
@@ -949,21 +955,18 @@ function UserManagement({ onViewProfile }) {
       // which team the new person is on. An unstamped profile reads as
       // Radical, which is the one default that must never happen by accident,
       // so this is written before the row is shown anywhere.
-      const patch = {}
+      // The plain address they'd actually give you, not the tagged one they
+      // sign in with — the tag is plumbing, and nobody should have to read it.
+      const patch = { email: addEmail.trim().toLowerCase() }
       if (addRoles.length > 0) { patch.function_tags = addRoles; patch.authority_tier = tier }
-      if (canManageOwnTeam && myTeamNumber) {
-        patch.team_number = String(myTeamNumber)
-        // The address they'd actually give you, not the tagged one they sign
-        // in with — the tag is plumbing, and nobody should have to read it.
-        patch.email = addEmail.trim().toLowerCase()
-      }
-      if (Object.keys(patch).length > 0) {
-        await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
-          method: 'PATCH',
-          headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify(patch),
-        })
-      }
+      if (canManageOwnTeam && myTeamNumber) patch.team_number = String(myTeamNumber)
+      // Best effort: the account exists either way, and a missing address on
+      // the profile is cosmetic. It must not undo a successful creation.
+      await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(patch),
+      }).catch(err => console.error('Could not set profile email/team:', err))
       setRegisteredMembers(prev => [{
         id: data.userId,
         display_name: addName.trim(),
