@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase, arrivedFromRecoveryLink } from '../supabase'
+import { HOME_TEAM_NUMBER } from '../data/team'
 
 const UserContext = createContext(null)
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
@@ -135,7 +136,11 @@ export function UserProvider({ children }) {
       // Detect team accounts by email pattern
       const teamMatch = userEmail && userEmail.match(TEAM_EMAIL_REGEX)
       const isTeamAccount = !!teamMatch
-      const teamNum = teamMatch ? teamMatch[1] : ''
+      // An outside team carries its own number; everyone else is on ours.
+      // It used to be blank for Radical members, so anything asking "which
+      // team is this" got nothing back from the people it is mostly asked
+      // about.
+      const teamNum = teamMatch ? teamMatch[1] : HOME_TEAM_NUMBER
       setIsTeam(isTeamAccount)
       setTeamNumber(teamNum)
       localStorage.setItem('scrum-is-team', String(isTeamAccount))

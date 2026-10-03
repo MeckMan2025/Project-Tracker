@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
+import { HOME_TEAM_NUMBER, teamLoginEmail, isHomeTeamNumber } from '../data/team'
 
 function LoginScreen({ sessionExpired, linkError, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
@@ -46,6 +47,14 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
     }
   }
 
+  // All digits is a team number: visiting teams sign in as
+  // team<number>@teams.radical, an address that isn't real and couldn't be
+  // typed from memory. Anything else is an ordinary email.
+  const asLogin = (value) => {
+    const v = (value || '').trim()
+    return /^[0-9]+$/.test(v) ? teamLoginEmail(v) : v
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -59,6 +68,9 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
           return
         }
         await signup(email, password, displayName.trim(), whitelistRole)
+      } else if (isHomeTeamNumber(email)) {
+        // Our own number is not a visiting-team login, and never should be.
+        setError(`${HOME_TEAM_NUMBER} is us — sign in with your own email instead.`)
       } else {
         await login(asLogin(email), password)
       }

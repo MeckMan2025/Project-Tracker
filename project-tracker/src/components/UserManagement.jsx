@@ -5,6 +5,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 import { usePermissions } from '../hooks/usePermissions'
+import { HOME_TEAM_NUMBER, isHomeTeamNumber } from '../data/team'
 import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
 import { getSideStyle } from '../utils/sideColors'
@@ -491,6 +492,10 @@ function UserManagement({ onViewProfile }) {
   const handleAddTeam = async (e) => {
     e.preventDefault()
     if (!newTeamNumber.trim() || !newTeamName.trim() || !newTeamPassword.trim() || !newTeamLeague) return
+    if (isHomeTeamNumber(newTeamNumber)) {
+      setTeamError(`${HOME_TEAM_NUMBER} is us. Team accounts are for visiting teams — add a Radical member from the Members tab instead.`)
+      return
+    }
     if (newTeamPassword.length < 6) {
       setTeamError('Password must be at least 6 characters')
       return

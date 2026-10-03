@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext'
 import NotificationBell from './NotificationBell'
 
 function TeamScoutingData() {
-  const { username, teamNumber } = useUser()
+  const { username, teamNumber, isTeam } = useUser()
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
@@ -14,13 +14,14 @@ function TeamScoutingData() {
 
   useEffect(() => {
     loadRecords()
-  }, [teamNumber, username])
+  }, [teamNumber, username, isTeam])
 
   const loadRecords = async () => {
     setLoading(true)
     try {
-      // Try filtering by owner_team first
-      if (teamNumber) {
+      // Only for a visiting team: owner_team is how their rows are kept
+      // apart from ours. Ours fall through to "mine", as they always have.
+      if (isTeam && teamNumber) {
         const { data, error } = await supabase.from('scouting_records').select('*')
           .eq('owner_team', teamNumber)
           .order('submitted_at', { ascending: false })
