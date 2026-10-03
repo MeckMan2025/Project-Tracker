@@ -80,11 +80,19 @@ export async function uploadPhotoBlob(supabaseUrl, supabaseKey, bucket, path, bl
 export async function uploadPhotoWithThumb(supabaseUrl, supabaseKey, bucket, img, name) {
   const [full, thumb] = await Promise.all([resizeToBlob(img, FULL), resizeToBlob(img, THUMB)])
   if (!full) throw new Error('encode')
-  const url = await uploadPhotoBlob(supabaseUrl, supabaseKey, bucket, `${name}.jpg`, full)
-  if (thumb) {
-    await uploadPhotoBlob(supabaseUrl, supabaseKey, bucket, `${name}_thumb.jpg`, thumb)
-      .catch(err => console.error('Thumbnail upload failed, tiles will use the full photo:', err.message))
-  }
+
+  // Both at once. Sent one after the other, a bad connection waited out two
+  // 20-second timeouts back to back before falling back — forty seconds of
+  // spinner, which is where "it just loads forever" came from. The thumbnail
+  // stays best effort: if it fails the tiles fall back to the full photo, so
+  // it must never hold the entry up or fail it.
+  const [url] = await Promise.all([
+    uploadPhotoBlob(supabaseUrl, supabaseKey, bucket, `${name}.jpg`, full),
+    thumb
+      ? uploadPhotoBlob(supabaseUrl, supabaseKey, bucket, `${name}_thumb.jpg`, thumb)
+          .catch(err => console.error('Thumbnail upload failed, tiles will use the full photo:', err.message))
+      : Promise.resolve(),
+  ])
   return url
 }
 

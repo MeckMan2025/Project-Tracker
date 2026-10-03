@@ -157,6 +157,8 @@ export default function EngineeringNotebook() {
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [submitFeedback, setSubmitFeedback] = useState(null)
+  // The write is in flight. Submit stays put until it comes back.
+  const [saving, setSaving] = useState(false)
   // Whose entries are on screen. Reading the team's is open to everyone;
   // every write path still checks the author, so this changes what you can
   // SEE and nothing about what you can change.
@@ -390,7 +392,7 @@ export default function EngineeringNotebook() {
 
   // Submit entry
   const handleSubmitEntry = async () => {
-    if (blockedDay) return
+    if (blockedDay || saving) return
     if (!formData.whatDid.trim()) return
     if (!formData.whyOption) return
     if (formData.whyOption === 'Other' && !formData.whyNote.trim()) return
@@ -400,6 +402,9 @@ export default function EngineeringNotebook() {
     if (!formData.engagement) return
     if (!formData.engagementNote.trim()) return
     if (!(formData.signals || []).length) return
+    // A photo still going up means photoUrl is empty. Submitting now would
+    // save the entry without the picture the student waited for.
+    if (formData._uploading) return
 
     if (localStorage.getItem('scrum-sfx-enabled') !== 'false') new Audio('/sounds/click.mp3').play().catch(() => {})
 
@@ -432,78 +437,85 @@ export default function EngineeringNotebook() {
       next_step: (formData.nextStep || '').trim(),
     }
 
-    // If the evidence columns aren't there yet, an insert naming them fails
+    // If the evidence columns aren't there yet, a write naming them fails
     // outright and the student loses the entry they just wrote. The entry
-    // matters more than the signals, so save it without them and say so in the
-    // console rather than to the student, who can do nothing about it.
+    // matters more than the signals, so drop them and try once more.
     const withoutSignals = (data) => {
       const { signals, signal_data, next_step, ...rest } = data // eslint-disable-line no-unused-vars
       return rest
     }
     const missingSignalCols = (text) => /signals|signal_data|next_step/.test(text || '')
 
-    // Close form immediately, save in background
-    if (editingEntryId) {
-      setEntries(prev => prev.map(e => e.id === editingEntryId ? { ...e, ...entryData } : e))
-      setSubmitFeedback('Entry updated!')
-      fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${editingEntryId}`, {
-        method: 'PATCH',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(entryData),
-      }).then(res => {
-        if (!res.ok) {
-          res.text().then(async (t) => {
-            if (missingSignalCols(t)) {
-              const retry = await fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${editingEntryId}`, {
-                method: 'PATCH',
-                headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                body: JSON.stringify(withoutSignals(entryData)),
-              })
-              if (retry.ok) { claimAttendance(entryData.meeting_date); return }
-            }
-            console.error('Update failed:', t)
-            setSubmitFeedback('Failed to save — try again')
-          })
-        } else claimAttendance(entryData.meeting_date)
-      }).catch(err => { console.error('Failed to update entry:', err); setSubmitFeedback('Failed to save — try again') })
-    } else {
-      const newEntry = {
+    const JSON_HEADERS = {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    }
+
+    // One attempt, with the signals-column retry folded in.
+    const write = async (url, method, body) => {
+      const res = await fetch(url, { method, headers: JSON_HEADERS, body: JSON.stringify(body) })
+      if (res.ok) return true
+      const text = await res.text().catch(() => '')
+      if (missingSignalCols(text)) {
+        const retry = await fetch(url, { method, headers: JSON_HEADERS, body: JSON.stringify(withoutSignals(body)) })
+        if (retry.ok) return true
+      }
+      console.error('Notebook save failed:', text)
+      return false
+    }
+
+    // The form used to be cleared and closed on the line after the request was
+    // fired, before anyone knew whether it had worked. When it hadn't — a
+    // phone on bad school wifi, most often — seven pages of answers were gone,
+    // the entry was never written, and the meeting was never claimed, which is
+    // why this looked like an attendance problem rather than a save problem.
+    // Nothing is thrown away now until the write has actually come back.
+    setSaving(true)
+    setSubmitFeedback(null)
+    try {
+      const id = editingEntryId
+      // Built here rather than re-read after writing: the row is already known,
+      // and a second request is another thing that can fail — plus egress the
+      // team is actively trying to stay under.
+      const newEntry = id ? null : {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         ...entryData,
         created_at: new Date().toISOString(),
       }
-      setEntries(prev => [newEntry, ...prev])
-      setSubmitFeedback('Entry saved!')
-      fetch(`${supabaseUrl}/rest/v1/notebook_entries`, {
-        method: 'POST',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify(newEntry),
-      }).then(res => {
-        if (!res.ok) {
-          res.text().then(async (t) => {
-            if (missingSignalCols(t)) {
-              const retry = await fetch(`${supabaseUrl}/rest/v1/notebook_entries`, {
-                method: 'POST',
-                headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                body: JSON.stringify(withoutSignals(newEntry)),
-              })
-              if (retry.ok) { claimAttendance(newEntry.meeting_date); return }
-            }
-            console.error('Save failed:', t)
-            setSubmitFeedback('Failed to save — try again')
-            setEntries(prev => prev.filter(e => e.id !== newEntry.id))
-          })
-        } else claimAttendance(newEntry.meeting_date)
-      }).catch(err => { console.error('Failed to save entry:', err); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
+      const ok = id
+        ? await write(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${id}`, 'PATCH', entryData)
+        : await write(`${supabaseUrl}/rest/v1/notebook_entries`, 'POST', newEntry)
+
+      if (!ok) {
+        setSubmitFeedback("Couldn't save — your entry is still here. Check your connection and try again.")
+        return
+      }
+
+      // Saved. Now it is safe to show it, claim the meeting, and let go of it.
+      if (id) {
+        setEntries(prev => prev.map(e => e.id === id ? { ...e, ...entryData } : e))
+      } else {
+        // Realtime may have delivered it already.
+        setEntries(prev => (prev.some(e => e.id === newEntry.id) ? prev : [newEntry, ...prev]))
+      }
+
+      claimAttendance(entryData.meeting_date)
+      setSubmitFeedback(id ? 'Entry updated!' : 'Entry saved!')
+      setFormData({ ...INITIAL_ENTRY })
+      setEditingEntryId(null)
+      setStep(0)
+      setView('projects')
+      setTimeout(() => setSubmitFeedback(null), 3000)
+    } catch (err) {
+      console.error('Failed to save entry:', err)
+      setSubmitFeedback("Couldn't save — your entry is still here. Check your connection and try again.")
+    } finally {
+      setSaving(false)
     }
-
-    setFormData({ ...INITIAL_ENTRY })
-    setEditingEntryId(null)
-
-    setTimeout(() => setSubmitFeedback(null), 3000)
-
-    setView('projects')
   }
+
 
   // Delete entry (co-founders only)
   // Load an existing entry back into the form. handleSubmitEntry already
@@ -1420,7 +1432,12 @@ export default function EngineeringNotebook() {
                         })()
                       }}
                     />
-                    {formData._uploading && <Loader2 size={16} className="animate-spin text-pastel-blue-dark ml-auto" />}
+                    {formData._uploading && (
+                      <span className="ml-auto flex items-center gap-1.5 text-xs text-gray-400">
+                        <Loader2 size={16} className="animate-spin text-pastel-blue-dark" />
+                        Uploading…
+                      </span>
+                    )}
                   </label>
                 )}
                 {formData._photoError && (
@@ -1475,7 +1492,8 @@ export default function EngineeringNotebook() {
                   !formData.whatDid.trim() && 'what you did',
                   !formData.whyOption && 'why it mattered',
                   formData.whyOption === 'Other' && !formData.whyNote.trim() && 'a note for "Other"',
-                  !formData.photoUrl && !formData.projectLink.trim() && 'a photo or a project link',
+                  formData._uploading && 'the photo to finish uploading',
+                  !formData._uploading && !formData.photoUrl && !formData.projectLink.trim() && 'a photo or a project link',
                   !formData.engagement && 'how engaged you were',
                   formData.engagement && !formData.engagementNote.trim() && 'why you felt that way',
                   !(formData.signals || []).length && 'at least one thing that happened today',
@@ -1489,11 +1507,12 @@ export default function EngineeringNotebook() {
                     )}
                     <button
                       onClick={handleSubmitEntry}
-                      disabled={missing.length > 0 || blockedDay}
+                      disabled={missing.length > 0 || blockedDay || saving || formData._uploading}
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-colors bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <Send size={18} />
-                      {editingEntryId ? 'Update Entry' : 'Submit Entry'}
+                      {saving
+                        ? <><Loader2 size={18} className="animate-spin" /> Saving…</>
+                        : <><Send size={18} /> {editingEntryId ? 'Update Entry' : 'Submit Entry'}</>}
                     </button>
                   </>
                 )
