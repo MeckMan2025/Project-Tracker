@@ -20,12 +20,14 @@ export function defaultStartForDate(sessionDate) {
   return day === 6 ? '09:00' : '16:00'
 }
 
-// Automatic meeting length until a lead overrides it:
-// 240 min on weekdays, 360 min on weekends (Sat/Sun).
+// Automatic meeting length until a lead overrides it. Saturdays run 9–2, so
+// 300 minutes; weeknights are 4–8, so 240. This is the number every
+// late/left-early percentage is measured against — if it disagrees with the
+// hours the meeting actually ran, everyone's attendance comes out wrong.
 export function defaultDurationForDate(sessionDate) {
   if (!sessionDate) return DEFAULT_DURATION
   const day = new Date(sessionDate + 'T00:00:00').getDay() // 0 = Sun … 6 = Sat
-  return (day === 0 || day === 6) ? 360 : 240
+  return (day === 0 || day === 6) ? 300 : 240
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL

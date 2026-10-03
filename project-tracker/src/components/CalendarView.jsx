@@ -1478,10 +1478,9 @@ function EventForm({ dateKey, existing, onClose, onSubmit, canEdit, departments 
   const [description, setDescription] = useState(existing?.description || '')
   const [priority, setPriority]       = useState(existing?.priority || 'normal')
   const [department, setDepartment]   = useState(existing?.department || 'team')
-  // Meetings run after school on weekdays and all morning at the weekend, so
-  // the default follows the day the event lands on. Every other category keeps
-  // the 4–8 PM default.
-  const WEEKEND_HOURS = { start: '09:00', end: '15:00' }
+  // Meetings run 4–8 after school and 9–2 on Saturdays, so the default follows
+  // the day the event lands on. Every other category keeps the 4–8 PM default.
+  const WEEKEND_HOURS = { start: '09:00', end: '14:00' }
   const WEEKDAY_HOURS = { start: '16:00', end: '20:00' }
   const hoursForDate = (key) => {
     const day = fromKey(key || dateKey).getDay()
