@@ -525,13 +525,27 @@ export default function EngineeringNotebook() {
     setView('entry')
   }
 
-  const handleDeleteEntry = (id) => {
-    if (!window.confirm('Delete this notebook entry?')) return
-    setEntries(prev => prev.filter(e => e.id !== id))
-    fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${id}`, {
+  // Your own, or anyone's if you're a lead. Checked here as well as on the
+  // button, so hiding the button is not the only thing protecting an entry.
+  const handleDeleteEntry = (entry) => {
+    const target = typeof entry === 'string' ? entries.find(e => e.id === entry) : entry
+    if (!target) return
+    if (!isLead && target.username !== username) return
+
+    const mine = target.username === username
+    if (!window.confirm(mine
+      ? 'Delete this entry? It also gives up the attendance it claimed for that day.'
+      : `Delete ${target.username}'s entry for ${target.meeting_date}?`)) return
+
+    const keep = entries
+    setEntries(prev => prev.filter(e => e.id !== target.id))
+    fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${target.id}`, {
       method: 'DELETE',
       headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-    }).catch(err => console.error('Failed to delete entry:', err))
+    }).then(res => {
+      // Without this a failed delete looks like it worked until the next load.
+      if (!res.ok) { console.error('Delete failed'); setEntries(keep) }
+    }).catch(err => { console.error('Failed to delete entry:', err); setEntries(keep) })
   }
 
   // Submit project
@@ -937,8 +951,8 @@ export default function EngineeringNotebook() {
                                                 <Pencil size={14} />
                                               </button>
                                             )}
-                                            {isLead && (
-                                              <button onClick={() => handleDeleteEntry(entry.id)} title="Delete this entry" className="text-gray-300 hover:text-red-400 transition-colors">
+                                            {(isLead || entry.username === username) && (
+                                              <button onClick={() => handleDeleteEntry(entry)} title="Delete this entry" className="text-gray-300 hover:text-red-400 transition-colors">
                                                 <Trash2 size={14} />
                                               </button>
                                             )}
