@@ -2,13 +2,11 @@ import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 
-function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
+function LoginScreen({ sessionExpired, linkError, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
   const [mode, setMode] = useState('signin')
-  const [loginMode, setLoginMode] = useState(initialMode === 'team' ? 'team' : 'member')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [teamNumber, setTeamNumber] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -48,25 +46,6 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
     }
   }
 
-  const handleTeamLogin = async (e) => {
-    e.preventDefault()
-    setError('')
-    if (!teamNumber.trim() || !password.trim()) return
-    setSubmitting(true)
-    try {
-      const teamEmail = `team${teamNumber.trim()}@teams.radical`
-      await login(teamEmail, password)
-    } catch (err) {
-      if (err.message?.includes('Invalid login')) {
-        setError('Invalid team number or password')
-      } else {
-        setError(err.message)
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -81,10 +60,17 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
         }
         await signup(email, password, displayName.trim(), whitelistRole)
       } else {
-        await login(email, password)
+        await login(asLogin(email), password)
       }
     } catch (err) {
-      setError(err.message)
+      // A team got here by number, so "invalid email or password" would be
+      // telling them about a field they never filled in.
+      const isTeam = /^\d+$/.test((email || '').trim())
+      if (err.message?.includes('Invalid login')) {
+        setError(isTeam ? 'Invalid team number or password' : 'Invalid email or password')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -362,76 +348,6 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
   // Sign-in form
   return (
     <div className={wrapper}>
-      {loginMode === 'team' ? (
-        <form onSubmit={handleTeamLogin} className={card}>
-          <div className="text-center">
-            <h1 className={heading}>Team Login</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Your team number and the password your host team gave you.
-            </p>
-          </div>
-
-          {sessionExpired && (
-            <div className="bg-pastel-orange/30 text-orange-700 text-sm text-center px-3 py-2 rounded-lg">
-              Your session has expired. Please log in again.
-            </div>
-          )}
-
-          <input
-            type="text"
-            inputMode="numeric"
-            value={teamNumber}
-            onChange={(e) => { setTeamNumber(e.target.value.replace(/\D/g, '')); setError('') }}
-            placeholder="Team number"
-            className={input}
-            autoFocus
-          />
-
-          <PasswordInput
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setError('') }}
-            placeholder="Password"
-            className={input}
-          />
-
-          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-
-          <button type="submit" disabled={submitting} className={btn}>
-            {submitting ? 'Signing in...' : 'Sign In'}
-          </button>
-
-          {/* No "forgot password" here on purpose: a team account's address
-              isn't a real one, so a reset email could never arrive. Say who
-              can actually fix it instead of offering a link that does
-              nothing. */}
-          <p className="text-xs text-center text-gray-400">
-            Forgotten the password? Ask the team who gave you this login — they
-            can set a new one.
-          </p>
-
-          <p className="text-sm text-center text-gray-500">
-            <button
-              type="button"
-              onClick={() => { setLoginMode('member'); setError(''); setPassword('') }}
-              className="text-pastel-pink-dark font-semibold hover:underline"
-            >
-              Radical member? Sign in here
-            </button>
-          </p>
-
-          {onBack && (
-            <p className="text-sm text-center text-gray-500">
-              <button
-                type="button"
-                onClick={onBack}
-                className="text-pastel-blue-dark font-semibold hover:underline"
-              >
-                &larr; Back to Welcome
-              </button>
-            </p>
-          )}
-        </form>
-      ) : (
         <form onSubmit={handleSubmit} className={card}>
           <div className="text-center">
             <h1 className={heading}>Sign In</h1>
@@ -450,11 +366,13 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             </div>
           )}
 
+          {/* type="text", not "email": a team number is not an address, and
+              the browser would refuse to submit it. */}
           <input
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setError('') }}
-            placeholder="Email"
+            placeholder="Email or team number"
             className={input}
             autoFocus
           />
@@ -472,6 +390,10 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             {submitting ? 'Signing in...' : 'Sign In'}
           </button>
 
+          <p className="text-[11px] text-center text-gray-400 -mt-1">
+            Another FTC team? Put in your team number.
+          </p>
+
           <p className="text-sm text-center text-gray-500">
             <button
               type="button"
@@ -486,16 +408,6 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             No account? Ask a team lead to add you.
           </p>
 
-          <p className="text-sm text-center text-gray-500">
-            <button
-              type="button"
-              onClick={() => { setLoginMode('team'); setError(''); setPassword('') }}
-              className="text-pastel-blue-dark font-semibold hover:underline"
-            >
-              Another FTC team? Log in with your team number
-            </button>
-          </p>
-
           {onBack && (
             <p className="text-sm text-center text-gray-500">
               <button
@@ -508,7 +420,6 @@ function LoginScreen({ sessionExpired, linkError, onBack, initialMode }) {
             </p>
           )}
         </form>
-      )}
     </div>
   )
 }
