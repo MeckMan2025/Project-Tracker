@@ -5,7 +5,7 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
 import { usePermissions } from '../hooks/usePermissions'
-import { HOME_TEAM_NUMBER, isHomeTeamNumber } from '../data/team'
+import { HOME_TEAM_NUMBER, isHomeTeamNumber, teamAuthEmail } from '../data/team'
 import NotificationBell from './NotificationBell'
 import { triggerPush } from '../utils/pushHelper'
 import { getSideStyle } from '../utils/sideColors'
@@ -520,7 +520,10 @@ function UserManagement({ onViewProfile }) {
     setTeamSubmitting(true)
 
     try {
-      const email = newTeamEmail.trim().toLowerCase()
+      // The coach types their ordinary address; the account is created with
+      // the team folded in, so the same coach can run several teams.
+      const contactEmail = newTeamEmail.trim().toLowerCase()
+      const email = teamAuthEmail(contactEmail, newTeamNumber.trim())
       const headers = await getAuthHeaders()
 
       // Create Supabase auth account via admin function
@@ -554,7 +557,7 @@ function UserManagement({ onViewProfile }) {
           team_number: newTeamNumber.trim(),
           team_name: newTeamName.trim(),
           league: newTeamLeague,
-          email,
+          email: contactEmail,
           user_id: data.userId,
         }),
       })
@@ -927,7 +930,13 @@ function UserManagement({ onViewProfile }) {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: addEmail.trim().toLowerCase(),
+          // A visiting team's member carries the team in their address for the
+          // same reason the coach does: one person can be on two teams, and an
+          // auth account is keyed by address alone. Radical members keep their
+          // plain address — ours is the one team nobody is on twice.
+          email: canManageOwnTeam && myTeamNumber
+            ? teamAuthEmail(addEmail, myTeamNumber)
+            : addEmail.trim().toLowerCase(),
           password: addPassword,
           displayName: addName.trim(),
           role: tier === 'guest' ? 'guest' : 'member',
@@ -942,7 +951,12 @@ function UserManagement({ onViewProfile }) {
       // so this is written before the row is shown anywhere.
       const patch = {}
       if (addRoles.length > 0) { patch.function_tags = addRoles; patch.authority_tier = tier }
-      if (canManageOwnTeam && myTeamNumber) patch.team_number = String(myTeamNumber)
+      if (canManageOwnTeam && myTeamNumber) {
+        patch.team_number = String(myTeamNumber)
+        // The address they'd actually give you, not the tagged one they sign
+        // in with — the tag is plumbing, and nobody should have to read it.
+        patch.email = addEmail.trim().toLowerCase()
+      }
       if (Object.keys(patch).length > 0) {
         await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
           method: 'PATCH',

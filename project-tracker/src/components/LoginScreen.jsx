@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
-import { HOME_TEAM_NUMBER, teamLoginEmail, isHomeTeamNumber } from '../data/team'
+import { HOME_TEAM_NUMBER, isHomeTeamNumber, teamAuthEmail, legacyTeamEmails } from '../data/team'
 
 function LoginScreen({ sessionExpired, linkError, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
@@ -64,19 +64,29 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
         await signup(email, password, displayName.trim(), whitelistRole)
       } else {
         const n = teamNumber.trim()
-        const mail = email.trim()
-        // The address is who you are, so it is tried first for everyone. A
-        // visiting team whose account predates this has no real address on
-        // it — theirs is team<number>@teams.radical, which they have never
-        // been told — so the number is what gets them in instead.
-        try {
+        const mail = email.trim().toLowerCase()
+
+        if (isHomeTeamNumber(n)) {
+          // Ours sign in with their own address, plainly.
           await login(mail, password)
-        } catch (err) {
-          if (!isHomeTeamNumber(n) && err.message?.includes('Invalid login')) {
-            await login(teamLoginEmail(n), password)
-          } else {
-            throw err
+        } else {
+          // A visiting team's account carries the team in its address, so one
+          // coach can run several. Tried first; the older shapes follow, so
+          // teams added before this keep working untouched.
+          const candidates = [teamAuthEmail(mail, n), ...legacyTeamEmails(mail, n)]
+          let lastErr = null
+          for (const candidate of candidates) {
+            try {
+              await login(candidate, password)
+              lastErr = null
+              break
+            } catch (err) {
+              lastErr = err
+              // Anything other than a bad match is a real failure — stop.
+              if (!err.message?.includes('Invalid login')) break
+            }
           }
+          if (lastErr) throw lastErr
         }
       }
     } catch (err) {
