@@ -8,6 +8,8 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Visiting teams sign in by number; the password box below is shared.
+  const [teamNumber, setTeamNumber] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -47,12 +49,26 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
     }
   }
 
-  // All digits is a team number: visiting teams sign in as
-  // team<number>@teams.radical, an address that isn't real and couldn't be
-  // typed from memory. Anything else is an ordinary email.
-  const asLogin = (value) => {
-    const v = (value || '').trim()
-    return /^[0-9]+$/.test(v) ? teamLoginEmail(v) : v
+  const handleTeamSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    const n = teamNumber.trim()
+    if (!n || !password.trim()) return
+    // Our own number is not a visiting-team login, and never should be.
+    if (isHomeTeamNumber(n)) {
+      setError(`${HOME_TEAM_NUMBER} is us — sign in with your email above.`)
+      return
+    }
+    setSubmitting(true)
+    try {
+      await login(teamLoginEmail(n), password)
+    } catch (err) {
+      setError(err.message?.includes('Invalid login')
+        ? 'Invalid team number or password'
+        : err.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -68,11 +84,8 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
           return
         }
         await signup(email, password, displayName.trim(), whitelistRole)
-      } else if (isHomeTeamNumber(email)) {
-        // Our own number is not a visiting-team login, and never should be.
-        setError(`${HOME_TEAM_NUMBER} is us — sign in with your own email instead.`)
       } else {
-        await login(asLogin(email), password)
+        await login(email.trim(), password)
       }
     } catch (err) {
       // A team got here by number, so "invalid email or password" would be
@@ -357,9 +370,9 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
     )
   }
 
-  // Sign-in form
+  // Sign-in form, with the visiting-team box beneath it.
   return (
-    <div className={wrapper}>
+    <div className={`${wrapper} flex-col py-8`}>
         <form onSubmit={handleSubmit} className={card}>
           <div className="text-center">
             <h1 className={heading}>Sign In</h1>
@@ -378,13 +391,11 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
             </div>
           )}
 
-          {/* type="text", not "email": a team number is not an address, and
-              the browser would refuse to submit it. */}
           <input
-            type="text"
+            type="email"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setError('') }}
-            placeholder="Email or team number"
+            placeholder="Email"
             className={input}
             autoFocus
           />
@@ -401,10 +412,6 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
           <button type="submit" disabled={submitting} className={btn}>
             {submitting ? 'Signing in...' : 'Sign In'}
           </button>
-
-          <p className="text-[11px] text-center text-gray-400 -mt-1">
-            Another FTC team? Put in your team number.
-          </p>
 
           <p className="text-sm text-center text-gray-500">
             <button
@@ -432,6 +439,47 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
             </p>
           )}
         </form>
+
+      {/* ── Visiting teams ──────────────────────────────────────────────── */}
+      {/* Its own form, so Enter in the number field signs the team in instead
+          of submitting the email above. Teams sign in as
+          team<number>@teams.radical — an address that isn't real and couldn't
+          be typed from memory, which is why the number is all they need. */}
+      <form onSubmit={handleTeamSubmit} className={`${card} mt-4`}>
+        <div className="text-center">
+          <h2 className="text-sm font-semibold text-gray-600">Visiting FTC team?</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Use the team number and password your host team gave you.
+          </p>
+        </div>
+
+        <input
+          type="text"
+          inputMode="numeric"
+          value={teamNumber}
+          onChange={(e) => { setTeamNumber(e.target.value.replace(/[^0-9]/g, '')); setError('') }}
+          placeholder="Team number"
+          className={input}
+        />
+
+        <PasswordInput
+          value={password}
+          onChange={(e) => { setPassword(e.target.value); setError('') }}
+          placeholder="Password"
+          className={input}
+        />
+
+        <button type="submit" disabled={submitting} className={btn}>
+          {submitting ? 'Signing in...' : 'Team Sign In'}
+        </button>
+
+        {/* No "forgot password" on purpose: team addresses can't receive
+            email, so the link would do nothing. Say who can actually fix it. */}
+        <p className="text-[11px] text-center text-gray-400">
+          Forgotten it? Ask the team who gave you this login — they can set a
+          new one.
+        </p>
+      </form>
     </div>
   )
 }
