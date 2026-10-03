@@ -5,6 +5,17 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 170,
+    date: '2026-10-03',
+    items: [
+      '\u{1F4D3} The notebook asks one more thing at the end: what happened today. Tick what genuinely applies \u2014 you learned something, someone helped you, you helped someone, you tested something, you changed something, you took initiative, something failed and taught you, you worked with someone \u2014 and it only asks follow-up questions about what you ticked. Tick one and it is one extra page; the follow-ups themselves are all optional, and there is a box for what should happen next time',
+      '\u{1F331} Data has a new page: Team Growth. It reads the notebook and nothing else, and shows one topic at a time \u2014 learning, help, testing, teamwork, initiative \u2014 with arrows and a dropdown to move between them, so it is a page you can read rather than a wall of charts',
+      '\u{1F4C8} Engagement finally has somewhere to live. The note you write about why you felt that way has been required for a while and nothing ever read it back \u2014 now it is there beside the rating, with the split across the whole season',
+      '\u{1F50E} Every number on that page goes back to the work. Tap a count, a bar, or a point on a chart and you get the actual notebook entries behind it \u2014 a statistic nobody can trace is one nobody should act on',
+      '\u{1F512} You still see only your own entries unless you are a lead, exactly as in the notebook. Nothing here ranks anybody against anybody',
+    ],
+  },
+  {
     id: 169,
     date: '2026-09-28',
     items: [

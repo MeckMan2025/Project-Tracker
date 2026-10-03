@@ -62,6 +62,7 @@ import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import EngagementView from './components/EngagementView'
+import TeamGrowthView from './components/TeamGrowthView'
 import LogsView from './components/LogsView'
 import AbsenceNotice from './components/AbsenceNotice'
 import AIManual from './components/AIManual'
@@ -114,7 +115,7 @@ async function restDelete(table, filter) {
 const TAB_ACCESS = {
   // All tiers (including guest)
   'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
-  'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'engagement': 'teammate', 'suggestions': 'teammate',
+  'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'engagement': 'teammate', 'team-growth': 'teammate', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'log-reach': 'teammate', 'portfolio': 'teammate',
@@ -1709,6 +1710,8 @@ function App() {
         <ScoutingData />
       ) : activeTab === 'engagement' ? (
         <EngagementView />
+      ) : activeTab === 'team-growth' ? (
+        <TeamGrowthView />
       ) : activeTab === 'role-spec' && import.meta.env.DEV ? (
         <RoleSpec />
       ) : activeTab === 'logs' || activeTab.startsWith('logs-') ? (

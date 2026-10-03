@@ -6,6 +6,8 @@ import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDow
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import NotebookBook from './NotebookBook'
+import { SIGNAL_BY_KEY } from '../data/notebookSignals'
+import SignalPicker, { SignalQuestions } from './NotebookSignals'
 import { loadImageFile, resizeToBlob, uploadPhotoWithThumb, newPhotoName, thumbUrl, thumbFallback } from '../lib/photos'
 
 const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
@@ -97,6 +99,12 @@ const INITIAL_ENTRY = {
   projectId: '',
   projectLink: '',
   photoUrl: '',
+  // What happened today. Empty is a perfectly good answer — plenty of
+  // meetings are just work, and pretending otherwise would make the numbers
+  // meaningless.
+  signals: [],
+  signalData: {},
+  nextStep: '',
 }
 
 const INITIAL_PROJECT = {
@@ -124,12 +132,27 @@ export default function EngineeringNotebook() {
   const [meetingDate, setMeetingDate] = useState(todayLocal)
   // Which page of the entry is open.
   const [step, setStep] = useState(0)
-  const LAST_STEP = 6
+  // Pages 0–5 are the original questions, unchanged. Page 6 asks what
+  // happened today, each chosen signal gets its own page after that, and the
+  // evidence page stays last — so an entry with no signals is exactly one
+  // extra tap on the way through, and an entry with three is three pages
+  // that only ask about the three.
+  const SIGNAL_STEP = 6
+  const chosenSignals = (formData.signals || [])
+    .map(k => SIGNAL_BY_KEY[k])
+    .filter(Boolean)
+  const EVIDENCE_STEP = SIGNAL_STEP + 1 + chosenSignals.length
+  const LAST_STEP = EVIDENCE_STEP
   // Meeting days, so a late entry can be filed against the meeting it belongs
   // to. These are the same days attendance is taken on, which is what decides
   // whether a missing entry counts against you.
   const [meetingDays, setMeetingDays] = useState([])
   const [editingEntryId, setEditingEntryId] = useState(null)
+  // Unticking a signal shortens the flow; without this, a student standing on
+  // a page that no longer exists gets a blank card and no way forward.
+  useEffect(() => {
+    setStep(st => Math.min(st, SIGNAL_STEP + 1 + (formData.signals || []).length))
+  }, [formData.signals]) // eslint-disable-line
   const [projectForm, setProjectForm] = useState({ ...INITIAL_PROJECT })
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
@@ -154,8 +177,12 @@ export default function EngineeringNotebook() {
   // data URIs, so asking for select=* meant ~4 MB before the page could show
   // anything — the projects and entries were waiting on image data nobody had
   // scrolled to yet. They're fetched separately and merged in after.
-  const ENTRY_COLS = 'id,username,meeting_date,category,custom_category,what_did,why_option,why_note,' +
+  const BASE_ENTRY_COLS = 'id,username,meeting_date,category,custom_category,what_did,why_option,why_note,' +
     'engagement,engagement_note,mentor_help,mentor_name,mentor_note,project_id,project_link,flash_id,season,created_at'
+  // Asked for separately so a database without them yet can't take the whole
+  // notebook down with it — see the retry below.
+  const SIGNAL_COLS = 'signals,signal_data,next_step'
+  const ENTRY_COLS = `${BASE_ENTRY_COLS},${SIGNAL_COLS}`
 
   // Load data via direct fetch
   useEffect(() => {
@@ -166,7 +193,20 @@ export default function EngineeringNotebook() {
           fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS}&order=created_at.desc`, { headers }),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&order=created_at.desc`, { headers }),
         ])
-        if (eRes.ok) setEntries(await eRes.json())
+        if (eRes.ok) {
+          setEntries(await eRes.json())
+        } else {
+          // Selecting a column that doesn't exist fails the whole query, so
+          // until notebook_signals.sql is run this would leave the notebook
+          // completely empty rather than merely missing the new fields. Ask
+          // again without them: every older entry still loads and reads
+          // exactly as it did.
+          console.warn('Entry fetch failed; retrying without the evidence columns.')
+          const retry = await fetch(
+            `${supabaseUrl}/rest/v1/notebook_entries?select=${BASE_ENTRY_COLS}&order=created_at.desc`,
+            { headers })
+          if (retry.ok) setEntries(await retry.json())
+        }
         if (pRes.ok) setProjects(await pRes.json())
       } catch (err) {
         console.error('Failed to load notebook data:', err)
@@ -290,6 +330,9 @@ export default function EngineeringNotebook() {
     if (step === 1) return !!formData.whatDid.trim()
     if (step === 2) return !!formData.whyOption && (formData.whyOption !== 'Other' || !!formData.whyNote.trim())
     if (step === 3) return !!formData.engagement && !!formData.engagementNote.trim()
+    // At least one thing has to be ticked. The follow-up questions behind each
+    // one stay optional — this is only asking which of them happened.
+    if (step === SIGNAL_STEP) return (formData.signals || []).length > 0
     return true
   })()
 
@@ -346,6 +389,7 @@ export default function EngineeringNotebook() {
     // reported one — which is worth nothing as data. It has to be chosen.
     if (!formData.engagement) return
     if (!formData.engagementNote.trim()) return
+    if (!(formData.signals || []).length) return
 
     if (localStorage.getItem('scrum-sfx-enabled') !== 'false') new Audio('/sounds/click.mp3').play().catch(() => {})
 
@@ -366,7 +410,27 @@ export default function EngineeringNotebook() {
       project_link: formData.projectLink.trim(),
       photo_url: formData.photoUrl.trim(),
       season: ACTIVE_SEASON,
+      // Only the answers for signals still ticked. Ticking something, filling
+      // it in, then unticking it would otherwise leave orphaned answers that
+      // the dashboard would happily count.
+      signals: formData.signals || [],
+      signal_data: Object.fromEntries(
+        (formData.signals || [])
+          .filter(k => SIGNAL_BY_KEY[k])
+          .map(k => [k, formData.signalData?.[k] || {}])
+      ),
+      next_step: (formData.nextStep || '').trim(),
     }
+
+    // If the evidence columns aren't there yet, an insert naming them fails
+    // outright and the student loses the entry they just wrote. The entry
+    // matters more than the signals, so save it without them and say so in the
+    // console rather than to the student, who can do nothing about it.
+    const withoutSignals = (data) => {
+      const { signals, signal_data, next_step, ...rest } = data // eslint-disable-line no-unused-vars
+      return rest
+    }
+    const missingSignalCols = (text) => /signals|signal_data|next_step/.test(text || '')
 
     // Close form immediately, save in background
     if (editingEntryId) {
@@ -377,8 +441,20 @@ export default function EngineeringNotebook() {
         headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify(entryData),
       }).then(res => {
-        if (!res.ok) res.text().then(t => { console.error('Update failed:', t); setSubmitFeedback('Failed to save — try again') })
-        else claimAttendance(entryData.meeting_date)
+        if (!res.ok) {
+          res.text().then(async (t) => {
+            if (missingSignalCols(t)) {
+              const retry = await fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${editingEntryId}`, {
+                method: 'PATCH',
+                headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify(withoutSignals(entryData)),
+              })
+              if (retry.ok) { claimAttendance(entryData.meeting_date); return }
+            }
+            console.error('Update failed:', t)
+            setSubmitFeedback('Failed to save — try again')
+          })
+        } else claimAttendance(entryData.meeting_date)
       }).catch(err => { console.error('Failed to update entry:', err); setSubmitFeedback('Failed to save — try again') })
     } else {
       const newEntry = {
@@ -393,8 +469,21 @@ export default function EngineeringNotebook() {
         headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify(newEntry),
       }).then(res => {
-        if (!res.ok) res.text().then(t => { console.error('Save failed:', t); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
-        else claimAttendance(newEntry.meeting_date)
+        if (!res.ok) {
+          res.text().then(async (t) => {
+            if (missingSignalCols(t)) {
+              const retry = await fetch(`${supabaseUrl}/rest/v1/notebook_entries`, {
+                method: 'POST',
+                headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify(withoutSignals(newEntry)),
+              })
+              if (retry.ok) { claimAttendance(newEntry.meeting_date); return }
+            }
+            console.error('Save failed:', t)
+            setSubmitFeedback('Failed to save — try again')
+            setEntries(prev => prev.filter(e => e.id !== newEntry.id))
+          })
+        } else claimAttendance(newEntry.meeting_date)
       }).catch(err => { console.error('Failed to save entry:', err); setSubmitFeedback('Failed to save — try again'); setEntries(prev => prev.filter(e => e.id !== newEntry.id)) })
     }
 
@@ -425,6 +514,11 @@ export default function EngineeringNotebook() {
       projectId: entry.project_id || '',
       projectLink: entry.project_link || '',
       photoUrl: entry.photo_url || '',
+      // An entry written before signals existed opens with none ticked, which
+      // is exactly right — it has no answer to give.
+      signals: Array.isArray(entry.signals) ? entry.signals : [],
+      signalData: entry.signal_data || {},
+      nextStep: entry.next_step || '',
     })
     setMeetingDate(entry.meeting_date || todayLocal())
     setEditingEntryId(entry.id)
@@ -1158,7 +1252,37 @@ export default function EngineeringNotebook() {
                 </Page>
               )}
 
-              {step === 6 && (
+              {step === SIGNAL_STEP && (
+                <Page
+                  title="What happened today?"
+                  sub="Tick at least one. We'll only ask follow-up questions about what you tick."
+                >
+                  <SignalPicker
+                    selected={formData.signals || []}
+                    onChange={next => updateField('signals', next)}
+                  />
+                </Page>
+              )}
+
+              {/* One page per signal, asking only that signal's questions. */}
+              {step > SIGNAL_STEP && step < EVIDENCE_STEP && (() => {
+                const sig = chosenSignals[step - SIGNAL_STEP - 1]
+                if (!sig) return null
+                return (
+                  <Page title={`${sig.emoji}  ${sig.label}`} sub={sig.helper}>
+                    <SignalQuestions
+                      signal={sig}
+                      answers={formData.signalData?.[sig.key] || {}}
+                      onChange={next => updateField('signalData', {
+                        ...(formData.signalData || {}),
+                        [sig.key]: next,
+                      })}
+                    />
+                  </Page>
+                )
+              })()}
+
+              {step === EVIDENCE_STEP && (
                 <Page title="Show it" sub="A photo, or a link to the work.">
               {/* Project link (optional) */}
               <div>
@@ -1255,6 +1379,23 @@ export default function EngineeringNotebook() {
                 )}
               </div>
 
+              {/* The thread between one meeting and the next. Deliberately not
+                  wired to tasks — a half-formed "we should probably retest
+                  this" is worth writing down long before it is worth
+                  assigning to anybody. */}
+              <div>
+                <label className="text-sm font-medium text-gray-600 block mb-1">
+                  What should happen next? <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.nextStep || ''}
+                  onChange={e => updateField('nextStep', e.target.value)}
+                  placeholder="Where you'd pick this up next meeting"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                />
+              </div>
+
                 </Page>
               )}
 
@@ -1288,6 +1429,7 @@ export default function EngineeringNotebook() {
                   !formData.photoUrl && !formData.projectLink.trim() && 'a photo or a project link',
                   !formData.engagement && 'how engaged you were',
                   formData.engagement && !formData.engagementNote.trim() && 'why you felt that way',
+                  !(formData.signals || []).length && 'at least one thing that happened today',
                 ].filter(Boolean)
                 return (
                   <>

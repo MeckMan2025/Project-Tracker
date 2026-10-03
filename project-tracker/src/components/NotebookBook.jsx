@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, GraduationCap, ExternalLink } from 'lucide-react'
+import { SIGNAL_BY_KEY, signalsOf, answersFor, visibleQuestions } from '../data/notebookSignals'
 import { thumbUrl, thumbFallback } from '../lib/photos'
 
 // The notebook read as a notebook: a contents page, then one page per meeting
@@ -184,6 +185,36 @@ export default function NotebookBook({ entries, projectName }) {
                 </>
               ) : 'Done on their own'}
             </p>
+
+            {/* What happened that day. An older entry has none of this and
+                simply shows nothing extra. */}
+            {signalsOf(entry).length > 0 && (
+              <div style={{ marginTop: RULE }}>
+                {signalsOf(entry).map(key => {
+                  const sig = SIGNAL_BY_KEY[key]
+                  const a = answersFor(entry, key)
+                  const said = visibleQuestions(sig, a)
+                    .map(q => a[q.id])
+                    .filter(v => v && String(v).trim())
+                  return (
+                    <p key={key} className="text-base text-gray-600" style={{ lineHeight: `${RULE}px` }}>
+                      <span className="mr-1">{sig.emoji}</span>
+                      <span className="text-gray-700">{sig.label}</span>
+                      {said.length > 0 && (
+                        <span className="text-gray-500"> — {said.join(' · ')}</span>
+                      )}
+                    </p>
+                  )
+                })}
+              </div>
+            )}
+
+            {entry.next_step && (
+              <p className="text-base text-gray-600" style={{ lineHeight: `${RULE}px`, marginTop: RULE }}>
+                <span className="text-gray-400">Next — </span>
+                {entry.next_step}
+              </p>
+            )}
 
             {(entry.photo_url || entry.project_link) && (
               <div className="flex items-start gap-3" style={{ marginTop: RULE }}>

@@ -87,7 +87,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
 
   const systemTabs = tabs.filter(t => t.type === 'scouting' || t.type === 'boards')
   const boardTabs = tabs.filter(t => t.type !== 'home' && t.type !== 'scouting' && t.type !== 'boards' && t.type !== 'data' && t.type !== 'ai-manual' && t.type !== 'tasks' && t.type !== 'notebook' && t.type !== 'org-chart' && t.type !== 'suggestions' && t.type !== 'calendar' && t.type !== 'attendance' && t.type !== 'logs' && t.type !== 'user-management' && t.type !== 'schedule' && t.type !== 'workshops' && t.type !== 'special-controls' && t.type !== 'team-scouting-data')
-  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'timeline' && activeTab !== 'attendance' && !activeTab.startsWith('logs') && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'testing' && activeTab !== 'design-matrix' && activeTab !== 'sw-design' && activeTab !== 'sw-programming' && activeTab !== 'sw-io' && activeTab !== 'bug-tracker'
+  const isBoardActive = activeTab !== 'home' && activeTab !== 'scouting' && activeTab !== 'boards' && activeTab !== 'data' && activeTab !== 'ai-manual' && activeTab !== 'tasks' && activeTab !== 'notebook' && activeTab !== 'org-chart' && activeTab !== 'suggestions' && activeTab !== 'calendar' && activeTab !== 'timeline' && activeTab !== 'attendance' && activeTab !== 'team-growth' && !activeTab.startsWith('logs') && activeTab !== 'user-management' && activeTab !== 'profile' && activeTab !== 'requests' && activeTab !== 'schedule' && activeTab !== 'workshops' && activeTab !== 'special-controls' && activeTab !== 'chat-all' && activeTab !== 'chat-alliances' && activeTab !== 'chat-leagues' && activeTab !== 'team-scouting-data' && activeTab !== 'role-spec' && activeTab !== 'log-reach' && activeTab !== 'portfolio' && activeTab !== 'budget-tracker' && activeTab !== 'fundraising' && activeTab !== 'financial-history' && activeTab !== 'expense-requests' && activeTab !== 'comms-announcements' && activeTab !== 'content-studio' && activeTab !== 'website-manager' && activeTab !== 'marketing' && activeTab !== 'hw-design' && activeTab !== 'hw-fabrication' && activeTab !== 'hw-assembly' && activeTab !== 'hw-electrical' && activeTab !== 'testing' && activeTab !== 'design-matrix' && activeTab !== 'sw-design' && activeTab !== 'sw-programming' && activeTab !== 'sw-io' && activeTab !== 'bug-tracker'
 
   return (
     <>
@@ -376,7 +376,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           {!isTeamAccount && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-              activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'role-spec'
+              activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'team-growth' || activeTab === 'role-spec'
                 ? 'bg-pastel-pink text-gray-800'
                 : 'hover:bg-pastel-blue/30 text-gray-600'
             }`}
@@ -394,12 +394,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
             {!isGuest && (
               <ChevronRight
                 size={14}
-                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'role-spec' ? 'rotate-90' : ''}`}
+                className={`transition-transform ${dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'team-growth' || activeTab === 'role-spec' ? 'rotate-90' : ''}`}
               />
             )}
           </div>
 
-          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'role-spec') && (
+          {!isGuest && (dataOpen || activeTab === 'data' || activeTab === 'attendance' || activeTab === 'engagement' || activeTab === 'team-growth' || activeTab === 'role-spec') && (
             <div className="ml-4 mt-1 space-y-1">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
@@ -433,6 +433,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               >
                 <ChevronRight size={14} className={activeTab === 'engagement' ? 'rotate-90' : ''} />
                 <span className="truncate">Engagement</span>
+              </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                  activeTab === 'team-growth' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                }`}
+                onClick={() => { onTabChange('team-growth'); onToggle() }}
+              >
+                <ChevronRight size={14} className={activeTab === 'team-growth' ? 'rotate-90' : ''} />
+                <span className="truncate">Team Growth</span>
               </div>
               {/* RoleSpec is local-only for now — import.meta.env.DEV is false
                   in a production build, so it isn't on the deployed site. */}
