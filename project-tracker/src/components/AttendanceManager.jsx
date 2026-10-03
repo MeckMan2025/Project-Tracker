@@ -484,7 +484,18 @@ export default function AttendanceManager({ onBack }) {
   const sessionRecords = selectedSession
     ? (() => {
         const sid = selectedSession.id
-        const real = records.filter(r => r.session_id === sid)
+        // Only people who are still on the roster. A record is kept after
+        // someone is removed in User Management — deleting it would rewrite the
+        // history of meetings they really did attend — but they shouldn't be
+        // standing in today's session waiting to be marked. `profiles` is the
+        // live roster, so anyone no longer in it has gone.
+        //
+        // Guarded on profiles.length: before they load, every record would
+        // look like a stranger and the session would come up empty.
+        const roster = new Set(teamMembers.map(m => m.display_name))
+        const real = records
+          .filter(r => r.session_id === sid)
+          .filter(r => profiles.length === 0 || roster.has(r.username))
         const haveRecord = new Set(real.map(r => r.username))
         const virtuals = teamMembers
           .filter(m => !haveRecord.has(m.display_name))
@@ -563,6 +574,45 @@ export default function AttendanceManager({ onBack }) {
       .catch(() => {})
     return () => { cancelled = true }
   }, [noticeDate])
+
+  // A filed notice has to turn into real minutes, or it is just a message
+  // nobody acted on. It said "there 5:00–7:00" and the session showed that
+  // line, but the attendance maths read partial.timing, which nothing wrote —
+  // so the person still counted as fully present.
+  //
+  // Only fills a blank. Once a lead has typed a number for someone, or ticked
+  // excused, their judgement stands and the notice never overwrites it.
+  // appliedRef keeps a notice from being re-applied after a lead deliberately
+  // clears it back to zero.
+  const appliedRef = useRef(new Set())
+  useEffect(() => {
+    if (!selectedSession || !hasLeadTag) return
+    const sid = selectedSession.id
+    for (const n of notices) {
+      if (n.kind !== 'partial') continue
+      const late = Number(n.late_min) || 0
+      const early = Number(n.early_min) || 0
+      if (!late && !early) continue
+
+      const mark = `${sid}|${n.username}|${late}|${early}`
+      if (appliedRef.current.has(mark)) continue
+
+      const cur = recordTiming(sid, n.username, partial)
+      const touched = cur.lateMin != null || cur.earlyMin != null ||
+                      cur.lateExcused != null || cur.earlyExcused != null
+      if (touched) { appliedRef.current.add(mark); continue }
+
+      appliedRef.current.add(mark)
+      setTiming(sid, n.username, {
+        lateMin: late,
+        earlyMin: early,
+        // Told us in time, so the missed minutes are excused. Late notice, and
+        // the minutes count against them — the rule the form already states.
+        lateExcused: !!n.on_time,
+        earlyExcused: !!n.on_time,
+      })
+    }
+  }, [selectedSession, notices, partial, hasLeadTag, setTiming])
 
   const settledRef = useRef(false)
   useEffect(() => {
@@ -667,7 +717,27 @@ export default function AttendanceManager({ onBack }) {
                       {n.on_time ? 'in time' : 'late'}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-700">{n.username}</p>
+                      <p className="font-medium text-gray-700">
+                        {n.username}
+                        {(() => {
+                          if (n.kind !== 'out') return null
+                          const rec = sessionRecords.find(r => r.username === n.username && !r.virtual)
+                          if (!rec || rec.status !== 'present') return null
+                          return (
+                            <span className="ml-1.5 font-normal text-[11px] text-amber-700">
+                              · marked present
+                              {editing && hasLeadTag && (
+                                <button
+                                  onClick={() => setExcused(rec, !!n.on_time)}
+                                  className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 font-semibold"
+                                >
+                                  mark {n.on_time ? 'excused' : 'absent'}
+                                </button>
+                              )}
+                            </span>
+                          )
+                        })()}
+                      </p>
                       {/* Which kind, so it's obvious at a glance whether this
                           is a whole meeting or a chunk of one. */}
                       <p className="text-gray-500">
