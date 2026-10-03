@@ -39,6 +39,10 @@ export function UserProvider({ children }) {
   const [mustChangePassword, setMustChangePassword] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [isTeam, setIsTeam] = useState(() => localStorage.getItem('scrum-is-team') === 'true')
+  // The one account per visiting team that can add and remove its own members.
+  // It is team_accounts.user_id — there is exactly one, so it belongs on the
+  // team row rather than as a tag anyone could be given.
+  const [isTeamController, setIsTeamController] = useState(false)
   const [teamNumber, setTeamNumber] = useState(() => localStorage.getItem('scrum-team-number') || '')
 
   // Auth account exists but its profile row is gone (deleted members were
@@ -127,6 +131,23 @@ export function UserProvider({ children }) {
 
   const TEAM_EMAIL_REGEX = /^team(\d+)@teams\.radical$/
 
+  // A team row pointing at this account means this account runs that team.
+  // Best effort: before the column exists, or if the lookup fails, nobody is a
+  // controller — which locks the feature rather than opening it.
+  const checkTeamController = async (userId) => {
+    if (!userId) { setIsTeamController(false); return }
+    try {
+      const res = await fetch(
+        `${url}/rest/v1/team_accounts?select=team_number&user_id=eq.${userId}&limit=1`,
+        { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
+      )
+      const rows = res.ok ? await res.json() : []
+      setIsTeamController(Array.isArray(rows) && rows.length > 0)
+    } catch {
+      setIsTeamController(false)
+    }
+  }
+
   // email param avoids stale-closure issues when called from useEffect callbacks
   const applyProfile = (profile, email) => {
     if (profile) {
@@ -136,16 +157,20 @@ export function UserProvider({ children }) {
       // Detect team accounts by email pattern
       const teamMatch = userEmail && userEmail.match(TEAM_EMAIL_REGEX)
       const isTeamAccount = !!teamMatch
-      // An outside team carries its own number; everyone else is on ours.
-      // It used to be blank for Radical members, so anything asking "which
-      // team is this" got nothing back from the people it is mostly asked
-      // about.
-      const teamNum = teamMatch ? teamMatch[1] : HOME_TEAM_NUMBER
+        || (profile.function_tags || []).includes('Team')
+        || (!!profile.team_number && profile.team_number !== HOME_TEAM_NUMBER)
+      // Which team this person is on. The profile is the source of truth now
+      // that visiting teams have members of their own: the email pattern only
+      // ever identified the one controller account, not the people they add.
+      // Falls back to the pattern for accounts created before that column,
+      // then to ours.
+      const teamNum = profile.team_number || (teamMatch ? teamMatch[1] : HOME_TEAM_NUMBER)
       setIsTeam(isTeamAccount)
       setTeamNumber(teamNum)
       localStorage.setItem('scrum-is-team', String(isTeamAccount))
       localStorage.setItem('scrum-team-number', teamNum)
 
+      checkTeamController(profile.id)
       setUsername(profile.display_name)
       localStorage.setItem('scrum-cached-user-id', profile.id)
       setIsLead(profile.role === 'lead')
@@ -704,7 +729,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
     >
       {children}
     </UserContext.Provider>

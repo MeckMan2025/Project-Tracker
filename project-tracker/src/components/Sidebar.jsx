@@ -7,7 +7,7 @@ import { notifyRequestReviewers } from '../utils/requestRouting'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
-  const { isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
+  const { canManageOwnTeam, isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -145,7 +145,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' },
                     ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
-                    ...(!isGuest && !isTeamAccount ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-pink-dark', tab: 'user-management' }] : []),
+                    // A visiting team's controller gets it too, scoped to
+                    // their own roster — that is what the account is for.
+                    ...(!isGuest && (!isTeamAccount || canManageOwnTeam) ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-pink-dark', tab: 'user-management' }] : []),
                     { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
                     // Local-only, like RoleSpec and Team Pulse — half-built pages
                     // shouldn't be one tap away on the deployed site.

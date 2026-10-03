@@ -27,7 +27,7 @@ export function canAddEventsFromTags(functionTags = []) {
 }
 
 export function usePermissions() {
-  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam } = useUser()
+  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam, isTeamController, teamNumber } = useUser()
 
   // Tier is auto-derived from roles (set by UserManagement on role change).
   // Permanent co-founders always get teammate tier at minimum.
@@ -58,6 +58,12 @@ export function usePermissions() {
   const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
   const isProgrammingLead = !!(functionTags && functionTags.includes('Programming Lead'))
   const canAdminAccounts = isCofounder || !!(functionTags && functionTags.some(t => ACCOUNT_ADMIN_TAGS.includes(t)))
+
+  // A visiting team's controller runs their own roster and nothing else. They
+  // are not a Radical lead and must never be treated as one: this is a
+  // separate permission, deliberately not folded into canAdminAccounts, so no
+  // existing check accidentally starts letting them through.
+  const canManageOwnTeam = !!isTeamController
 
   const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
   // Timeline: leads, mentors and coaches pin the notes; anyone holding a
@@ -112,6 +118,8 @@ export function usePermissions() {
     canApproveQuotes: hasLeadTag,
     canManageUsers: hasLeadTag,
     canAdminAccounts,
+    canManageOwnTeam,
+    myTeamNumber: teamNumber,
     canDragAnyTask: hasLeadTag || isTeam,
     canDeleteAnyMessage: hasLeadTag,
     canChangeRoles: hasLeadTag,

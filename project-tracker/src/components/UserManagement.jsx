@@ -123,9 +123,16 @@ const inviteName = (email) => {
 
 function UserManagement({ onViewProfile }) {
   const { user, username } = useUser()
-  const { canManageUsers, canAdminAccounts, canChangeRoles, canRequestRoles, hasLeadTag } = usePermissions()
+  const { canManageUsers, canAdminAccounts, canChangeRoles, canRequestRoles, hasLeadTag, canManageOwnTeam, myTeamNumber } = usePermissions()
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
+
+  // A visiting team's controller sees their own people and nobody else's.
+  // Done once, here, rather than at each place the list is used — a filter you
+  // have to remember is a filter that gets forgotten, and forgetting this one
+  // shows another team your roster.
+  const onMyTeam = (p) => !canManageOwnTeam || (p?.team_number || '') === String(myTeamNumber || '')
+  const visibleMembers = registeredMembers.filter(onMyTeam)
   const [activeSection, setActiveSection] = useState('radmems') // 'radmems' | 'mentors' | 'teamro'
   // Direct "Add Member" (no whitelist) — creates the account and sets roles at once
   const [showAddMember, setShowAddMember] = useState(false)
@@ -143,26 +150,24 @@ function UserManagement({ onViewProfile }) {
   // Approved emails that don't already have an account, so nobody is listed
   // twice once they've signed up. (Declared here because the roster below uses it.)
   const memberNameSet = new Set(
-    registeredMembers.map(m => (m.display_name || '').trim().toLowerCase()).filter(Boolean)
+    visibleMembers.map(m => (m.display_name || '').trim().toLowerCase()).filter(Boolean)
   )
   const pendingInvites = whitelistedEmails.filter(
     w => !memberNameSet.has(inviteName(w.email).trim().toLowerCase())
   )
 
-  // profiles has no email column — the address lives on auth.users, which the
-  // anon key can't read. So a member's sign-up address is taken from the
-  // whitelist row they were approved on, matched by the name that row resolves
-  // to. Anyone approved outside the whitelist, or whose display name was
-  // changed after signing up, won't match and simply shows no address rather
-  // than a wrong one.
+  // The address on the profile, which a trigger keeps in step with auth.users.
+  // Falls back to matching a whitelist row by name for anyone whose profile
+  // predates that column being filled in.
   const emailByName = new Map(
     whitelistedEmails.map(w => [inviteName(w.email).trim().toLowerCase(), w.email])
   )
-  const emailFor = (m) => emailByName.get((m?.display_name || '').trim().toLowerCase()) || ''
+  const emailFor = (m) =>
+    m?.email || emailByName.get((m?.display_name || '').trim().toLowerCase()) || ''
 
   // Mentors and coaches are adults, not students — they get their own tab.
   const rosterRows = [
-    ...registeredMembers.filter(m => !(m.function_tags || []).includes('Team')),
+    ...visibleMembers.filter(m => !(m.function_tags || []).includes('Team')),
     ...(canManageUsers ? pendingInvites.map(w => ({ ...w, __invite: true })) : []),
   ]
 
@@ -294,7 +299,8 @@ function UserManagement({ onViewProfile }) {
 
       const [emailsRes, membersRes, teamsRes] = await Promise.allSettled([
         fetchTable('approved_emails', 'id,email,role,created_at', headers),
-        fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
+        fetchTable('profiles', 'id,display_name,email,team_number,function_tags,authority_tier,is_authority_admin,avatar_url', headers)
+          .catch(() => fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin,avatar_url', headers)),
         fetchTable('team_accounts', 'team_number,team_name,league,email,user_id,created_at', headers)
           .catch(() => fetchTable('team_accounts', 'team_number,team_name,league,user_id,created_at', headers)),
       ])
@@ -930,17 +936,24 @@ function UserManagement({ onViewProfile }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || res.statusText)
       if (data?.error) throw new Error(data.error)
-      // Assign the chosen roles/tags on the freshly created profile
-      if (addRoles.length > 0) {
+      // Roles, and — when a visiting team's controller is the one adding —
+      // which team the new person is on. An unstamped profile reads as
+      // Radical, which is the one default that must never happen by accident,
+      // so this is written before the row is shown anywhere.
+      const patch = {}
+      if (addRoles.length > 0) { patch.function_tags = addRoles; patch.authority_tier = tier }
+      if (canManageOwnTeam && myTeamNumber) patch.team_number = String(myTeamNumber)
+      if (Object.keys(patch).length > 0) {
         await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.userId}`, {
           method: 'PATCH',
           headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ function_tags: addRoles, authority_tier: tier }),
+          body: JSON.stringify(patch),
         })
       }
       setRegisteredMembers(prev => [{
         id: data.userId,
         display_name: addName.trim(),
+        team_number: canManageOwnTeam && myTeamNumber ? String(myTeamNumber) : null,
         function_tags: addRoles,
         authority_tier: tier,
         avatar_url: '',
@@ -985,7 +998,11 @@ function UserManagement({ onViewProfile }) {
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               User Management
             </h1>
-            <p className="text-sm text-gray-500">{canManageUsers ? 'Manage team access' : 'View team members'}</p>
+            <p className="text-sm text-gray-500">
+              {canManageOwnTeam
+                ? `Team ${myTeamNumber} — your members`
+                : canManageUsers ? 'Manage team access' : 'View team members'}
+            </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <NotificationBell />
@@ -998,12 +1015,15 @@ function UserManagement({ onViewProfile }) {
             </button>
           </div>
         </div>
-        {canManageUsers && (
+        {(canManageUsers || canManageOwnTeam) && (
           <div className="flex border-t">
             {[
-              { id: 'radmems', label: 'RadMems', icon: Users, count: rosterRows.filter(r => !isAdultRow(r)).length },
-              { id: 'mentors', label: 'Mentors', icon: GraduationCap, count: rosterRows.filter(isAdultRow).length },
-              { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
+              { id: 'radmems', label: canManageOwnTeam ? 'Members' : 'RadMems', icon: Users, count: rosterRows.filter(r => !isAdultRow(r)).length },
+              ...(canManageOwnTeam ? [] : [
+                { id: 'mentors', label: 'Mentors', icon: GraduationCap, count: rosterRows.filter(isAdultRow).length },
+                // Lists and creates other teams — ours to run, never theirs.
+                { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
+              ]),
             ].map(t => {
               const TabIcon = t.icon
               return (
@@ -1027,7 +1047,7 @@ function UserManagement({ onViewProfile }) {
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
-          {loadingData && whitelistedEmails.length === 0 && registeredMembers.length === 0 && (
+          {loadingData && whitelistedEmails.length === 0 && visibleMembers.length === 0 && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 text-center">
               Loading data...
             </div>
@@ -1043,7 +1063,7 @@ function UserManagement({ onViewProfile }) {
               </button>
             </div>
           )}
-          {!loadingData && whitelistedEmails.length === 0 && registeredMembers.length === 0 && !loadStatus.includes('error') && (
+          {!loadingData && whitelistedEmails.length === 0 && visibleMembers.length === 0 && !loadStatus.includes('error') && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center justify-between">
               <span>No data loaded. This may be a connection issue.</span>
               <button
@@ -1073,7 +1093,7 @@ function UserManagement({ onViewProfile }) {
             </div>
           )}
 
-          {activeSection === 'teamro' && canManageUsers ? (
+          {activeSection === 'teamro' && canManageUsers && !canManageOwnTeam ? (
             <>
               {/* Team Roster (whitelist email block removed; kept dead behind false) */}
               {false ? (
@@ -1365,12 +1385,12 @@ function UserManagement({ onViewProfile }) {
               )}
               {loadingData ? (
                 <p className="text-center text-gray-400 mt-10 animate-pulse">Loading members...</p>
-              ) : registeredMembers.length === 0 ? (
+              ) : visibleMembers.length === 0 ? (
                 <p className="text-center text-gray-400 mt-10">No registered members yet.</p>
               ) : (
                 (() => {
                   const isTeamAccount = (m) => (m.function_tags || []).includes('Team')
-                  const regularMembers = registeredMembers.filter(m => !isTeamAccount(m))
+                  const regularMembers = visibleMembers.filter(m => !isTeamAccount(m))
 
                   // Sort co-founders first
                   const isCofounder = (m) => PERMANENT_COFOUNDER_NAMES.some(n => m.display_name?.toLowerCase().includes(n))
