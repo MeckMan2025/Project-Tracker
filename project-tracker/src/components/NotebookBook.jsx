@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, GraduationCap, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GraduationCap, ExternalLink, Trash2, Pencil } from 'lucide-react'
 import { SIGNAL_BY_KEY, signalsOf, answersFor, visibleQuestions } from '../data/notebookSignals'
 import { thumbUrl, thumbFallback } from '../lib/photos'
 
@@ -38,7 +38,9 @@ const shortDate = (d) =>
     : new Date(d + 'T00:00:00').toLocaleDateString('en-US',
         { weekday: 'short', month: 'short', day: 'numeric' })
 
-export default function NotebookBook({ entries, projectName }) {
+// canEdit/onEdit/onDelete are optional: the profile and the gallery render
+// this as a read-only book, and simply don't pass them.
+export default function NotebookBook({ entries, projectName, canEdit, onEdit, onDelete }) {
   // One page per entry, oldest first — a notebook is read forwards, and the
   // list view already covers "what happened most recently". Sorted by date,
   // then by when it was written, so a day's entries stay in the order they
@@ -138,9 +140,39 @@ export default function NotebookBook({ entries, projectName }) {
                 on the rules instead of drifting between them. Any margin that
                 isn't a multiple of RULE breaks that, which is why there are no
                 space-y utilities here. */}
-            <h2 className="text-2xl text-gray-700" style={{ ...HAND, lineHeight: `${RULE}px` }}>
-              {longDate(entry.meeting_date)}
-            </h2>
+            <div className="flex items-baseline gap-2" style={{ lineHeight: `${RULE}px` }}>
+              <h2 className="text-2xl text-gray-700 flex-1 min-w-0" style={HAND}>
+                {longDate(entry.meeting_date)}
+              </h2>
+              {canEdit?.(entry) && (
+                <span className="flex items-center gap-2 shrink-0">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(entry)}
+                      title="Edit this entry"
+                      className="text-gray-300 hover:text-pastel-blue-dark transition-colors"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => {
+                        // The book is read by turning pages, so stepping back
+                        // one keeps you where you were rather than stranding
+                        // you on the page that just stopped existing.
+                        onDelete(entry)
+                        setPage(p => Math.max(0, p - 1))
+                      }}
+                      title="Delete this entry"
+                      className="text-gray-300 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-400" style={{ lineHeight: `${RULE}px` }}>
               {entry.username}
               <span className="mx-1.5 text-gray-300">·</span>

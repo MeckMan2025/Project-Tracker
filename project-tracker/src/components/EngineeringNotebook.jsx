@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -161,6 +161,13 @@ export default function EngineeringNotebook() {
   // every write path still checks the author, so this changes what you can
   // SEE and nothing about what you can change.
   const [showTeamEntries, setShowTeamEntries] = useState(false)
+  const teamDefaultRef = useRef(false)
+  useEffect(() => {
+    if (!teamDefaultRef.current && isLead) {
+      teamDefaultRef.current = true
+      setShowTeamEntries(true)
+    }
+  }, [isLead])
   const [filterSeason, setFilterSeason] = useState(ACTIVE_SEASON)
   const [filterStudent, setFilterStudent] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
@@ -603,22 +610,13 @@ export default function EngineeringNotebook() {
   const filteredEntries = useMemo(() => {
     let result = entries
     if (filterSeason) result = result.filter(e => seasonOf(e) === filterSeason)
-    if (!isLead && !showTeamEntries) result = result.filter(e => e.username === username)
+    if (!showTeamEntries) result = result.filter(e => e.username === username)
     if (filterStudent) result = result.filter(e => e.username === filterStudent)
     if (filterCategory) result = result.filter(e => e.category === filterCategory)
     if (filterProject) result = result.filter(e => e.project_id === filterProject)
     if (filterEngagement) result = result.filter(e => e.engagement === filterEngagement)
     return result
   }, [entries, showTeamEntries, isLead, username, filterSeason, filterStudent, filterCategory, filterProject, filterEngagement])
-
-  // Everyone who has written an entry in the season being viewed. Built from
-  // the entries themselves rather than the roster, so it never offers a name
-  // with nothing behind it.
-  const authors = useMemo(() => {
-    const seen = new Set(
-      entries.filter(e => seasonOf(e) === filterSeason).map(e => e.username).filter(Boolean))
-    return Array.from(seen).sort()
-  }, [entries, filterSeason])
 
   // Seasons available in the data (plus the active one), newest first
   const availableSeasons = useMemo(() => {
@@ -677,7 +675,7 @@ export default function EngineeringNotebook() {
     } else {
       result = entries.filter(e => e.project_id === projectId)
     }
-    if (!isLead && !showTeamEntries) {
+    if (!showTeamEntries) {
       result = result.filter(e => e.username === username)
     }
     // Only show entries from the selected season (so archived seasons don't leak into the folders)
@@ -776,37 +774,21 @@ export default function EngineeringNotebook() {
           {/* Whose notebook, and which season — the two "what am I looking at"
               controls, together. Leads always see everyone, so the switch would
               do nothing for them. */}
-          {!isLead && (
-            <div className="mt-2 inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+          <div className="mt-2 inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
               {[[false, 'Mine'], [true, "Everyone's"]].map(([val, label]) => (
                 <button
                   key={label}
-                  onClick={() => { setShowTeamEntries(val); if (!val) setFilterStudent('') }}
+                  onClick={() => setShowTeamEntries(val)}
                   className={`px-3 py-1 font-medium transition-colors ${
                     showTeamEntries === val
                       ? 'bg-pastel-pink text-gray-800'
                       : 'bg-white text-gray-500 hover:bg-pastel-blue/20'
                   }`}
                 >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {(isLead || showTeamEntries) && authors.length > 1 && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs text-gray-400">Person</span>
-              <select
-                value={filterStudent}
-                onChange={e => setFilterStudent(e.target.value)}
-                className="border rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
-              >
-                <option value="">Everyone ({authors.length})</option>
-                {authors.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-          )}
+                {label}
+              </button>
+            ))}
+          </div>
 
           {/* Season selector — view the current season or an archived one */}
           <div className="mt-2 flex items-center gap-2">
@@ -864,6 +846,12 @@ export default function EngineeringNotebook() {
                 key={bookProject?.id || 'all'}
                 entries={bookProject ? getProjectEntries(bookProject.id) : filteredEntries}
                 projectName={bookProject?.name}
+                // The same rule as the list view, passed in rather than
+                // re-decided inside the book: your own to edit, your own to
+                // delete unless you're a lead.
+                canEdit={e => isLead || e.username === username}
+                onEdit={e => e.username === username && startEditEntry(e)}
+                onDelete={handleDeleteEntry}
               />
             </>
           )}
