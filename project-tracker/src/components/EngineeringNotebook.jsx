@@ -157,6 +157,9 @@ export default function EngineeringNotebook() {
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [submitFeedback, setSubmitFeedback] = useState(null)
+  // Whose entries are on screen. Reading the team's is open to everyone;
+  // every write path still checks the author, so this changes what you can
+  // SEE and nothing about what you can change.
   const [showTeamEntries, setShowTeamEntries] = useState(false)
   const [filterSeason, setFilterSeason] = useState(ACTIVE_SEASON)
   const [filterStudent, setFilterStudent] = useState('')
@@ -600,13 +603,22 @@ export default function EngineeringNotebook() {
   const filteredEntries = useMemo(() => {
     let result = entries
     if (filterSeason) result = result.filter(e => seasonOf(e) === filterSeason)
-    if (!isLead) result = result.filter(e => e.username === username)
+    if (!isLead && !showTeamEntries) result = result.filter(e => e.username === username)
     if (filterStudent) result = result.filter(e => e.username === filterStudent)
     if (filterCategory) result = result.filter(e => e.category === filterCategory)
     if (filterProject) result = result.filter(e => e.project_id === filterProject)
     if (filterEngagement) result = result.filter(e => e.engagement === filterEngagement)
     return result
   }, [entries, showTeamEntries, isLead, username, filterSeason, filterStudent, filterCategory, filterProject, filterEngagement])
+
+  // Everyone who has written an entry in the season being viewed. Built from
+  // the entries themselves rather than the roster, so it never offers a name
+  // with nothing behind it.
+  const authors = useMemo(() => {
+    const seen = new Set(
+      entries.filter(e => seasonOf(e) === filterSeason).map(e => e.username).filter(Boolean))
+    return Array.from(seen).sort()
+  }, [entries, filterSeason])
 
   // Seasons available in the data (plus the active one), newest first
   const availableSeasons = useMemo(() => {
@@ -665,7 +677,7 @@ export default function EngineeringNotebook() {
     } else {
       result = entries.filter(e => e.project_id === projectId)
     }
-    if (!isLead) {
+    if (!isLead && !showTeamEntries) {
       result = result.filter(e => e.username === username)
     }
     // Only show entries from the selected season (so archived seasons don't leak into the folders)
@@ -761,6 +773,41 @@ export default function EngineeringNotebook() {
               )
             })}
           </div>
+          {/* Whose notebook, and which season — the two "what am I looking at"
+              controls, together. Leads always see everyone, so the switch would
+              do nothing for them. */}
+          {!isLead && (
+            <div className="mt-2 inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+              {[[false, 'Mine'], [true, "Everyone's"]].map(([val, label]) => (
+                <button
+                  key={label}
+                  onClick={() => { setShowTeamEntries(val); if (!val) setFilterStudent('') }}
+                  className={`px-3 py-1 font-medium transition-colors ${
+                    showTeamEntries === val
+                      ? 'bg-pastel-pink text-gray-800'
+                      : 'bg-white text-gray-500 hover:bg-pastel-blue/20'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(isLead || showTeamEntries) && authors.length > 1 && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-gray-400">Person</span>
+              <select
+                value={filterStudent}
+                onChange={e => setFilterStudent(e.target.value)}
+                className="border rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              >
+                <option value="">Everyone ({authors.length})</option>
+                {authors.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          )}
+
           {/* Season selector — view the current season or an archived one */}
           <div className="mt-2 flex items-center gap-2">
             <span className="text-xs text-gray-400">Season</span>
