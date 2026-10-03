@@ -139,8 +139,7 @@ const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 // filtered to theirs. Board ids are made at runtime, so they are recognised by
 // not being one of ours rather than by being on a list.
 const TEAM_ALLOWED_TABS = [
-  'home',             // where they land — TeamHomeView
-  'boards',
+  'boards',           // where they land — their own, by owner_team
   'calendar',
   'suggestions',
   'user-management',  // their own roster, scoped to their team
@@ -493,7 +492,15 @@ function App() {
     return saved || 'home'
   })
 
-  // When a team logs in, skip loading screen — they land on home (TeamHomeView)
+  // A visiting team has no home page — boards are where they work, so that is
+  // where they land. Also catches a tab saved from before this, and anything
+  // that sends them somewhere they can no longer reach.
+  useEffect(() => {
+    if (!effectiveIsTeam) return
+    if (!hasAccess(activeTab, tier, true, blockedTabs)) setActiveTab('boards')
+  }, [effectiveIsTeam, activeTab]) // eslint-disable-line
+
+  // When a team logs in, skip the loading screen — they land on their boards.
   useEffect(() => {
     if (effectiveIsTeam) {
       setIsLoading(false)
