@@ -206,6 +206,11 @@ function UserManagement({ onViewProfile }) {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamPassword, setNewTeamPassword] = useState('')
   const [newTeamLeague, setNewTeamLeague] = useState('')
+  // A real address for the team. Accounts used to be created as
+  // team<number>@teams.radical, which is not a real address: the team could
+  // never be told what it was, could never reset their own password, and had
+  // nothing to put in the email box at sign-in.
+  const [newTeamEmail, setNewTeamEmail] = useState('')
   const [teamError, setTeamError] = useState('')
   const [teamSubmitting, setTeamSubmitting] = useState(false)
   const [whitelistSubSection, setWhitelistSubSection] = useState('members')
@@ -290,7 +295,8 @@ function UserManagement({ onViewProfile }) {
       const [emailsRes, membersRes, teamsRes] = await Promise.allSettled([
         fetchTable('approved_emails', 'id,email,role,created_at', headers),
         fetchTable('profiles', 'id,display_name,function_tags,authority_tier,is_authority_admin,avatar_url', headers),
-        fetchTable('team_accounts', 'team_number,team_name,user_id,created_at', headers),
+        fetchTable('team_accounts', 'team_number,team_name,league,email,user_id,created_at', headers)
+          .catch(() => fetchTable('team_accounts', 'team_number,team_name,league,user_id,created_at', headers)),
       ])
 
       if (emailsRes.status === 'fulfilled') {
@@ -496,6 +502,10 @@ function UserManagement({ onViewProfile }) {
       setTeamError(`${HOME_TEAM_NUMBER} is us. Team accounts are for visiting teams — add a Radical member from the Members tab instead.`)
       return
     }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newTeamEmail.trim())) {
+      setTeamError('Enter a real email for the team — it is how they sign in and how they reset their own password.')
+      return
+    }
     if (newTeamPassword.length < 6) {
       setTeamError('Password must be at least 6 characters')
       return
@@ -504,7 +514,7 @@ function UserManagement({ onViewProfile }) {
     setTeamSubmitting(true)
 
     try {
-      const email = `team${newTeamNumber.trim()}@teams.radical`
+      const email = newTeamEmail.trim().toLowerCase()
       const headers = await getAuthHeaders()
 
       // Create Supabase auth account via admin function
@@ -538,6 +548,7 @@ function UserManagement({ onViewProfile }) {
           team_number: newTeamNumber.trim(),
           team_name: newTeamName.trim(),
           league: newTeamLeague,
+          email,
           user_id: data.userId,
         }),
       })
@@ -557,6 +568,7 @@ function UserManagement({ onViewProfile }) {
       setNewTeamName('')
       setNewTeamPassword('')
       setNewTeamLeague('')
+      setNewTeamEmail('')
       setShowAddTeam(false)
     } catch (err) {
       setTeamError(err.message)
@@ -1228,24 +1240,36 @@ function UserManagement({ onViewProfile }) {
                         <option value="" disabled>Select league...</option>
                         {LEAGUES.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
+                      <input
+                        type="email"
+                        value={newTeamEmail}
+                        onChange={(e) => setNewTeamEmail(e.target.value)}
+                        placeholder="Their email (how they sign in)"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+                        required
+                      />
                       <PasswordInput
                         value={newTeamPassword}
                         onChange={(e) => setNewTeamPassword(e.target.value)}
                         placeholder="Password (min 6 characters)"
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                       />
+                      <p className="text-[11px] text-gray-400">
+                        They sign in with all three: team number, this email,
+                        and this password. Send them those.
+                      </p>
                       {teamError && <p className="text-sm text-red-500">{teamError}</p>}
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => { setShowAddTeam(false); setTeamError(''); setNewTeamNumber(''); setNewTeamName(''); setNewTeamLeague(''); setNewTeamPassword('') }}
+                          onClick={() => { setShowAddTeam(false); setTeamError(''); setNewTeamNumber(''); setNewTeamName(''); setNewTeamLeague(''); setNewTeamEmail(''); setNewTeamPassword('') }}
                           className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
-                          disabled={teamSubmitting || !newTeamNumber || !newTeamName || !newTeamLeague || !newTeamPassword}
+                          disabled={teamSubmitting || !newTeamNumber || !newTeamName || !newTeamLeague || !newTeamEmail || !newTeamPassword}
                           className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
                         >
                           {teamSubmitting ? 'Creating...' : 'Add Team'}
@@ -1266,6 +1290,7 @@ function UserManagement({ onViewProfile }) {
                             <span className="text-sm font-medium text-gray-700 block">Team {team.team_number}</span>
                             <span className="text-xs text-gray-500 block truncate">{team.team_name}</span>
                             {team.league && <span className="text-xs text-gray-400 block truncate">{team.league}</span>}
+                            {team.email && <span className="text-xs text-gray-400 block truncate">{team.email}</span>}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
