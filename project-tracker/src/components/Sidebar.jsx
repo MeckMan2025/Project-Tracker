@@ -311,69 +311,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           <hr className="my-2 border-gray-200" />
 
           {/* Scouting Tab for team accounts — form only, no dropdown */}
-          {navFilter !== 'business' && isTeamAccount && (
-            <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'scouting'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  onTabChange('scouting')
-                  onToggle()
-                }}
-              >
-                <ClipboardList size={16} className="text-pastel-orange-dark" />
-                <span className="truncate flex-1">Scouting</span>
-              </div>
-              <hr className="my-2 border-gray-200" />
-            </>
-          )}
 
           {/* Scouting sits with the other unfinished tabs for now. The kiosk
               (team accounts) and Comp Day still reach the form above. */}
           {/* Data Tab for team accounts — dropdown with scouting data only */}
-          {isTeamAccount && (
-            <>
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === 'team-scouting-data'
-                    ? 'bg-pastel-pink text-gray-800'
-                    : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => {
-                  setDataOpen(prev => !prev)
-                }}
-              >
-                <LineChart size={16} className="text-pastel-blue-dark" />
-                <span className="truncate flex-1">Data</span>
-                <ChevronRight
-                  size={14}
-                  className={`transition-transform ${dataOpen || activeTab === 'team-scouting-data' ? 'rotate-90' : ''}`}
-                />
-              </div>
-
-              {(dataOpen || activeTab === 'team-scouting-data') && (
-                <div className="ml-4 mt-1 space-y-1">
-                  <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
-                      activeTab === 'team-scouting-data' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
-                    }`}
-                    onClick={() => {
-                      onTabChange('team-scouting-data')
-                      onToggle()
-                    }}
-                  >
-                    <ChevronRight size={14} className={activeTab === 'team-scouting-data' ? 'rotate-90' : ''} />
-                    <span className="truncate">Scouting Data</span>
-                  </div>
-                </div>
-              )}
-
-              <hr className="my-2 border-gray-200" />
-            </>
-          )}
 
           {!isTeamAccount && <>
           <div
@@ -467,8 +408,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           {!isTeamAccount && <hr className="my-2 border-gray-200" />}
 
           {/* Just the Calendar now — a section that holds one page is a
-              folder with one file in it. */}
-          {!isTeamAccount && (
+              folder with one file in it. Open to visiting teams too. */}
+          {(
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${

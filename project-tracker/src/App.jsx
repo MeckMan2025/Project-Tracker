@@ -130,11 +130,36 @@ const TAB_ACCESS = {
 
 const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 
+// Everything a visiting team can reach. They are guests in our app, not
+// members of our team, so this is a list of what is open rather than a list of
+// what is shut — a page added later is closed to them until someone decides
+// otherwise, which is the safe direction for that mistake to go.
+//
+// Their own boards are allowed too: those carry owner_team and are already
+// filtered to theirs. Board ids are made at runtime, so they are recognised by
+// not being one of ours rather than by being on a list.
+const TEAM_ALLOWED_TABS = [
+  'home',             // where they land — TeamHomeView
+  'boards',
+  'calendar',
+  'suggestions',
+  'user-management',  // their own roster, scoped to their team
+  'profile',
+  'settings',
+]
+
 function hasAccess(tab, tier, isTeam, blockedTabs) {
-  // Checked before the team-account bypass, which would otherwise hand team
-  // accounts everything.
+  // Checked before the team-account rule, which would otherwise let a blocked
+  // tab through.
   if (blockedTabs && blockedTabs.includes(tab)) return false
-  if (isTeam) return true // team accounts have full access
+  if (isTeam) {
+    // One of ours, and not on their list — closed.
+    if (TAB_ACCESS[tab] && !TEAM_ALLOWED_TABS.includes(tab)) return false
+    if (TEAM_ALLOWED_TABS.includes(tab)) return true
+    // No TAB_ACCESS entry means a board, and their boards are already filtered
+    // to their own by owner_team.
+    return !TAB_ACCESS[tab]
+  }
   const required = TAB_ACCESS[tab]
   if (!required) return true // board tabs (dynamic) — accessible to all
   return (TIER_RANK[tier] || 0) >= (TIER_RANK[required] || 0)
@@ -451,8 +476,10 @@ function App() {
   const cachedData = useRef(getCachedData())
   const [tabs, setTabs] = useState(() => {
     if (cachedData.current?.tabs) return cachedData.current.tabs
-    // Team accounts start with just system tabs (no default boards — their boards load from DB)
-    if (effectiveIsTeam) return [...SYSTEM_TABS]
+    // Team accounts get only the system tabs open to them, and no default
+    // boards — theirs load from the database by owner_team. Offering a tab
+    // hasAccess will refuse is a door that doesn't open.
+    if (effectiveIsTeam) return SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))
     return [...SYSTEM_TABS, ...DEFAULT_BOARDS]
   })
   const [activeTab, setActiveTab] = useState(() => {
@@ -756,9 +783,11 @@ function App() {
           localStorage.setItem('scrum-cache', JSON.stringify({ tabs: boardTabs, tasksByTab: grouped }))
         } catch (e) { /* ignore quota errors */ }
       } else {
-        // Team view: only their boards, no system tabs needed
+        // Team view: their boards, and only the system tabs open to them.
+        // This put every system tab back, quietly undoing the filter the
+        // initial list applies.
         const boardTabs = boards.map(b => ({ id: b.id, name: b.name, permanent: false }))
-        setTabs([...SYSTEM_TABS, ...boardTabs])
+        setTabs([...SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)), ...boardTabs])
 
         const grouped = {}
         boards.forEach(b => { grouped[b.id] = [] })
