@@ -63,12 +63,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse request body
-    const { userId, newPassword } = await req.json();
+    // Parse request body. newEmail is optional and is how a team gets a new
+    // coach: the address IS the login, so it has to move with the person or
+    // the new coach cannot get in and the old one still can.
+    const { userId, newPassword, newEmail } = await req.json();
 
-    if (!userId || !newPassword) {
+    if (!userId || (!newPassword && !newEmail)) {
       return new Response(
-        JSON.stringify({ error: "userId and newPassword are required" }),
+        JSON.stringify({ error: "userId and one of newPassword or newEmail are required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,7 +78,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword && newPassword.length < 6) {
       return new Response(
         JSON.stringify({
           error: "Password must be at least 6 characters",
@@ -91,11 +93,19 @@ Deno.serve(async (req: Request) => {
     // Create admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Reset the password
+    // Whichever was asked for. Both go through the same call, so changing a
+    // team's coach and resetting their password are one round trip when both
+    // are needed.
+    const changes: Record<string, unknown> = {};
+    if (newPassword) changes.password = newPassword;
+    if (newEmail) {
+      changes.email = String(newEmail).trim().toLowerCase();
+      // Admin-set, so there is nobody to click a confirmation link.
+      changes.email_confirm = true;
+    }
+
     const { error: resetError } =
-      await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password: newPassword,
-      });
+      await supabaseAdmin.auth.admin.updateUserById(userId, changes);
 
     if (resetError) {
       return new Response(JSON.stringify({ error: resetError.message }), {
@@ -107,7 +117,7 @@ Deno.serve(async (req: Request) => {
     // Force password change on next login
     await supabaseAdmin
       .from("profiles")
-      .update({ must_change_password: true })
+      .update({ must_change_password: !!newPassword })
       .eq("id", userId);
 
     return new Response(JSON.stringify({ success: true }), {

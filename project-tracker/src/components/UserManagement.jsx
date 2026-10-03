@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { notifyRequestReviewers } from '../utils/requestRouting'
-import { UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight, GraduationCap } from 'lucide-react'
+import { Pencil, UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
@@ -221,6 +221,12 @@ function UserManagement({ onViewProfile }) {
   const [whitelistSubSection, setWhitelistSubSection] = useState('members')
   const [invitePickerOpen, setInvitePickerOpen] = useState(null) // whitelist id
   // Team password edit
+  // Editing a team's details — name, league, and who coaches it.
+  const [editTeam, setEditTeam] = useState(null)
+  const [editTeamForm, setEditTeamForm] = useState({ team_name: '', league: '', email: '' })
+  const [editTeamError, setEditTeamError] = useState('')
+  const [editTeamSaving, setEditTeamSaving] = useState(false)
+
   const [editTeamPw, setEditTeamPw] = useState(null)
   const [editTeamPwValue, setEditTeamPwValue] = useState('')
   const [editTeamPwError, setEditTeamPwError] = useState('')
@@ -589,6 +595,73 @@ function UserManagement({ onViewProfile }) {
       setTeamError(err.message)
     } finally {
       setTeamSubmitting(false)
+    }
+  }
+
+  const openEditTeam = (team) => {
+    setEditTeam(team)
+    setEditTeamForm({
+      team_name: team.team_name || '',
+      league: team.league || '',
+      email: team.email || '',
+    })
+    setEditTeamError('')
+  }
+
+  const handleSaveTeam = async () => {
+    if (!editTeam) return
+    const name = editTeamForm.team_name.trim()
+    const mail = editTeamForm.email.trim().toLowerCase()
+    if (!name) { setEditTeamError('A team needs a name.'); return }
+    if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) {
+      setEditTeamError("That does not look like an email address."); return
+    }
+    setEditTeamSaving(true)
+    setEditTeamError('')
+    try {
+      const headers = await getAuthHeaders()
+      const num = editTeam.team_number
+      const emailChanged = mail && mail !== (editTeam.email || '').toLowerCase()
+
+      // A new coach means a new login, because the address IS the login. The
+      // auth account has to move with it or the new coach cannot get in and
+      // the old one still can.
+      if (emailChanged) {
+        const res = await fetch(`${supabaseUrl}/functions/v1/admin-reset-password`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: editTeam.user_id, newEmail: teamAuthEmail(mail, num) }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || data?.error) {
+          throw new Error(
+            (data?.error || res.statusText) +
+            ' — the name and league were not saved either. The sign-in address can only be changed once admin-reset-password accepts newEmail.'
+          )
+        }
+      }
+
+      await fetch(`${supabaseUrl}/rest/v1/team_accounts?team_number=eq.${encodeURIComponent(num)}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ team_name: name, league: editTeamForm.league, email: mail || null }),
+      })
+
+      // The profile carries the display name and the address people read.
+      await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${editTeam.user_id}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ display_name: `Team ${num} - ${name}`, email: mail || null }),
+      }).catch(err => console.error('Could not update the team profile:', err))
+
+      setTeams(prev => prev.map(t => t.team_number === num
+        ? { ...t, team_name: name, league: editTeamForm.league, email: mail || null }
+        : t))
+      setEditTeam(null)
+    } catch (err) {
+      setEditTeamError(err.message)
+    } finally {
+      setEditTeamSaving(false)
     }
   }
 
@@ -1332,6 +1405,13 @@ function UserManagement({ onViewProfile }) {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
+                              onClick={() => openEditTeam(team)}
+                              title="Edit team details"
+                              className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
+                            >
+                              <Pencil size={14} className="text-gray-400 hover:text-pastel-blue-dark" />
+                            </button>
+                            <button
                               onClick={() => { setEditTeamPw(team); setEditTeamPwValue(''); setEditTeamPwError(''); setEditTeamPwSuccess('') }}
                               title="Edit password"
                               className="p-1.5 rounded-lg hover:bg-pastel-blue/20 transition-colors"
@@ -1798,6 +1878,78 @@ function UserManagement({ onViewProfile }) {
       )}
 
       {/* Team Password Edit Modal */}
+      {editTeam && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+             onClick={() => !editTeamSaving && setEditTeam(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3"
+               onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-gray-800">Team {editTeam.team_number}</h3>
+                <p className="text-xs text-gray-400">The number stays — it is part of how they sign in.</p>
+              </div>
+              <button onClick={() => setEditTeam(null)} className="text-gray-400 hover:text-gray-700 shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={editTeamForm.team_name}
+              onChange={e => { setEditTeamForm(f => ({ ...f, team_name: e.target.value })); setEditTeamError('') }}
+              placeholder="Team name"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+            />
+
+            <select
+              value={editTeamForm.league}
+              onChange={e => setEditTeamForm(f => ({ ...f, league: e.target.value }))}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm bg-white"
+            >
+              <option value="">No league</option>
+              {LEAGUES.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+
+            <input
+              type="email"
+              value={editTeamForm.email}
+              onChange={e => { setEditTeamForm(f => ({ ...f, email: e.target.value })); setEditTeamError('') }}
+              placeholder="Coach email"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
+            />
+
+            {/* Changing this changes who can sign in, so say so before they do
+                rather than after. */}
+            {editTeamForm.email.trim().toLowerCase() !== (editTeam.email || '').toLowerCase() && (
+              <p className="text-[11px] text-pastel-orange-dark">
+                This changes who signs in. The old coach will no longer be able
+                to, and the new one uses this address with the team's existing
+                password — set them a new one with the key button if they need it.
+              </p>
+            )}
+
+            {editTeamError && <p className="text-sm text-red-500">{editTeamError}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setEditTeam(null)}
+                disabled={editTeamSaving}
+                className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTeam}
+                disabled={editTeamSaving || !editTeamForm.team_name.trim()}
+                className="flex-1 px-3 py-2 text-sm bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-50 rounded-lg font-medium text-gray-700"
+              >
+                {editTeamSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editTeamPw && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
