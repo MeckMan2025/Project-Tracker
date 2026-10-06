@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Plus, X, Check, Loader2, Trash2, Download, Pencil } from 'lucide-react'
+import { Check, Loader2, Trash2, Download, Pencil, ChevronLeft, ChevronRight, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
   SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, blankEntry,
 } from '../data/scoutingFields'
@@ -24,7 +24,14 @@ export default function ScoutingForm() {
   const [loading, setLoading] = useState(true)
   const [unavailable, setUnavailable] = useState(false)
   const [form, setForm] = useState(blankEntry())
-  const [showForm, setShowForm] = useState(false)
+  // The form IS the page — scouting happens at a match, and whoever opens this
+  // is here to fill one in, not to read yesterday's. The saved rows are one
+  // arrow away.
+  const [showData, setShowData] = useState(false)
+  // One group per screen, the way the notebook asks one thing at a time. The
+  // whole form at once is a wall, and a wall gets filled in badly at a
+  // competition.
+  const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -76,6 +83,7 @@ export default function ScoutingForm() {
       })
       if (!res.ok) throw new Error(await res.text())
       setRows(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
+      setStep(0)
       // Team and match stay: scouting is one team after another in the same
       // match, or the same team match after match. Retyping them every time is
       // the fastest way to put people off doing it.
@@ -153,15 +161,26 @@ export default function ScoutingForm() {
     )
   }
 
+  const LAST = SCOUTING_GROUPS.length - 1
+  const group = SCOUTING_GROUPS[Math.min(step, LAST)]
+  const groupFields = SCOUTING_FIELDS.filter(f => f.group === group)
+  // Only the first screen can block you: everything after it is optional, and
+  // a scout who missed something should be able to move past it.
+  const canAdvance = step > 0 || ready
+
   return (
     <Frame
-      sub={`${rows.length} ${rows.length === 1 ? 'match scouted' : 'matches scouted'}${teams.length ? ` · ${teams.length} teams` : ''}`}
+      sub={showData
+        ? `${rows.length} ${rows.length === 1 ? 'match scouted' : 'matches scouted'}${teams.length ? ` · ${teams.length} teams` : ''}`
+        : `Screen ${step + 1} of ${SCOUTING_GROUPS.length} · ${group}`}
       action={
         <button
-          onClick={() => { setShowForm(v => !v); setError('') }}
-          className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium shrink-0"
+          onClick={() => setShowData(v => !v)}
+          className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-pastel-blue/20 transition-colors font-medium shrink-0"
         >
-          {showForm ? <><X size={14} /> Close</> : <><Plus size={14} /> Scout a match</>}
+          {showData
+            ? <><ArrowLeft size={14} /> Scout a match</>
+            : <>{rows.length} saved <ArrowRight size={14} /></>}
         </button>
       }
     >
@@ -171,34 +190,71 @@ export default function ScoutingForm() {
         </div>
       )}
 
-      {showForm ? (
-        <div className="space-y-3">
-          {SCOUTING_GROUPS.map(group => (
-            <section key={group} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-              <h2 className="font-semibold text-gray-700 mb-2">{group}</h2>
-              <div className="space-y-3">
-                {SCOUTING_FIELDS.filter(f => f.group === group).map(f => (
-                  <Field key={f.key} field={f} value={form[f.key]} onChange={v => set(f.key, v)} />
-                ))}
-              </div>
-            </section>
-          ))}
+      {!showData ? (
+        <>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-full rounded-full bg-pastel-pink-dark transition-all"
+                   style={{ width: `${((step + 1) / SCOUTING_GROUPS.length) * 100}%` }} />
+            </div>
+          </div>
+
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <h2 className="font-semibold text-gray-700 mb-3">{group}</h2>
+            <div className="space-y-4">
+              {groupFields.map(f => (
+                <Field key={f.key} field={f} value={form[f.key]} onChange={v => set(f.key, v)} />
+              ))}
+            </div>
+          </section>
 
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
-          <button
-            onClick={submit}
-            disabled={!ready || saving}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:bg-gray-100 disabled:text-gray-400 transition-colors font-medium text-gray-800"
-          >
-            {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : 'Save match'}
-          </button>
-          {!ready && (
+          <div className="flex items-center gap-2">
+            {step > 0 && (
+              <button onClick={() => setStep(st => st - 1)}
+                      className="flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors">
+                <ChevronLeft size={16} /> Back
+              </button>
+            )}
+            {step < LAST ? (
+              <button
+                onClick={() => setStep(st => st + 1)}
+                disabled={!canAdvance}
+                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-semibold bg-pastel-blue hover:bg-pastel-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={submit}
+                disabled={!ready || saving}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:bg-gray-100 disabled:text-gray-400 transition-colors font-medium text-gray-800"
+              >
+                {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : 'Save match'}
+              </button>
+            )}
+          </div>
+
+          {!canAdvance && (
             <p className="text-xs text-gray-400 text-center -mt-1">
-              Still needed: team number and match number.
+              Team number and match number first — everything after this is optional.
             </p>
           )}
-        </div>
+
+          {/* Skipping ahead, for a scout who knows this robot does nothing in
+              auto and wants to get to the ratings. */}
+          <div className="flex flex-wrap justify-center gap-1">
+            {SCOUTING_GROUPS.map((g, i) => (
+              <button key={g} onClick={() => canAdvance && setStep(i)} disabled={!canAdvance}
+                      className={`text-[11px] px-2 py-0.5 rounded disabled:opacity-40 transition-colors ${
+                        i === step ? 'bg-pastel-pink text-gray-800 font-semibold' : 'text-gray-400 hover:bg-pastel-blue/20'
+                      }`}>
+                {g}
+              </button>
+            ))}
+          </div>
+        </>
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
           <p className="text-gray-500 font-medium">Nothing scouted yet.</p>
