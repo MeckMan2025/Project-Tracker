@@ -418,6 +418,26 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
             </>
           )}
 
+          {/* Scouting. Its only link used to be inside the Competition Day
+              block, which meant it did not exist on an ordinary day — and a
+              form nobody can reach does not get filled in. */}
+          {!isGuest && !isTeamAccount && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'scouting'
+                    ? 'bg-pastel-pink text-gray-800'
+                    : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('scouting'); onToggle() }}
+              >
+                <ClipboardList size={16} className="text-pastel-orange-dark" />
+                <span className="truncate">Scouting</span>
+              </div>
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
+
           {/* The Engineering Notebook is reached from Home and from the
               gallery, not from here. */}
           {!isGuest && (

@@ -540,7 +540,10 @@ function App() {
   const [compDayLock, setCompDayLock] = useState(null) // { role: 'scouting' | 'drive-team' | ... } or null
   // Scouting is parked with the unfinished tabs until it's ready. The kiosk
   // accounts and Comp Day scouts still need the form, so they keep it.
-  if (!isCofounder && !effectiveIsTeam && !compDayLock) blockedTabs.push('scouting', 'schedule')
+  // Scouting is open to the team: scouts fill it in, and the only link to it
+  // used to live inside the Competition Day block, so outside a comp-day
+  // lockdown there was no way in at all. Schedule stays where it was.
+  if (!isCofounder && !effectiveIsTeam && !compDayLock) blockedTabs.push('schedule')
   const [showPulse, setShowPulse] = useState(false)
 
   // Default sounds off for team accounts on first login
