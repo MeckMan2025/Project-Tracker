@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3, Quote } from 'lucide-react'
+import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -443,16 +443,14 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           </div>
         </div>
 
-        {/* One row of shortcut tiles. Leads, mentors and coaches get the three
-            pages used during a meeting; Submit a Quote is for everyone, so on a
-            member's Home it's the only tile and fills the row on its own. */}
+        {/* One row of shortcut tiles. Leads, mentors and coaches also get the
+            two pages used during a meeting. */}
         {(() => {
           const tiles = [
             ...(hasLeadTag ? [
               { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-yellow',   tint: 'bg-pastel-yellow/20',   text: 'text-pastel-yellow-dark' },
               { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
-            { view: 'quotes', label: 'Submit a Quote', icon: Quote, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             // A tab of its own rather than a Special Controls page, so this one
             // switches tabs instead of opening a special view.
             { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
@@ -462,9 +460,8 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
               { tab: 'notebook', label: 'Engineering Notebook', icon: BookOpen, ring: 'border-pastel-pink', tint: 'bg-pastel-pink/20', text: 'text-pastel-pink-dark' },
             ]),
           ]
-          // All on one row, however many there are. They are shortcuts, so they
-          // are kept short — a member sees only Submit a Quote and it fills the
-          // row on its own.
+          // All on one row, however many there are, so the row sizes itself to
+          // whatever this person can reach.
           return (
             <div className="grid gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }}>
               {tiles.map(({ view, tab, label, icon: Icon, ring, tint, text }) => (
@@ -655,17 +652,30 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         {/* Engineering Notebook photo gallery */}
         <NotebookGallery onTabChange={onTabChange} />
 
-        {/* 4. Random Quote Footer */}
+        {/* 4. Random Quote Footer — and the way in to adding one. The quote is
+            what you are looking at when you think of one, so it is a better
+            door than a tile at the top that said the same thing. */}
         {!isGuest && (
           <div className="text-center py-3">
-            {quote ? (
-              <p className="text-sm italic text-gray-400">
-                "{quote.content}"
-                {quote.submitted_by && <span className="not-italic"> — {quote.submitted_by}</span>}
-              </p>
-            ) : (
-              <p className="text-sm italic text-gray-400">No fun quotes yet — submit one!</p>
-            )}
+            <button
+              onClick={() => onOpenSpecial?.('quotes')}
+              title="Add a quote"
+              className="group inline-block max-w-xl px-4 py-1 rounded-lg hover:bg-pastel-orange/15 transition-colors"
+            >
+              {quote ? (
+                <p className="text-sm italic text-gray-400 group-hover:text-gray-600">
+                  "{quote.content}"
+                  {quote.submitted_by && <span className="not-italic"> — {quote.submitted_by}</span>}
+                </p>
+              ) : (
+                <p className="text-sm italic text-gray-400 group-hover:text-gray-600">
+                  No fun quotes yet — submit one!
+                </p>
+              )}
+              <span className="block text-[10px] text-gray-300 group-hover:text-pastel-orange-dark transition-colors">
+                + add a quote
+              </span>
+            </button>
           </div>
         )}
       </main>

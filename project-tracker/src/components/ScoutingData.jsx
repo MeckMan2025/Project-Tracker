@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
+import { SCOUTING_FIELDS } from '../data/scoutingFields'
+import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -10,47 +12,15 @@ import ScoutingAccountability from './ScoutingAccountability'
 // Default considered teams (used as fallback before Supabase loads)
 const DEFAULT_CONSIDERED = []
 
-// Per-team scouting stats (cleared for new season; populated live from scouting_records)
+// Per-team scouting stats, populated live from match_scouting.
 const SCOUT_STATS = {}
 
 // Machu Picchu League (Iowa) — loaded with blank data for the new season.
 const BLANK = { rank: null, rp: 0, tbp: 0, autoAvg: 0, teleopAvg: 0, highScore: 0, record: '--', played: 0 }
-const ALL_TEAMS = [
-  { number: '367', name: 'Organized Chaos', ...BLANK },
-  { number: '4177', name: 'Finger Tightans', ...BLANK },
-  { number: '4237', name: 'Cyberhawks', ...BLANK },
-  { number: '5062', name: 'Mechanaries', ...BLANK },
-  { number: '6072', name: 'Wildbot Robotics', ...BLANK },
-  { number: '6093', name: 'Deviation From The Norm', ...BLANK },
-  { number: '6458', name: 'Burgbots', ...BLANK },
-  { number: '6545', name: 'Knight Riders', ...BLANK },
-  { number: '6603', name: 'Guild of Gears', ...BLANK },
-  { number: '7196', name: "Everything That's Radical", ...BLANK },
-  { number: '8588', name: 'Finger Puppet Mafia', ...BLANK },
-  { number: '8672', name: 'UBett', ...BLANK },
-  { number: '8696', name: 'Trobotix', ...BLANK },
-  { number: '8743', name: 'Raw Bacon', ...BLANK },
-  { number: '8813', name: 'The Winter Soldiers', ...BLANK },
-  { number: '8988', name: 'Bellevue Blockheads', ...BLANK },
-  { number: '10082', name: 'Mechanicats', ...BLANK },
-  { number: '10139', name: 'Glitch Mob', ...BLANK },
-  { number: '10602', name: 'Pioneer Robotics', ...BLANK },
-  { number: '11721', name: 'Central Processing Units', ...BLANK },
-  { number: '12745', name: 'Long John Launchers', ...BLANK },
-  { number: '13532', name: 'EagleBots FTC 13532', ...BLANK },
-  { number: '15050', name: 'Lightning Bots', ...BLANK },
-  { number: '15055', name: 'DeDucktive Thinkers', ...BLANK },
-  { number: '18482', name: 'Mechanical Soup', ...BLANK },
-  { number: '20097', name: 'Robo Raptors', ...BLANK },
-  { number: '22064', name: 'ThunderBots', ...BLANK },
-  { number: '22479', name: 'Royal Robots', ...BLANK },
-  { number: '23971', name: 'Trobotix JV', ...BLANK },
-  { number: '24296', name: 'TopBot', ...BLANK },
-  { number: '25656', name: 'Pioneer Robotics', ...BLANK },
-  { number: '25788', name: 'Byte Brawlers', ...BLANK },
-  { number: '31541', name: 'Davenport West', ...BLANK },
-  { number: '32494', name: 'Screw Ups-Washington Middle School', ...BLANK },
-]
+// The team list lives in data/teams.js, shared with the scouting form so the
+// dropdown and this table are always the same set. BLANK fills in the stats
+// a team has before anyone has scouted it.
+const ALL_TEAMS = TEAM_LIST.map(t => ({ ...t, ...BLANK }))
 
 // Delete permission now handled by usePermissions hook (canDeleteScouting)
 
@@ -68,76 +38,58 @@ function pctBar(value) {
   )
 }
 
+// What RadRank shows per team, computed from match_scouting — the same fields
+// the scouting form records. It used to read a previous season's game
+// (artifacts, motif order, parking), none of which anybody scouts any more, so
+// every number here was always going to be zero.
+//
+// A blank is skipped rather than counted as zero: a scout who did not see
+// something must not drag a team's average down.
 function computeScoutingStats(matches) {
   const n = matches.length
-  const safePct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
-  const avg = (total) => n === 0 ? 0 : +(total / n).toFixed(1)
-
-  if (n === 0) {
-    return {
-      scoutCount: 0,
-      startingPositions: {},
-      autoPctClassified: 0, autoPctMissed: 0, autoPctOverflowed: 0, autoPctMotif: 0,
-      telePctClassified: 0, telePctMissed: 0, telePctOverflowed: 0, telePctMotif: 0,
-      teleLeavePct: 0,
-      autoAvgClassified: 0, autoAvgMissed: 0, autoAvgOverflowed: 0, autoAvgMotif: 0,
-      teleAvgClassified: 0, teleAvgMissed: 0, teleAvgOverflowed: 0, teleAvgMotif: 0, teleAvgDepot: 0,
-      fullParkPct: 0, partialParkPct: 0, noParkPct: 0,
-      avgAllianceScore: 0,
-    }
+  const nums = (key) => matches.map(m => m[key]).filter(v => v != null && v !== '').map(Number)
+  const avg = (key) => {
+    const v = nums(key)
+    return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : 0
+  }
+  const sum = (key) => nums(key).reduce((a, b) => a + b, 0)
+  const pct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
+  const tally = (key) => {
+    const out = {}
+    matches.forEach(m => { const v = m[key]; if (v) out[v] = (out[v] || 0) + 1 })
+    return out
   }
 
-  const startingPositions = {}
-  matches.forEach(m => {
-    const pos = m.startingPosition || 'Unknown'
-    startingPositions[pos] = (startingPositions[pos] || 0) + 1
-  })
-
-  const autoClassified = matches.reduce((s, m) => s + (Number(m.autoClassified) || 0), 0)
-  const autoMissed = matches.reduce((s, m) => s + (Number(m.autoArtifactsMissed) || 0), 0)
-  const autoOverflowed = matches.reduce((s, m) => s + (Number(m.autoOverflowed) || 0), 0)
-  const autoMotif = matches.reduce((s, m) => s + (Number(m.autoInMotifOrder) || 0), 0)
-  const autoTotal = autoClassified + autoMissed + autoOverflowed + autoMotif
-
-  const teleClassified = matches.reduce((s, m) => s + (Number(m.teleClassified) || 0), 0)
-  const teleMissed = matches.reduce((s, m) => s + (Number(m.teleArtifactsMissed) || 0), 0)
-  const teleOverflowed = matches.reduce((s, m) => s + (Number(m.teleOverflowed) || 0), 0)
-  const teleMotif = matches.reduce((s, m) => s + (Number(m.teleInMotifOrder) || 0), 0)
-  const teleDepot = matches.reduce((s, m) => s + (Number(m.teleArtifactsInDepot) || 0), 0)
-  const teleTotal = teleClassified + teleMissed + teleOverflowed + teleMotif
-
-  const leaveCount = matches.filter(m => m.teleDidLeave === true).length
-  const fullPark = matches.filter(m => m.parkingStatus === 'full').length
-  const partialPark = matches.filter(m => m.parkingStatus === 'partial').length
-  const noPark = matches.filter(m => m.parkingStatus === 'none' || m.parkingStatus === '').length
-
-  const totalScore = matches.reduce((s, m) => s + (Number(m.allianceScore) || 0), 0)
+  const autoHit = sum('auto_scored'), autoMiss = sum('auto_missed')
+  const teleHit = sum('teleop_scored'), teleMiss = sum('teleop_missed')
 
   return {
     scoutCount: n,
-    startingPositions,
-    autoPctClassified: safePct(autoClassified, autoTotal),
-    autoPctMissed: safePct(autoMissed, autoTotal),
-    autoPctOverflowed: safePct(autoOverflowed, autoTotal),
-    autoPctMotif: safePct(autoMotif, autoTotal),
-    telePctClassified: safePct(teleClassified, teleTotal),
-    telePctMissed: safePct(teleMissed, teleTotal),
-    telePctOverflowed: safePct(teleOverflowed, teleTotal),
-    telePctMotif: safePct(teleMotif, teleTotal),
-    teleLeavePct: safePct(leaveCount, n),
-    autoAvgClassified: avg(autoClassified),
-    autoAvgMissed: avg(autoMissed),
-    autoAvgOverflowed: avg(autoOverflowed),
-    autoAvgMotif: avg(autoMotif),
-    teleAvgClassified: avg(teleClassified),
-    teleAvgMissed: avg(teleMissed),
-    teleAvgOverflowed: avg(teleOverflowed),
-    teleAvgMotif: avg(teleMotif),
-    teleAvgDepot: avg(teleDepot),
-    fullParkPct: safePct(fullPark, n),
-    partialParkPct: safePct(partialPark, n),
-    noParkPct: safePct(noPark, n),
-    avgAllianceScore: avg(totalScore),
+    startingPositions: tally('start_position'),
+
+    autoAvgScored: avg('auto_scored'),
+    teleAvgScored: avg('teleop_scored'),
+    avgScored: +(avg('auto_scored') + avg('teleop_scored')).toFixed(1),
+    autoAccuracy: pct(autoHit, autoHit + autoMiss),
+    teleAccuracy: pct(teleHit, teleHit + teleMiss),
+
+    avgCycles: avg('cycle_count'),
+    avgCycleSec: avg('avg_cycle_sec'),
+
+    autoReliability: avg('auto_reliability'),   // out of 3
+    robotSpeed: avg('robot_speed'),             // the rest out of 5
+    driverSkill: avg('driver_skill'),
+    consistency: avg('consistency'),
+    defenseResistance: avg('defense_resistance'),
+
+    defense: tally('defense'),
+    endgame: tally('endgame'),
+    breakdowns: tally('breakdowns'),
+    avgPenalties: avg('penalties'),
+
+    // Shares of matches, which a pick list cares about more than any average.
+    endgameSuccessPct: pct(matches.filter(m => m.endgame === 'Successful').length, n),
+    cleanMatchPct: pct(matches.filter(m => !m.breakdowns || m.breakdowns === 'None').length, n),
   }
 }
 
@@ -156,8 +108,8 @@ function ScoutingData() {
   const availableDates = useMemo(() => {
     const dateSet = new Set()
     records.forEach(r => {
-      if (r.submitted_at) {
-        const date = r.submitted_at.split('T')[0] // YYYY-MM-DD
+      if (r.created_at) {
+        const date = r.created_at.split('T')[0] // YYYY-MM-DD
         dateSet.add(date)
       }
     })
@@ -167,15 +119,15 @@ function ScoutingData() {
   // Filter records by selected date
   const filteredRecords = useMemo(() => {
     if (!selectedDate) return records
-    return records.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
+    return records.filter(r => r.created_at && r.created_at.startsWith(selectedDate))
   }, [records, selectedDate])
 
   // Load from Supabase
   useEffect(() => {
     supabase
-      .from('scouting_records')
+      .from('match_scouting')
       .select('*')
-      .order('submitted_at', { ascending: true })
+      .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (error) console.error('Failed to load scouting records:', error.message)
         if (data) setRecords(data)
@@ -187,13 +139,13 @@ function ScoutingData() {
   useEffect(() => {
     const channel = supabase
       .channel('scouting-data-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'match_scouting' }, (payload) => {
         setRecords(prev => {
           if (prev.some(r => r.id === payload.new.id)) return prev
           return [...prev, payload.new]
         })
       })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'scouting_records' }, (payload) => {
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'match_scouting' }, (payload) => {
         setRecords(prev => prev.filter(r => r.id !== payload.old.id))
       })
       .subscribe()
@@ -266,7 +218,7 @@ function ScoutingData() {
   }
 
   const handleDelete = async (id) => {
-    const { error } = await supabase.from('scouting_records').delete().eq('id', id)
+    const { error } = await supabase.from('match_scouting').delete().eq('id', id)
     if (error) {
       console.error('Failed to delete:', error.message)
       return
@@ -281,11 +233,13 @@ function ScoutingData() {
     // Group scouting records by team number (using filtered records)
     const byNumber = {}
     filteredRecords.forEach(r => {
-      const d = r.data || {}
-      const num = String(d.teamNumber || '').trim()
+      // match_scouting keeps one flat row per team per match. The old table
+      // nested everything in a `data` blob, which is why this used to reach
+      // through r.data.
+      const num = String(r.team_number || '').trim()
       if (!num) return
       if (!byNumber[num]) byNumber[num] = []
-      byNumber[num].push({ ...d, _id: r.id, _by: r.submitted_by, _at: r.submitted_at })
+      byNumber[num].push({ ...r, _id: r.id, _by: r.scout, _at: r.created_at })
     })
 
     // Build team list from ALL_TEAMS, attach scouting data
@@ -349,7 +303,7 @@ function ScoutingData() {
   useEffect(() => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    fetch(`${supabaseUrl}/rest/v1/scouting_records?select=*&order=submitted_at.asc`, {
+    fetch(`${supabaseUrl}/rest/v1/match_scouting?select=*&order=created_at.asc`, {
       headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
     })
       .then(r => r.json())
@@ -364,42 +318,25 @@ function ScoutingData() {
 
   const exportToSheets = () => {
     const exportRecords = selectedDate
-      ? exportRecordsCache.filter(r => r.submitted_at && r.submitted_at.startsWith(selectedDate))
+      ? exportRecordsCache.filter(r => r.created_at && r.created_at.startsWith(selectedDate))
       : exportRecordsCache
     if (exportRecords.length === 0) {
       alert('No scouting records found. Try refreshing the page.')
       return
     }
-    const headers = [
-      'Team Number', 'Alliance Color', 'Match Number', 'Starting Position',
-      'Auto Classified', 'Auto Missed', 'Auto Overflowed', 'Auto Motif Order',
-      'Tele Classified', 'Tele Missed', 'Tele Overflowed', 'Tele Motif Order', 'Tele Depot',
-      'Did Leave', 'Parking Status', 'Double Park',
-      'Alliance Score', 'Leave Points', 'Artifact Points', 'Pattern Points', 'Base Points', 'Foul Points',
-      'Pattern RP', 'Goal RP', 'Movement RP',
-      'Robot Stability', 'Roles', 'Observations',
-      'Submitted By', 'Submitted At',
-    ]
+    // Built from the field definitions, so the export can never drift from
+    // what the form records — which is exactly what had happened: this still
+    // exported a previous season's columns.
+    const headers = ['Team Number', ...SCOUTING_FIELDS.filter(f => f.key !== 'team_number').map(f => f.label), 'Scout', 'Recorded At']
     const escape = (v) => {
       const s = String(v ?? '')
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
     }
-    const rows = exportRecords.map(r => {
-      const d = r.data || {}
-      return [
-        d.teamNumber, d.allianceColor, d.matchNumber, d.startingPosition,
-        d.autoClassified ?? 0, d.autoArtifactsMissed ?? 0, d.autoOverflowed ?? 0, d.autoInMotifOrder ?? 0,
-        d.teleClassified ?? 0, d.teleArtifactsMissed ?? 0, d.teleOverflowed ?? 0, d.teleInMotifOrder ?? 0, d.teleArtifactsInDepot ?? 0,
-        d.teleDidLeave === true ? 'Yes' : d.teleDidLeave === false ? 'No' : '',
-        d.parkingStatus, d.doublePark === true ? 'Yes' : d.doublePark === false ? 'No' : '',
-        d.allianceScore, d.leavePoints, d.artifactPoints, d.patternPoints, d.basePoints, d.foulPoints,
-        d.patternRP ? 'Yes' : 'No', d.goalRP ? 'Yes' : 'No', d.movementRP ? 'Yes' : 'No',
-        d.robotStability === 'no' ? 'No issues' : d.robotStability === 'major' ? 'Major breakdown' : d.robotStability === 'shutdown' ? 'Shutdown' : '',
-        (d.roles || []).join('; '),
-        d.observations || '',
-        r.submitted_by || '', r.submitted_at || '',
-      ].map(escape).join(',')
-    })
+    const rows = exportRecords.map(r => [
+      r.team_number,
+      ...SCOUTING_FIELDS.filter(f => f.key !== 'team_number').map(f => r[f.key] ?? ''),
+      r.scout || '', r.created_at || '',
+    ])
     const csv = [headers.join(','), ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

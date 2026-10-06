@@ -5,6 +5,7 @@ import { Check, Loader2, Trash2, Download, Pencil, ChevronLeft, ChevronRight, Ar
 import {
   SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, blankEntry,
 } from '../data/scoutingFields'
+import { ALL_TEAMS, teamLabel } from '../data/teams'
 
 // Match scouting: one row per team per match.
 //
@@ -32,6 +33,9 @@ export default function ScoutingForm() {
   // whole form at once is a wall, and a wall gets filled in badly at a
   // competition.
   const [step, setStep] = useState(0)
+  // "Other team" — the list is a shortlist, not a fence, and a team that turns
+  // up unlisted still has to be scoutable.
+  const [otherTeam, setOtherTeam] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -64,7 +68,13 @@ export default function ScoutingForm() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const ready = form.team_number.toString().trim() && form.match_number.toString().trim()
+  // Everything is required, so a screen is done when all of its fields are.
+  const filled = (f) => {
+    const v = form[f.key]
+    return v !== '' && v != null
+  }
+  const groupDone = (g) => SCOUTING_FIELDS.filter(f => f.group === g).every(filled)
+  const ready = SCOUTING_FIELDS.every(filled)
 
   const submit = async () => {
     if (!ready || saving) return
@@ -164,9 +174,8 @@ export default function ScoutingForm() {
   const LAST = SCOUTING_GROUPS.length - 1
   const group = SCOUTING_GROUPS[Math.min(step, LAST)]
   const groupFields = SCOUTING_FIELDS.filter(f => f.group === group)
-  // Only the first screen can block you: everything after it is optional, and
-  // a scout who missed something should be able to move past it.
-  const canAdvance = step > 0 || ready
+  const canAdvance = groupDone(group)
+  const missing = groupFields.filter(f => !filled(f)).map(f => f.label)
 
   return (
     <Frame
@@ -194,16 +203,17 @@ export default function ScoutingForm() {
         <>
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full bg-pastel-pink-dark transition-all"
+              <div className="h-full rounded-full bg-pastel-yellow-dark transition-all"
                    style={{ width: `${((step + 1) / SCOUTING_GROUPS.length) * 100}%` }} />
             </div>
           </div>
 
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <h2 className="font-semibold text-gray-700 mb-3">{group}</h2>
+          <section className="bg-white/95 rounded-2xl shadow-sm border-2 border-pastel-yellow-dark/35 p-4">
+            <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5"><span className="text-base">🍯</span>{group}</h2>
             <div className="space-y-4">
               {groupFields.map(f => (
-                <Field key={f.key} field={f} value={form[f.key]} onChange={v => set(f.key, v)} />
+                <Field key={f.key} field={f} value={form[f.key]} onChange={v => set(f.key, v)}
+                       otherTeam={otherTeam} setOtherTeam={setOtherTeam} />
               ))}
             </div>
           </section>
@@ -221,7 +231,7 @@ export default function ScoutingForm() {
               <button
                 onClick={() => setStep(st => st + 1)}
                 disabled={!canAdvance}
-                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-semibold bg-pastel-blue hover:bg-pastel-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-semibold bg-pastel-yellow-dark hover:brightness-95 text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Next <ChevronRight size={16} />
               </button>
@@ -229,7 +239,7 @@ export default function ScoutingForm() {
               <button
                 onClick={submit}
                 disabled={!ready || saving}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:bg-gray-100 disabled:text-gray-400 transition-colors font-medium text-gray-800"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-pastel-yellow-dark hover:brightness-95 disabled:bg-gray-100 disabled:text-gray-400 transition-all font-semibold text-gray-900"
               >
                 {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : 'Save match'}
               </button>
@@ -238,21 +248,30 @@ export default function ScoutingForm() {
 
           {!canAdvance && (
             <p className="text-xs text-gray-400 text-center -mt-1">
-              Team number and match number first — everything after this is optional.
+              Still needed: {missing.join(' · ')}
             </p>
           )}
 
           {/* Skipping ahead, for a scout who knows this robot does nothing in
               auto and wants to get to the ratings. */}
           <div className="flex flex-wrap justify-center gap-1">
-            {SCOUTING_GROUPS.map((g, i) => (
-              <button key={g} onClick={() => canAdvance && setStep(i)} disabled={!canAdvance}
-                      className={`text-[11px] px-2 py-0.5 rounded disabled:opacity-40 transition-colors ${
-                        i === step ? 'bg-pastel-pink text-gray-800 font-semibold' : 'text-gray-400 hover:bg-pastel-blue/20'
-                      }`}>
-                {g}
-              </button>
-            ))}
+            {SCOUTING_GROUPS.map((g, i) => {
+              const done = groupDone(g)
+              // Only backwards, or onto a screen already finished — skipping
+              // forward past an unanswered screen is how a row ends up half
+              // filled, which is the thing we are now preventing.
+              const reachable = i <= step || done
+              return (
+                <button key={g} onClick={() => reachable && setStep(i)} disabled={!reachable}
+                        className={`text-[11px] px-2 py-0.5 rounded disabled:opacity-30 transition-colors ${
+                          i === step ? 'bg-pastel-yellow-dark text-gray-900 font-semibold'
+                          : done ? 'text-gray-500 hover:bg-pastel-yellow/40'
+                          : 'text-gray-300'
+                        }`}>
+                  {done && i !== step ? '✓ ' : ''}{g}
+                </button>
+              )
+            })}
           </div>
         </>
       ) : rows.length === 0 ? (
@@ -302,14 +321,21 @@ export default function ScoutingForm() {
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 
+// The comb. A tiled SVG rather than an image: it scales, costs nothing to
+// load, and stays faint enough to read over.
+const COMB = {
+  backgroundColor: '#FFFDF6',
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='98' viewBox='0 0 56 98'%3E%3Cg fill='none' stroke='%23F2C14E' stroke-opacity='0.22' stroke-width='1.4'%3E%3Cpath d='M28 1 L52 15 L52 43 L28 57 L4 43 L4 15 Z'/%3E%3Cpath d='M28 50 L52 64 L52 92 L28 106 L4 92 L4 64 Z'/%3E%3C/g%3E%3C/svg%3E")`,
+}
+
 function Frame({ sub, action, children }) {
   return (
-    <div className="flex-1 flex flex-col min-w-0">
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+    <div className="flex-1 flex flex-col min-w-0" style={COMB}>
+      <header className="bg-white/85 backdrop-blur-sm shadow-sm sticky top-0 z-10 border-b-2 border-pastel-yellow-dark/35">
         <div className="px-4 py-3 ml-14 flex items-start justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Scouting
+            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-1.5">
+              <span>🐝</span> Scouting
             </h1>
             {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
           </div>
@@ -323,7 +349,7 @@ function Frame({ sub, action, children }) {
   )
 }
 
-function Field({ field: f, value, onChange }) {
+function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700">
@@ -331,18 +357,44 @@ function Field({ field: f, value, onChange }) {
       </label>
       {f.hint && <p className="text-[11px] text-gray-400 mb-1">{f.hint}</p>}
 
-      {f.type === 'number' ? (
+      {f.key === 'team_number' ? (
+        <div className="space-y-1.5">
+          <select
+            value={otherTeam ? '__other' : value}
+            onChange={e => {
+              if (e.target.value === '__other') { setOtherTeam(true); onChange('') }
+              else { setOtherTeam(false); onChange(e.target.value) }
+            }}
+            className="w-full border-2 border-pastel-yellow-dark/40 rounded-xl px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
+          >
+            <option value="">Pick a team…</option>
+            {ALL_TEAMS.map(t => (
+              <option key={t.number} value={t.number}>{teamLabel(t.number)}</option>
+            ))}
+            <option value="__other">Other team — not on the list</option>
+          </select>
+          {otherTeam && (
+            <input
+              type="text" inputMode="numeric" value={value}
+              onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Their team number"
+              className="w-full border-2 border-pastel-yellow-dark/40 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
+              autoFocus
+            />
+          )}
+        </div>
+      ) : f.type === 'number' ? (
         <input type="number" inputMode="numeric" min="0" value={value}
                onChange={e => onChange(e.target.value)} placeholder="0"
-               className="w-28 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+               className="w-28 border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
       ) : f.type === 'text' && f.key === 'comments' ? (
         <textarea rows={2} value={value} onChange={e => onChange(e.target.value)}
                   placeholder="Anything unusual"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+                  className="w-full border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
       ) : f.type === 'text' ? (
         <input type="text" value={value} onChange={e => onChange(e.target.value)}
                placeholder={f.hint}
-               className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
+               className="w-full border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
       ) : f.type === 'scale' ? (
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: f.max - f.min + 1 }, (_, i) => f.min + i).map(n => (
@@ -350,8 +402,8 @@ function Field({ field: f, value, onChange }) {
                     onClick={() => onChange(value === String(n) ? '' : String(n))}
                     className={`w-9 h-9 rounded-lg text-sm font-semibold border transition-colors ${
                       String(value) === String(n)
-                        ? 'border-pastel-pink-dark bg-pastel-pink/30 text-gray-800'
-                        : 'border-gray-200 bg-white text-gray-500 hover:bg-pastel-blue/15'
+                        ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
+                        : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'
                     }`}>
               {n}
             </button>
@@ -364,8 +416,8 @@ function Field({ field: f, value, onChange }) {
                     onClick={() => onChange(value === opt ? '' : opt)}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                       value === opt
-                        ? 'border-pastel-pink-dark bg-pastel-pink/30 text-gray-800'
-                        : 'border-gray-200 bg-white text-gray-500 hover:bg-pastel-blue/15'
+                        ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
+                        : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'
                     }`}>
               {opt}
             </button>
