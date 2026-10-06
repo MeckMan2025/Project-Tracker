@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Check, Loader2, Trash2, Download, Pencil, ChevronLeft, ChevronRight, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Check, Loader2, Trash2, Download, Pencil, ChevronLeft, ChevronRight, ChevronDown, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
   SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, blankEntry,
 } from '../data/scoutingFields'
@@ -358,31 +358,8 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
       {f.hint && <p className="text-[11px] text-gray-400 mb-1">{f.hint}</p>}
 
       {f.key === 'team_number' ? (
-        <div className="space-y-1.5">
-          <select
-            value={otherTeam ? '__other' : value}
-            onChange={e => {
-              if (e.target.value === '__other') { setOtherTeam(true); onChange('') }
-              else { setOtherTeam(false); onChange(e.target.value) }
-            }}
-            className="w-full border-2 border-pastel-yellow-dark/40 rounded-xl px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
-          >
-            <option value="">Pick a team…</option>
-            {ALL_TEAMS.map(t => (
-              <option key={t.number} value={t.number}>{teamLabel(t.number)}</option>
-            ))}
-            <option value="__other">Other team — not on the list</option>
-          </select>
-          {otherTeam && (
-            <input
-              type="text" inputMode="numeric" value={value}
-              onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="Their team number"
-              className="w-full border-2 border-pastel-yellow-dark/40 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
-              autoFocus
-            />
-          )}
-        </div>
+        <TeamPicker value={value} onChange={onChange}
+                    otherTeam={otherTeam} setOtherTeam={setOtherTeam} />
       ) : f.type === 'number' ? (
         <input type="number" inputMode="numeric" min="0" value={value}
                onChange={e => onChange(e.target.value)} placeholder="0"
@@ -423,6 +400,99 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
             </button>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// Picking a team, with a search box — because thirty-three of them is past
+// the point where scrolling a list is pleasant, and a scout at a competition
+// knows the number before they know where it sits alphabetically.
+//
+// Matches on number OR name, so "cyber" and "4237" both find the Cyberhawks.
+function TeamPicker({ value, onChange, otherTeam, setOtherTeam }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+
+  const matches = ALL_TEAMS.filter(t => {
+    const s = q.trim().toLowerCase()
+    return !s || t.number.includes(s) || t.name.toLowerCase().includes(s)
+  })
+
+  if (otherTeam) {
+    return (
+      <div className="space-y-1.5">
+        <input
+          type="text" inputMode="numeric" value={value}
+          onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ''))}
+          placeholder="Their team number"
+          className="w-full border-2 border-pastel-yellow-dark/40 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
+          autoFocus
+        />
+        <button type="button"
+                onClick={() => { setOtherTeam(false); onChange(''); setQ('') }}
+                className="text-[11px] text-gray-400 hover:text-gray-600 underline">
+          ← back to the list
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setQ('') }}
+        className={`w-full flex items-center justify-between gap-2 border-2 rounded-xl px-3 py-2.5 text-sm text-left transition-colors ${
+          value ? 'border-pastel-yellow-dark bg-pastel-yellow/35 text-gray-900'
+                : 'border-pastel-yellow-dark/40 bg-white text-gray-400'
+        }`}
+      >
+        <span className="truncate">{value ? teamLabel(value) : 'Pick a team…'}</span>
+        <ChevronDown size={16} className="shrink-0 text-gray-400" />
+      </button>
+
+      {open && (
+        <>
+          {/* Tapping anywhere else closes it, which is what a dropdown does. */}
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute z-30 mt-1 w-full bg-white border-2 border-pastel-yellow-dark/40 rounded-xl shadow-lg overflow-hidden">
+            <div className="p-2 border-b border-gray-100">
+              <input
+                type="text" value={q} onChange={e => setQ(e.target.value)}
+                placeholder="Search number or name…"
+                autoFocus
+                className="w-full border rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
+              />
+            </div>
+            <div className="max-h-56 overflow-y-auto">
+              {matches.length === 0 ? (
+                <p className="text-xs text-gray-400 px-3 py-3 text-center">
+                  No team matches “{q}”. Use Other team below.
+                </p>
+              ) : matches.map(t => (
+                <button
+                  key={t.number} type="button"
+                  onClick={() => { onChange(t.number); setOpen(false); setQ('') }}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    value === t.number ? 'bg-pastel-yellow/50 text-gray-900 font-semibold'
+                                       : 'hover:bg-pastel-yellow/30 text-gray-600'
+                  }`}
+                >
+                  <span className="font-semibold text-gray-700">{t.number}</span>
+                  <span className="text-gray-400"> — {t.name}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => { setOtherTeam(true); onChange(''); setOpen(false); setQ('') }}
+              className="w-full text-left px-3 py-2 text-sm border-t border-gray-100 text-gray-500 hover:bg-pastel-yellow/30"
+            >
+              + Other team — not on the list
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
