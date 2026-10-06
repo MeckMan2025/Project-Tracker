@@ -138,7 +138,8 @@ const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 // filtered to theirs. Board ids are made at runtime, so they are recognised by
 // not being one of ours rather than by being on a list.
 const TEAM_ALLOWED_TABS = [
-  'boards',           // where they land — their own, by owner_team
+  'home',             // where they land — TeamHomeView, their own dashboard
+  'boards',           // their own, by owner_team
   'calendar',
   'suggestions',
   'user-management',  // their own roster, scoped to their team
@@ -491,12 +492,12 @@ function App() {
     return saved || 'home'
   })
 
-  // A visiting team has no home page — boards are where they work, so that is
-  // where they land. Also catches a tab saved from before this, and anything
-  // that sends them somewhere they can no longer reach.
+  // A visiting team opens on their own dashboard, not on a board. Anything
+  // they can no longer reach sends them there too, which covers a tab saved
+  // from before their access changed.
   useEffect(() => {
     if (!effectiveIsTeam) return
-    if (!hasAccess(activeTab, tier, true, blockedTabs)) setActiveTab('boards')
+    if (!hasAccess(activeTab, tier, true, blockedTabs)) setActiveTab('home')
   }, [effectiveIsTeam, activeTab]) // eslint-disable-line
 
   // When a team logs in, skip the loading screen — they land on their boards.
@@ -739,16 +740,50 @@ function App() {
     setLoadError(null)
 
     try {
-      // Filter boards by owner_team: teams see their boards, members see Radical boards
-      const boardQuery = isTeam && teamNumber
-        ? `select=*&order=created_at&owner_team=eq.${teamNumber}`
+      // Boards first, because which boards you can see decides which tasks
+      // you are allowed to be sent.
+      //
+      // A team account with no number loads nothing. That used to be
+      // impossible to reach; now that the fallback no longer hands them ours,
+      // it is, and loading nothing is the right answer — better a team sees an
+      // empty app than somebody else's.
+      if (isTeam && !teamNumber) {
+        console.warn('Team account with no team number — loading nothing.')
+        setTabs(SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)))
+        setTasksByTab({})
+        setIsLoading(false)
+        return
+      }
+
+      const boardQuery = isTeam
+        ? `select=*&order=created_at&owner_team=eq.${encodeURIComponent(teamNumber)}`
         : 'select=*&order=created_at&owner_team=is.null'
 
-      // Load boards and tasks in parallel via REST
-      const [boards, tasks] = await Promise.all([
-        restGet('boards', boardQuery),
-        restGet('tasks', 'select=*'),
-      ])
+      const boards = await restGet('boards', boardQuery)
+
+      // Tasks were fetched as select=* — EVERY task of EVERY team, pulled into
+      // the browser. The screen only drew the ones whose board was on screen,
+      // so it looked contained, but the rest were sitting in memory for anyone
+      // who opened the network tab. Ask only for the boards we can see.
+      //
+      // Radical also owns every task written before boards had an owner, which
+      // is why the default side keeps board_id is.null in scope.
+      // Owner, not board list: it is the same rule boards use, and unlike a
+      // board list the server can apply it to the live subscription as well.
+      // Falls back to the board list if the column is not there yet, so this
+      // keeps working either way.
+      let tasks = []
+      try {
+        tasks = await restGet('tasks', isTeam
+          ? `select=*&owner_team=eq.${encodeURIComponent(teamNumber)}`
+          : 'select=*&owner_team=is.null')
+      } catch (err) {
+        console.warn('tasks.owner_team not present yet — scoping by board instead.')
+        const ids = boards.map(b => `"${String(b.id).replace(/"/g, '')}"`).join(',')
+        tasks = isTeam
+          ? (boards.length ? await restGet('tasks', `select=*&board_id=in.(${ids})`) : [])
+          : await restGet('tasks', 'select=*')
+      }
 
       if (!isTeam) {
         // Seed default boards if missing (only for Radical members)
@@ -856,7 +891,12 @@ function App() {
   useEffect(() => {
     const channel = supabase
       .channel('tasks-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks' }, (payload) => {
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'tasks',
+        // Server-side, so another team's rows never reach this browser. The UI
+        // check below still stands as a second line, but it was the only line.
+        ...(isTeam && teamNumber ? { filter: `owner_team=eq.${teamNumber}` } : {}),
+      }, (payload) => {
         const task = mapTask(payload.new)
         setTasksByTab(prev => {
           const updated = { ...prev }
@@ -1168,6 +1208,9 @@ function App() {
 
     // Persist via REST
     try {
+      // Whose task this is, so the server can keep it off everyone else's
+      // screen. NULL means ours, matching how boards already read.
+      if (isTeam && teamNumber) task.owner_team = teamNumber
       await restInsert('tasks', task)
       // Everyone put on it hears about it, not just the first name.
       const told = task.assignees?.length ? task.assignees : [task.assignee]
@@ -1626,7 +1669,8 @@ function App() {
           && !(activeTab === 'special-controls' && OPEN_SPECIAL_VIEWS.includes(specialView)) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} /> : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
+        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} />
+        : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />
       ) : activeTab === 'sw-programming' ? (

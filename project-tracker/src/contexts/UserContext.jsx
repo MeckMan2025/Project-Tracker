@@ -159,12 +159,20 @@ export function UserProvider({ children }) {
       const isTeamAccount = !!teamMatch
         || (profile.function_tags || []).includes('Team')
         || (!!profile.team_number && profile.team_number !== HOME_TEAM_NUMBER)
-      // Which team this person is on. The profile is the source of truth now
-      // that visiting teams have members of their own: the email pattern only
-      // ever identified the one controller account, not the people they add.
-      // Falls back to the pattern for accounts created before that column,
-      // then to ours.
-      const teamNum = profile.team_number || (teamMatch ? teamMatch[1] : HOME_TEAM_NUMBER)
+      // Which team this person is on.
+      //
+      // A visiting team must NEVER fall back to ours. It did: the fallback was
+      // HOME_TEAM_NUMBER for everybody, so a team account whose profile had no
+      // team_number — and whose address no longer matches the old
+      // team<n>@teams.radical pattern — came out as 7196. That made every
+      // board they created ours, and every board tagged 7196 theirs.
+      //
+      // So the fallback is split: ours only for people who are actually ours.
+      // A team account with no number resolves to empty, and everything
+      // downstream treats empty as "load nothing", which is the safe failure.
+      const teamNum = isTeamAccount
+        ? (profile.team_number || (teamMatch ? teamMatch[1] : ''))
+        : (profile.team_number || HOME_TEAM_NUMBER)
       setIsTeam(isTeamAccount)
       setTeamNumber(teamNum)
       localStorage.setItem('scrum-is-team', String(isTeamAccount))

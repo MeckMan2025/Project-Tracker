@@ -62,6 +62,12 @@ const USAGE_OPTIONS = [
 
 function TeamHomeView({ onTabChange }) {
   const { username, teamNumber } = useUser()
+  // The profile is stored as "Team <number> - <name>", so the name is whatever
+  // follows the dash. Blank when it does not parse, rather than showing the
+  // raw display name back at them.
+  const teamName = (username || '').includes(' - ')
+    ? username.split(' - ').slice(1).join(' - ').trim()
+    : ''
   const storageKey = `team-welcome-seen-${teamNumber || 'default'}`
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => localStorage.getItem(storageKey) === 'true')
   const [showPopup, setShowPopup] = useState(true)
@@ -274,8 +280,14 @@ function TeamHomeView({ onTabChange }) {
         <div className="max-w-2xl mx-auto space-y-8 pb-8">
           <div className="bg-gradient-to-r from-pastel-blue/30 via-pastel-pink/30 to-pastel-orange/30 rounded-2xl p-6 text-center">
             <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-14 h-14 mx-auto mb-2 drop-shadow-lg" />
-            <h2 className="text-lg font-bold text-gray-800">Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!</h2>
-            <p className="text-sm text-gray-600 mt-1">Use the sidebar to navigate. Tap Home anytime to come back here.</p>
+            <h2 className="text-2xl font-black text-gray-800">
+              Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!
+            </h2>
+            {teamName && <p className="text-base font-semibold text-gray-600">{teamName}</p>}
+            <p className="text-sm text-gray-600 mt-1">
+              This is your space — your boards, your people, your tasks. Nobody
+              else can see them.
+            </p>
           </div>
           <section>
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Updates for Teams</h3>

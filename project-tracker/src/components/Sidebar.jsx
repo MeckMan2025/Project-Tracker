@@ -12,7 +12,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [boardsOpen, setBoardsOpen] = useState(isTeamAccount)
+  // Boards used to open by default for a visiting team, from when boards were
+  // all they had. They have a dashboard now, and a sidebar that opens onto a
+  // board list argues with it.
+  const [boardsOpen, setBoardsOpen] = useState(false)
   const [dataOpen, setDataOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -439,8 +442,12 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           )}
 
           {/* The Engineering Notebook is reached from Home and from the
-              gallery, not from here. */}
-          {!isGuest && (
+              gallery, not from here.
+
+              Logs is ours — a visiting team has no outreach, expenses or
+              mentor log here, and the access rule already refuses it, so the
+              link was one that could only ever bounce. */}
+          {!isGuest && !isTeamAccount && (
             <>
               {/* Logs holds three, so it opens rather than being one page —
                   the same as Data. Open it by the arrow; it also opens itself

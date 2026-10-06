@@ -1109,9 +1109,9 @@ function UserManagement({ onViewProfile }) {
           <div className="flex border-t">
             {[
               { id: 'radmems', label: canManageOwnTeam ? 'Members' : 'RadMems', icon: Users, count: rosterRows.filter(r => !isAdultRow(r)).length },
+              { id: 'mentors', label: 'Mentors', icon: GraduationCap, count: rosterRows.filter(isAdultRow).length },
+              // Lists and creates other teams — ours to run, never theirs.
               ...(canManageOwnTeam ? [] : [
-                { id: 'mentors', label: 'Mentors', icon: GraduationCap, count: rosterRows.filter(isAdultRow).length },
-                // Lists and creates other teams — ours to run, never theirs.
                 { id: 'teamro', label: 'TeamRo', icon: Shield, count: teams.length },
               ]),
             ].map(t => {
