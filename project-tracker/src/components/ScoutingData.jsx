@@ -93,6 +93,105 @@ function computeScoutingStats(matches) {
   }
 }
 
+// What we know about a team, in the order a pick list asks: can they score,
+// can they cycle, how do they handle pressure, and do they break.
+//
+// Every figure here comes from the scouting form's own fields. The two panels
+// this replaces each rendered a previous season's game from their own copy of
+// the markup, which is how they came to disagree with the form in the first
+// place — one component now, so there is nowhere for them to drift apart.
+function ScoutPanel({ t }) {
+  const rate = (v, outOf) => v ? `${v}/${outOf}` : '—'
+  const most = (tally) => {
+    const e = Object.entries(tally || {})
+    if (!e.length) return '—'
+    return e.sort((a, b) => b[1] - a[1])[0][0]
+  }
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
+        Our Scouting Data{' '}
+        <span className="font-normal text-gray-400">
+          ({t.scoutCount} match{t.scoutCount !== 1 ? 'es' : ''})
+        </span>
+      </h3>
+
+      {t.scoutCount === 0 ? (
+        <p className="text-xs text-gray-400 py-2">Nobody has scouted this team yet.</p>
+      ) : (
+        <>
+          {/* Scoring — the first question anyone asks. */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <Stat value={t.avgScored} label="Scored / match" />
+            <Stat value={`${t.teleAccuracy}%`} label="Teleop accuracy" />
+            <Stat value={t.avgCycles} label="Cycles / match" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
+            <Line label="Auto scored" value={t.autoAvgScored} />
+            <Line label="Auto accuracy" value={`${t.autoAccuracy}%`} />
+            <Line label="Teleop scored" value={t.teleAvgScored} />
+            <Line label="Seconds / cycle" value={t.avgCycleSec || '—'} />
+          </div>
+
+          {/* The ratings, as bars — out of 5 except auto reliability, which the
+              form asks out of 3. */}
+          <div className="space-y-1 mb-3">
+            <Rated label="Driver skill" value={t.driverSkill} outOf={5} />
+            <Rated label="Consistency" value={t.consistency} outOf={5} />
+            <Rated label="Robot speed" value={t.robotSpeed} outOf={5} />
+            <Rated label="Auto reliability" value={t.autoReliability} outOf={3} />
+            <Rated label="Holds up to defense" value={t.defenseResistance} outOf={5} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <Line label="Endgame success" value={`${t.endgameSuccessPct}%`} />
+            <Line label="Matches without breakdown" value={`${t.cleanMatchPct}%`} />
+            <Line label="Plays defense" value={most(t.defense)} />
+            <Line label="Penalties / match" value={t.avgPenalties || '—'} />
+            <Line label="Usual start" value={most(t.startingPositions)} />
+            <Line label="Usual endgame" value={most(t.endgame)} />
+            <Line label="Worst breakdown" value={
+              t.breakdowns?.Major ? `Major ×${t.breakdowns.Major}`
+              : t.breakdowns?.Minor ? `Minor ×${t.breakdowns.Minor}`
+              : t.scoutCount ? 'None' : '—'} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+const Stat = ({ value, label }) => (
+  <div className="bg-gray-50 rounded-lg p-2 text-center">
+    <p className="text-base font-bold text-gray-800">{value}</p>
+    <p className="text-[10px] text-gray-500 uppercase">{label}</p>
+  </div>
+)
+
+const Line = ({ label, value }) => (
+  <div className="flex items-baseline justify-between gap-2">
+    <span className="text-xs text-gray-500">{label}</span>
+    <span className="text-xs font-semibold text-gray-700">{value}</span>
+  </div>
+)
+
+// A rating means nothing without its scale, so the bar carries it: 4 out of 5
+// and 4 out of 3 are not the same claim.
+const Rated = ({ label, value, outOf }) => (
+  <div className="flex items-center gap-2">
+    <span className="text-xs text-gray-500 w-36 shrink-0">{label}</span>
+    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+      <div className="h-full rounded-full bg-pastel-yellow-dark"
+           style={{ width: `${Math.min(100, (value / outOf) * 100)}%` }} />
+    </div>
+    <span className="text-xs font-semibold text-gray-700 w-9 text-right">
+      {value ? `${value}/${outOf}` : '—'}
+    </span>
+  </div>
+)
+
 function ScoutingData() {
   const { username } = useUser()
   const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder } = usePermissions()
@@ -561,139 +660,7 @@ function ScoutingData() {
                   </div>
                 </div>
 
-                {/* Scouting Data Section */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
-                    Our Scouting Data <span className="font-normal text-gray-400">({t.scoutCount} response{t.scoutCount !== 1 ? 's' : ''})</span>
-                  </h3>
-
-                  {t.scoutCount > 0 && (
-                    <>
-                      {/* Key Stats Grid */}
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="bg-gray-50 rounded-lg p-2 text-center">
-                          <p className="text-base font-bold text-gray-800">{t.avgAllianceScore}</p>
-                          <p className="text-[10px] text-gray-500 uppercase">Avg Score</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2 text-center">
-                          <p className="text-base font-bold text-gray-800">{t.teleLeavePct}%</p>
-                          <p className="text-[10px] text-gray-500 uppercase">Leave Rate</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2 text-center">
-                          <p className="text-base font-bold text-gray-800">{t.fullParkPct}%</p>
-                          <p className="text-[10px] text-gray-500 uppercase">Full Park</p>
-                        </div>
-                      </div>
-
-                      {/* Park Breakdown */}
-                      <div className="mb-3">
-                        <h4 className="text-xs font-medium text-gray-600 mb-1">Park Rate</h4>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 w-16">Full</span>
-                            {pctBar(t.fullParkPct)}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 w-16">Partial</span>
-                            {pctBar(t.partialParkPct)}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 w-16">No Park</span>
-                            {pctBar(t.noParkPct)}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Starting Position */}
-                  <div className="mb-3">
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Starting Position</h4>
-                    {Object.keys(t.startingPositions).length === 0 ? (
-                      <p className="text-xs text-gray-400">No data</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {Object.entries(t.startingPositions).map(([pos, count]) => (
-                          <div key={pos} className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 w-28 truncate">{pos}</span>
-                            <div className="flex-1 h-2 rounded-full bg-gray-200">
-                              <div
-                                className="h-2 rounded-full bg-pastel-blue transition-all"
-                                style={{ width: `${Math.round((count / t.scoutCount) * 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-medium text-gray-700 w-10 text-right">
-                              {Math.round((count / t.scoutCount) * 100)}%
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Autonomous */}
-                  <div className="mb-3">
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Autonomous (avg per match)</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.autoAvgClassified}</p>
-                        <p className="text-[10px] text-gray-500">Classified</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.autoAvgMissed}</p>
-                        <p className="text-[10px] text-gray-500">Missed</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.autoAvgOverflowed}</p>
-                        <p className="text-[10px] text-gray-500">Overflowed</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.autoAvgMotif}</p>
-                        <p className="text-[10px] text-gray-500">Motif Order</p>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div><span className="text-xs text-gray-500">Classified %</span>{pctBar(t.autoPctClassified)}</div>
-                      <div><span className="text-xs text-gray-500">Missed %</span>{pctBar(t.autoPctMissed)}</div>
-                      <div><span className="text-xs text-gray-500">Overflowed %</span>{pctBar(t.autoPctOverflowed)}</div>
-                      <div><span className="text-xs text-gray-500">Motif Order %</span>{pctBar(t.autoPctMotif)}</div>
-                    </div>
-                  </div>
-
-                  {/* Tele-Op */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op (avg per match)</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2">
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.teleAvgClassified}</p>
-                        <p className="text-[10px] text-gray-500">Classified</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.teleAvgMissed}</p>
-                        <p className="text-[10px] text-gray-500">Missed</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.teleAvgOverflowed}</p>
-                        <p className="text-[10px] text-gray-500">Overflowed</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.teleAvgMotif}</p>
-                        <p className="text-[10px] text-gray-500">Motif Order</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-2 text-center">
-                        <p className="text-sm font-bold text-gray-800">{t.teleAvgDepot}</p>
-                        <p className="text-[10px] text-gray-500">Depot</p>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div><span className="text-xs text-gray-500">Classified %</span>{pctBar(t.telePctClassified)}</div>
-                      <div><span className="text-xs text-gray-500">Missed %</span>{pctBar(t.telePctMissed)}</div>
-                      <div><span className="text-xs text-gray-500">Overflowed %</span>{pctBar(t.telePctOverflowed)}</div>
-                      <div><span className="text-xs text-gray-500">Motif Order %</span>{pctBar(t.telePctMotif)}</div>
-                      <div><span className="text-xs text-gray-500">Leave Rate</span>{pctBar(t.teleLeavePct)}</div>
-                    </div>
-                  </div>
-                </div>
+                <ScoutPanel t={t} />
 
                 {/* Responses Toggle */}
                 <button
@@ -812,52 +779,7 @@ function ScoutingData() {
                   </div>
                 </div>
 
-                {/* Scouting Data Section */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
-                    Our Scouting Data <span className="font-normal text-gray-400">({t.scoutCount} response{t.scoutCount !== 1 ? 's' : ''})</span>
-                  </h3>
-
-                  <div className="mb-3">
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Starting Position</h4>
-                    {Object.keys(t.startingPositions).length === 0 ? (
-                      <p className="text-xs text-gray-400">No data</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {Object.entries(t.startingPositions).map(([pos, count]) => (
-                          <div key={pos} className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 w-28 truncate">{pos}</span>
-                            <div className="flex-1 h-2 rounded-full bg-gray-200">
-                              <div className="h-2 rounded-full bg-pastel-blue transition-all" style={{ width: `${Math.round((count / t.scoutCount) * 100)}%` }} />
-                            </div>
-                            <span className="text-xs font-medium text-gray-700 w-10 text-right">{Math.round((count / t.scoutCount) * 100)}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-3">
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Autonomous</h4>
-                    <div className="space-y-1.5">
-                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.autoPctClassified)}</div>
-                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.autoPctMissed)}</div>
-                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.autoPctOverflowed)}</div>
-                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.autoPctMotif)}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-600 mb-1">Tele-Op</h4>
-                    <div className="space-y-1.5">
-                      <div><span className="text-xs text-gray-500">Classified</span>{pctBar(t.telePctClassified)}</div>
-                      <div><span className="text-xs text-gray-500">Missed</span>{pctBar(t.telePctMissed)}</div>
-                      <div><span className="text-xs text-gray-500">Overflowed</span>{pctBar(t.telePctOverflowed)}</div>
-                      <div><span className="text-xs text-gray-500">In Motif Order</span>{pctBar(t.telePctMotif)}</div>
-                      <div><span className="text-xs text-gray-500">Leave Rate</span>{pctBar(t.teleLeavePct)}</div>
-                    </div>
-                  </div>
-                </div>
+                <ScoutPanel t={t} />
 
                 {/* Responses Toggle */}
                 <button
