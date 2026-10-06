@@ -61,7 +61,6 @@ import ScreenBoundary from './components/ScreenBoundary'
 import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
-import EngagementView from './components/EngagementView'
 import TeamGrowthView from './components/TeamGrowthView'
 import LogsView from './components/LogsView'
 import AbsenceNotice from './components/AbsenceNotice'
@@ -115,7 +114,7 @@ async function restDelete(table, filter) {
 const TAB_ACCESS = {
   // All tiers (including guest)
   'home': 'guest', 'boards': 'guest', 'tasks': 'guest', 'calendar': 'guest',
-  'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'engagement': 'teammate', 'team-growth': 'teammate', 'suggestions': 'teammate',
+  'profile': 'guest', 'ai-manual': 'guest', 'data': 'guest', 'team-growth': 'teammate', 'suggestions': 'teammate',
   // Teammate+ (restricted from guests)
   'org-chart': 'teammate', 'scouting': 'teammate', 'schedule': 'teammate',
   'log-reach': 'teammate', 'portfolio': 'teammate',
@@ -1744,8 +1743,6 @@ function App() {
         <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
-      ) : activeTab === 'engagement' ? (
-        <EngagementView />
       ) : activeTab === 'team-growth' ? (
         <TeamGrowthView />
       ) : activeTab === 'role-spec' && import.meta.env.DEV ? (

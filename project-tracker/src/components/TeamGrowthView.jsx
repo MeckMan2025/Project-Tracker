@@ -20,6 +20,13 @@ const COLS = 'id,username,meeting_date,category,custom_category,what_did,' +
 
 const ENGAGEMENT_SCORE = { Very: 100, Somewhat: 55, Not: 10 }
 
+// The three answers, with the colours the old Engagement page used.
+const BANDS = [
+  { key: 'Very',     label: 'Very engaged', colour: '#6ea97f' },
+  { key: 'Somewhat', label: 'Somewhat',     colour: '#e0b65c' },
+  { key: 'Not',      label: 'Not engaged',  colour: '#d98a8a' },
+]
+
 // One topic per screen. Ordered the way you'd actually read it: what happened,
 // then how it felt, then each part of the work in turn.
 const SECTIONS = [
@@ -140,9 +147,16 @@ export default function TeamGrowthView() {
       const counts = {}
       SIGNALS.forEach(s => { counts[s.key] = dayEntries.filter(e => signalsOf(e).includes(s.key)).length })
       const scored = dayEntries.map(e => ENGAGEMENT_SCORE[e.engagement]).filter(v => v != null)
+      // How the answers split, not just what they average to — three people
+      // saying "Somewhat" is a different day from one "Not" and two "Very",
+      // and the two average the same.
+      const bands = {}
+      BANDS.forEach(b => { bands[b.key] = dayEntries.filter(e => e.engagement === b.key).length })
       return {
         date: d,
         entries: dayEntries.length,
+        rated: scored.length,
+        bands,
         counts,
         engagement: scored.length ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length) : null,
       }
@@ -378,6 +392,30 @@ export default function TeamGrowthView() {
                   color="#4d7fd6"
                   onPick={v => openDrill(`${v} engaged`, rows.filter(e => e.engagement === v))}
                 />
+              </Card>
+              <Card title="Every meeting"
+                    sub="The split of answers per meeting. Tap a row to read that day.">
+                <div className="space-y-1.5">
+                  {[...byDate].reverse().filter(m => m.rated > 0).map(m => (
+                    <button key={m.date} onClick={() => openDay(m.date)}
+                            className="w-full flex items-center gap-3 text-left group">
+                      <span className="w-16 shrink-0 text-xs text-gray-500 group-hover:text-gray-800">
+                        {prettyDate(m.date)}
+                      </span>
+                      <div className="flex-1 h-5 rounded-full overflow-hidden flex bg-gray-100"
+                           title={BANDS.map(b => `${m.bands[b.key]} ${b.label}`).join(' · ')}>
+                        {BANDS.map(b => m.bands[b.key] > 0 && (
+                          <div key={b.key}
+                               style={{ width: `${(m.bands[b.key] / m.rated) * 100}%`, background: b.colour }} />
+                        ))}
+                      </div>
+                      <span className="w-10 shrink-0 text-right text-xs font-semibold text-gray-600">{m.engagement}%</span>
+                      <span className="w-14 shrink-0 text-right text-[11px] text-gray-400">
+                        {m.rated} {m.rated === 1 ? 'entry' : 'entries'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </Card>
               <Responses title="Why people felt that way" items={engagementNotes} />
             </>
