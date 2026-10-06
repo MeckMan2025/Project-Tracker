@@ -677,32 +677,87 @@ function Responses({ title, items, hidden }) {
   )
 }
 
-// A horizontal bar per answer. Bars beat a pie for this: the labels are long
-// sentences and there are often six of them.
+// A proper bar chart: counts up the Y axis, the answers along the X.
+//
+// This was a row of horizontal bars, which reads as a list with shading rather
+// than as a chart — you could not see at a glance that one answer was three
+// times another. Drawn as SVG like the line charts, so the whole page shares
+// one visual language.
+//
+// Every option is drawn even at zero: a choice nobody picked is a result, and
+// a chart that silently drops empty categories hides it.
 function Breakdown({ rows, color, onPick }) {
   if (!rows.length) return null
-  // Never zero: with nothing recorded yet every bar would be NaN wide.
-  const max = Math.max(1, ...rows.map(([, n]) => n))
+
   const total = rows.reduce((sum, [, n]) => sum + n, 0)
+  // Never zero, or every bar would be NaN tall before anyone has answered.
+  const max = Math.max(1, ...rows.map(([, n]) => n))
+
+  // Room for the longest label, wrapped to two lines of about 14 characters.
+  const W = 700, H = 210, PAD = { l: 30, r: 10, t: 12, b: 54 }
+  const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b
+  const slot = iw / rows.length
+  const barW = Math.min(64, slot * 0.6)
+  const y = (v) => PAD.t + ih - (v / max) * ih
+
+  // Whole numbers only — half an answer is not a thing.
+  const step = Math.max(1, Math.ceil(max / 4))
+  const ticks = []
+  for (let v = 0; v <= max; v += step) ticks.push(v)
+
+  // Two short lines beat one unreadable one. The full text is in the tooltip.
+  const wrap = (label) => {
+    const words = String(label).split(' ')
+    const out = ['']
+    for (const w of words) {
+      const i = out.length - 1
+      if ((out[i] + ' ' + w).trim().length <= 14) out[i] = (out[i] + ' ' + w).trim()
+      else out.push(w)
+    }
+    return out.slice(0, 2).map((l, i) =>
+      (i === 1 && out.length > 2) ? l.slice(0, 12) + '…' : l)
+  }
+
   return (
-    <div className="space-y-1.5">
-      {rows.map(([label, n]) => (
-        <button
-          key={label}
-          onClick={() => onPick?.(label)}
-          className="w-full text-left group"
-          title="Show the entries behind this"
-        >
-          <div className="flex items-baseline justify-between gap-2 text-xs">
-            <span className="text-gray-600 group-hover:text-gray-900 truncate">{label}</span>
-            <span className="text-gray-400 shrink-0">{n}</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-gray-100 mt-0.5 overflow-hidden">
-            <div className="h-full rounded-full transition-all"
-                 style={{ width: `${(n / max) * 100}%`, backgroundColor: color }} />
-          </div>
-        </button>
-      ))}
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[420px]" role="img"
+           aria-label="How the answers split">
+        {ticks.map(v => (
+          <g key={v}>
+            <line x1={PAD.l} x2={W - PAD.r} y1={y(v)} y2={y(v)} stroke="#eceaf5" strokeWidth="1" />
+            <text x={PAD.l - 6} y={y(v) + 3} textAnchor="end" fontSize="9" fill="#9ca3af">{v}</text>
+          </g>
+        ))}
+
+        {/* The axes themselves, so it reads as a chart and not as floating bars. */}
+        <line x1={PAD.l} x2={PAD.l} y1={PAD.t} y2={PAD.t + ih} stroke="#d8d4e8" strokeWidth="1" />
+        <line x1={PAD.l} x2={W - PAD.r} y1={PAD.t + ih} y2={PAD.t + ih} stroke="#d8d4e8" strokeWidth="1" />
+
+        {rows.map(([label, n], i) => {
+          const cx = PAD.l + slot * i + slot / 2
+          const h = n === 0 ? 0 : Math.max(2, (n / max) * ih)
+          const lines = wrap(label)
+          return (
+            <g key={label} style={{ cursor: onPick && n > 0 ? 'pointer' : 'default' }}
+               onClick={() => n > 0 && onPick?.(label)}>
+              <title>{`${label} — ${n}${total ? ` of ${total}` : ''}${onPick && n > 0 ? ' · tap to read them' : ''}`}</title>
+              {/* An invisible full-height target, so a short bar is still easy
+                  to tap on a phone. */}
+              <rect x={cx - slot / 2} y={PAD.t} width={slot} height={ih} fill="transparent" />
+              <rect x={cx - barW / 2} y={PAD.t + ih - h} width={barW} height={h}
+                    rx="3" fill={color} opacity={n === 0 ? 0.15 : 0.85} />
+              {n > 0 && (
+                <text x={cx} y={PAD.t + ih - h - 4} textAnchor="middle" fontSize="10"
+                      fontWeight="600" fill="#6b7280">{n}</text>
+              )}
+              {lines.map((l, li) => (
+                <text key={li} x={cx} y={PAD.t + ih + 14 + li * 11} textAnchor="middle"
+                      fontSize="9" fill="#9ca3af">{l}</text>
+              ))}
+            </g>
+          )
+        })}
+      </svg>
       {total === 0 && (
         <p className="text-[11px] text-gray-400 pt-0.5">
           Nobody has answered this yet — the scale is here, waiting.
