@@ -70,6 +70,15 @@ export default function TeamGrowthView() {
   const [drill, setDrill] = useState(null)
   // Which topic is on screen.
   const [section, setSection] = useState(0)
+  // Charts only. The written answers are the useful half when you are reading
+  // a page properly, and the thing in the way when you only want the shape —
+  // so it is a switch rather than a decision made for everyone. Remembered,
+  // because whichever way you read this page is how you'll read it next time.
+  const [graphsOnly, setGraphsOnly] = useState(
+    () => localStorage.getItem('ets-growth-graphs-only') === 'true')
+  useEffect(() => {
+    localStorage.setItem('ets-growth-graphs-only', String(graphsOnly))
+  }, [graphsOnly])
 
   useEffect(() => {
     let alive = true
@@ -316,6 +325,19 @@ export default function TeamGrowthView() {
             </button>
           </div>
 
+          <div className="flex justify-center -mt-1">
+            <button
+              onClick={() => setGraphsOnly(v => !v)}
+              className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
+                graphsOnly
+                  ? 'border-pastel-pink-dark bg-pastel-pink/25 text-gray-700'
+                  : 'border-gray-200 bg-white text-gray-400 hover:bg-pastel-blue/15'
+              }`}
+            >
+              {graphsOnly ? '📊 Graphs only — tap to show what people wrote' : 'Show graphs only'}
+            </button>
+          </div>
+
           <p className="text-[11px] text-gray-400 text-center -mt-1">
             {section + 1} of {SECTIONS.length} · {sec.blurb}
           </p>
@@ -417,7 +439,7 @@ export default function TeamGrowthView() {
                   ))}
                 </div>
               </Card>
-              <Responses title="Why people felt that way" items={engagementNotes} />
+              <Responses hidden={graphsOnly} title="Why people felt that way" items={engagementNotes} />
             </>
           )}
 
@@ -430,7 +452,7 @@ export default function TeamGrowthView() {
             </Card>
           )}
           {sec.key === 'learning' && (
-            <Responses title="What people learned" items={texts('learned', 'what')} />
+            <Responses hidden={graphsOnly} title="What people learned" items={texts('learned', 'what')} />
           )}
 
           {/* ── Help and mentoring ───────────────────────────────────────── */}
@@ -457,8 +479,8 @@ export default function TeamGrowthView() {
                              onPick={v => drillAnswer(`More independent: ${v}`, 'helped', 'independent', v)} />
                 </Card>
               </Pair>
-              <Responses title="What people needed help with" items={texts('help', 'what')} />
-              <Responses title="What people helped others with" items={texts('helped', 'what')} />
+              <Responses hidden={graphsOnly} title="What people needed help with" items={texts('help', 'what')} />
+              <Responses hidden={graphsOnly} title="What people helped others with" items={texts('helped', 'what')} />
             </>
           )}
 
@@ -486,12 +508,12 @@ export default function TeamGrowthView() {
                              onPick={v => drillAnswer(v, 'failed', 'cause', v)} />
                 </Card>
               </Pair>
-              <Responses title="What was tested" items={texts('tested', 'what')} />
-              <Responses title="What a test changed" items={texts('tested', 'changedWhat')} />
-              <Responses title="What was changed or improved" items={texts('improved', 'what')} />
-              <Responses title="What to try next" items={texts('improved', 'next')} />
-              <Responses title="What didn't work" items={texts('failed', 'what')} />
-              <Responses title="And what it taught us" items={texts('failed', 'learned')} />
+              <Responses hidden={graphsOnly} title="What was tested" items={texts('tested', 'what')} />
+              <Responses hidden={graphsOnly} title="What a test changed" items={texts('tested', 'changedWhat')} />
+              <Responses hidden={graphsOnly} title="What was changed or improved" items={texts('improved', 'what')} />
+              <Responses hidden={graphsOnly} title="What to try next" items={texts('improved', 'next')} />
+              <Responses hidden={graphsOnly} title="What didn't work" items={texts('failed', 'what')} />
+              <Responses hidden={graphsOnly} title="And what it taught us" items={texts('failed', 'learned')} />
             </>
           )}
 
@@ -510,8 +532,8 @@ export default function TeamGrowthView() {
           )}
           {sec.key === 'teamwork' && (
             <>
-              <Responses title="What people worked on together" items={texts('collaborated', 'what')} />
-              <Responses title="What came out of it" items={texts('collaborated', 'outcome')} />
+              <Responses hidden={graphsOnly} title="What people worked on together" items={texts('collaborated', 'what')} />
+              <Responses hidden={graphsOnly} title="What came out of it" items={texts('collaborated', 'outcome')} />
             </>
           )}
 
@@ -529,7 +551,7 @@ export default function TeamGrowthView() {
             </Pair>
           )}
           {sec.key === 'initiative' && (
-            <Responses title="What people noticed needed doing" items={texts('initiative', 'noticed')} />
+            <Responses hidden={graphsOnly} title="What people noticed needed doing" items={texts('initiative', 'noticed')} />
           )}
 
           {/* ── What's next ──────────────────────────────────────────────── */}
@@ -623,9 +645,9 @@ function Stat({ label, value, emoji, tint, onClick }) {
 // happened; this tells you what it actually was, which is the half anyone
 // deciding what to do next actually needs. Hidden entirely when nobody has
 // written any — an empty "what people learned" box is just noise.
-function Responses({ title, items }) {
+function Responses({ title, items, hidden }) {
   const [all, setAll] = useState(false)
-  if (!items.length) return null
+  if (hidden || !items.length) return null
   const shown = all ? items : items.slice(0, 6)
 
   return (
