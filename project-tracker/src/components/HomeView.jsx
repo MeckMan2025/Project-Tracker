@@ -68,7 +68,13 @@ function Flower({ i = 0, size = 18 }) {
 
 function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   const { username, user, functionTags } = useUser()
-  const { isGuest, hasLeadTag } = usePermissions()
+  const { isGuest, hasLeadTag, myTeamNumber } = usePermissions()
+
+  // Our Goals is Radical's own season goals, hard-coded in lib/seasonGoals.
+  // Beyond the Mean has its own season and isn't measured against ours, so
+  // showing them there would be wrong rather than merely irrelevant. My Tasks
+  // takes the full width instead of leaving a gap where the note was.
+  const showGoals = !myTeamNumber || myTeamNumber === '7196'
 
   const [nextEvent, setNextEvent] = useState(null)
   const [eventLoading, setEventLoading] = useState(true)
@@ -480,7 +486,8 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
           )
         })()}
 
-        {/* My Tasks and the season's goals, side by side. */}
+        {/* My Tasks and the season's goals, side by side — or My Tasks alone,
+            full width, on a team that doesn't share our goals. */}
         <div className="flex flex-col md:flex-row gap-4 items-stretch">
 
           <section className="w-full md:flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-h-[240px] max-h-[442px] overflow-hidden">
@@ -574,7 +581,9 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             </section>
 
           {/* RIGHT column — the goals note. Wider than the countdowns were,
-              since these are sentences rather than a number. */}
+              since these are sentences rather than a number. Absent entirely
+              on a team with its own goals, so My Tasks gets the room. */}
+          {showGoals && (
           <div className="w-full md:w-[21rem] flex flex-col gap-5 shrink-0">
 
             {/* The season's goals, in place of the three countdowns. They are
@@ -602,6 +611,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
               </ol>
             </section>
           </div>
+          )}
         </div>
 
         {/* Season Timeline (top of the Home Page) */}

@@ -166,16 +166,6 @@ function UserManagement({ onViewProfile }) {
   const emailFor = (m) =>
     m?.email || emailByName.get((m?.display_name || '').trim().toLowerCase()) || ''
 
-  // Mentors and coaches are adults, not students — they get their own tab.
-  const rosterRows = [
-    ...visibleMembers.filter(m => !(m.function_tags || []).includes('Team')),
-    ...(canManageUsers ? pendingInvites.map(w => ({ ...w, __invite: true })) : []),
-  ]
-
-  const isAdultRow = (row) => {
-    const tags = row.__invite ? inviteRoles(row) : (row.function_tags || [])
-    return tags.some(t => t === 'Mentor' || t === 'Coach')
-  }
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [newEmail, setNewEmail] = useState('')
@@ -207,6 +197,44 @@ function UserManagement({ onViewProfile }) {
   const [loadingData, setLoadingData] = useState(true)
   // Teams state
   const [teams, setTeams] = useState([])
+
+  // A team account's coach email belongs to an adult who mentors that team, so
+  // they belong on the Mentors tab. The team LOGIN itself is excluded below
+  // (the Team tag) because that is a shared account, not a person — what we
+  // want is the coach behind it.
+  //
+  // Skipped when that address already has a profile of its own: Radical's own
+  // coach has a real account and should appear once, as themselves, not twice.
+  const teamCoachRows = (() => {
+    const known = new Set(
+      visibleMembers.map(m => (emailFor(m) || '').trim().toLowerCase()).filter(Boolean)
+    )
+    return (teams || [])
+      .filter(t => t.email && !known.has(String(t.email).trim().toLowerCase()))
+      .map(t => ({
+        ...t,
+        id: `tc-${t.team_number}`,
+        email: t.email,
+        display_name: inviteName(t.email),
+        function_tags: ['Coach'],
+        __teamCoach: true,
+      }))
+  })()
+
+  // Mentors and coaches are adults, not students — they get their own tab.
+  const rosterRows = [
+    ...visibleMembers.filter(m => !(m.function_tags || []).includes('Team')),
+    ...(canManageUsers ? pendingInvites.map(w => ({ ...w, __invite: true })) : []),
+    ...(canManageUsers ? teamCoachRows : []),
+  ]
+
+  const isAdultRow = (row) => {
+    if (row.__teamCoach) return true
+    const tags = row.__invite ? inviteRoles(row) : (row.function_tags || [])
+    return tags.some(t => t === 'Mentor' || t === 'Coach')
+  }
+
+
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [newTeamNumber, setNewTeamNumber] = useState('')
   const [newTeamName, setNewTeamName] = useState('')
@@ -1623,7 +1651,7 @@ function UserManagement({ onViewProfile }) {
                   // everything sorts together by the name shown on the card.
                   const nameOf = (row) => (row.__invite ? inviteName(row.email) : row.display_name || '').toLowerCase()
                   const combined = canManageUsers
-                    ? [...sorted, ...pendingInvites.map(w => ({ ...w, __invite: true }))]
+                    ? [...sorted, ...pendingInvites.map(w => ({ ...w, __invite: true })), ...teamCoachRows]
                         .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
                     : sorted
 

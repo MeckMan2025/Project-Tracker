@@ -26,7 +26,6 @@ export default function ScoutingSchedule() {
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const restHeaders = restHeaders({ 'Content-Type': 'application/json' })
 
   const applyRow = (row) => {
     fullData.current = row?.data || {}
@@ -37,7 +36,7 @@ export default function ScoutingSchedule() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.main&select=*`, { headers: restHeaders })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.main&select=*`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
         if (res.ok) { const rows = await res.json(); applyRow(rows?.[0] || null) }
       } catch { /* ignore */ }
       setLoading(false)

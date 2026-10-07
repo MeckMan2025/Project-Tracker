@@ -92,7 +92,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const restHeaders = restHeaders({ 'Content-Type': 'application/json' })
 
   useEffect(() => { activePeriodRef.current = activePeriod }, [activePeriod])
 
@@ -107,7 +106,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
   const loadSubmissions = useCallback(async (periodId) => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/scouting_records?scouting_period_id=eq.${periodId}&select=submitted_by`, { headers: restHeaders })
+      const res = await fetch(`${supabaseUrl}/rest/v1/scouting_records?scouting_period_id=eq.${periodId}&select=submitted_by`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
       if (res.ok) { const rows = await res.json(); setPeriodSubmissions(rows.map(r => r.submitted_by)) }
     } catch { /* ignore */ }
   }, [supabaseUrl, supabaseKey])
@@ -116,7 +115,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     setData(null)
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.${scheduleId}&select=*`, { headers: restHeaders })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.${scheduleId}&select=*`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
         if (res.ok) {
           const rows = await res.json()
           const row = rows && rows.length > 0 ? rows[0] : null
@@ -129,7 +128,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods?is_active=eq.true&select=*&limit=1`, { headers: restHeaders })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods?is_active=eq.true&select=*&limit=1`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
         if (res.ok) { const rows = await res.json(); const p = rows?.[0] || null; setActivePeriod(p); if (p) loadSubmissions(p.id) }
       } catch { /* ignore */ }
     })()
@@ -176,14 +175,14 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     const expected = data.scoutGroups.flatMap(g => [g.red1, g.red2, g.blue1, g.blue2]).filter(Boolean)
     const period = { id: uid(), name: periodName.trim(), started_at: new Date().toISOString(), ended_at: null, is_active: true, created_by: username, expected_scouts: expected }
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods`, { method: 'POST', headers: restHeaders, body: JSON.stringify(period) })
+      const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods`, { method: 'POST', headers: restHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(period) })
       if (res.ok) { setActivePeriod(period); setPeriodSubmissions([]); setShowPeriodForm(false); setPeriodName('') }
     } catch (err) { console.error('Failed to start period:', err) }
   }
   const stopPeriod = async () => {
     if (!activePeriod) return
     try {
-      await fetch(`${supabaseUrl}/rest/v1/scouting_periods?id=eq.${activePeriod.id}`, { method: 'PATCH', headers: restHeaders, body: JSON.stringify({ is_active: false, ended_at: new Date().toISOString() }) })
+      await fetch(`${supabaseUrl}/rest/v1/scouting_periods?id=eq.${activePeriod.id}`, { method: 'PATCH', headers: restHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ is_active: false, ended_at: new Date().toISOString() }) })
       setActivePeriod(null); setPeriodSubmissions([])
     } catch (err) { console.error('Failed to stop period:', err) }
   }

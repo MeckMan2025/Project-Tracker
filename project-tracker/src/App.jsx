@@ -1043,12 +1043,11 @@ function App() {
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const restHeaders = restHeaders()
 
     // Delete tasks for this board via REST
     const tasksRes = await fetch(`${supabaseUrl}/rest/v1/tasks?board_id=eq.${tabId}`, {
       method: 'DELETE',
-      headers: restHeaders,
+      headers: restHeaders(),
     })
     if (!tasksRes.ok) {
       addToast('Failed to delete board tasks.', 'error')
@@ -1058,7 +1057,7 @@ function App() {
     // Delete the board itself via REST
     const boardRes = await fetch(`${supabaseUrl}/rest/v1/boards?id=eq.${tabId}`, {
       method: 'DELETE',
-      headers: restHeaders,
+      headers: restHeaders(),
     })
     if (!boardRes.ok) {
       addToast('Failed to delete board.', 'error')
