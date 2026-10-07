@@ -30,6 +30,11 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Service role. Used for the authorisation check below as well as the work
+    // itself, because a caller cannot be trusted to report their own
+    // permissions and RLS would hide the rows that settle it.
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const {
       data: { user: caller },
       error: authError,
@@ -53,7 +58,27 @@ Deno.serve(async (req: Request) => {
     const callerTags = profile?.function_tags || [];
     const isLead = callerTags.some((t: string) => LEAD_TAGS.includes(t));
 
-    if (profileError || !isLead) {
+    // A sister team's coach adds people to their own roster. That login
+    // carries the Team tag rather than a lead tag, so the check above says no
+    // — correctly, because they are not one of our leads. What they are is the
+    // controller of exactly one team, and the account they create lands on
+    // that team rather than on ours.
+    //
+    // full_access is required, so an ordinary visiting team's coach gains
+    // nothing. Asked with the service role and keyed on the verified caller
+    // id, because the caller does not get to say who they are.
+    let callerTeam: string | null = null;
+    if (!isLead) {
+      const { data: controlled } = await supabaseAdmin
+        .from("team_accounts")
+        .select("team_number, full_access")
+        .eq("user_id", caller.id)
+        .limit(1);
+      const row = controlled?.[0];
+      if (row?.full_access && row.team_number) callerTeam = String(row.team_number);
+    }
+
+    if (!isLead && !callerTeam) {
       return new Response(
         JSON.stringify({ error: "Only leads can create accounts" }),
         {
@@ -88,8 +113,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Create the user account (email_confirm: true skips email verification)
     const { data: newUser, error: createError } =
@@ -118,6 +141,9 @@ Deno.serve(async (req: Request) => {
         authority_tier: authorityTier,
         function_tags: functionTags,
         must_change_password: true,
+        // Created by a team's own coach, so it is their member, not ours.
+        // A lead creating from our side leaves this null, which means us.
+        ...(callerTeam ? { team_number: callerTeam } : {}),
       });
 
     if (profileInsertError) {

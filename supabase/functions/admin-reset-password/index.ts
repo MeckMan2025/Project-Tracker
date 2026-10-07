@@ -30,6 +30,11 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Service role. Used for the authorisation check below as well as the
+    // reset itself, because a caller cannot be trusted to report their own
+    // permissions and RLS would hide the rows that settle it.
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const {
       data: { user: caller },
       error: authError,
@@ -53,7 +58,37 @@ Deno.serve(async (req: Request) => {
     const callerTags = profile?.function_tags || [];
     const isLead = callerTags.some((t: string) => LEAD_TAGS.includes(t));
 
-    if (profileError || !isLead) {
+    // A sister team's coach administers their own team's accounts. That login
+    // carries the Team tag rather than a lead tag, so the check above says no
+    // — correctly, because they are not one of our leads. What they are is the
+    // controller of exactly one team, and that is the reach they get: this
+    // authorises them for members of that team and for nobody else.
+    //
+    // full_access is required, so an ordinary visiting team's coach gains
+    // nothing. Asked with the service role and keyed on the verified caller
+    // id, because the caller does not get to say who they are.
+    let callerTeam: string | null = null;
+    if (!isLead) {
+      const { data: controlled } = await supabaseAdmin
+        .from("team_accounts")
+        .select("team_number, full_access")
+        .eq("user_id", caller.id)
+        .limit(1);
+      const row = controlled?.[0];
+      if (row?.full_access && row.team_number) callerTeam = String(row.team_number);
+    }
+
+    if (profileError && !callerTeam) {
+      return new Response(
+        JSON.stringify({ error: "Could not read your permissions" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!isLead && !callerTeam) {
       return new Response(
         JSON.stringify({ error: "Only leads can reset passwords" }),
         {
@@ -78,6 +113,41 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // The reach, enforced. A team controller acts on their own team's members
+    // and nothing else — without this the authorisation above would let one
+    // team's coach reset any account in the app, ours included.
+    if (callerTeam) {
+      const { data: target } = await supabaseAdmin
+        .from("profiles")
+        .select("team_number")
+        .eq("id", userId)
+        .limit(1);
+      const targetTeam = target?.[0]?.team_number
+        ? String(target[0].team_number)
+        : null;
+      if (targetTeam !== callerTeam) {
+        return new Response(
+          JSON.stringify({ error: "You can only reset passwords for your own team" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      // Moving a login to a new address is how a team changes coach. That
+      // stays with our leads: a coach must not be able to reassign the
+      // account they are signed in as.
+      if (newEmail) {
+        return new Response(
+          JSON.stringify({ error: "Only leads can change a login email" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     if (newPassword && newPassword.length < 6) {
       return new Response(
         JSON.stringify({
@@ -89,9 +159,6 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
-
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Whichever was asked for. Both go through the same call, so changing a
     // team's coach and resetting their password are one round trip when both
