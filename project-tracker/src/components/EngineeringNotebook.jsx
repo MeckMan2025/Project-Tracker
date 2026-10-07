@@ -672,6 +672,14 @@ export default function EngineeringNotebook() {
     { id: '_programming', name: 'Programming', permanent: true },
   ]
 
+  // Which category each permanent folder stands for, so the folder id and the
+  // category it counts are stated once rather than in three places.
+  const PERMANENT_CATEGORY = {
+    _technical: 'Technical',
+    _business: 'Business',
+    _programming: 'Programming',
+  }
+
   const allDisplayProjects = [
     ...PERMANENT_PROJECTS,
     ...projects.filter(p => p.status === 'Active').map(p => ({ ...p, permanent: false })),
@@ -698,6 +706,24 @@ export default function EngineeringNotebook() {
     // Only show entries from the selected season (so archived seasons don't leak into the folders)
     result = result.filter(e => seasonOf(e) === filterSeason)
     return result
+  }
+
+  // The number shown on a folder.
+  //
+  // Deliberately not getProjectEntries().length. The three permanent category
+  // folders list only entries NOT filed under a project, because an entry
+  // belongs in one place and a project folder is where it goes. But the COUNT
+  // on Technical should be every Technical entry there is — filing something
+  // under a project shouldn't make it vanish from the total above it, which
+  // read like work had gone missing.
+  //
+  // So the totals add up to more than the folders list, on purpose.
+  const getProjectCount = (projectId) => {
+    const category = PERMANENT_CATEGORY[projectId]
+    if (!category) return getProjectEntries(projectId).length
+    let result = entries.filter(e => e.category === category)
+    if (!showTeamEntries) result = result.filter(e => e.username === username)
+    return result.filter(e => seasonOf(e) === filterSeason).length
   }
 
   const groupByDate = (entryList) => {
@@ -921,7 +947,7 @@ export default function EngineeringNotebook() {
                           <FolderOpen size={18} className="text-pastel-blue-dark" />
                           <span className="font-semibold text-gray-800">{project.name}</span>
                           <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
-                            {projectEntries.length}
+                            {getProjectCount(project.id)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
