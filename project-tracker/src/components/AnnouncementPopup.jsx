@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { Megaphone, BarChart3, Check, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { useToast } from './ToastProvider'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+const headers = lazyRestHeaders
 
 function AnnouncementPopup({ announcement, onDismiss }) {
   const { username, user } = useUser()

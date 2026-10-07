@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { SEED_TRACKERS, SEED_VERSION, RETIRED_SEED_IDS } from '../data/roleTrackers'
 
@@ -11,7 +12,7 @@ export function useRoleTrackers() {
   const ref = useRef([])
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+  const headers = restHeaders({ 'Content-Type': 'application/json' })
 
   const apply = (list) => { ref.current = list; setTrackers(list) }
 

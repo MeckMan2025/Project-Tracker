@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { Lightbulb, Send } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { useUser } from '../contexts/UserContext'
@@ -6,7 +7,7 @@ import { triggerPush } from '../utils/pushHelper'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 // The standard "not built yet" screen — the one AI Manual has always used.
 // Any tab that needs a placeholder renders this so they all stay identical.

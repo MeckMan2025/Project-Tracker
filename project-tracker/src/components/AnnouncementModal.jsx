@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { lazyHeadersWith, restHeaders } from '../lib/restHeaders'
 import { X, Megaphone, BarChart3, Plus, Minus } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { useToast } from './ToastProvider'
@@ -6,7 +7,7 @@ import { triggerPush } from '../utils/pushHelper'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 function AnnouncementModal({ onClose }) {
   const { username, user } = useUser()
@@ -35,7 +36,7 @@ function AnnouncementModal({ onClose }) {
     try {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/profiles?authority_tier=neq.guest&select=id`,
-        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+        { headers: restHeaders() }
       )
       if (!res.ok) return
       const profiles = await res.json()

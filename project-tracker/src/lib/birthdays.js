@@ -1,9 +1,11 @@
+import { lazyRestHeaders } from '../lib/restHeaders'
+
 // Birthdays already live on the calendar as events with category 'birthday',
 // so there's nothing new to fill in — this just reads them.
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const HEADERS = { apikey: REST_KEY, Authorization: `Bearer ${REST_KEY}` }
+const HEADERS = lazyRestHeaders
 
 // Event names are free-form — "Lily's Birthday!!!!", "Ricky Naylor's birthday",
 // "James Lang's Birthday! 🥳🎉", or just "Kayden". Pull the person out of it.

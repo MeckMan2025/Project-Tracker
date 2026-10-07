@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -17,7 +18,7 @@ export default function QuotesManager({ onBack }) {
   const [feedback, setFeedback] = useState(null)
 
   useEffect(() => {
-    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const headers = restHeaders()
     fetch(`${supabaseUrl}/rest/v1/fun_quotes?select=*&order=created_at.desc`, { headers })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
@@ -68,7 +69,7 @@ export default function QuotesManager({ onBack }) {
     setTimeout(() => setFeedback(null), 3000)
     fetch(`${supabaseUrl}/rest/v1/fun_quotes`, {
       method: 'POST',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
       body: JSON.stringify(newQuote),
     }).catch(err => console.error('Failed to submit quote:', err))
   }
@@ -79,7 +80,7 @@ export default function QuotesManager({ onBack }) {
     if (quote) setApprovedQuotes(prev => [{ ...quote, approved: true, approved_by: username }, ...prev])
     fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
       body: JSON.stringify({ approved: true, approved_by: username }),
     }).catch(err => console.error('Failed to approve quote:', err))
   }
@@ -88,7 +89,7 @@ export default function QuotesManager({ onBack }) {
     setPendingQuotes(prev => prev.filter(q => q.id !== id))
     fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(err => console.error('Failed to deny quote:', err))
   }
 
@@ -97,7 +98,7 @@ export default function QuotesManager({ onBack }) {
     setApprovedQuotes(prev => prev.filter(q => q.id !== id))
     fetch(`${supabaseUrl}/rest/v1/fun_quotes?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(err => console.error('Failed to delete quote:', err))
   }
 

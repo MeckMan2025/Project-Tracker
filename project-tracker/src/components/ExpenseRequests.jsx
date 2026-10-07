@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { Plus, Check, X, MessageCircle, ExternalLink } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../supabase'
@@ -11,7 +12,7 @@ import { notifyRequestReviewers } from '../utils/requestRouting'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 const money = (n) => {
   const v = Number(n) || 0

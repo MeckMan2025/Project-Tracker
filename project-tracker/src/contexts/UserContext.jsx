@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase, arrivedFromRecoveryLink } from '../supabase'
 import { HOME_TEAM_NUMBER } from '../data/team'
 
@@ -98,7 +99,7 @@ export function UserProvider({ children }) {
       const url = import.meta.env.VITE_SUPABASE_URL
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY
       const res = await fetch(`${url}/rest/v1/profiles?id=eq.${userId}&select=*`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers: restHeaders(),
       })
       if (!res.ok) {
         setProfileSync({ at: Date.now(), source: 'failed', error: `client: ${error.message} | rest: ${res.status}` })
@@ -146,10 +147,10 @@ export function UserProvider({ children }) {
       // team needs the answer, not only its coach.
       const [mineRes, teamRes] = await Promise.all([
         fetch(`${url}/rest/v1/team_accounts?select=team_number&user_id=eq.${userId}&limit=1`,
-          { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }),
+          { headers: restHeaders() }),
         teamNum
           ? fetch(`${url}/rest/v1/team_accounts?select=full_access&team_number=eq.${encodeURIComponent(teamNum)}&limit=1`,
-              { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } })
+              { headers: restHeaders() })
           : Promise.resolve(null),
       ])
       const mine = mineRes.ok ? await mineRes.json() : []
@@ -497,7 +498,7 @@ export function UserProvider({ children }) {
         const restUrl = import.meta.env.VITE_SUPABASE_URL
         const restKey = import.meta.env.VITE_SUPABASE_ANON_KEY
         const res = await fetch(`${restUrl}/rest/v1/profiles?id=eq.${uid}&select=*`, {
-          headers: { apikey: restKey, Authorization: `Bearer ${restKey}` },
+          headers: restHeaders(),
         })
         if (!res.ok || !mounted) return
         const rows = await res.json()
@@ -727,8 +728,7 @@ export function UserProvider({ children }) {
         const res = await fetch(`${url}/rest/v1/profiles?id=eq.${uid}`, {
           method: 'PATCH',
           headers: {
-            apikey: anonKey,
-            Authorization: `Bearer ${anonKey}`,
+            ...restHeaders(),
             'Content-Type': 'application/json',
             Prefer: 'return=representation',
           },

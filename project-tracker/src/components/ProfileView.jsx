@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
@@ -114,7 +115,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   useEffect(() => {
     if (!isViewingOther) { setViewedProfile(null); return }
     setViewedLoading(true)
-    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const headers = restHeaders()
     const url = inviteId
       ? `${supabaseUrl}/rest/v1/approved_emails?id=eq.${inviteId}&select=*`
       : `${supabaseUrl}/rest/v1/profiles?id=eq.${viewingProfileId}&select=*`
@@ -159,7 +160,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         }
       }
     } catch { /* fall through */ }
-    return { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    return restHeaders()
   }
 
   // Admin: toggle a role on the profile currently being viewed.
@@ -249,7 +250,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       if (!user) return
       try {
         const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=*`, {
-          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+          headers: restHeaders(),
         })
         if (!res.ok) return
         const rows = await res.json()
@@ -290,7 +291,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       try {
         const res = await fetchMyTasks(
           supabaseUrl,
-          { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+          restHeaders(),
           username,
           functionTags,
         )
@@ -318,8 +319,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
         method: 'PATCH',
         headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           Prefer: 'return=representation',
         },
@@ -349,7 +349,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   useEffect(() => {
     if (!shownName) { setOtherWork({ sessions: [], records: [], tasks: [], entries: [], loading: false }); return }
     let active = true
-    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    const h = restHeaders()
     const name = encodeURIComponent(shownName)
     setOtherWork(w => ({ ...w, loading: true }))
     Promise.all([
@@ -371,8 +371,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       await fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(oldName)}`, {
         method: 'PATCH',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
@@ -417,8 +416,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       let res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
         method: 'PATCH',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=representation',
         },
@@ -431,8 +429,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
         res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
           method: 'PATCH',
           headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
+            ...restHeaders(),
             'Content-Type': 'application/json',
             'Prefer': 'return=representation',
           },
@@ -487,8 +484,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
         method: 'PATCH',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },

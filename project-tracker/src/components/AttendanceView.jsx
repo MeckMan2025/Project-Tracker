@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -12,7 +13,7 @@ import { excludedAttName, excludedNamesFrom } from '../lib/attendanceRoster'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
+const REST_HEADERS = lazyRestHeaders
 
 const STATUS_COLORS = {
   present: 'bg-green-100 text-green-700',

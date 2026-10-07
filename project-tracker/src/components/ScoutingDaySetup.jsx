@@ -1,4 +1,5 @@
 import MemberPicker from './MemberPicker'
+import { restHeaders } from '../lib/restHeaders'
 import TeamPicker from './TeamPicker'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
@@ -91,7 +92,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const restHeaders = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+  const restHeaders = restHeaders({ 'Content-Type': 'application/json' })
 
   useEffect(() => { activePeriodRef.current = activePeriod }, [activePeriod])
 

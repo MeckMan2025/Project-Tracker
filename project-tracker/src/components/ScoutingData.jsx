@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
 import { SCOUTING_FIELDS } from '../data/scoutingFields'
@@ -406,7 +407,7 @@ function ScoutingData() {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     fetch(`${supabaseUrl}/rest/v1/match_scouting?${SCOPE}&select=*&order=created_at.asc`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     })
       .then(r => r.json())
       .then(data => {

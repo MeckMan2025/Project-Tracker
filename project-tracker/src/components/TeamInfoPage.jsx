@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History } from 'lucide-react'
 import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
 
@@ -152,8 +153,7 @@ function InterestForm() {
       const res = await fetch(`${supabaseUrl}/rest/v1/interested_teams`, {
         method: 'POST',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },

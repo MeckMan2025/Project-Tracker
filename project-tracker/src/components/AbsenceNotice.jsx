@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import { teamScope } from '../lib/teamScope'
 import { Pencil, Check as CheckIcon, Trash2, ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
@@ -8,9 +9,8 @@ import { alertLeadsOfLateNotice } from '../lib/lateNoticeAlert'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const HEADERS = { apikey: REST_KEY, Authorization: `Bearer ${REST_KEY}` }
-const JSON_HEADERS = { ...HEADERS, 'Content-Type': 'application/json' }
-
+const HEADERS = lazyRestHeaders
+const JSON_HEADERS = lazyHeadersWith({ 'Content-Type': 'application/json' })
 // The rule. Filing this far ahead is what makes a notice count for anything.
 const NOTICE_HOURS = 24
 

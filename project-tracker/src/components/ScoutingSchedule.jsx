@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { usePermissions } from '../hooks/usePermissions'
 import { Calendar, MapPin, Clock, Plus, Pencil, Trash2, X, ChevronRight } from 'lucide-react'
@@ -25,7 +26,7 @@ export default function ScoutingSchedule() {
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const restHeaders = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+  const restHeaders = restHeaders({ 'Content-Type': 'application/json' })
 
   const applyRow = (row) => {
     fullData.current = row?.data || {}

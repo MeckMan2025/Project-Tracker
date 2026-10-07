@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { lazyHeadersWith, lazyRestHeaders, restHeaders } from './lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
 import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES, sidesForTags, EVERYONE, UP_FOR_GRABS } from './lib/taskTeams'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
@@ -75,9 +76,8 @@ import { supabase, authLinkError } from './supabase'
 // REST API helpers (avoids Supabase JS client auth token issues)
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
-const REST_JSON = { ...REST_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-
+const REST_HEADERS = lazyRestHeaders
+const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 async function restGet(table, query = '') {
   const res = await fetch(`${REST_URL}/rest/v1/${table}?${query}`, { headers: REST_HEADERS })
   if (!res.ok) throw new Error(await res.text())
@@ -579,7 +579,7 @@ function App() {
     if (localStorage.getItem(`pulse_skipped_${todayKey}`)) return
     const url = import.meta.env.VITE_SUPABASE_URL
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const headers = { apikey: key, Authorization: `Bearer ${key}` }
+    const headers = restHeaders()
     let cancelled = false
     ;(async () => {
       try {
@@ -604,7 +604,7 @@ function App() {
     let cancelled = false
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const headers = restHeaders()
 
     const check = async () => {
       if (document.visibilityState !== 'visible') return
@@ -690,7 +690,7 @@ function App() {
     const processScheduled = () => {
       fetch(`${REST_URL}/functions/v1/process-scheduled`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` },
+        headers: restHeaders({ 'Content-Type': 'application/json' }),
         body: '{}',
       }).catch(() => {})
     }
@@ -716,7 +716,7 @@ function App() {
     if (assigneeName.toLowerCase() === username.toLowerCase()) return
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const headers = restHeaders()
     try {
       // Look up the assignee's user ID by display_name
       const res = await fetch(
@@ -1043,7 +1043,7 @@ function App() {
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const restHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const restHeaders = restHeaders()
 
     // Delete tasks for this board via REST
     const tasksRes = await fetch(`${supabaseUrl}/rest/v1/tasks?board_id=eq.${tabId}`, {
@@ -1116,7 +1116,7 @@ function App() {
       // Send scoped notifications for task completion
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-      const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+      const headers = restHeaders()
       const jsonHeaders = { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
 
       try {
@@ -1539,7 +1539,7 @@ function App() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
       await fetch(`${supabaseUrl}/rest/v1/tasks?id=eq.${taskId}`, {
         method: 'PATCH',
-        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
         body: JSON.stringify({ status: newStatus }),
       })
     } catch (err) { console.error('Failed to move task:', err) }

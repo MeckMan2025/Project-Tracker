@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -8,7 +9,7 @@ import { usePermissions } from '../hooks/usePermissions'
 // the presence of their row is the "done" flag — no schema change needed).
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 const docId = (uid) => `team_contract_v1::${uid}`
 
 const QUESTIONS = [

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
@@ -83,7 +84,7 @@ export default function TeamGrowthView() {
 
   useEffect(() => {
     let alive = true
-    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    const headers = restHeaders()
     ;(async () => {
       try {
         const [eRes, pRes] = await Promise.all([

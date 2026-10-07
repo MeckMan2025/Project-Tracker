@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Component } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -79,8 +80,7 @@ function QuickChat({ channel = 'all' }) {
       fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${m.id}`, {
         method: 'PATCH',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
@@ -98,7 +98,7 @@ function QuickChat({ channel = 'all' }) {
   useEffect(() => {
     if (!user) return
     fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=avatar_url`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     })
       .then(res => res.ok ? res.json() : [])
       .then(rows => { if (rows[0]?.avatar_url) setMyAvatarUrl(rows[0].avatar_url) })
@@ -111,7 +111,7 @@ function QuickChat({ channel = 'all' }) {
     try {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel,avatar_url`,
-        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+        { headers: restHeaders() }
       )
       if (!res.ok) return
       const data = await res.json()
@@ -131,7 +131,7 @@ function QuickChat({ channel = 'all' }) {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     fetch(`${supabaseUrl}/rest/v1/messages?created_at=lt.${cutoff}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(err => console.error('Failed to clean up old messages:', err))
   }, [username, channel])
 
@@ -210,8 +210,7 @@ function QuickChat({ channel = 'all' }) {
     fetch(`${supabaseUrl}/rest/v1/messages`, {
       method: 'POST',
       headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
+        ...restHeaders(),
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal',
       },
@@ -258,8 +257,7 @@ function QuickChat({ channel = 'all' }) {
     fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${msgId}`, {
       method: 'DELETE',
       headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
+        ...restHeaders(),
       },
     }).catch(err => console.error('Failed to delete message:', err))
   }

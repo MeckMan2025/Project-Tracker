@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { ThumbsUp } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -10,7 +11,7 @@ import { useUser } from '../contexts/UserContext'
 // no-migration pattern as the other shared docs.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 const fmt = (ts) => ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''
 

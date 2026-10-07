@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { Megaphone, BarChart3, Check } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -7,7 +8,7 @@ import NotificationBell from './NotificationBell'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const fetchHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+const fetchHeaders = lazyRestHeaders
 
 function AnnouncementsView() {
   const { username, user } = useUser()

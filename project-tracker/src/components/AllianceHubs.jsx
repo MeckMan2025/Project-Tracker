@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Plus, Trash2, ArrowLeft, Send, X, MessageCircle } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -41,7 +42,7 @@ function AllianceHubs() {
     try {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/alliance_hubs?order=created_at.desc&select=*`,
-        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+        { headers: restHeaders() }
       )
       if (res.ok) {
         setHubs(await res.json())
@@ -84,8 +85,7 @@ function AllianceHubs() {
       const res = await fetch(`${supabaseUrl}/rest/v1/alliance_hubs`, {
         method: 'POST',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
@@ -117,11 +117,11 @@ function AllianceHubs() {
     // Also delete all messages for this hub
     await fetch(`${supabaseUrl}/rest/v1/messages?channel=eq.alliance-${hubId}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(() => {})
     await fetch(`${supabaseUrl}/rest/v1/alliance_hubs?id=eq.${hubId}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(err => console.error('Failed to delete hub:', err))
   }
 
@@ -138,7 +138,7 @@ function AllianceHubs() {
     try {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel`,
-        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+        { headers: restHeaders() }
       )
       if (!res.ok) return
       const data = await res.json()
@@ -198,8 +198,7 @@ function AllianceHubs() {
     fetch(`${supabaseUrl}/rest/v1/messages`, {
       method: 'POST',
       headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
+        ...restHeaders(),
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal',
       },
@@ -221,7 +220,7 @@ function AllianceHubs() {
     setMessages(prev => prev.filter(m => m.id !== msgId))
     fetch(`${supabaseUrl}/rest/v1/messages?id=eq.${msgId}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(() => {})
   }
 

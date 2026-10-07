@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import {
   ChevronLeft, ChevronRight, Plus, X, Trash2, Pencil,
@@ -191,7 +192,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY
       try {
         const res = await fetch(`${url}/rest/v1/calendar_events?order=date_key.asc&select=*`, {
-          headers: { apikey: key, Authorization: `Bearer ${key}` },
+          headers: restHeaders(),
         })
         const data = await res.json()
         if (!alive || !Array.isArray(data)) return
@@ -226,7 +227,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY
       try {
         const res = await fetch(`${url}/rest/v1/calendar_birthday_reactions?select=*`, {
-          headers: { apikey: key, Authorization: `Bearer ${key}` },
+          headers: restHeaders(),
         })
         const data = await res.json()
         if (!alive || !Array.isArray(data)) return
@@ -359,7 +360,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     try {
       await fetch(`${url}/rest/v1/scheduled_notifications`, {
         method: 'POST',
-        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
         body: JSON.stringify(row),
       })
     } catch (err) {
@@ -373,7 +374,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     try {
       await fetch(`${url}/rest/v1/scheduled_notifications?event_id=eq.${encodeURIComponent(eventId)}&status=eq.pending`, {
         method: 'PATCH',
-        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
         body: JSON.stringify({ status: 'cancelled' }),
       })
     } catch (err) {
@@ -418,7 +419,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         const sKey = import.meta.env.VITE_SUPABASE_ANON_KEY
         const rows = await fetch(
           `${sUrl}/rest/v1/profiles?id=eq.${user.id}&select=function_tags`,
-          { headers: { apikey: sKey, Authorization: `Bearer ${sKey}` } }
+          { headers: restHeaders() }
         ).then(r => (r.ok ? r.json() : null))
         const tags = rows?.[0]?.function_tags
         if (Array.isArray(tags)) mayAddDirectly = canAddEventsFromTags(tags)
@@ -452,7 +453,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     try {
       const res = await fetch(`${url}/rest/v1/calendar_events`, {
         method: 'POST',
-        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
         body: JSON.stringify(newEvent),
       })
       if (!res.ok) {
@@ -463,7 +464,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
           const { role: _dropped, ...withoutRole } = newEvent
           const retry = await fetch(`${url}/rest/v1/calendar_events`, {
             method: 'POST',
-            headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
             body: JSON.stringify(withoutRole),
           })
           if (retry.ok) { scheduleReminder(newEvent); return }
@@ -533,13 +534,13 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       try {
         const r1 = await fetch(`${url}/rest/v1/calendar_events`, {
           method: 'POST',
-          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
           body: JSON.stringify(detached),
         })
         if (!r1.ok) throw new Error(await r1.text())
         const r2 = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
           method: 'PATCH',
-          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
           body: JSON.stringify({ exception_dates: newExceptions }),
         })
         if (!r2.ok) throw new Error(await r2.text())
@@ -558,7 +559,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     try {
       const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
         method: 'PATCH',
-        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
         body: JSON.stringify(updates),
       })
       if (!res.ok) {
@@ -590,7 +591,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       try {
         const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
           method: 'PATCH',
-          headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
           body: JSON.stringify({ exception_dates: newExceptions }),
         })
         if (!res.ok) throw new Error(await res.text())
@@ -607,7 +608,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     try {
       const res = await fetch(`${url}/rest/v1/calendar_events?id=eq.${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers: restHeaders(),
       })
       if (!res.ok) {
         console.error('Calendar delete failed:', res.status, await res.text())

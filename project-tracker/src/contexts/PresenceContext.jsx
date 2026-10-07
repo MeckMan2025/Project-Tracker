@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, useEffect } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { useUser } from './UserContext'
 import { usePresence } from '../hooks/usePresence'
 
@@ -11,7 +12,7 @@ const PresenceContext = createContext({ onlineUsers: [], presenceState: {}, isOn
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: key, Authorization: `Bearer ${key}` }
+const headers = lazyRestHeaders
 // Heartbeat is every 30s; allow a couple of missed beats before going red.
 const ONLINE_WINDOW_MS = 90 * 1000
 

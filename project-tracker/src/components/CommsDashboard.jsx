@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Plus, X, Check, Send } from 'lucide-react'
 import AddInline from './AddInline'
 import { useCommsBoard } from '../hooks/useCommsBoard'
@@ -48,7 +49,7 @@ export default function CommsDashboard({ editable = false, publicOnly = false })
         const until = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
         const res = await fetch(
           `${supabaseUrl}/rest/v1/calendar_events?date_key=gte.${today}&date_key=lte.${until}&order=date_key.asc&limit=8&select=id,name,date_key,category,event_type`,
-          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+          { headers: restHeaders() }
         )
         if (res.ok) setEvents(await res.json())
       } catch { /* ignore */ }

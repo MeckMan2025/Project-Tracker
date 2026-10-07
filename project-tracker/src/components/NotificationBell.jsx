@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { Bell, Inbox, Megaphone, HelpCircle, CheckCheck, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -11,7 +12,7 @@ import { usePermissions } from '../hooks/usePermissions'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const restHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+const restHeaders = lazyRestHeaders
 
 // Shared across every mounted bell so an incoming notification only pops once.
 const poppedIds = new Set()

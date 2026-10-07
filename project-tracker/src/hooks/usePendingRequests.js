@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { triggerPush } from '../utils/pushHelper'
@@ -58,12 +59,7 @@ export function usePendingRequests({ type, boardId } = {}) {
   const handleApprove = useCallback(async (request) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const headers = {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal',
-    }
+    const headers = restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 
     try {
       if (request.type === 'task') {
@@ -119,7 +115,7 @@ export function usePendingRequests({ type, boardId } = {}) {
         if (targetUserId) {
           const profileRes = await fetch(
             `${supabaseUrl}/rest/v1/profiles?id=eq.${targetUserId}&select=function_tags`,
-            { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+            { headers: restHeaders() }
           )
           if (profileRes.ok) {
             const profiles = await profileRes.json()
@@ -200,12 +196,7 @@ export function usePendingRequests({ type, boardId } = {}) {
   const handleDeny = useCallback(async (request, reason = '') => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const headers = {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal',
-    }
+    const headers = restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 
     try {
       await fetch(`${supabaseUrl}/rest/v1/requests?id=eq.${request.id}`, {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
 // Global, team-wide app settings (one JSON doc, no new table needed).
@@ -10,7 +11,7 @@ export function useAppSettings() {
   const ref = useRef(DEFAULTS)
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+  const headers = restHeaders({ 'Content-Type': 'application/json' })
 
   const apply = (data) => { const merged = { ...DEFAULTS, ...(data || {}) }; ref.current = merged; setSettings(merged) }
 

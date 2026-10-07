@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { X } from 'lucide-react'
 
 // Pick FTC teams from the shared considered_teams list (the same one RadRank
@@ -6,7 +7,7 @@ import { X } from 'lucide-react'
 // too, so the canonical list grows wherever teams are first encountered.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 export default function TeamPicker({ value = [], onChange, addedBy = '' }) {
   const [teams, setTeams] = useState([]) // [{ team_number, team_name }]

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 
@@ -10,8 +11,7 @@ async function restUpsertSubscription(row) {
   const res = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?on_conflict=user_id,endpoint`, {
     method: 'POST',
     headers: {
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
+      ...restHeaders(),
       'Content-Type': 'application/json',
       Prefer: 'return=minimal,resolution=merge-duplicates',
     },
@@ -26,7 +26,7 @@ async function restUpsertSubscription(row) {
 async function restDeleteSubscription(userId, endpoint) {
   const res = await fetch(`${supabaseUrl}/rest/v1/push_subscriptions?user_id=eq.${encodeURIComponent(userId)}&endpoint=eq.${encodeURIComponent(endpoint)}`, {
     method: 'DELETE',
-    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    headers: restHeaders(),
   })
   if (!res.ok) {
     const body = await res.text()

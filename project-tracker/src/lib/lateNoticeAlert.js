@@ -5,15 +5,11 @@
 // it's the one they haven't planned around.
 
 import { triggerPush } from '../utils/pushHelper'
+import { lazyHeadersWith } from '../lib/restHeaders'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const HEADERS = {
-  apikey: REST_KEY,
-  Authorization: `Bearer ${REST_KEY}`,
-  'Content-Type': 'application/json',
-  Prefer: 'return=minimal',
-}
+const HEADERS = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 // Leads and co-leads — the people who run a meeting and take attendance at it.
 // Mentors and Coaches are deliberately not here: they carry a lead tag for

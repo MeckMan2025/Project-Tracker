@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -15,7 +16,7 @@ function TeamSurveyResponses({ onBack }) {
     try {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/team_survey_responses?select=*&order=submitted_at.desc`,
-        { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }
+        { headers: restHeaders() }
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()

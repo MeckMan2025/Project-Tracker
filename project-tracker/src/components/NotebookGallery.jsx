@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { BookOpen, ArrowRight, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { thumbUrl, thumbFallback } from '../lib/photos'
@@ -8,7 +9,7 @@ import { teamScope } from '../lib/teamScope'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+const HEADERS = lazyRestHeaders
 
 export default function NotebookGallery({ onTabChange }) {
   // One rule for whose rows these are — see lib/teamScope.js.

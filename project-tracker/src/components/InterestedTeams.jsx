@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, Users, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 
@@ -8,7 +9,7 @@ function InterestedTeams({ onBack, canDelete }) {
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+  const headers = restHeaders({ 'Content-Type': 'application/json' })
 
   useEffect(() => {
     async function load() {

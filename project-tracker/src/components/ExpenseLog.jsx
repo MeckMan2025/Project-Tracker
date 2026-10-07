@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { teamScope, stampTeam } from '../lib/teamScope'
@@ -22,8 +23,7 @@ async function uploadReceipt(supabaseUrl, supabaseKey, file) {
     const res = await fetch(`${supabaseUrl}/storage/v1/object/${RECEIPT_BUCKET}/${path}`, {
       method: 'POST',
       headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+        ...restHeaders(),
         'Content-Type': file.type || 'application/octet-stream',
         'x-upsert': 'false',
       },
@@ -60,7 +60,7 @@ export default function ExpenseLog() {
   const SCOPE = teamScope(myTeamNumber)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+  const headers = restHeaders()
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)

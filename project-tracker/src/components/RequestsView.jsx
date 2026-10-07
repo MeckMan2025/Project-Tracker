@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Check, X, Bell, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -85,7 +86,7 @@ function RequestsView({ tabs = [] }) {
           url += `&requested_by_user_id=eq.${user.id}`
         }
         const res = await fetch(url, {
-          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+          headers: restHeaders()
         })
         if (res.ok) setHistory(await res.json())
       } catch (err) {
@@ -136,7 +137,7 @@ function RequestsView({ tabs = [] }) {
     try {
       await fetch(`${supabaseUrl}/rest/v1/requests?id=eq.${id}`, {
         method: 'DELETE',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        headers: restHeaders(),
       })
     } catch (err) {
       console.error('Failed to delete request:', err)

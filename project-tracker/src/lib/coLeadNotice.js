@@ -3,10 +3,11 @@
 // after the fact, but so nobody is surprised by a decision made on their side.
 
 import { triggerPush } from '../utils/pushHelper'
+import { lazyHeadersWith } from '../lib/restHeaders'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const HEADERS = { apikey: REST_KEY, Authorization: `Bearer ${REST_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
+const HEADERS = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 // Each co-lead reports to the lead holding the same job.
 export const CO_LEAD_PAIRS = {

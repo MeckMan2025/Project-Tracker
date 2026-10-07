@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { X } from 'lucide-react'
 
 const MOODS = [
@@ -76,8 +77,7 @@ export default function DailyPulsePopup({ userId, onClose, onComplete }) {
       const res = await fetch(`${supabaseUrl}/rest/v1/daily_pulse`, {
         method: 'POST',
         headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           Prefer: 'return=minimal',
         },

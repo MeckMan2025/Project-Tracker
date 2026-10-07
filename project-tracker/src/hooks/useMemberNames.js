@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 
 // The team roster, for dropdowns. One shared source so every "pick a person"
 // control agrees with RadMems instead of relying on typed names.
@@ -14,7 +15,7 @@ export function useMemberNames() {
       try {
         const res = await fetch(
           `${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`,
-          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+          { headers: restHeaders() }
         )
         if (!res.ok || !active) return
         const rows = await res.json()
@@ -43,7 +44,7 @@ export function useMentorNames() {
       try {
         const res = await fetch(
           `${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`,
-          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+          { headers: restHeaders() }
         )
         if (!res.ok || !active) return
         const rows = await res.json()

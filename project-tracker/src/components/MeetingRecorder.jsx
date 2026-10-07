@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { Play, Square, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -11,7 +12,7 @@ import { useUser } from '../contexts/UserContext'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 const DOC_ID = 'meeting_log'
 const uid = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)

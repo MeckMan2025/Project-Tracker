@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
 // The announcements list shown inside the notification bell's panel — same
@@ -7,7 +8,7 @@ import { supabase } from '../supabase'
 // the bell is where they live now.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+const headers = lazyRestHeaders
 
 const fmt = (ts) => ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''
 

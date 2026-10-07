@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Settings, Bell, Music, Volume2, Lock, Sparkles } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -38,7 +39,7 @@ export default function SettingsView() {
   useEffect(() => {
     if (!user) return
     fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=notification_prefs`, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     })
       .then(res => res.ok ? res.json() : [])
       .then(rows => {
@@ -57,8 +58,7 @@ export default function SettingsView() {
     fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}`, {
       method: 'PATCH',
       headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
+        ...restHeaders(),
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal',
       },

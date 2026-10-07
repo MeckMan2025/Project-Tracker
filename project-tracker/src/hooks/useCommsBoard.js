@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
 // Communications board — one JSON doc (scouting_schedule row id='comms_board'),
@@ -18,7 +19,7 @@ export function useCommsBoard() {
   const ref = useRef(EMPTY)
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+  const headers = restHeaders({ 'Content-Type': 'application/json' })
 
   const apply = (doc) => { ref.current = doc; setBoard(doc) }
 

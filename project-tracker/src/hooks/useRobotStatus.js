@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
 // Robot build status — one JSON doc (scouting_schedule row id='robot_status'),
@@ -29,7 +30,7 @@ export function useRobotStatus() {
   const ref = useRef(EMPTY)
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+  const headers = restHeaders({ 'Content-Type': 'application/json' })
 
   const apply = (d) => { ref.current = d; setDoc(d) }
 

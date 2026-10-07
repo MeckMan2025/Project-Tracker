@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import { Plus, Play, Pause, Trash2, Users, ArrowLeft, ClipboardCheck, AlertCircle, ChevronRight, Calendar, Shield, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -10,9 +11,8 @@ import BreakTimer from './BreakTimer'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
-const REST_JSON = { ...REST_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-
+const REST_HEADERS = lazyRestHeaders
+const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 async function restGet(path) {
   const res = await fetch(`${REST_URL}/rest/v1/${path}`, { headers: REST_HEADERS })
   if (!res.ok) throw new Error(`GET ${path}: ${res.status} ${await res.text()}`)

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { ClipboardCheck, RefreshCw } from 'lucide-react'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
+const REST_HEADERS = lazyRestHeaders
 
 async function restGet(path) {
   const res = await fetch(`${REST_URL}/rest/v1/${path}`, { headers: REST_HEADERS })

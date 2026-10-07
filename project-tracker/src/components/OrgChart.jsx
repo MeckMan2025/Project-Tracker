@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock, Briefcase, Cpu, ClipboardList, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
@@ -260,7 +261,7 @@ function OrgChart({ onViewProfile }) {
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  const headers = restHeaders()
 
   useEffect(() => {
     async function fetchProfiles() {

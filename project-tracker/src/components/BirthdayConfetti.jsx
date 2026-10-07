@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { triggerPush } from '../utils/pushHelper'
 import { fetchBirthdayEvents, birthdaysOn, localToday } from '../lib/birthdays'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_JSON = {
-  apikey: REST_KEY,
-  Authorization: `Bearer ${REST_KEY}`,
-  'Content-Type': 'application/json',
-  Prefer: 'return=minimal',
-}
+const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 // "Happy Birthday Lily!" — or "Lily and Sam" when two share a day.
 export function joinNames(names) {

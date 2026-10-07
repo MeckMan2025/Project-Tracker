@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -9,9 +10,8 @@ import { excludedFromAttendance } from '../lib/attendanceRoster'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
-const REST_JSON = { ...REST_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-
+const REST_HEADERS = lazyRestHeaders
+const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 function genId() {
   return String(Date.now()) + Math.random().toString(36).slice(2)
 }

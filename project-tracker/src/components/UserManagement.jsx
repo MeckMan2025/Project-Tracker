@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { notifyRequestReviewers } from '../utils/requestRouting'
 import { Pencil, UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -268,7 +269,7 @@ function UserManagement({ onViewProfile }) {
       const token = session?.access_token || supabaseKey
       return { 'apikey': supabaseKey, 'Authorization': `Bearer ${token}` }
     } catch {
-      return { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+      return restHeaders()
     }
   }
 
@@ -926,7 +927,7 @@ function UserManagement({ onViewProfile }) {
       // Their open tasks go to Up for Grabs instead of a dangling name.
       // Best-effort — the account itself is already gone.
       const gone = deleteTarget.display_name
-      const purgeHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' }
+      const purgeHeaders = restHeaders({ 'Content-Type': 'application/json' })
       const enc = encodeURIComponent(gone)
       Promise.allSettled([
         fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${enc}`, { method: 'DELETE', headers: purgeHeaders }),

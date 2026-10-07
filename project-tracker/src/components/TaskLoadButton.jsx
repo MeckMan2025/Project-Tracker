@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { assigneeLabel } from '../lib/taskTeams'
 import { createPortal } from 'react-dom'
 import { Users, AlertTriangle, X, Plus, Clock } from 'lucide-react'
@@ -10,7 +11,7 @@ import { supabase } from '../supabase'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+const headers = lazyRestHeaders
 
 const TARGET = 3
 const DONE = (s) => s === 'done' || s === 'completed'

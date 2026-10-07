@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { useUser } from '../contexts/UserContext'
@@ -47,8 +48,7 @@ export function useNativePush() {
         await fetch(`${supabaseUrl}/rest/v1/apns_tokens?on_conflict=user_id,token`, {
           method: 'POST',
           headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
+            ...restHeaders(),
             'Content-Type': 'application/json',
             Prefer: 'return=minimal,resolution=merge-duplicates',
           },

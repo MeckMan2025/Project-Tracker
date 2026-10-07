@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { GraduationCap } from 'lucide-react'
@@ -30,7 +31,7 @@ export default function MentorLog() {
       try {
         const res = await fetch(
           `${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${teamScope(myTeamNumber)}&mentor_help=is.true&order=meeting_date.desc,created_at.desc`,
-          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+          { headers: restHeaders() },
         )
         if (!res.ok) throw new Error(await res.text())
         const data = await res.json()

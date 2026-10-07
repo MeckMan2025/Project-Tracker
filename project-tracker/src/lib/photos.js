@@ -1,3 +1,5 @@
+import { restHeaders } from '../lib/restHeaders'
+
 // Photos in storage cost egress every time someone's phone downloads one, and
 // the free Supabase tier only allows 5 GB of that a month. Three habits keep
 // the team's notebook photos well inside it:
@@ -58,8 +60,7 @@ export async function uploadPhotoBlob(supabaseUrl, supabaseKey, bucket, path, bl
     const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${path}`, {
       method: 'POST',
       headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+        ...restHeaders(),
         'Content-Type': blob.type || 'image/jpeg',
         'cache-control': CACHE_CONTROL,
         'x-upsert': 'false',

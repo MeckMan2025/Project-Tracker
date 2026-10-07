@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
 import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters, withSeen } from '../lib/matrixSession'
 import { triggerPush } from '../utils/pushHelper'
 import { ArrowLeft, Plus, Trash2, Trophy, Camera, X, Save, Edit3, Download } from 'lucide-react'
@@ -8,9 +9,8 @@ import { usePermissions } from '../hooks/usePermissions'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const REST_HEADERS = { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}` }
-const REST_JSON = { ...REST_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-
+const REST_HEADERS = lazyRestHeaders
+const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 function genId() {
   return String(Date.now()) + Math.random().toString(36).slice(2)
 }
@@ -20,7 +20,7 @@ async function uploadImage(file) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
   const res = await fetch(`${REST_URL}/storage/v1/object/design-matrix-images/${fileName}`, {
     method: 'POST',
-    headers: { 'apikey': REST_KEY, 'Authorization': `Bearer ${REST_KEY}`, 'Content-Type': file.type },
+    headers: restHeaders({ 'Content-Type': file.type }),
     body: file,
   })
   if (!res.ok) throw new Error('Upload failed')

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
 // Season goals + which entry/task maps to which goal. One JSON doc, no schema change.
@@ -6,7 +7,7 @@ import { supabase } from '../supabase'
 const DOC_ID = 'season_goals'
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 const uid = () => 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
 export function useGoals() {

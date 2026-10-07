@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { VoteView, RevealCeremony } from './DesignMatrix'
@@ -6,7 +7,7 @@ import { getSession, withSession, hasFinished, tally, hasSeenReveal, withSeen } 
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const HEADERS = { apikey: REST_KEY, Authorization: `Bearer ${REST_KEY}` }
+const HEADERS = lazyRestHeaders
 
 // If you've been picked to rate a decision matrix, it comes to you. A
 // notification is easy to miss and the library shelf only helps people who

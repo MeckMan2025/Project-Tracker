@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -201,7 +202,7 @@ export default function EngineeringNotebook() {
 
   // Load data via direct fetch
   useEffect(() => {
-    const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    const headers = restHeaders()
     // One rule, applied to every read below.
     const scope = teamScope(myTeamNumber)
     async function load() {
@@ -270,7 +271,7 @@ export default function EngineeringNotebook() {
   useEffect(() => {
     let active = true
     fetch(`${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`, {
-      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     })
       .then(res => (res.ok ? res.json() : []))
       .then(rows => {
@@ -292,7 +293,7 @@ export default function EngineeringNotebook() {
     // Only meetings this person was actually marked at. Someone with no record
     // for a day was never on that meeting's roster — usually it happened before
     // they joined — so there is nothing for them to write up.
-    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    const h = restHeaders()
     Promise.all([
       fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
       fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${encodeURIComponent(username)}&select=session_id`, { headers: h }).then(r => r.ok ? r.json() : []),
@@ -315,7 +316,7 @@ export default function EngineeringNotebook() {
   useEffect(() => {
     if (!username) { setLeadAbsentDays(new Set()); setExcusedDays(new Set()); return }
     let live = true
-    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    const h = restHeaders()
     Promise.all([
       fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date`, { headers: h })
         .then(r => (r.ok ? r.json() : [])),
@@ -371,7 +372,7 @@ export default function EngineeringNotebook() {
   // someone absent because they weren't there still stands.
   const claimAttendance = async (dateStr) => {
     if (!username || !dateStr) return
-    const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+    const h = restHeaders()
     try {
       const sRes = await fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${dateStr}&select=id`, { headers: h })
       if (!sRes.ok) return
@@ -454,12 +455,7 @@ export default function EngineeringNotebook() {
     }
     const missingSignalCols = (text) => /signals|signal_data|next_step/.test(text || '')
 
-    const JSON_HEADERS = {
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    }
+    const JSON_HEADERS = restHeaders({ 'Content-Type': 'application/json' })
 
     // One attempt, with the signals-column retry folded in.
     const write = async (url, method, body) => {
@@ -571,7 +567,7 @@ export default function EngineeringNotebook() {
     setEntries(prev => prev.filter(e => e.id !== target.id))
     fetch(`${supabaseUrl}/rest/v1/notebook_entries?id=eq.${target.id}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).then(res => {
       // Without this a failed delete looks like it worked until the next load.
       if (!res.ok) { console.error('Delete failed'); setEntries(keep) }
@@ -592,7 +588,7 @@ export default function EngineeringNotebook() {
       setProjects(prev => prev.map(p => p.id === editingProjectId ? { ...p, ...updateData } : p))
       fetch(`${supabaseUrl}/rest/v1/notebook_projects?id=eq.${editingProjectId}`, {
         method: 'PATCH',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
         body: JSON.stringify(updateData),
       }).catch(err => console.error('Failed to update project:', err))
     } else {
@@ -609,7 +605,7 @@ export default function EngineeringNotebook() {
       setProjects(prev => [newProject, ...prev])
       fetch(`${supabaseUrl}/rest/v1/notebook_projects`, {
         method: 'POST',
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        headers: restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
         body: JSON.stringify(newProject),
       }).catch(err => console.error('Failed to save project:', err))
     }
@@ -623,7 +619,7 @@ export default function EngineeringNotebook() {
     setProjects(prev => prev.filter(p => p.id !== id))
     fetch(`${supabaseUrl}/rest/v1/notebook_projects?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(err => console.error('Failed to delete project:', err))
   }
 
@@ -748,7 +744,7 @@ export default function EngineeringNotebook() {
     setTimeout(() => setSubmitFeedback(null), 3000)
     fetch(`${supabaseUrl}/rest/v1/requests`, {
       method: 'POST',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: restHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
       body: JSON.stringify(request),
     }).catch(err => console.error('Failed to request project:', err))
   }

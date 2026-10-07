@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2, Check, Clock, X } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -22,7 +23,7 @@ function SuggestionsView() {
   const isReviewer = canReviewSuggestions
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  const headers = restHeaders()
 
   // Load suggestions
   const [loadError, setLoadError] = useState('')

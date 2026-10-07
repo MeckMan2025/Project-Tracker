@@ -1,4 +1,5 @@
 import { triggerPush } from './pushHelper'
+import { lazyHeadersWith } from '../lib/restHeaders'
 
 // Route a freshly submitted request to the people who actually review that
 // kind of request — money asks go to Finance, everything else to the leads.
@@ -6,7 +7,7 @@ import { triggerPush } from './pushHelper'
 // bell.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
   'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']

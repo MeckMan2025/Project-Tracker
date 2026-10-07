@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import {
   Plus, Send, Trash2, Check, X, ChevronRight, ChevronLeft, Eye,
   Lightbulb, Monitor, Video, ListOrdered, Upload, Link, MessageSquare,
@@ -14,9 +15,8 @@ import { uploadImageFile } from '../lib/photos'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-const jsonHeaders = { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
-
+const headers = lazyRestHeaders
+const jsonHeaders = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 const CATEGORIES = ['CAD', 'Programming', 'AI', 'Business', 'Other']
 const FORMATS = [
   { id: 'live', label: 'Live Presentation', icon: Monitor, desc: 'Present live to teammates' },

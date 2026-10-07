@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { lazyHeadersWith } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
 // Partial-attendance data (late arrivals / early departures + meeting length)
@@ -32,7 +33,7 @@ export function defaultDurationForDate(sessionDate) {
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+const headers = lazyHeadersWith({ 'Content-Type': 'application/json' })
 
 export const timingKey = (sessionId, username) => `${sessionId}|${username}`
 

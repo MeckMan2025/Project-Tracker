@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { FolderKanban, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight,
   Home, Calendar, Shield, Lightbulb, User, Settings, Megaphone } from 'lucide-react'
 import { TEAM_TABS } from '../data/teamTabs'
@@ -81,8 +82,7 @@ function TeamHomeView({ onTabChange }) {
       await fetch(`${supabaseUrl}/rest/v1/team_survey_responses`, {
         method: 'POST',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          ...restHeaders(),
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },

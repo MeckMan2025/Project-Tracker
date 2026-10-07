@@ -1,3 +1,5 @@
+import { restHeaders } from '../lib/restHeaders'
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -8,8 +10,7 @@ export function triggerPush(notificationRecord) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
+      ...restHeaders(),
     },
     body: JSON.stringify({ record: notificationRecord }),
   }).catch((err) => {

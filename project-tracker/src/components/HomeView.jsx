@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
+import { restHeaders } from '../lib/restHeaders'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
 import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3 } from 'lucide-react'
@@ -88,7 +89,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  const headers = restHeaders()
 
   const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -265,7 +266,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
     // Delete from storage
     await fetch(`${supabaseUrl}/storage/v1/object/season-photos/${fileName}`, {
       method: 'DELETE',
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+      headers: restHeaders(),
     }).catch(() => {})
 
     // Delete record
