@@ -1679,7 +1679,12 @@ function App() {
           && !(activeTab === 'special-controls' && OPEN_SPECIAL_VIEWS.includes(specialView)) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
-        effectiveIsTeam ? <TeamHomeView onTabChange={setActiveTab} />
+        // A visiting team gets the cut-down dashboard. A sister team runs the
+        // whole app, so it gets the real one — asking for a dashboard that
+        // "looks the same" means this page, not a second copy of it kept in
+        // step by hand. What that team should not see (Radical's own season
+        // goals) HomeView decides for itself from the team number.
+        (effectiveIsTeam && !teamFullAccess) ? <TeamHomeView onTabChange={setActiveTab} />
         : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />

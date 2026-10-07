@@ -74,7 +74,8 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   // Beyond the Mean has its own season and isn't measured against ours, so
   // showing them there would be wrong rather than merely irrelevant. My Tasks
   // takes the full width instead of leaving a gap where the note was.
-  const showGoals = !myTeamNumber || myTeamNumber === '7196'
+  const isHomeTeam = !myTeamNumber || myTeamNumber === '7196'
+  const showGoals = isHomeTeam
 
   const [nextEvent, setNextEvent] = useState(null)
   const [eventLoading, setEventLoading] = useState(true)
@@ -218,14 +219,21 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   }, [])
 
   // Fetch photos
+  //
+  // season_photos has no team column, so there is no way to ask for one team's
+  // photos — the query returns everybody's or nobody's. Until it has one, a
+  // team that isn't ours gets nobody's: showing them Radical's season would be
+  // the exact thing team separation is for. Giving them their own needs a
+  // migration, not a filter.
   const loadPhotos = async () => {
+    if (!isHomeTeam) { setPhotos([]); return }
     try {
       const res = await fetch(`${supabaseUrl}/rest/v1/season_photos?select=*&order=created_at.desc`, { headers })
       if (res.ok) setPhotos(await res.json())
     } catch {}
   }
 
-  useEffect(() => { loadPhotos() }, [])
+  useEffect(() => { loadPhotos() }, [isHomeTeam]) // eslint-disable-line
 
   // Upload photo
   const handleUpload = async (e) => {
