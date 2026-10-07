@@ -66,6 +66,11 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
         const n = teamNumber.trim()
         const mail = email.trim().toLowerCase()
 
+        // Which team they said they were signing in for. Someone on a sister
+        // team is still one of ours, and signing in as 7196 has to put them
+        // on 7196 — their profile's team number can't be the only answer.
+        localStorage.setItem('scrum-signin-team', n)
+
         if (isHomeTeamNumber(n)) {
           // Ours sign in with their own address, plainly.
           await login(mail, password)

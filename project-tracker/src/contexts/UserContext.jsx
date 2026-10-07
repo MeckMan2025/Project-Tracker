@@ -172,9 +172,15 @@ export function UserProvider({ children }) {
 
       // Detect team accounts by email pattern
       const teamMatch = userEmail && userEmail.match(TEAM_EMAIL_REGEX)
+      // A team account is a shared login that stands in for a whole team: a
+      // plus-addressed team address, or the Team tag the add-team form sets.
+      //
+      // Carrying a team number is NOT enough on its own. The thirteen who
+      // moved to Beyond the Mean carry 38350 and are people, with their own
+      // names, roles and notebook entries — classifying them as team accounts
+      // gave them a shared login's cut-down tab set.
       const isTeamAccount = !!teamMatch
         || (profile.function_tags || []).includes('Team')
-        || (!!profile.team_number && profile.team_number !== HOME_TEAM_NUMBER)
       // Which team this person is on.
       //
       // A visiting team must NEVER fall back to ours. It did: the fallback was
@@ -186,9 +192,17 @@ export function UserProvider({ children }) {
       // So the fallback is split: ours only for people who are actually ours.
       // A team account with no number resolves to empty, and everything
       // downstream treats empty as "load nothing", which is the safe failure.
+      //
+      // For a person, the team they signed in for wins — but only ever
+      // towards home. Someone on a sister team is one of ours and can sign in
+      // as 7196 to work on 7196; anyone typing a number that isn't theirs and
+      // isn't home falls back to their own team rather than reaching another.
+      const signInTeam = (localStorage.getItem('scrum-signin-team') || '').trim()
       const teamNum = isTeamAccount
         ? (profile.team_number || (teamMatch ? teamMatch[1] : ''))
-        : (profile.team_number || HOME_TEAM_NUMBER)
+        : (signInTeam === HOME_TEAM_NUMBER
+            ? HOME_TEAM_NUMBER
+            : (profile.team_number || HOME_TEAM_NUMBER))
       setIsTeam(isTeamAccount)
       setTeamNumber(teamNum)
       localStorage.setItem('scrum-is-team', String(isTeamAccount))
