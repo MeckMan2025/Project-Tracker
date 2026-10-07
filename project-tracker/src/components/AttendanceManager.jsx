@@ -67,7 +67,7 @@ export default function AttendanceManager({ onBack }) {
     Promise.all([
       fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/notebook_entries?${SCOPE}&select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r, p, n]) => {
       setSessions(s)
@@ -82,7 +82,7 @@ export default function AttendanceManager({ onBack }) {
   // Refresh profiles every 10s to keep last_seen_at current
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
+      fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
         .then(r => r.ok ? r.json() : null)
         .then(p => { if (p) setProfiles(p) })
         .catch(() => {})
@@ -191,7 +191,7 @@ export default function AttendanceManager({ onBack }) {
       // Re-fetch profiles right now to get fresh last_seen_at
       let freshProfiles = profiles
       try {
-        const res = await fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
+        const res = await fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
         if (res.ok) {
           freshProfiles = await res.json()
           setProfiles(freshProfiles)

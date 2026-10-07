@@ -78,7 +78,7 @@ export default function AttendanceView({ onOpenSessions }) {
       // All records are loaded so everyone can see the team-average trend;
       // individual names/rates stay gated to leads in the Team Overview list.
       fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/profiles?select=display_name,function_tags`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,function_tags`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r, p]) => {
       setSessions(s)
       setRecords(r)

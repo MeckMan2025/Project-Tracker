@@ -841,7 +841,13 @@ function App() {
         // Team view: their boards, and only the system tabs open to them.
         // This put every system tab back, quietly undoing the filter the
         // initial list applies.
-        const boardTabs = boards.map(b => ({ id: b.id, name: b.name, permanent: false }))
+        // Main, then their own boards. Every team gets Main: it is the one
+        // place that shows everything outstanding at once, and a team with
+        // three boards needs that as much as we do. It is a view, not a board
+        // — no row in `boards`, nothing filed on it, cannot be removed — so
+        // the tasks come from the other tabs further down rather than from a
+        // query of its own.
+        const boardTabs = [MAIN_BOARD, ...boards.map(b => ({ id: b.id, name: b.name, permanent: false }))]
         setTabs([...(teamFullAccess ? SYSTEM_TABS : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))), ...boardTabs])
 
         const grouped = {}
