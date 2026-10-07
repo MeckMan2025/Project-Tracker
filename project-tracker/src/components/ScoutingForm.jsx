@@ -6,6 +6,7 @@ import {
   SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, blankEntry,
 } from '../data/scoutingFields'
 import { ALL_TEAMS, teamLabel } from '../data/teams'
+import { stampTeam } from '../lib/teamScope'
 
 // Match scouting: one row per team per match.
 //
@@ -16,7 +17,7 @@ const TABLE = 'match_scouting'
 
 export default function ScoutingForm() {
   const { username } = useUser()
-  const { hasLeadTag } = usePermissions()
+  const { hasLeadTag, myTeamNumber } = usePermissions()
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
@@ -80,7 +81,7 @@ export default function ScoutingForm() {
     if (!ready || saving) return
     setSaving(true); setError('')
     try {
-      const row = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, scout: username }
+      const row = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, scout: username, ...stampTeam({}, myTeamNumber) }
       SCOUTING_FIELDS.forEach(f => {
         const raw = form[f.key]
         if (raw === '' || raw == null) { row[f.key] = null; return }

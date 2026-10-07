@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Trash2, ArrowLeft } from 'lucide-react'
 import { downloadRowsCSV, csvName } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
+import { TEAM_TAB_IDS } from './data/teamTabs'
 import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailModal from './components/TaskDetailModal'
@@ -137,20 +138,28 @@ const TIER_RANK = { guest: 0, teammate: 1, top: 2 }
 // Their own boards are allowed too: those carry owner_team and are already
 // filtered to theirs. Board ids are made at runtime, so they are recognised by
 // not being one of ours rather than by being on a list.
-const TEAM_ALLOWED_TABS = [
-  'home',             // where they land — TeamHomeView, their own dashboard
-  'boards',           // their own, by owner_team
-  'calendar',
-  'suggestions',
-  'user-management',  // their own roster, scoped to their team
-  'profile',
-  'settings',
-]
+// What a visiting team can reach. The list lives in data/teamTabs.js, shared
+// with the welcome screen that explains it — they were written out separately
+// once and drifted, leaving teams being told about tabs they did not have.
+const TEAM_ALLOWED_TABS = TEAM_TAB_IDS
 
-function hasAccess(tab, tier, isTeam, blockedTabs) {
+
+// fullAccess is a sister team: a second team running the whole app, with its
+// own copy of every feature and its own rows behind each one. It is granted
+// per team in the database, so an ordinary visiting team is unaffected.
+function hasAccess(tab, tier, isTeam, blockedTabs, fullAccess = false) {
   // Checked before the team-account rule, which would otherwise let a blocked
   // tab through.
   if (blockedTabs && blockedTabs.includes(tab)) return false
+  if (isTeam && fullAccess) {
+    // A sister team is treated as a member team for access. What keeps them
+    // apart is the scope on every query behind these tabs, not a shorter menu
+    // — a shorter menu was right for a guest, and is wrong for a team running
+    // the same season we are.
+    const required = TAB_ACCESS[tab]
+    if (!required) return true
+    return (TIER_RANK[tier] || 0) >= (TIER_RANK[required] || 0)
+  }
   if (isTeam) {
     // One of ours, and not on their list — closed.
     if (TAB_ACCESS[tab] && !TEAM_ALLOWED_TABS.includes(tab)) return false
@@ -423,7 +432,7 @@ function RoleChangeModal({ alert, onDismiss }) {
 }
 
 function App() {
-  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, functionTags } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
@@ -478,7 +487,9 @@ function App() {
     // Team accounts get only the system tabs open to them, and no default
     // boards — theirs load from the database by owner_team. Offering a tab
     // hasAccess will refuse is a door that doesn't open.
-    if (effectiveIsTeam) return SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))
+    if (effectiveIsTeam) return teamFullAccess
+      ? [...SYSTEM_TABS]
+      : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))
     return [...SYSTEM_TABS, ...DEFAULT_BOARDS]
   })
   const [activeTab, setActiveTab] = useState(() => {
@@ -497,7 +508,7 @@ function App() {
   // from before their access changed.
   useEffect(() => {
     if (!effectiveIsTeam) return
-    if (!hasAccess(activeTab, tier, true, blockedTabs)) setActiveTab('home')
+    if (!hasAccess(activeTab, tier, true, blockedTabs, teamFullAccess)) setActiveTab('home')
   }, [effectiveIsTeam, activeTab]) // eslint-disable-line
 
   // When a team logs in, skip the loading screen — they land on their boards.
@@ -749,7 +760,7 @@ function App() {
       // empty app than somebody else's.
       if (isTeam && !teamNumber) {
         console.warn('Team account with no team number — loading nothing.')
-        setTabs(SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)))
+        setTabs(teamFullAccess ? [...SYSTEM_TABS] : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)))
         setTasksByTab({})
         setIsLoading(false)
         return
@@ -831,7 +842,7 @@ function App() {
         // This put every system tab back, quietly undoing the filter the
         // initial list applies.
         const boardTabs = boards.map(b => ({ id: b.id, name: b.name, permanent: false }))
-        setTabs([...SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)), ...boardTabs])
+        setTabs([...(teamFullAccess ? SYSTEM_TABS : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))), ...boardTabs])
 
         const grouped = {}
         boards.forEach(b => { grouped[b.id] = [] })
@@ -1665,7 +1676,7 @@ function App() {
           }}
           onAddTask={() => { setPrefillAssignee(viewPersonTasks); setCameFromPerson(viewPersonTasks); setIsModalOpen(true) }}
         />
-      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs)
+      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs, teamFullAccess)
           && !(activeTab === 'special-controls' && OPEN_SPECIAL_VIEWS.includes(specialView)) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (

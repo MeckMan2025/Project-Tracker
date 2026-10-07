@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { teamScope, stampTeam } from '../lib/teamScope'
 import { Receipt, Plus, X, Loader2, ExternalLink, Trash2, Check, Pencil } from 'lucide-react'
 import { Field, inputClass as input, todayLocal, prettyDate, newId } from './logForm'
 
@@ -54,7 +55,9 @@ const money = (n) =>
 
 export default function ExpenseLog() {
   const { username } = useUser()
-  const { canOrganizeNotebook: isLead } = usePermissions()
+  const { canOrganizeNotebook: isLead, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
@@ -74,7 +77,7 @@ export default function ExpenseLog() {
     ;(async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/expense_log?select=*&order=purchase_date.desc,created_at.desc`,
+          `${supabaseUrl}/rest/v1/expense_log?${SCOPE}&select=*&order=purchase_date.desc,created_at.desc`,
           { headers },
         )
         if (!res.ok) throw new Error(await res.text())
@@ -124,6 +127,8 @@ export default function ExpenseLog() {
 
       const row = {
         id: newId(),
+        // Whose row this is. Radical rows stay unstamped, which is NULL.
+        ...stampTeam({}, myTeamNumber),
         username,
         purchase_date: form.purchase_date,
         item: form.item.trim(),

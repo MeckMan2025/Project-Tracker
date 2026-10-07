@@ -6,6 +6,7 @@ import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { teamScope } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
 import ScoutingAccountability from './ScoutingAccountability'
 
@@ -194,7 +195,9 @@ const Rated = ({ label, value, outOf }) => (
 
 function ScoutingData() {
   const { username } = useUser()
-  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder } = usePermissions()
+  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
   const [records, setRecords] = useState([])
   const [expandedTeams, setExpandedTeams] = useState({})
   const [consideredList, setConsideredList] = useState([])
@@ -402,7 +405,7 @@ function ScoutingData() {
   useEffect(() => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    fetch(`${supabaseUrl}/rest/v1/match_scouting?select=*&order=created_at.asc`, {
+    fetch(`${supabaseUrl}/rest/v1/match_scouting?${SCOPE}&select=*&order=created_at.asc`, {
       headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
     })
       .then(r => r.json())

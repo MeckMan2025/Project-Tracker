@@ -27,7 +27,7 @@ export function canAddEventsFromTags(functionTags = []) {
 }
 
 export function usePermissions() {
-  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam, isTeamController, teamNumber } = useUser()
+  const { username, isLead, user, role, secondaryRoles, authorityTier, isAuthorityAdmin, functionTags, isTeam, isTeamController, teamFullAccess, teamNumber } = useUser()
 
   // Tier is auto-derived from roles (set by UserManagement on role change).
   // Permanent co-founders always get teammate tier at minimum.
@@ -49,7 +49,19 @@ export function usePermissions() {
   const hasScoutingRole = !!(functionTags && functionTags.includes('Scouting'))
 
   // Lead: any lead-level role tag (Co-Founder, Mentor, Coach, Project Manager, etc.)
-  const hasLeadTag = isCofounder || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
+  // A sister team's coach is a lead ON THEIR OWN TEAM. Their account is the
+  // team account, so they hold no Radical role tag and every lead check said
+  // no — which is why Jason could sign in and do almost nothing.
+  //
+  // This grants the ability, never the reach: the data every one of these
+  // flags acts on is already filtered to their own team, so "lead" here means
+  // lead of thirteen people, not lead of ours. Deliberately requires
+  // full_access, so an ordinary visiting team's coach gains nothing.
+  const isSisterCoach = !!(isTeamController && teamFullAccess)
+
+  const hasLeadTag = isCofounder
+    || isSisterCoach
+    || (functionTags && functionTags.some(t => LEAD_TAGS.includes(t)))
 
   // Division oversight: a Business Lead gets everything the business roles get,
   // a Technical Lead everything the technical roles get, and the whole-team
@@ -57,7 +69,11 @@ export function usePermissions() {
   const isBusinessLead = !!(functionTags && functionTags.includes('Business Lead'))
   const isTechnicalLead = !!(functionTags && functionTags.includes('Technical Lead'))
   const isProgrammingLead = !!(functionTags && functionTags.includes('Programming Lead'))
-  const canAdminAccounts = isCofounder || !!(functionTags && functionTags.some(t => ACCOUNT_ADMIN_TAGS.includes(t)))
+  // A sister coach creates their own team's accounts — otherwise they can see
+  // a roster they cannot add anyone to. The edge function still checks the
+  // caller's own tags server-side, so this only opens the button.
+  const canAdminAccounts = isCofounder || isSisterCoach
+    || !!(functionTags && functionTags.some(t => ACCOUNT_ADMIN_TAGS.includes(t)))
 
   // A visiting team's controller runs their own roster and nothing else. They
   // are not a Radical lead and must never be treated as one: this is a
@@ -119,6 +135,11 @@ export function usePermissions() {
     canManageUsers: hasLeadTag,
     canAdminAccounts,
     canManageOwnTeam,
+    // A sister team runs the whole app. Exposed here because the sidebar and
+    // the tab rules both ask, and reading it from two different hooks is how
+    // they end up disagreeing.
+    teamFullAccess: !!teamFullAccess,
+    isSisterCoach,
     myTeamNumber: teamNumber,
     canDragAnyTask: hasLeadTag || isTeam,
     canDeleteAnyMessage: hasLeadTag,

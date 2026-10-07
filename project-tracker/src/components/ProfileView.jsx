@@ -7,6 +7,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePresenceContext } from '../contexts/PresenceContext'
 import OnlineDot from './OnlineDot'
 import { usePermissions } from '../hooks/usePermissions'
+import { teamScope } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
 import NotebookBook from './NotebookBook'
 import { getSideStyle, getSideLabel, getSides, SIDE_HEX, SIDE_LABEL } from '../utils/sideColors'
@@ -71,7 +72,9 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   const { username, nickname: savedNickname, useNickname: savedUseNickname, user, authorityTier, primaryRoleLabel, functionTags, shortBio, isTeam, teamNumber } = useUser()
   const { isOnline } = usePresenceContext()
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin, canChangeRoles } = usePermissions()
+  const { role, secondaryRoles, isElevated, tier, isAuthorityAdmin, canChangeRoles, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
   const isViewingOther = viewingProfileId && viewingProfileId !== user?.id
   const [viewedProfile, setViewedProfile] = useState(null)
   const [viewedLoading, setViewedLoading] = useState(false)
@@ -350,10 +353,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     const name = encodeURIComponent(shownName)
     setOtherWork(w => ({ ...w, loading: true }))
     Promise.all([
-      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
-      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${name}&select=session_id,status`, { headers: h }).then(r => r.ok ? r.json() : []),
+      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
+      fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${name}&select=session_id,status`, { headers: h }).then(r => r.ok ? r.json() : []),
       fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${name}&select=*`, { headers: h }).then(r => r.ok ? r.json() : []),
-      fetch(`${supabaseUrl}/rest/v1/notebook_entries?username=eq.${name}&select=*&order=meeting_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
+      fetch(`${supabaseUrl}/rest/v1/notebook_entries?${SCOPE}&username=eq.${name}&select=*&order=meeting_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
     ]).then(([sessions, records, tasks, entries]) => {
       if (active) setOtherWork({ sessions, records, tasks, entries, loading: false })
     }).catch(() => { if (active) setOtherWork(w => ({ ...w, loading: false })) })
@@ -400,8 +403,8 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
       comm_style: profile.comm_style,
       comm_notes: profile.comm_notes,
       avatar_url: profile.avatar_url,
-      notification_prefs: notifPrefs,
-      music_preference: musicPref,
+      notification_prefs: profile.notification_prefs,
+      music_preference: profile.music_preference,
     }
 
     const nicknameFields = {

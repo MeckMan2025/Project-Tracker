@@ -4,6 +4,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { GraduationCap } from 'lucide-react'
 import { prettyDate } from './logForm'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
+import { teamScope } from '../lib/teamScope'
 
 // No table of its own. Every notebook entry already answers whether a mentor
 // helped, who it was and what with — so the mentor log is that answer read
@@ -14,7 +15,7 @@ const COLS = 'id,username,meeting_date,category,custom_category,what_did,' +
 
 export default function MentorLog() {
   const { username } = useUser()
-  const { canOrganizeNotebook: isLead } = usePermissions()
+  const { canOrganizeNotebook: isLead, myTeamNumber } = usePermissions()
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -28,7 +29,7 @@ export default function MentorLog() {
     ;(async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&mentor_help=is.true&order=meeting_date.desc,created_at.desc`,
+          `${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${teamScope(myTeamNumber)}&mentor_help=is.true&order=meeting_date.desc,created_at.desc`,
           { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
         )
         if (!res.ok) throw new Error(await res.text())

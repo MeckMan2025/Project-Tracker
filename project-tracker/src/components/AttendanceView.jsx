@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { teamScope } from '../lib/teamScope'
 import AbsenceNotice from './AbsenceNotice'
 import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
@@ -54,7 +55,9 @@ function TrendChart({ points, color = '#6366f1' }) {
 export default function AttendanceView({ onOpenSessions }) {
   const [noticeOpen, setNoticeOpen] = useState(false)
   const { username } = useUser()
-  const { canViewAllAttendance, canViewOwnAttendance, hasLeadTag } = usePermissions()
+  const { canViewAllAttendance, canViewOwnAttendance, hasLeadTag, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
 
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
@@ -70,10 +73,10 @@ export default function AttendanceView({ onOpenSessions }) {
   useEffect(() => {
     const headers = REST_HEADERS
     Promise.all([
-      fetch(`${REST_URL}/rest/v1/attendance_sessions?select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       // All records are loaded so everyone can see the team-average trend;
       // individual names/rates stay gated to leads in the Team Overview list.
-      fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?select=display_name,function_tags`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r, p]) => {
       setSessions(s)

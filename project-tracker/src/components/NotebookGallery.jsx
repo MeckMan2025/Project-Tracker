@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { BookOpen, ArrowRight, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { thumbUrl, thumbFallback } from '../lib/photos'
+import { usePermissions } from '../hooks/usePermissions'
+import { teamScope } from '../lib/teamScope'
 
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -9,6 +11,9 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
 
 export default function NotebookGallery({ onTabChange }) {
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const { myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
   const [index, setIndex] = useState(null) // lightbox index
@@ -23,7 +28,7 @@ export default function NotebookGallery({ onTabChange }) {
         // then fetch the photos for the fifteen actually being shown.
         const hasPhoto = 'or=(photo_url.like.data:*,photo_url.like.http*)'
         const idRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/notebook_entries?select=id&${hasPhoto}`,
+          `${SUPABASE_URL}/rest/v1/notebook_entries?${SCOPE}&select=id&${hasPhoto}`,
           { headers: HEADERS }
         )
         if (!active) return
@@ -39,7 +44,7 @@ export default function NotebookGallery({ onTabChange }) {
         }
         const pick = ids.slice(0, 15)
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/notebook_entries?select=id,username,meeting_date,what_did,photo_url&id=in.(${pick.join(',')})`,
+          `${SUPABASE_URL}/rest/v1/notebook_entries?${SCOPE}&select=id,username,meeting_date,what_did,photo_url&id=in.(${pick.join(',')})`,
           { headers: HEADERS }
         )
         if (!active) return

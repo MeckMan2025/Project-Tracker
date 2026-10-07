@@ -7,7 +7,7 @@ import { notifyRequestReviewers } from '../utils/requestRouting'
 
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
   const { logout, username, user } = useUser()
-  const { canManageOwnTeam, isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
+  const { canManageOwnTeam, teamFullAccess, isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -147,10 +147,10 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                   {[
                     { icon: User, label: 'Profile', color: 'text-pastel-blue-dark', tab: 'profile' },
                     { icon: Settings, label: 'Settings', color: 'text-pastel-orange-dark', tab: 'settings' },
-                    ...(!isGuest && !isTeamAccount ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
+                    ...(!isGuest && (!isTeamAccount || teamFullAccess) ? [{ icon: GitBranch, label: 'Org Chart', color: 'text-pastel-blue-dark', tab: 'org-chart' }] : []),
                     // A visiting team's controller gets it too, scoped to
                     // their own roster — that is what the account is for.
-                    ...(!isGuest && (!isTeamAccount || canManageOwnTeam) ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-pink-dark', tab: 'user-management' }] : []),
+                    ...(!isGuest && ((!isTeamAccount || teamFullAccess) || canManageOwnTeam) ? [{ icon: Shield, label: 'User Management', color: 'text-pastel-pink-dark', tab: 'user-management' }] : []),
                     { icon: Lightbulb, label: 'Suggestions', color: 'text-pastel-orange-dark', tab: 'suggestions' },
                     // Local-only, like RoleSpec and Team Pulse — half-built pages
                     // shouldn't be one tap away on the deployed site.
@@ -270,7 +270,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               together read as a double line above Home. */}
           {/* Role / Gen / All — filters which nav sections show below.
               Local-only while the role experiences are unfinished. */}
-          {import.meta.env.DEV && !isTeamAccount && (
+          {import.meta.env.DEV && (!isTeamAccount || teamFullAccess) && (
             <div className="flex gap-1 mb-2 bg-gray-100 rounded-xl p-1">
               {[
                 { id: 'role', label: 'Role', Icon: UserCog },
@@ -290,7 +290,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               ))}
             </div>
           )}
-          {import.meta.env.DEV && !isTeamAccount && <hr className="mb-1.5 border-gray-200" />}
+          {import.meta.env.DEV && (!isTeamAccount || teamFullAccess) && <hr className="mb-1.5 border-gray-200" />}
 
           {/* Home Tab */}
           <div
@@ -319,7 +319,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               (team accounts) and Comp Day still reach the form above. */}
           {/* Data Tab for team accounts — dropdown with scouting data only */}
 
-          {!isTeamAccount && <>
+          {(!isTeamAccount || teamFullAccess) && <>
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
               activeTab === 'data' || activeTab === 'attendance' || activeTab === 'team-growth' || activeTab === 'role-spec'
@@ -399,7 +399,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           </>}
 
           {/* Only show separator if non-team Data section was rendered (team Data has its own hr) */}
-          {!isTeamAccount && <hr className="my-2 border-gray-200" />}
+          {(!isTeamAccount || teamFullAccess) && <hr className="my-2 border-gray-200" />}
 
           {/* Just the Calendar now — a section that holds one page is a
               folder with one file in it. Open to visiting teams too. */}
@@ -424,7 +424,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           {/* Scouting. Its only link used to be inside the Competition Day
               block, which meant it did not exist on an ordinary day — and a
               form nobody can reach does not get filled in. */}
-          {!isGuest && !isTeamAccount && (
+          {!isGuest && (!isTeamAccount || teamFullAccess) && (
             <>
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -447,7 +447,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               Logs is ours — a visiting team has no outreach, expenses or
               mentor log here, and the access rule already refuses it, so the
               link was one that could only ever bounce. */}
-          {!isGuest && !isTeamAccount && (
+          {!isGuest && (!isTeamAccount || teamFullAccess) && (
             <>
               {/* Logs holds three, so it opens rather than being one page —
                   the same as Data. Open it by the arrow; it also opens itself
@@ -593,7 +593,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
 
           </>)}
 
-          {!isTeamAccount && <>
+          {(!isTeamAccount || teamFullAccess) && <>
           {navMode !== 'role' && (<>
           <hr className="my-2 border-gray-200" />
 
@@ -621,7 +621,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           {/* Engineering Notebook is not a nav tab — it's reached from the
               gallery button on Home, so everyone gets to it the same way. */}
 
-          {!isTeamAccount && navMode !== 'role' && <>
+          {(!isTeamAccount || teamFullAccess) && navMode !== 'role' && <>
 
           {/* Requests is not a nav item — it's the row under the notification
               bell, so there's one way in for everyone. */}
@@ -651,7 +651,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           </>}
 
           {/* In-the-works role tabs always sit at the BOTTOM of the nav. */}
-          {!isTeamAccount && (<>
+          {(!isTeamAccount || teamFullAccess) && (<>
           {navMode !== 'general' && (<>
           {/* Unfinished role tabs live under Special Controls until they're ready. */}
           </>)}

@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, BookOpen } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
+import { teamScope, stampTeam } from '../lib/teamScope'
 import NotebookBook from './NotebookBook'
 import { SIGNAL_BY_KEY } from '../data/notebookSignals'
 import SignalPicker, { SignalQuestions } from './NotebookSignals'
@@ -121,7 +122,9 @@ function SectionHeader({ title }) {
 
 export default function EngineeringNotebook() {
   const { username, user } = useUser()
-  const { canOrganizeNotebook, canSubmitNotebook, isGuest } = usePermissions()
+  const { canOrganizeNotebook, canSubmitNotebook, isGuest, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
   const isLead = canOrganizeNotebook
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -199,11 +202,13 @@ export default function EngineeringNotebook() {
   // Load data via direct fetch
   useEffect(() => {
     const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    // One rule, applied to every read below.
+    const scope = teamScope(myTeamNumber)
     async function load() {
       try {
         const [eRes, pRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS}&order=created_at.desc`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&order=created_at.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS}&${scope}&order=created_at.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&${scope}&order=created_at.desc`, { headers }),
         ])
         if (eRes.ok) {
           setEntries(await eRes.json())
@@ -215,7 +220,7 @@ export default function EngineeringNotebook() {
           // exactly as it did.
           console.warn('Entry fetch failed; retrying without the evidence columns.')
           const retry = await fetch(
-            `${supabaseUrl}/rest/v1/notebook_entries?select=${BASE_ENTRY_COLS}&order=created_at.desc`,
+            `${supabaseUrl}/rest/v1/notebook_entries?select=${BASE_ENTRY_COLS}&${scope}&order=created_at.desc`,
             { headers })
           if (retry.ok) setEntries(await retry.json())
         }
@@ -225,7 +230,7 @@ export default function EngineeringNotebook() {
       }
       // Now the photos, folded into the entries already on screen.
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=id,photo_url&or=(photo_url.like.data:*,photo_url.like.http*)`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=id,photo_url&${scope}&or=(photo_url.like.data:*,photo_url.like.http*)`, { headers })
         if (!res.ok) return
         const byId = Object.fromEntries((await res.json()).map(r => [r.id, r.photo_url]))
         setEntries(prev => prev.map(e => byId[e.id] ? { ...e, photo_url: byId[e.id] } : e))
@@ -289,8 +294,8 @@ export default function EngineeringNotebook() {
     // they joined — so there is nothing for them to write up.
     const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
     Promise.all([
-      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
-      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(username)}&select=session_id`, { headers: h }).then(r => r.ok ? r.json() : []),
+      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
+      fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${encodeURIComponent(username)}&select=session_id`, { headers: h }).then(r => r.ok ? r.json() : []),
     ])
       .then(([sessions, mine]) => {
         if (!active) return
@@ -312,9 +317,9 @@ export default function EngineeringNotebook() {
     let live = true
     const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
     Promise.all([
-      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?select=id,session_date`, { headers: h })
+      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date`, { headers: h })
         .then(r => (r.ok ? r.json() : [])),
-      fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(username)}&status=in.(absent,excused)&select=session_id,status,marked_by`, { headers: h })
+      fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${encodeURIComponent(username)}&status=in.(absent,excused)&select=session_id,status,marked_by`, { headers: h })
         .then(r => (r.ok ? r.json() : [])),
     ]).then(([sess, recs]) => {
       if (!live) return
@@ -368,7 +373,7 @@ export default function EngineeringNotebook() {
     if (!username || !dateStr) return
     const h = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
     try {
-      const sRes = await fetch(`${supabaseUrl}/rest/v1/attendance_sessions?session_date=eq.${dateStr}&select=id`, { headers: h })
+      const sRes = await fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${dateStr}&select=id`, { headers: h })
       if (!sRes.ok) return
       const sessions = await sRes.json()
       if (!sessions.length) return
@@ -435,6 +440,9 @@ export default function EngineeringNotebook() {
           .map(k => [k, formData.signalData?.[k] || {}])
       ),
       next_step: (formData.nextStep || '').trim(),
+      // Whose entry this is. Radical rows stay unstamped, which is what NULL
+      // means everywhere else.
+      ...(myTeamNumber && myTeamNumber !== '7196' ? { team_number: String(myTeamNumber) } : {}),
     }
 
     // If the evidence columns aren't there yet, a write naming them fails
@@ -590,6 +598,7 @@ export default function EngineeringNotebook() {
     } else {
       const newProject = {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
+        ...stampTeam({}, myTeamNumber),
         ...projectForm,
         name: projectForm.name.trim(),
         goal: projectForm.goal.trim(),

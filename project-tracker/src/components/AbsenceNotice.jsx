@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { Pencil, Check as CheckIcon, Trash2, ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { defaultDurationForDate, defaultStartForDate } from '../lib/attendancePartial'
 import { alertLeadsOfLateNotice } from '../lib/lateNoticeAlert'
 
@@ -38,6 +40,8 @@ const localDay = (offsetDays = 0) => {
 // page chrome — no back button, no outer padding, no duplicate heading.
 export default function AbsenceNotice({ onBack, embedded = false }) {
   const { username } = useUser()
+  const { myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [events, setEvents] = useState([])
   const [mine, setMine] = useState([])
   const [date, setDate] = useState(localDay(2))
@@ -63,7 +67,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
 
   const loadMine = () => {
     if (!username) return
-    fetch(`${REST_URL}/rest/v1/absence_notices?username=eq.${encodeURIComponent(username)}&select=*&order=meeting_date.desc`,
+    fetch(`${REST_URL}/rest/v1/absence_notices?${SCOPE}&username=eq.${encodeURIComponent(username)}&select=*&order=meeting_date.desc`,
       { headers: HEADERS })
       .then(r => (r.ok ? r.json() : []))
       .then(rows => setMine(Array.isArray(rows) ? rows : []))
@@ -168,7 +172,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
     try {
       // Filing again for the same day corrects the first notice rather than
       // adding a second — but the clock restarts, so a late correction is late.
-      const res = await fetch(`${REST_URL}/rest/v1/absence_notices?on_conflict=username,meeting_date`, {
+      const res = await fetch(`${REST_URL}/rest/v1/absence_notices?on_conflict=username,meeting_date,team_number`, {
         method: 'POST',
         headers: { ...JSON_HEADERS, Prefer: 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify(row),

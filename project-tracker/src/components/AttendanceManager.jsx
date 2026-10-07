@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { teamScope } from '../lib/teamScope'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
 import { excludedFromAttendance } from '../lib/attendanceRoster'
@@ -30,7 +31,9 @@ const STATUS_COLORS = {
 
 export default function AttendanceManager({ onBack }) {
   const { username } = useUser()
-  const { hasLeadTag } = usePermissions()
+  const { hasLeadTag, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
 
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
@@ -62,10 +65,10 @@ export default function AttendanceManager({ onBack }) {
   useEffect(() => {
     const headers = REST_HEADERS
     Promise.all([
-      fetch(`${REST_URL}/rest/v1/attendance_sessions?select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/attendance_records?select=*`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/notebook_entries?select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${REST_URL}/rest/v1/notebook_entries?${SCOPE}&select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r, p, n]) => {
       setSessions(s)
       setRecords(r)
@@ -135,7 +138,7 @@ export default function AttendanceManager({ onBack }) {
   const openExistingSession = async (existing) => {
     setSessions(prev => prev.some(s => s.id === existing.id) ? prev : [existing, ...prev])
     try {
-      const res = await fetch(`${REST_URL}/rest/v1/attendance_records?session_id=eq.${existing.id}&select=*`, { headers: REST_HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&session_id=eq.${existing.id}&select=*`, { headers: REST_HEADERS })
       if (res.ok) {
         const rows = await res.json()
         setRecords(prev => {
@@ -174,7 +177,7 @@ export default function AttendanceManager({ onBack }) {
       // drops, so ask the server before inserting — that is how a second lead
       // ended up starting a session someone else had already started.
       try {
-        const res = await fetch(`${REST_URL}/rest/v1/attendance_sessions?session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
+        const res = await fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
         if (res.ok) {
           const rows = await res.json()
           if (rows.length > 0) {
@@ -205,7 +208,7 @@ export default function AttendanceManager({ onBack }) {
       const noticed = new Map()
       try {
         const nres = await fetch(
-          `${REST_URL}/rest/v1/absence_notices?meeting_date=eq.${today}&select=username,on_time,kind`,
+          `${REST_URL}/rest/v1/absence_notices?${SCOPE}&meeting_date=eq.${today}&select=username,on_time,kind`,
           { headers: REST_HEADERS })
         if (nres.ok) for (const n of await nres.json()) noticed.set(n.username, n)
       } catch {}
@@ -251,7 +254,7 @@ export default function AttendanceManager({ onBack }) {
           if (sessRes.status === 409) {
             setSessions(prev => prev.filter(s => s.id !== sessionId))
             setRecords(prev => prev.filter(r => r.session_id !== sessionId))
-            const dupeRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions?session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
+            const dupeRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
             const rows = dupeRes.ok ? await dupeRes.json() : []
             if (rows.length > 0) {
               showFeedback('Someone already started today\u2019s session. Opening it.')
@@ -568,7 +571,7 @@ export default function AttendanceManager({ onBack }) {
     setNotices([])
     if (!noticeDate) return
     let cancelled = false
-    fetch(`${REST_URL}/rest/v1/absence_notices?meeting_date=eq.${noticeDate}&select=*`, { headers: REST_HEADERS })
+    fetch(`${REST_URL}/rest/v1/absence_notices?${SCOPE}&meeting_date=eq.${noticeDate}&select=*`, { headers: REST_HEADERS })
       .then(r => (r.ok ? r.json() : []))
       .then(rows => { if (!cancelled) setNotices(Array.isArray(rows) ? rows : []) })
       .catch(() => {})

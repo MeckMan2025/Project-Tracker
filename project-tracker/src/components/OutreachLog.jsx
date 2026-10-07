@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { teamScope, stampTeam } from '../lib/teamScope'
 import { Globe, Plus, X, Loader2, Trash2, Check, Pencil } from 'lucide-react'
 import { Field, inputClass as input, todayLocal, prettyDate, newId } from './logForm'
 
@@ -17,7 +18,9 @@ const BLANK = { event_date: todayLocal(), event_name: '', members: '', team_hour
 
 export default function OutreachLog() {
   const { username } = useUser()
-  const { canOrganizeNotebook: isLead } = usePermissions()
+  const { canOrganizeNotebook: isLead, myTeamNumber } = usePermissions()
+  // One rule for whose rows these are — see lib/teamScope.js.
+  const SCOPE = teamScope(myTeamNumber)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
@@ -36,7 +39,7 @@ export default function OutreachLog() {
     ;(async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/outreach_log?select=*&order=event_date.desc,created_at.desc`,
+          `${supabaseUrl}/rest/v1/outreach_log?${SCOPE}&select=*&order=event_date.desc,created_at.desc`,
           { headers },
         )
         if (!res.ok) throw new Error(await res.text())
@@ -76,6 +79,8 @@ export default function OutreachLog() {
     try {
       const row = {
         id: newId(),
+        // Whose row this is. Radical rows stay unstamped, which is NULL.
+        ...stampTeam({}, myTeamNumber),
         username,
         event_date: form.event_date,
         event_name: form.event_name.trim(),

@@ -1,56 +1,39 @@
 import { useState } from 'react'
-import { MessageCircle, ClipboardList, LineChart, BookOpen, FolderKanban, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FolderKanban, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight,
+  Home, Calendar, Shield, Lightbulb, User, Settings, Megaphone } from 'lucide-react'
+import { TEAM_TABS } from '../data/teamTabs'
+
+// The icon each tab is drawn with. Keyed by the name the shared list uses, so
+// a new tab names its icon there and this needs no edit.
+const TAB_ICONS = {
+  Home, FolderKanban, Calendar, Shield, Lightbulb, User, Settings,
+}
 import { useUser } from '../contexts/UserContext'
 import NotificationBell from './NotificationBell'
 
-const TAB_INFO = [
-  {
-    icon: MessageCircle,
-    name: 'Chat',
-    color: 'text-pastel-pink-dark',
-    bg: 'bg-pastel-pink/20',
-    description: 'Talk with other teams in real time. Three channels: All (everyone), Alliances (your alliance partners), and Leagues (teams in your league).',
-  },
-  {
-    icon: ClipboardList,
-    name: 'Scouting',
-    color: 'text-pastel-orange-dark',
-    bg: 'bg-pastel-orange/20',
-    description: 'Submit match scouting forms during competitions. Track team performance, auto/teleop stats, and observations. Coming next season!',
-  },
-  {
-    icon: LineChart,
-    name: 'Data',
-    color: 'text-pastel-blue-dark',
-    bg: 'bg-pastel-blue/20',
-    description: 'View your team\'s scouting data submissions. Only your team can see your data — completely private. Coming next season!',
-  },
-  {
-    icon: BookOpen,
-    name: 'AI Manual',
-    color: 'text-pastel-orange-dark',
-    bg: 'bg-pastel-orange/20',
-    description: 'Ask questions about the FTC Competition Manual using FIRST\'s official AI chatbot. Great for quick rule lookups.',
-  },
-  {
-    icon: FolderKanban,
-    name: 'Boards',
-    color: 'text-pastel-blue-dark',
-    bg: 'bg-pastel-blue/20',
-    description: 'Kanban-style task boards for your team. Create boards for different projects, add tasks, and track progress with drag-and-drop.',
-  },
-]
+// Built from the list App.jsx enforces, so the guide and the app can never
+// disagree about what a team has.
+const TAB_INFO = TEAM_TABS.map(t => ({
+  icon: TAB_ICONS[t.icon] || Lightbulb,
+  name: t.name,
+  color: 'text-pastel-blue-dark',
+  bg: 'bg-pastel-blue/25',
+  description: t.description,
+}))
+
 
 const TEAM_UPDATES = [
   {
-    date: '2026-03-07',
+    date: 'Now',
     items: [
-      'Your team account is live! You can now use Boards, Chat, AI Manual, and Suggestions.',
-      'Scouting Form and Scouting Data are coming next season — stay tuned!',
-      'Your boards and data are private to your team. No other team can see them.',
+      'Your boards are yours. Make tasks, drag them along, and nobody outside your team can see any of it.',
+      'Your coach adds your members and mentors from User Management — you run your own roster.',
+      'The calendar carries meetings, competitions and deadlines.',
+      'Suggestions goes straight to us. If something is missing, that is where to say so.',
     ],
   },
 ]
+
 
 const USAGE_OPTIONS = [
   'Every day',

@@ -3,6 +3,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import { SIGNALS, SIGNAL_BY_KEY, signalsOf, answersFor } from '../data/notebookSignals'
+import { teamScope } from '../lib/teamScope'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // Team Growth reads the engineering notebook and nothing else. Every number on
@@ -48,7 +49,7 @@ const prettyDate = (d) => {
 
 export default function TeamGrowthView() {
   const { username } = useUser()
-  const { canOrganizeNotebook: isLead } = usePermissions()
+  const { canOrganizeNotebook: isLead, myTeamNumber } = usePermissions()
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -86,8 +87,8 @@ export default function TeamGrowthView() {
     ;(async () => {
       try {
         const [eRes, pRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&order=meeting_date.desc`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=id,name`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${teamScope(myTeamNumber)}&order=meeting_date.desc`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=id,name&${teamScope(myTeamNumber)}`, { headers }),
         ])
         if (!eRes.ok) {
           // The columns don't exist until the migration runs. Say so plainly

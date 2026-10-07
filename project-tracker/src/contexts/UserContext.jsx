@@ -43,6 +43,9 @@ export function UserProvider({ children }) {
   // It is team_accounts.user_id — there is exactly one, so it belongs on the
   // team row rather than as a tag anyone could be given.
   const [isTeamController, setIsTeamController] = useState(false)
+  // A sister team runs the whole app rather than just boards. The flag lives
+  // on the team row, so turning one on is a database change and not a deploy.
+  const [teamFullAccess, setTeamFullAccess] = useState(false)
   const [teamNumber, setTeamNumber] = useState(() => localStorage.getItem('scrum-team-number') || '')
 
   // Auth account exists but its profile row is gone (deleted members were
@@ -134,17 +137,30 @@ export function UserProvider({ children }) {
   // A team row pointing at this account means this account runs that team.
   // Best effort: before the column exists, or if the lookup fails, nobody is a
   // controller — which locks the feature rather than opening it.
-  const checkTeamController = async (userId) => {
-    if (!userId) { setIsTeamController(false); return }
+  const checkTeamController = async (userId, teamNum) => {
+    if (!userId) { setIsTeamController(false); setTeamFullAccess(false); return }
     try {
-      const res = await fetch(
-        `${url}/rest/v1/team_accounts?select=team_number&user_id=eq.${userId}&limit=1`,
-        { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
-      )
-      const rows = res.ok ? await res.json() : []
-      setIsTeamController(Array.isArray(rows) && rows.length > 0)
+      // Two questions, one trip: does this account run a team, and does the
+      // team this person is on run the whole app. The second is asked by
+      // team number rather than by user id, because every member of a sister
+      // team needs the answer, not only its coach.
+      const [mineRes, teamRes] = await Promise.all([
+        fetch(`${url}/rest/v1/team_accounts?select=team_number&user_id=eq.${userId}&limit=1`,
+          { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }),
+        teamNum
+          ? fetch(`${url}/rest/v1/team_accounts?select=full_access&team_number=eq.${encodeURIComponent(teamNum)}&limit=1`,
+              { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } })
+          : Promise.resolve(null),
+      ])
+      const mine = mineRes.ok ? await mineRes.json() : []
+      setIsTeamController(Array.isArray(mine) && mine.length > 0)
+
+      const team = teamRes && teamRes.ok ? await teamRes.json() : []
+      setTeamFullAccess(!!team?.[0]?.full_access)
     } catch {
+      // Locks the feature rather than opening it.
       setIsTeamController(false)
+      setTeamFullAccess(false)
     }
   }
 
@@ -178,7 +194,7 @@ export function UserProvider({ children }) {
       localStorage.setItem('scrum-is-team', String(isTeamAccount))
       localStorage.setItem('scrum-team-number', teamNum)
 
-      checkTeamController(profile.id)
+      checkTeamController(profile.id, teamNum)
       setUsername(profile.display_name)
       localStorage.setItem('scrum-cached-user-id', profile.id)
       setIsLead(profile.role === 'lead')
@@ -737,7 +753,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamFullAccess, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
     >
       {children}
     </UserContext.Provider>
