@@ -62,8 +62,8 @@ export function UserProvider({ children }) {
     // Roles a lead pre-assigned to this address, if any.
     let tags = []
     try {
-      const wl = await supabase.from('approved_emails').select('role').eq('email', email).single()
-      tags = String(wl?.data?.role || '')
+      const wl = await supabase.rpc('check_approved_email', { p_email: email })
+      tags = String(wl?.data || '')
         .split(',').map(r => r.trim()).filter(r => r && r.toLowerCase() !== 'member')
     } catch { /* ignore */ }
     const row = {
@@ -121,14 +121,16 @@ export function UserProvider({ children }) {
   }
 
   const checkWhitelist = async (email) => {
-    const { data, error } = await supabase
-      .from('approved_emails')
-      .select('email, role')
-      .eq('email', email.toLowerCase().trim())
-      .single()
+    // Asked before this person has an account, so it cannot require being
+    // signed in. It goes through a function rather than reading the table
+    // because the table is the list of every address we have invited, and
+    // that is not something to leave readable by anyone with the public key.
+    // The function answers about one address and nothing else.
+    const addr = email.toLowerCase().trim()
+    const { data, error } = await supabase.rpc('check_approved_email', { p_email: addr })
 
     if (error || !data) return null
-    return data
+    return { email: addr, role: data }
   }
 
   const ADMIN_EMAILS = ['deshpandeyukti@pleasval.org', 'meckleykayden@pleasval.org']
