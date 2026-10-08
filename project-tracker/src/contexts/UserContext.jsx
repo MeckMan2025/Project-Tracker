@@ -140,19 +140,47 @@ export function UserProvider({ children }) {
   // A team row pointing at this account means this account runs that team.
   // Best effort: before the column exists, or if the lookup fails, nobody is a
   // controller — which locks the feature rather than opening it.
-  const checkTeamController = async (userId, teamNum) => {
+  const checkTeamController = async (userId, teamNum, attempt = 0) => {
     if (!userId) { setIsTeamController(false); setTeamFullAccess(false); return }
     try {
+      // These two answers decide whether a coach is a lead of their own team,
+      // so they have to be asked as that coach. team_accounts is behind RLS
+      // now: a request carrying the public key gets an empty list rather than
+      // an error, which this function would read as "not a controller" and
+      // quietly strip a coach of every lead power they have.
+      //
+      // So wait for a real session rather than trusting whatever is cached,
+      // and if there is no token yet, try again shortly instead of settling
+      // on the answer that locks them out.
+      let token = null
+      try {
+        const { data } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000)),
+        ])
+        token = data?.session?.access_token || null
+      } catch { /* fall through to the cached one */ }
+      if (!token) {
+        if (attempt < 3) {
+          setTimeout(() => checkTeamController(userId, teamNum, attempt + 1), 600)
+          return
+        }
+        // Out of tries: leave it locked, which is the safe direction.
+        setIsTeamController(false)
+        setTeamFullAccess(false)
+        return
+      }
+      const authed = { apikey: anonKey, Authorization: `Bearer ${token}` }
       // Two questions, one trip: does this account run a team, and does the
       // team this person is on run the whole app. The second is asked by
       // team number rather than by user id, because every member of a sister
       // team needs the answer, not only its coach.
       const [mineRes, teamRes] = await Promise.all([
         fetch(`${url}/rest/v1/team_accounts?select=team_number&user_id=eq.${userId}&limit=1`,
-          { headers: restHeaders() }),
+          { headers: authed }),
         teamNum
           ? fetch(`${url}/rest/v1/team_accounts?select=full_access&team_number=eq.${encodeURIComponent(teamNum)}&limit=1`,
-              { headers: restHeaders() })
+              { headers: authed })
           : Promise.resolve(null),
       ])
       const mine = mineRes.ok ? await mineRes.json() : []
