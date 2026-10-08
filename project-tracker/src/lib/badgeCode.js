@@ -17,3 +17,12 @@ export function badgeScanCode(date = new Date()) {
   for (const { type, value } of FORMAT.formatToParts(date)) p[type] = value
   return `${DAYS[p.weekday] || p.weekday}${p.month}/${p.day}/${p.year}|${p.hour}:${p.minute}`
 }
+
+// One badge, however it arrives. Card scanners pad to a fixed width, so the
+// same badge comes in as 0000000027 from the scanner and 27 when typed — both
+// have to mean the same person. Leading zeros go; a badge of all zeros is "0".
+export function normalizeBadge(raw) {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  return s.replace(/^0+(?=.)/, '')
+}
