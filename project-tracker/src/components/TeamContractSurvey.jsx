@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { lazyHeadersWith } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { useUser } from '../contexts/UserContext'
@@ -31,7 +32,8 @@ const QUESTIONS = [
 
 export default function TeamContractSurvey() {
   const { user, username } = useUser()
-  const { isGuest, isTeam } = usePermissions()
+  const { isGuest, isTeam, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [checked, setChecked] = useState(false)
   const [done, setDone] = useState(false)
   const [answers, setAnswers] = useState({})
@@ -46,7 +48,7 @@ export default function TeamContractSurvey() {
     let alive = true
     ;(async () => {
       try {
-        const res = await fetch(`${url}/rest/v1/scouting_schedule?id=eq.${encodeURIComponent(docId(user.id))}&select=id`, { headers })
+        const res = await fetch(`${url}/rest/v1/scouting_schedule?${SCOPE}&id=eq.${encodeURIComponent(docId(user.id))}&select=id`, { headers })
         const rows = res.ok ? await res.json() : []
         if (alive) { setDone(Array.isArray(rows) && rows.length > 0); setChecked(true) }
       } catch { if (alive) setChecked(true) }

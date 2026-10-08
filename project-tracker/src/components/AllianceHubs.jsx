@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Plus, Trash2, ArrowLeft, Send, X, MessageCircle } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -25,7 +26,8 @@ function getSenderColor(sender) {
 
 function AllianceHubs() {
   const { username, chatName, nickname, user, isTeam, teamNumber } = useUser()
-  const { canDeleteAnyMessage, canDeleteOwnMessages, canUseChat } = usePermissions()
+  const { canDeleteAnyMessage, canDeleteOwnMessages, canUseChat, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [hubs, setHubs] = useState([])
   const [activeHub, setActiveHub] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -41,7 +43,7 @@ function AllianceHubs() {
   const fetchHubs = async () => {
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/alliance_hubs?order=created_at.desc&select=*`,
+        `${supabaseUrl}/rest/v1/alliance_hubs?${SCOPE}&order=created_at.desc&select=*`,
         { headers: restHeaders() }
       )
       if (res.ok) {
@@ -137,7 +139,7 @@ function AllianceHubs() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel`,
+        `${supabaseUrl}/rest/v1/messages?${SCOPE}&created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel`,
         { headers: restHeaders() }
       )
       if (!res.ok) return

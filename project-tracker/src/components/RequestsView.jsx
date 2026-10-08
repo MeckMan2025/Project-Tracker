@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Check, X, Bell, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -65,7 +66,8 @@ function previewRows(r) {
 
 function RequestsView({ tabs = [] }) {
   const { username, user } = useUser()
-  const { canReviewRequests, hasLeadTag, outreachEventRequestsOnly } = usePermissions()
+  const { canReviewRequests, hasLeadTag, outreachEventRequestsOnly, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const { requests, handleApprove, handleDeny, handleRemind } = usePendingRequests()
   const { addToast } = useToast()
   const [history, setHistory] = useState([])
@@ -80,7 +82,7 @@ function RequestsView({ tabs = [] }) {
   useEffect(() => {
     async function loadHistory() {
       try {
-        let url = `${supabaseUrl}/rest/v1/requests?status=in.(approved,denied)&order=created_at.desc&limit=50&select=*`
+        let url = `${supabaseUrl}/rest/v1/requests?${SCOPE}&status=in.(approved,denied)&order=created_at.desc&limit=50&select=*`
         // Teammates only see their own history
         if (!canReviewRequests && user) {
           url += `&requested_by_user_id=eq.${user.id}`

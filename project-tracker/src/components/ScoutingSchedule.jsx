@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { usePermissions } from '../hooks/usePermissions'
@@ -14,7 +15,8 @@ import ScoutingDaySetup from './ScoutingDaySetup'
 const EMPTY = { title: '', date: '', time: '', location: '', notes: '' }
 
 export default function ScoutingSchedule() {
-  const { hasLeadTag } = usePermissions()
+  const { hasLeadTag, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const canManage = hasLeadTag
 
   const [dates, setDates] = useState([])
@@ -36,7 +38,7 @@ export default function ScoutingSchedule() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.main&select=*`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?${SCOPE}&id=eq.main&select=*`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
         if (res.ok) { const rows = await res.json(); applyRow(rows?.[0] || null) }
       } catch { /* ignore */ }
       setLoading(false)

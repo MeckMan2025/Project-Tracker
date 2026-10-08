@@ -1,4 +1,5 @@
 import MemberPicker from './MemberPicker'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import TeamPicker from './TeamPicker'
 import { useState, useEffect, useRef, useCallback } from 'react'
@@ -79,7 +80,8 @@ function Slot({ label, value, onChange, isLead, tint }) {
 
 export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack }) {
   const { username } = useUser()
-  const { hasLeadTag } = usePermissions()
+  const { hasLeadTag, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const isLead = hasLeadTag
   const [data, setData] = useState(null)
   const [tab, setTab] = useState('groups')
@@ -115,7 +117,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     setData(null)
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.${scheduleId}&select=*`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?${SCOPE}&id=eq.${scheduleId}&select=*`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
         if (res.ok) {
           const rows = await res.json()
           const row = rows && rows.length > 0 ? rows[0] : null
@@ -128,7 +130,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods?is_active=eq.true&select=*&limit=1`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods?${SCOPE}&is_active=eq.true&select=*&limit=1`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
         if (res.ok) { const rows = await res.json(); const p = rows?.[0] || null; setActivePeriod(p); if (p) loadSubmissions(p.id) }
       } catch { /* ignore */ }
     })()

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2, Check, Clock, X } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -15,7 +16,8 @@ const STATUS_STYLES = {
 
 function SuggestionsView() {
   const { username, user } = useUser()
-  const { canReviewSuggestions, canSubmitSuggestions } = usePermissions()
+  const { canReviewSuggestions, canSubmitSuggestions, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [suggestions, setSuggestions] = useState([])
   const [newSuggestion, setNewSuggestion] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -39,7 +41,7 @@ function SuggestionsView() {
           ? `&author=eq.${encodeURIComponent(username)}`
           : ''
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/suggestions?select=*&order=created_at.desc${filter}`,
+          `${supabaseUrl}/rest/v1/suggestions?${SCOPE}&select=*&order=created_at.desc${filter}`,
           { headers }
         )
         if (!res.ok) throw new Error(await res.text() || res.statusText)
@@ -123,7 +125,7 @@ function SuggestionsView() {
     try {
       const { error } = await supabase
         .from('suggestions')
-        .insert({ id: suggestion.id, author: suggestion.author, text: suggestion.text })
+        .insert(stampStored({ id: suggestion.id, author: suggestion.author, text: suggestion.text }))
       if (error) {
         console.error('Suggestion insert error:', JSON.stringify(error))
         throw new Error(error.message || error.code || 'Unknown DB error')

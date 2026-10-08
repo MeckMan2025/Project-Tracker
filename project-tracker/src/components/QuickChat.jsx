@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Component } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -45,7 +46,8 @@ const CHANNEL_LABELS = { all: 'All', alliances: 'Alliances', leagues: 'Leagues' 
 
 function QuickChat({ channel = 'all' }) {
   const { username, chatName, nickname, user, isTeam, teamNumber } = useUser()
-  const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat } = usePermissions()
+  const { canUseChat, canDeleteOwnMessages, canDeleteAnyMessage, canPauseMuteChat, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sendError, setSendError] = useState(null)
@@ -110,7 +112,7 @@ function QuickChat({ channel = 'all' }) {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/messages?created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel,avatar_url`,
+        `${supabaseUrl}/rest/v1/messages?${SCOPE}&created_at=gte.${encodeURIComponent(cutoff)}&channel=eq.${channel}&order=created_at.desc&limit=100&select=id,sender,content,created_at,seen_by,channel,avatar_url`,
         { headers: restHeaders() }
       )
       if (!res.ok) return

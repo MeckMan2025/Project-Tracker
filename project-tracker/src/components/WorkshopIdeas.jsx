@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import {
   Plus, Send, Trash2, Check, X, ChevronRight, ChevronLeft, Eye,
@@ -1123,8 +1124,9 @@ function WorkshopCard({ workshop, onClick, showStatus, showActions, onDelete, on
 
 export default function WorkshopIdeas() {
   const { username, user } = useUser()
-  const { hasLeadTag, isGuest } = usePermissions()
+  const { hasLeadTag, isGuest, myTeamNumber} = usePermissions()
 
+  const SCOPE = teamScope(myTeamNumber)
   const canReview = hasLeadTag
   const canCreate = !isGuest
 
@@ -1141,7 +1143,7 @@ export default function WorkshopIdeas() {
 
   const loadWorkshops = async () => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/workshops?select=*&order=created_at.desc`, { headers })
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshops?${SCOPE}&select=*&order=created_at.desc`, { headers })
       if (res.ok) setWorkshops(await res.json())
     } catch (err) {
       console.error('Failed to load workshops:', err)
@@ -1150,7 +1152,7 @@ export default function WorkshopIdeas() {
 
   const loadGallery = async () => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_gallery?select=*&order=created_at.desc`, { headers })
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_gallery?${SCOPE}&select=*&order=created_at.desc`, { headers })
       if (res.ok) setGalleryItems(await res.json())
     } catch (err) {
       console.error('Failed to load gallery:', err)

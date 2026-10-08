@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { lazyHeadersWith } from '../lib/restHeaders'
 import { Plus, Check, X, MessageCircle, ExternalLink } from 'lucide-react'
 import NotificationBell from './NotificationBell'
@@ -33,7 +34,8 @@ const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', denied: 'Denied
 // stay in one place; "needs discussion" is the one status this page owns.
 export default function ExpenseRequests() {
   const { username, user } = useUser()
-  const { canReviewExpenseRequests } = usePermissions()
+  const { canReviewExpenseRequests, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const { requests: pending, handleApprove, handleDeny } = usePendingRequests({ type: 'expense' })
   const { addToast } = useToast()
 
@@ -49,14 +51,14 @@ export default function ExpenseRequests() {
     try {
       if (user) {
         const r = await fetch(
-          `${supabaseUrl}/rest/v1/requests?type=eq.expense&requested_by_user_id=eq.${user.id}&order=created_at.desc&limit=25&select=*`,
+          `${supabaseUrl}/rest/v1/requests?${SCOPE}&type=eq.expense&requested_by_user_id=eq.${user.id}&order=created_at.desc&limit=25&select=*`,
           { headers }
         )
         if (r.ok) setMine(await r.json())
       }
       if (canReviewExpenseRequests) {
         const d = await fetch(
-          `${supabaseUrl}/rest/v1/requests?type=eq.expense&status=eq.discussion&order=created_at.desc&select=*`,
+          `${supabaseUrl}/rest/v1/requests?${SCOPE}&type=eq.expense&status=eq.discussion&order=created_at.desc&select=*`,
           { headers }
         )
         if (d.ok) setDiscussion(await d.json())

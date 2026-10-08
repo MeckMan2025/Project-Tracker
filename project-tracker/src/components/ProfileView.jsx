@@ -117,7 +117,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     setViewedLoading(true)
     const headers = restHeaders()
     const url = inviteId
-      ? `${supabaseUrl}/rest/v1/approved_emails?id=eq.${inviteId}&select=*`
+      ? `${supabaseUrl}/rest/v1/approved_emails?${SCOPE}&id=eq.${inviteId}&select=*`
       : `${supabaseUrl}/rest/v1/profiles?id=eq.${viewingProfileId}&select=*`
     fetch(url, { headers })
       .then(res => res.ok ? res.json() : [])

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { teamScope } from '../lib/teamScope'
+import { usePermissions } from '../hooks/usePermissions'
 import { lazyHeadersWith } from '../lib/restHeaders'
 import { ThumbsUp } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -17,6 +19,8 @@ const fmt = (ts) => ts ? new Date(ts).toLocaleDateString([], { month: 'short', d
 
 export function useIdeasPanel(canReview) {
   const { username } = useUser()
+  const { myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [items, setItems] = useState([])
   const [votes, setVotes] = useState({})
 
@@ -25,8 +29,8 @@ export function useIdeasPanel(canReview) {
     const load = async () => {
       try {
         const [sRes, vRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/suggestions?status=eq.pending&order=created_at.desc&limit=20&select=id,author,text,created_at`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.idea_votes&select=data`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/suggestions?${SCOPE}&status=eq.pending&order=created_at.desc&limit=20&select=id,author,text,created_at`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/scouting_schedule?${SCOPE}&id=eq.idea_votes&select=data`, { headers }),
         ])
         if (!active) return
         if (sRes.ok) setItems(await sRes.json())

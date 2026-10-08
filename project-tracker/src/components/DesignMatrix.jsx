@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
 import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters, withSeen } from '../lib/matrixSession'
 import { triggerPush } from '../utils/pushHelper'
@@ -991,7 +992,8 @@ export default function DesignMatrix({ onBack }) {
   // Everyone reads and rates a matrix; only leads, co-leads and mentors build,
   // change or run one. canEditContent is the same lead check the rest of the
   // app uses, so a role change moves this with it.
-  const { canEditContent } = usePermissions()
+  const { canEditContent, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [matrices, setMatrices] = useState([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('library')
@@ -1006,7 +1008,7 @@ export default function DesignMatrix({ onBack }) {
   useEffect(() => {
     const refresh = async () => {
       try {
-        const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*&order=created_at.desc`, { headers: REST_HEADERS })
+        const res = await fetch(`${REST_URL}/rest/v1/design_matrices?${SCOPE}&select=*&order=created_at.desc`, { headers: REST_HEADERS })
         if (!res.ok) return
         const rows = await res.json()
         setMatrices(rows)
@@ -1019,7 +1021,7 @@ export default function DesignMatrix({ onBack }) {
 
   const fetchMatrices = async () => {
     try {
-      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=*&order=created_at.desc`, { headers: REST_HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?${SCOPE}&select=*&order=created_at.desc`, { headers: REST_HEADERS })
       if (res.ok) setMatrices(await res.json())
     } catch (err) { console.error('Failed to fetch matrices:', err) }
     finally { setLoading(false) }

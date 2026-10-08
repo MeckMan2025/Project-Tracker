@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { teamScope, storedTeamScope } from '../lib/teamScope'
+import { usePermissions } from '../hooks/usePermissions'
 import { lazyHeadersWith } from '../lib/restHeaders'
 import { Play, Square, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -19,7 +21,7 @@ const uid = () => 'm' + Date.now().toString(36) + Math.random().toString(36).sli
 
 const getDoc = async (id) => {
   try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.${id}&select=data`, { headers })
+    const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?${storedTeamScope()}&id=eq.${id}&select=data`, { headers })
     if (!res.ok) return null
     const rows = await res.json()
     return rows?.[0]?.data || null
@@ -137,6 +139,8 @@ export function StatChips({ stats }) {
 
 export default function MeetingRecorder() {
   const { username } = useUser()
+  const { myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [doc, setDoc] = useState(null) // { active, history }
   const [busy, setBusy] = useState(false)
 

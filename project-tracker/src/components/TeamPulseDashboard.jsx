@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -42,7 +43,7 @@ export default function TeamPulseDashboard({ onBack }) {
     const from = nDaysAgo(range - 1)
     // Deliberately NEVER select user_id — keep responses anonymous to leaders
     fetch(
-      `${supabaseUrl}/rest/v1/daily_pulse?pulse_date=gte.${from}&select=mood,mood_note,work_focus,frustration,frustration_note,pulse_date,created_at&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/daily_pulse?${storedTeamScope()}&pulse_date=gte.${from}&select=mood,mood_note,work_focus,frustration,frustration_note,pulse_date,created_at&order=created_at.desc`,
       { headers: restHeaders() },
     )
       .then(r => r.ok ? r.json() : [])

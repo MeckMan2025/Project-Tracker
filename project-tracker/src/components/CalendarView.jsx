@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import {
@@ -147,7 +148,8 @@ function expandRecurrence(event, from, to) {
 // ---------------------------------------------------------------------------
 function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
   const { username, user, functionTags, isTeam } = useUser()
-  const { canEditContent, canReviewRequests, isGuest, canAddEvents, hasLeadTag } = usePermissions()
+  const { canEditContent, canReviewRequests, isGuest, canAddEvents, hasLeadTag, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   // A non-lead's events are tagged with the functional role that let them
   // create it — Outreach can only add Outreach events. Leads create team-wide
   // events (role stays null).
@@ -191,7 +193,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       const url = import.meta.env.VITE_SUPABASE_URL
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY
       try {
-        const res = await fetch(`${url}/rest/v1/calendar_events?order=date_key.asc&select=*`, {
+        const res = await fetch(`${url}/rest/v1/calendar_events?${SCOPE}&order=date_key.asc&select=*`, {
           headers: restHeaders(),
         })
         const data = await res.json()
@@ -226,7 +228,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       const url = import.meta.env.VITE_SUPABASE_URL
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY
       try {
-        const res = await fetch(`${url}/rest/v1/calendar_birthday_reactions?select=*`, {
+        const res = await fetch(`${url}/rest/v1/calendar_birthday_reactions?${SCOPE}&select=*`, {
           headers: restHeaders(),
         })
         const data = await res.json()
@@ -436,7 +438,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
         status: 'pending',
       }
       addToast('Request sent! A lead will review it.', 'success')
-      const { error } = await supabase.from('requests').insert(request)
+      const { error } = await supabase.from('requests').insert(stampStored(request))
       if (error) { console.error(error); addToast('Could not submit request: ' + error.message, 'error') }
       else notifyRequestReviewers(request)
       return
@@ -639,7 +641,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       emoji,
     }
     setReactions(prev => ({ ...prev, [eventId]: [...(prev[eventId] || []), { id: row.id, username, emoji }] }))
-    await supabase.from('calendar_birthday_reactions').insert(row)
+    await supabase.from('calendar_birthday_reactions').insert(stampStored(row))
   }
 
   const handleEventClick = (ev) => {

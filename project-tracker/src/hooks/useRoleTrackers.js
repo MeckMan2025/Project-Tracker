@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { SEED_TRACKERS, SEED_VERSION, RETIRED_SEED_IDS } from '../data/roleTrackers'
@@ -19,7 +20,7 @@ export function useRoleTrackers() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${url}/rest/v1/scouting_schedule?id=eq.${DOC_ID}&select=data`, { headers })
+        const res = await fetch(`${url}/rest/v1/scouting_schedule?${storedTeamScope()}&id=eq.${DOC_ID}&select=data`, { headers })
         if (res.ok) {
           const rows = await res.json()
           const saved = rows?.[0]?.data?.trackers

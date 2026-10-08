@@ -1,4 +1,5 @@
 import { lazyRestHeaders } from '../lib/restHeaders'
+import { storedTeamScope } from '../lib/teamScope'
 
 // Birthdays already live on the calendar as events with category 'birthday',
 // so there's nothing new to fill in — this just reads them.
@@ -40,7 +41,7 @@ export function birthdaysOn(events, isoDate) {
 export async function fetchBirthdayEvents() {
   try {
     const res = await fetch(
-      `${REST_URL}/rest/v1/calendar_events?select=id,name,date_key&category=eq.birthday`,
+      `${REST_URL}/rest/v1/calendar_events?${storedTeamScope()}&select=id,name,date_key&category=eq.birthday`,
       { headers: HEADERS }
     )
     return res.ok ? await res.json() : []

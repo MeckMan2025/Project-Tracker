@@ -58,7 +58,7 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
 
   useEffect(() => {
     const today = localDay()
-    fetch(`${REST_URL}/rest/v1/calendar_events?select=id,name,date_key,start_time,event_type&date_key=gte.${today}&order=date_key`,
+    fetch(`${REST_URL}/rest/v1/calendar_events?${SCOPE}&select=id,name,date_key,start_time,event_type&date_key=gte.${today}&order=date_key`,
       { headers: HEADERS })
       .then(r => (r.ok ? r.json() : []))
       .then(rows => setEvents(Array.isArray(rows) ? rows : []))

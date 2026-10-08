@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { teamScope } from '../lib/teamScope'
+import { usePermissions } from '../hooks/usePermissions'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -14,6 +16,8 @@ const HEADERS = lazyRestHeaders
 // think to go and look.
 export default function MatrixRatingRequired() {
   const { username } = useUser()
+  const { myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [pending, setPending] = useState([])
   const [reveal, setReveal] = useState(null)
   const [results, setResults] = useState(null)
@@ -43,7 +47,7 @@ export default function MatrixRatingRequired() {
     try {
       // Re-read first: several people can finish watching at once, and this is a
       // read-modify-write on one jsonb column.
-      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?id=eq.${id}&select=scores`, { headers: HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?${SCOPE}&id=eq.${id}&select=scores`, { headers: HEADERS })
       if (!res.ok) return
       const rows = await res.json()
       const scores = rows?.[0]?.scores
@@ -67,7 +71,7 @@ export default function MatrixRatingRequired() {
     // votes inside `scores`, which both need, so the real saving is in how
     // rarely this runs — see the effect below.
     try {
-      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?select=id,title,description,options,criteria,scores`, { headers: HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/design_matrices?${SCOPE}&select=id,title,description,options,criteria,scores`, { headers: HEADERS })
       if (!res.ok) return
       const rows = await res.json()
       // An empty matrix has nothing to rate — never trap anyone behind one.

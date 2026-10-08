@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { teamScope } from '../lib/teamScope'
+import { usePermissions } from '../hooks/usePermissions'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { Megaphone, BarChart3, Check } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -12,6 +14,8 @@ const fetchHeaders = lazyRestHeaders
 
 function AnnouncementsView() {
   const { username, user } = useUser()
+  const { myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const { addToast } = useToast()
   const [announcements, setAnnouncements] = useState([])
   const [votes, setVotes] = useState([])
@@ -21,7 +25,7 @@ function AnnouncementsView() {
   useEffect(() => {
     async function load() {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/announcements?select=*&order=created_at.desc`,
+        `${supabaseUrl}/rest/v1/announcements?${SCOPE}&select=*&order=created_at.desc`,
         { headers: fetchHeaders }
       )
       if (res.ok) setAnnouncements(await res.json())
@@ -33,7 +37,7 @@ function AnnouncementsView() {
   useEffect(() => {
     async function load() {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/announcement_votes?select=*`,
+        `${supabaseUrl}/rest/v1/announcement_votes?${SCOPE}&select=*`,
         { headers: fetchHeaders }
       )
       if (res.ok) setVotes(await res.json())

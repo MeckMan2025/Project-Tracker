@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -7,7 +8,8 @@ import { MessageSquareQuote, Check, Trash2, X, ArrowLeft } from 'lucide-react'
 
 export default function QuotesManager({ onBack }) {
   const { username } = useUser()
-  const { canApproveQuotes, isGuest, hasLeadTag } = usePermissions()
+  const { canApproveQuotes, isGuest, hasLeadTag, myTeamNumber} = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -19,7 +21,7 @@ export default function QuotesManager({ onBack }) {
 
   useEffect(() => {
     const headers = restHeaders()
-    fetch(`${supabaseUrl}/rest/v1/fun_quotes?select=*&order=created_at.desc`, { headers })
+    fetch(`${supabaseUrl}/rest/v1/fun_quotes?${SCOPE}&select=*&order=created_at.desc`, { headers })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         setApprovedQuotes(data.filter(q => q.approved))

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, Users, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -15,7 +16,7 @@ function InterestedTeams({ onBack, canDelete }) {
     async function load() {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/interested_teams?select=*&order=created_at.desc`,
+          `${supabaseUrl}/rest/v1/interested_teams?${storedTeamScope()}&select=*&order=created_at.desc`,
           { headers }
         )
         if (res.ok) setSubmissions(await res.json())

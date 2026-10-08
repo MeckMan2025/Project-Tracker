@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { scopeQuery, stampStored } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -10,9 +11,9 @@ export function usePendingRequests({ type, boardId } = {}) {
 
   useEffect(() => {
     async function load() {
-      let query = supabase
+      let query = scopeQuery(supabase
         .from('requests')
-        .select('*')
+        .select('*'))
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
@@ -257,11 +258,11 @@ export function usePendingRequests({ type, boardId } = {}) {
       }
 
       // Insert reminder record
-      await supabase.from('request_reminders').insert({
+      await supabase.from('request_reminders').insert(stampStored({
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         request_id: request.id,
         reminded_by_user_id: user.id,
-      })
+      }))
 
       // Get all top-tier approvers
       const { data: approvers } = await supabase

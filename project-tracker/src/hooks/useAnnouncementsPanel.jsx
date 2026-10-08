@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 
@@ -19,7 +20,7 @@ export function useAnnouncementsPanel() {
     let active = true
     const load = async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/announcements?select=id,title,body,author_name,created_at&order=created_at.desc&limit=15`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/announcements?${storedTeamScope()}&select=id,title,body,author_name,created_at&order=created_at.desc&limit=15`, { headers })
         if (res.ok && active) setItems(await res.json())
       } catch { /* ignore */ }
     }

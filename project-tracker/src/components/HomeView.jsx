@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
+import { teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
@@ -70,6 +71,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   const { username, user, functionTags } = useUser()
   const { isGuest, hasLeadTag, myTeamNumber } = usePermissions()
 
+  const SCOPE = teamScope(myTeamNumber)
   // Our Goals is Radical's own season goals, hard-coded in lib/seasonGoals.
   // Beyond the Mean has its own season and isn't measured against ours, so
   // showing them there would be wrong rather than merely irrelevant. My Tasks
@@ -164,25 +166,25 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
     const fetchCompDay = async () => {
       try {
         // Check active session
-        const activeRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1&select=id`, { headers })
+        const activeRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?${SCOPE}&is_active=eq.true&limit=1&select=id`, { headers })
         const activeData = await activeRes.json()
         setCompDayActive(Array.isArray(activeData) && activeData.length > 0)
 
         // Find upcoming or most recent session for role preview
         if (!username) return
-        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?order=created_at.desc&limit=1&select=id,name,session_date`, { headers })
+        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?${SCOPE}&order=created_at.desc&limit=1&select=id,name,session_date`, { headers })
         const sessions = await sessRes.json()
         if (!Array.isArray(sessions) || sessions.length === 0) return
 
         const session = sessions[0]
         // Get my assignments for this session
-        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?session_id=eq.${session.id}&username=eq.${encodeURIComponent(username)}&select=role,block_id`, { headers })
+        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?${SCOPE}&session_id=eq.${session.id}&username=eq.${encodeURIComponent(username)}&select=role,block_id`, { headers })
         const assigns = await assignRes.json()
         if (!Array.isArray(assigns) || assigns.length === 0) { setCompDayPreview(null); return }
 
         // Get block names
         const blockIds = [...new Set(assigns.map(a => a.block_id))]
-        const blocksRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?session_id=eq.${session.id}&order=order_index.asc&select=id,name`, { headers })
+        const blocksRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?${SCOPE}&session_id=eq.${session.id}&order=order_index.asc&select=id,name`, { headers })
         const blocks = await blocksRes.json()
         const blockMap = Object.fromEntries((blocks || []).map(b => [b.id, b.name]))
 
@@ -200,7 +202,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
 
-    fetch(`${supabaseUrl}/rest/v1/calendar_events?date_key=gte.${today}&order=date_key.asc&limit=1&select=*`, { headers })
+    fetch(`${supabaseUrl}/rest/v1/calendar_events?${SCOPE}&date_key=gte.${today}&order=date_key.asc&limit=1&select=*`, { headers })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         setNextEvent(data && data.length > 0 ? data[0] : null)
@@ -208,7 +210,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
       })
       .catch(() => setEventLoading(false))
 
-    fetch(`${supabaseUrl}/rest/v1/fun_quotes?approved=eq.true&select=*`, { headers })
+    fetch(`${supabaseUrl}/rest/v1/fun_quotes?${SCOPE}&approved=eq.true&select=*`, { headers })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (data && data.length > 0) {
@@ -228,7 +230,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   const loadPhotos = async () => {
     if (!isHomeTeam) { setPhotos([]); return }
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/season_photos?select=*&order=created_at.desc`, { headers })
+      const res = await fetch(`${supabaseUrl}/rest/v1/season_photos?${SCOPE}&select=*&order=created_at.desc`, { headers })
       if (res.ok) setPhotos(await res.json())
     } catch {}
   }
@@ -297,7 +299,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   const loadIdeas = async () => {
     try {
       const authHeaders = await getAuthHeaders()
-      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?select=*&order=created_at.desc`, { headers: authHeaders })
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_ideas?${SCOPE}&select=*&order=created_at.desc`, { headers: authHeaders })
       if (res.ok) setIdeas(await res.json())
     } catch {}
   }
@@ -367,7 +369,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
   useEffect(() => {
     const startKey = weekDays[0].key
     const endKey = weekDays[6].key
-    fetch(`${supabaseUrl}/rest/v1/calendar_events?date_key=gte.${startKey}&date_key=lte.${endKey}&select=id,name,date_key,event_type`, { headers })
+    fetch(`${supabaseUrl}/rest/v1/calendar_events?${SCOPE}&date_key=gte.${startKey}&date_key=lte.${endKey}&select=id,name,date_key,event_type`, { headers })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         const grouped = {}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { notifyRequestReviewers } from '../utils/requestRouting'
 import { Pencil, UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight, GraduationCap } from 'lucide-react'
@@ -125,6 +126,7 @@ const inviteName = (email) => {
 function UserManagement({ onViewProfile }) {
   const { user, username } = useUser()
   const { canManageUsers, canAdminAccounts, canChangeRoles, canRequestRoles, hasLeadTag, canManageOwnTeam, myTeamNumber } = usePermissions()
+  const SCOPE = teamScope(myTeamNumber)
   const [whitelistedEmails, setWhitelistedEmails] = useState([])
   const [registeredMembers, setRegisteredMembers] = useState([])
 
@@ -381,7 +383,7 @@ function UserManagement({ onViewProfile }) {
     (async () => {
       try {
         const headers = await getAuthHeaders()
-        const res = await fetch(`${supabaseUrl}/rest/v1/past_members?select=*&order=removed_at.desc`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/past_members?${SCOPE}&select=*&order=removed_at.desc`, { headers })
         if (res.ok) {
           const data = await res.json()
           if (Array.isArray(data)) setPastMembers(data)
@@ -834,7 +836,7 @@ function UserManagement({ onViewProfile }) {
         requested_by_user_id: user.id,
         status: 'pending',
       }
-      const { error } = await supabase.from('requests').insert(request)
+      const { error } = await supabase.from('requests').insert(stampStored(request))
       if (error) throw error
       notifyRequestReviewers(request)
       setRoleRequestSuccess(`Requested "${role}" — a lead will review it.`)

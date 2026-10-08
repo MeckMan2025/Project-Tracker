@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { X, Clock } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -30,7 +31,7 @@ export default function MeetingRecapPopup() {
     // Catch up on a meeting that ended while the app was closed…
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?id=eq.meeting_log&select=data`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_schedule?${storedTeamScope()}&id=eq.meeting_log&select=data`, { headers })
         if (res.ok) {
           const rows = await res.json()
           consider(rows?.[0]?.data)

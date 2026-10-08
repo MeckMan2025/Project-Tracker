@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { scopeQuery, stampStored, teamScope } from './lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from './lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
 import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES, sidesForTags, EVERYONE, UP_FOR_GRABS } from './lib/taskTeams'
@@ -435,8 +436,9 @@ function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
-  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
+  const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs, myTeamNumber} = usePermissions()
 
+  const SCOPE = teamScope(myTeamNumber)
   // The task-load popup renders in several places, so it asks for navigation
   // by event instead of a threaded callback.
   useEffect(() => {
@@ -585,7 +587,7 @@ function App() {
       try {
         const [prefRes, pulseRes] = await Promise.all([
           fetch(`${url}/rest/v1/profiles?id=eq.${user.id}&select=notification_prefs`, { headers }),
-          fetch(`${url}/rest/v1/daily_pulse?user_id=eq.${user.id}&pulse_date=eq.${todayKey}&select=id&limit=1`, { headers }),
+          fetch(`${url}/rest/v1/daily_pulse?${SCOPE}&user_id=eq.${user.id}&pulse_date=eq.${todayKey}&select=id&limit=1`, { headers }),
         ])
         if (cancelled) return
         const prefs = (await prefRes.json())[0]?.notification_prefs || {}
@@ -610,16 +612,16 @@ function App() {
       if (document.visibilityState !== 'visible') return
       try {
         // Find active session
-        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?is_active=eq.true&limit=1&select=id`, { headers })
+        const sessRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?${SCOPE}&is_active=eq.true&limit=1&select=id`, { headers })
         const sessions = await sessRes.json()
         if (!Array.isArray(sessions) || sessions.length === 0) { if (!cancelled) setCompDayLock(null); return }
         const sessionId = sessions[0].id
         // Find active block
-        const blockRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?session_id=eq.${sessionId}&is_active=eq.true&limit=1&select=id`, { headers })
+        const blockRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_blocks?${SCOPE}&session_id=eq.${sessionId}&is_active=eq.true&limit=1&select=id`, { headers })
         const blocks = await blockRes.json()
         if (!Array.isArray(blocks) || blocks.length === 0) { if (!cancelled) setCompDayLock(null); return }
         // Find my assignment
-        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?block_id=eq.${blocks[0].id}&username=eq.${encodeURIComponent(username)}&limit=1&select=role`, { headers })
+        const assignRes = await fetch(`${supabaseUrl}/rest/v1/comp_day_assignments?${SCOPE}&block_id=eq.${blocks[0].id}&username=eq.${encodeURIComponent(username)}&limit=1&select=role`, { headers })
         const assigns = await assignRes.json()
         if (!cancelled) {
           if (Array.isArray(assigns) && assigns.length > 0) {
@@ -1291,9 +1293,9 @@ function App() {
 
   const handleLeaveTaskRequest = async (task) => {
     // Check for duplicate pending leave_task request
-    const { data: existing } = await supabase
+    const { data: existing } = await scopeQuery(supabase
       .from('requests')
-      .select('id')
+      .select('id'))
       .eq('type', 'leave_task')
       .eq('status', 'pending')
       .eq('requested_by_user_id', user.id)
@@ -1325,7 +1327,7 @@ function App() {
 
     addToast('Leave request sent! A lead will review it.', 'success')
     try {
-      await supabase.from('requests').insert(request)
+      await supabase.from('requests').insert(stampStored(request))
     } catch (err) {
       console.error('Error submitting leave request:', err)
     }
@@ -1351,7 +1353,7 @@ function App() {
     }
     addToast('Request sent! A lead will review it.', 'success')
     try {
-      await supabase.from('requests').insert(request)
+      await supabase.from('requests').insert(stampStored(request))
     } catch (err) {
       console.error('Error submitting request:', err)
     }
