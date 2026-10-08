@@ -868,7 +868,11 @@ function App() {
       console.error('Unexpected error loading data:', err)
       setLoadError('Failed to load data. Please try again.')
     }
-  }, [user?.id, isTeam, teamNumber])
+    // teamFullAccess decides which tabs a sister team gets, and it resolves
+    // from a lookup that can land after this has already run. Without it in
+    // here, whichever finished first decided — so the team's features appeared
+    // or vanished at random, and on every refresh.
+  }, [user?.id, isTeam, teamNumber, teamFullAccess])
 
   useEffect(() => {
     loadData()

@@ -46,7 +46,23 @@ export function UserProvider({ children }) {
   const [isTeamController, setIsTeamController] = useState(false)
   // A sister team runs the whole app rather than just boards. The flag lives
   // on the team row, so turning one on is a database change and not a deploy.
-  const [teamFullAccess, setTeamFullAccess] = useState(false)
+  // Seeded from the last answer rather than false.
+  //
+  // This decides which tabs a sister team gets, and it arrives from a lookup
+  // that takes a moment. Starting at false meant every refresh built the
+  // cut-down tab list first and only sometimes rebuilt it when the real answer
+  // landed — the team's features came and went depending on which finished
+  // first. The stored value is a guess, corrected a beat later by the lookup
+  // either way; it just stops the guess from being wrong every time.
+  const [teamFullAccess, setTeamFullAccess] = useState(
+    () => { try { return localStorage.getItem('scrum-team-full-access') === 'true' } catch { return false } }
+  )
+
+  // One place to set it, so the remembered copy cannot drift from the state.
+  const applyTeamFullAccess = (v) => {
+    setTeamFullAccess(!!v)
+    try { localStorage.setItem('scrum-team-full-access', String(!!v)) } catch { /* ignore */ }
+  }
   const [teamNumber, setTeamNumber] = useState(() => localStorage.getItem('scrum-team-number') || '')
 
   // Auth account exists but its profile row is gone (deleted members were
@@ -141,7 +157,7 @@ export function UserProvider({ children }) {
   // Best effort: before the column exists, or if the lookup fails, nobody is a
   // controller — which locks the feature rather than opening it.
   const checkTeamController = async (userId, teamNum, attempt = 0) => {
-    if (!userId) { setIsTeamController(false); setTeamFullAccess(false); return }
+    if (!userId) { setIsTeamController(false); applyTeamFullAccess(false); return }
     try {
       // These two answers decide whether a coach is a lead of their own team,
       // so they have to be asked as that coach. team_accounts is behind RLS
@@ -167,7 +183,7 @@ export function UserProvider({ children }) {
         }
         // Out of tries: leave it locked, which is the safe direction.
         setIsTeamController(false)
-        setTeamFullAccess(false)
+        applyTeamFullAccess(false)
         return
       }
       const authed = { apikey: anonKey, Authorization: `Bearer ${token}` }
@@ -187,11 +203,11 @@ export function UserProvider({ children }) {
       setIsTeamController(Array.isArray(mine) && mine.length > 0)
 
       const team = teamRes && teamRes.ok ? await teamRes.json() : []
-      setTeamFullAccess(!!team?.[0]?.full_access)
+      applyTeamFullAccess(!!team?.[0]?.full_access)
     } catch {
       // Locks the feature rather than opening it.
       setIsTeamController(false)
-      setTeamFullAccess(false)
+      applyTeamFullAccess(false)
     }
   }
 
