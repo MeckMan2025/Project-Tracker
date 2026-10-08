@@ -3,7 +3,8 @@ import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { teamScope } from '../lib/teamScope'
+import { teamScope, stampTeam } from '../lib/teamScope'
+import { ensureSessionForDate, genId, todayStr } from '../lib/attendanceSession'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
 import { excludedFromAttendance } from '../lib/attendanceRoster'
@@ -12,15 +13,6 @@ const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const REST_HEADERS = lazyRestHeaders
 const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
-function genId() {
-  return String(Date.now()) + Math.random().toString(36).slice(2)
-}
-
-function todayStr() {
-  const d = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
 
 const STATUS_COLORS = {
   present: 'bg-green-100 text-green-700',
@@ -173,119 +165,28 @@ export default function AttendanceManager({ onBack }) {
         return
       }
 
-      // Local state goes stale when a tab is left open and the realtime socket
-      // drops, so ask the server before inserting — that is how a second lead
-      // ended up starting a session someone else had already started.
       try {
-        const res = await fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
-        if (res.ok) {
-          const rows = await res.json()
-          if (rows.length > 0) {
-            showFeedback(`There's already a session for ${today}. Opening it.`)
-            await openExistingSession(rows[0])
-            return
-          }
-        }
-      } catch {}
-
-      // Re-fetch profiles right now to get fresh last_seen_at
-      let freshProfiles = profiles
-      try {
-        const res = await fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,authority_tier,function_tags,last_seen_at`, { headers: REST_HEADERS })
-        if (res.ok) {
-          freshProfiles = await res.json()
-          setProfiles(freshProfiles)
-        }
-      } catch {}
-
-      const freshMembers = freshProfiles.filter(p => p.display_name && p.authority_tier !== 'guest' && !excludeFromAttendance(p))
-
-      // Whoever already told us they'd miss this meeting. Marking them present
-      // and waiting for a lead to undo it would throw away the one thing they
-      // did right, so their notice is honoured from the start: excused if they
-      // filed in time, absent if they filed late. A 'partial' notice means
-      // they'll be here for some of it, so that still starts present.
-      const noticed = new Map()
-      try {
-        const nres = await fetch(
-          `${REST_URL}/rest/v1/absence_notices?${SCOPE}&meeting_date=eq.${today}&select=username,on_time,kind`,
-          { headers: REST_HEADERS })
-        if (nres.ok) for (const n of await nres.json()) noticed.set(n.username, n)
-      } catch {}
-
-      const startingStatus = (name) => {
-        const n = noticed.get(name)
-        if (n && n.kind === 'out') return n.on_time ? 'excused' : 'absent'
-        return 'present'
-      }
-
-      const sessionId = genId()
-      const session = {
-        id: sessionId,
-        session_date: today,
-        created_by: username,
-        notes: '',
-        created_at: new Date().toISOString(),
-      }
-
-      // Everyone starts present and a lead taps down the few who aren't. That
-      // is the shorter job at almost every meeting, and it beats the old rule
-      // — present only if the app had been open in the last 30 seconds —
-      // which marked the whole room absent whenever nobody had it open.
-      const newRecords = freshMembers.map(p => ({
-        id: genId(),
-        session_id: sessionId,
-        username: p.display_name,
-        status: startingStatus(p.display_name),
-        marked_by: username,
-        created_at: new Date().toISOString(),
-      }))
-
-      // Optimistic update
-      setSessions(prev => [session, ...prev])
-      setRecords(prev => [...prev, ...newRecords])
-
-      try {
-        const sessRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions`, {
-          method: 'POST', headers: REST_JSON, body: JSON.stringify(session),
-        })
-        if (!sessRes.ok) {
-          // 409 = the one-session-per-day unique index caught a race we lost.
-          if (sessRes.status === 409) {
-            setSessions(prev => prev.filter(s => s.id !== sessionId))
-            setRecords(prev => prev.filter(r => r.session_id !== sessionId))
-            const dupeRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${today}&select=*&order=created_at&limit=1`, { headers: REST_HEADERS })
-            const rows = dupeRes.ok ? await dupeRes.json() : []
-            if (rows.length > 0) {
-              showFeedback('Someone already started today\u2019s session. Opening it.')
-              await openExistingSession(rows[0])
-              return
-            }
-          }
-          const errText = await sessRes.text()
-          console.error('Session insert failed:', errText)
-          setSessions(prev => prev.filter(s => s.id !== sessionId))
-          setRecords(prev => prev.filter(r => r.session_id !== sessionId))
-          showFeedback('Error creating session: ' + errText)
+        const { session, records: sessRecords, created, profiles: fresh } =
+          await ensureSessionForDate({ date: today, username, teamNumber: myTeamNumber })
+        if (fresh) setProfiles(fresh)
+        if (!created) {
+          showFeedback(`There's already a session for ${today}. Opening it.`)
+          await openExistingSession(session)
           return
         }
-        // Insert records in batch
-        const recRes = await fetch(`${REST_URL}/rest/v1/attendance_records`, {
-          method: 'POST', headers: REST_JSON, body: JSON.stringify(newRecords),
+        setSessions(prev => prev.some(s => s.id === session.id) ? prev : [session, ...prev])
+        setRecords(prev => {
+          const known = new Set(prev.map(r => r.id))
+          return [...prev, ...sessRecords.filter(r => !known.has(r.id))]
         })
-        if (!recRes.ok) {
-          const errText = await recRes.text()
-          console.error('Records insert failed:', errText)
-          showFeedback('Error saving records: ' + errText)
-          return
-        }
-        const presentCount = newRecords.filter(r => r.status === 'present').length
-        showFeedback(`Session created! ${presentCount}/${newRecords.length} present.`)
+        const presentCount = sessRecords.filter(r => r.status === 'present').length
+        showFeedback(`Session created! ${presentCount}/${sessRecords.length} present.`)
         setSelectedSession(session)
         setEditing(true)
       } catch (err) {
         console.error('Failed to take attendance:', err)
-        showFeedback('Error: ' + err.message)
+        if (err.session) setSessions(prev => prev.some(s => s.id === err.session.id) ? prev : [err.session, ...prev])
+        showFeedback(err.message.startsWith('Error') ? err.message : 'Error: ' + err.message)
       }
     } finally {
       creatingRef.current = false
@@ -408,14 +309,14 @@ export default function AttendanceManager({ onBack }) {
     // A "no record" placeholder (member added after this meeting) has no DB row
     // yet — the first tap creates one, marked present, then it cycles normally.
     if (record.virtual) {
-      const newRec = {
+      const newRec = stampTeam({
         id: genId(),
         session_id: record.session_id,
         username: record.username,
         status: 'present',
         marked_by: username,
         created_at: new Date().toISOString(),
-      }
+      }, myTeamNumber)
       setRecords(prev => [...prev, newRec])
       try {
         await fetch(`${REST_URL}/rest/v1/attendance_records`, {
@@ -450,14 +351,14 @@ export default function AttendanceManager({ onBack }) {
       showFeedback(`${personName} is already in this session.`)
       return
     }
-    const record = {
+    const record = stampTeam({
       id: genId(),
       session_id: sessionId,
       username: personName,
       status: 'present',
       marked_by: username,
       created_at: new Date().toISOString(),
-    }
+    }, myTeamNumber)
     setRecords(prev => [...prev, record])
     setAddingUser(false)
     try {
