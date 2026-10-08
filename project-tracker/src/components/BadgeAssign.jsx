@@ -4,6 +4,7 @@ import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import { usePermissions } from '../hooks/usePermissions'
 import { teamScope } from '../lib/teamScope'
 import { excludedFromAttendance } from '../lib/attendanceRoster'
+import { normalizeBadge } from '../lib/badgeCode'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_HEADERS = lazyRestHeaders
@@ -38,7 +39,7 @@ export default function BadgeAssign({ onBack }) {
   useEffect(() => { if (assigning) inputRef.current?.focus() }, [assigning])
 
   const save = async (person, raw) => {
-    const badge = raw == null ? null : String(raw).trim() || null
+    const badge = raw == null ? null : normalizeBadge(raw) || null
     const owner = badge && people.find(p => p.badge_id === badge && p.id !== person.id)
     if (owner) {
       setMessage({ ok: false, text: `Badge ${badge} already belongs to ${owner.display_name}.` })

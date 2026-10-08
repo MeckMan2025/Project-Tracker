@@ -7,7 +7,7 @@
 import { lazyHeadersWith, lazyRestHeaders } from './restHeaders'
 import { teamScope, stampTeam } from './teamScope'
 import { ensureSessionForDate, genId, todayStr } from './attendanceSession'
-import { badgeScanCode } from './badgeCode'
+import { badgeScanCode, normalizeBadge } from './badgeCode'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_HEADERS = lazyRestHeaders
@@ -20,7 +20,7 @@ export const SCANNER = 'badge-scanner'
 //   { ok: true,  name, code, record, session, already }   scanned earlier today
 //   { ok: false, error }                                  unknown badge, or the server said no
 export async function recordBadgeScan(rawBadge, { username, teamNumber }) {
-  const badge = String(rawBadge || '').trim()
+  const badge = normalizeBadge(rawBadge)
   if (!badge) return { ok: false, error: 'Empty scan' }
   const scope = teamScope(teamNumber)
 
