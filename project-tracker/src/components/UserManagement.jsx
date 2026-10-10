@@ -589,7 +589,11 @@ function UserManagement({ onViewProfile }) {
         body: JSON.stringify({
           email,
           password: newTeamPassword,
-          displayName: `Team ${newTeamNumber.trim()} - ${newTeamName.trim()}`,
+          // The team's own name, not "Team <number> - <name>". The number is
+          // already a column and shown wherever it matters; stitching it into
+          // the display name meant the name on a profile read as a label for a
+          // team rather than a name, which is not what a profile is for.
+          displayName: newTeamName.trim(),
           role: 'member',
         }),
       })
@@ -701,7 +705,7 @@ function UserManagement({ onViewProfile }) {
       await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${editTeam.user_id}`, {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ display_name: `Team ${num} - ${name}`, email: mail || null }),
+        body: JSON.stringify({ display_name: name, email: mail || null }),
       }).catch(err => console.error('Could not update the team profile:', err))
 
       setTeams(prev => prev.map(t => t.team_number === num
