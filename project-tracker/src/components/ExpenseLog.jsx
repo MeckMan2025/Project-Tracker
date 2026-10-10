@@ -55,7 +55,11 @@ const money = (n) =>
 
 export default function ExpenseLog() {
   const { username } = useUser()
-  const { canOrganizeNotebook: isLead, myTeamNumber } = usePermissions()
+  // Marking a row as copied into the spreadsheet is finance's job, so it is
+  // whoever already deals with the money: a Finance role, the Business Lead,
+  // or a full lead. Everyone else sees the state without being able to change
+  // it, which is the point — you need to know whether it has been done.
+  const { canOrganizeNotebook: isLead, canViewFinanceTabs: canMarkSheet, myTeamNumber } = usePermissions()
   // One rule for whose rows these are — see lib/teamScope.js.
   const SCOPE = teamScope(myTeamNumber)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -95,6 +99,34 @@ export default function ExpenseLog() {
   }, []) // eslint-disable-line
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+  // Tick or untick "in the spreadsheet". Optimistic, and put back if the save
+  // fails — getting this wrong in either direction causes a double entry or a
+  // missing one, so it should never silently disagree with the database.
+  const toggleSheet = async (row) => {
+    if (!canMarkSheet) return
+    const next = !row.in_spreadsheet
+    const before = rows
+    setRows(prev => prev.map(r => r.id === row.id
+      ? { ...r, in_spreadsheet: next, spreadsheet_by: next ? username : null,
+          spreadsheet_at: next ? new Date().toISOString() : null }
+      : r))
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/expense_log?id=eq.${row.id}`, {
+        method: 'PATCH',
+        headers: { ...restHeaders(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          in_spreadsheet: next,
+          spreadsheet_by: next ? username : null,
+          spreadsheet_at: next ? new Date().toISOString() : null,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (err) {
+      console.error('Could not update the spreadsheet mark:', err)
+      setRows(before)
+    }
+  }
+
   const canRemoveAny = rows.some(r => isLead || r.username === username)
 
   // Cost is per item, so the line total is the product. Shown while you type
@@ -385,6 +417,24 @@ export default function ExpenseLog() {
                         <p className="text-xs text-gray-400 mt-0.5">Logged by {r.username}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
+                        {/* Whether this row has been carried into the finance
+                            spreadsheet. Readable by everyone, changeable by
+                            the people who keep the sheet. */}
+                        <button
+                          type="button"
+                          onClick={() => toggleSheet(r)}
+                          disabled={!canMarkSheet}
+                          title={r.in_spreadsheet
+                            ? `In the spreadsheet${r.spreadsheet_by ? ` — ${r.spreadsheet_by}` : ''}`
+                            : (canMarkSheet ? 'Mark as added to the spreadsheet' : 'Not in the spreadsheet yet')}
+                          className={`text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                            r.in_spreadsheet
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-400'
+                          } ${canMarkSheet ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}`}
+                        >
+                          {r.in_spreadsheet ? '✓ Sheet' : 'Not in sheet'}
+                        </button>
                         {r.reimbursement && (
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-pastel-orange/40 text-gray-700">
                             Reimburse
