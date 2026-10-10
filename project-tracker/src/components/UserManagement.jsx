@@ -261,6 +261,7 @@ function UserManagement({ onViewProfile }) {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamPassword, setNewTeamPassword] = useState('')
   const [newTeamLeague, setNewTeamLeague] = useState('')
+  const [newCoachName, setNewCoachName] = useState('')
   // A real address for the team. Accounts used to be created as
   // team<number>@teams.radical, which is not a real address: the team could
   // never be told what it was, could never reset their own password, and had
@@ -589,11 +590,12 @@ function UserManagement({ onViewProfile }) {
         body: JSON.stringify({
           email,
           password: newTeamPassword,
-          // The team's own name, not "Team <number> - <name>". The number is
-          // already a column and shown wherever it matters; stitching it into
-          // the display name meant the name on a profile read as a label for a
-          // team rather than a name, which is not what a profile is for.
-          displayName: newTeamName.trim(),
+          // The coach's name. This login is a person — their profile, their
+          // display name — and naming it after the team made Jason's profile
+          // say "Prime Suspects". Falls back to the team name when no coach
+          // name was given, which is still better than the old
+          // "Team <number> - <name>".
+          displayName: newCoachName.trim() || newTeamName.trim(),
           role: 'member',
         }),
       })
@@ -642,7 +644,7 @@ function UserManagement({ onViewProfile }) {
       setNewTeamNumber('')
       setNewTeamName('')
       setNewTeamPassword('')
-      setNewTeamLeague('')
+      setNewTeamLeague(''); setNewCoachName('')
       setNewTeamEmail('')
       setShowAddTeam(false)
     } catch (err) {
@@ -1411,6 +1413,16 @@ function UserManagement({ onViewProfile }) {
                         placeholder="Coach email"
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                         required
+                      />
+                      {/* The account belongs to a person, so it is named after
+                          one. Without this the login was called after the team
+                          and the coach's own profile read as a team. */}
+                      <input
+                        type="text"
+                        value={newCoachName}
+                        onChange={(e) => setNewCoachName(e.target.value)}
+                        placeholder="Coach name"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pastel-blue focus:border-transparent text-sm"
                       />
                       <PasswordInput
                         value={newTeamPassword}
