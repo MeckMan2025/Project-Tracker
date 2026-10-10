@@ -48,6 +48,23 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 const newId = () => String(Date.now()) + Math.random().toString(36).slice(2)
 
+// Opened inside the Scrum app by a reminder (the app's own notification goes
+// to /helper/?from=app). Remembered for the visit, so it survives a reload.
+// Only ever true on the Helper's own page, never in the Scrum app's panel.
+const openedFromApp = (() => {
+  try {
+    if (!window.location.pathname.startsWith('/helper')) return false
+    if (new URLSearchParams(window.location.search).get('from') === 'app') sessionStorage.setItem('en-helper-from-app', '1')
+    return sessionStorage.getItem('en-helper-from-app') === '1'
+  } catch { return false }
+})()
+
+// Back to the Scrum app, on the notebook.
+function backToScrum() {
+  try { localStorage.setItem('scrum-active-tab', 'notebook') } catch { /* lands on its usual tab */ }
+  window.location.href = '/'
+}
+
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -76,6 +93,11 @@ function Notice({ title, children }) {
 function Header({ name }) {
   return (
     <div className="flex items-center gap-3">
+      {openedFromApp && (
+        <button onClick={backToScrum} className="text-sm font-semibold text-gray-600 px-2 py-1.5 rounded-lg bg-white/80 shadow-sm shrink-0">
+          ← Scrum
+        </button>
+      )}
       <img src="/helper/icon-192.png" alt="" className="w-10 h-10 rounded-xl shadow-sm" />
       <div className="min-w-0">
         <h1 className="text-xl font-bold text-gray-800 leading-tight" style={{ fontFamily: "'Kalam', cursive" }}>EN Helper</h1>
@@ -130,7 +152,10 @@ function ProfileWait() {
   return <Notice title="Almost there">Loading your profile…</Notice>
 }
 
-function Recorder() {
+// The recorder itself. The Helper page shows it full screen; the Scrum app's
+// Notebook tab shows it as a panel (embedded), where the app already handles
+// sign-in, notifications and the way back.
+export function Recorder({ embedded = false }) {
   const { user, username } = useUser()
   const { myTeamNumber } = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
@@ -157,15 +182,15 @@ function Recorder() {
 
   // ── On open ───────────────────────────────────────────────────────────
   useEffect(() => {
-    registerHelperWorker()
+    if (!embedded) registerHelperWorker()
     voiceBackendReady().then(setReady)
     try {
-      setInstallHint(isIos() && !isStandalone() && localStorage.getItem('en-helper-install-hint') !== 'hidden')
+      setInstallHint(isIos() && !isStandalone() && !embedded && !openedFromApp && localStorage.getItem('en-helper-install-hint') !== 'hidden')
     } catch { /* storage blocked */ }
   }, [])
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id || embedded) return
     syncReminders(user.id)
     remindersOn().then(setReminders)
   }, [user?.id])
@@ -363,7 +388,7 @@ function Recorder() {
             {claimed ? "You're marked present for that meeting again. " : ''}
             Your words are being written up now. Both versions will be in the notebook in a minute or two.
           </p>
-          {!reminders && pushSupported() && (
+          {!reminders && !embedded && !openedFromApp && pushSupported() && (
             <button
               onClick={async () => {
                 const on = await turnOnReminders(user.id).catch(() => false)

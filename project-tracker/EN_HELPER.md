@@ -20,6 +20,11 @@ Students end up with two icons: **Scrum** (the whole app) and **EN Helper**
 That's it. The entry is saved, and the meeting's attendance is won back,
 the moment they tap Done. No review step, nothing to type.
 
+The same recorder is in the Scrum app too: **Open EN Helper** on the Notebook
+tab opens it as a full-screen panel over the notebook, and **Back to Notebook**
+closes it with no reload. It runs inside the app rather than in a frame,
+because a framed second copy of the app fights the first over the sign-in.
+
 ## What happens after Done
 
 ```
@@ -83,7 +88,9 @@ sends one push to each student who:
 
 The push goes to the student's EN Helper subscription if they turned reminders
 on in EN Helper (the **Remind me after meetings** button after their first
-save), otherwise to the main app's. Tapping it opens EN Helper.
+save), otherwise to the main app's. Tapping it opens EN Helper; opened through
+the main app, the Helper shows a **← Scrum** button that goes back to the
+Notebook tab.
 
 EN Helper's own subscription only ever gets notebook reminders. `send-push` and
 `process-scheduled` skip it, so chat, tasks and calendar notifications keep
@@ -288,7 +295,7 @@ CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... \
 | `helper/index.html` | EN Helper's page (second Vite entry, see `vite.config.js`) |
 | `public/helper/manifest.json`, icons | Its home-screen name and icon |
 | `public/helper/sw.js` | Its own service worker (scope `/helper/`), for its own push subscription |
-| `src/helper/main.jsx`, `HelperApp.jsx` | The app: sign-in, recorder, Done, saved screen |
+| `src/helper/main.jsx`, `HelperApp.jsx` | The app: sign-in, recorder, Done, saved screen. `Recorder` is also the Notebook tab's panel (`embedded`) |
 | `src/helper/recorder.js` | Recording and conversion to 16 kHz WAV |
 | `src/helper/voiceEntries.js` | Phone queue, upload, save, attendance claim, processing nudge |
 | `src/helper/helperPush.js` | Reminder sign-up |

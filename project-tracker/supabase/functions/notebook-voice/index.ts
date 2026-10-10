@@ -317,7 +317,8 @@ async function pushTo(admin: SupabaseClient, userId: string, date: string) {
   const payload = JSON.stringify({
     title: "EN Helper",
     body: "How did today's meeting go? Tap and tell your notebook. It takes about a minute.",
-    url: "/helper/",
+    // Through the main app, the Helper opens inside Scrum and shows a way back.
+    url: helper.length ? "/helper/" : "/helper/?from=app",
     tag: `en-helper-${date}`,
   });
 

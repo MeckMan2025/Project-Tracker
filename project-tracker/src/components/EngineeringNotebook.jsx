@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -9,6 +9,8 @@ import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import { onlyMyTeam, stampTeam, storedTeamScope, teamScope } from '../lib/teamScope'
 import NotebookBook from './NotebookBook'
 import { isVoice, voiceStatusLine, VoiceTag, VoiceEntryEditor } from './VoiceEntry'
+// Loaded only when someone opens it, so the notebook doesn't carry it.
+const HelperRecorder = lazy(() => import('../helper/HelperApp').then(m => ({ default: m.Recorder })))
 import { SIGNAL_BY_KEY } from '../data/notebookSignals'
 import { CATEGORIES, WHY_OPTIONS } from '../data/notebookOptions'
 import { claimNotebookAttendance } from '../lib/notebookAttendance'
@@ -193,6 +195,9 @@ export default function EngineeringNotebook() {
   const [voiceReady, setVoiceReady] = useState(false)
   // A voice entry whose written-up version is being corrected.
   const [editingVoice, setEditingVoice] = useState(null)
+  // EN Helper opened from here sits on top of the notebook, so closing it
+  // lands straight back on the notebook: no reload, no intro, no sign-in.
+  const [showHelper, setShowHelper] = useState(false)
   const [helperCardHidden, setHelperCardHidden] = useState(() => {
     try { return localStorage.getItem('en-helper-card') === 'hidden' } catch { return false }
   })
@@ -896,9 +901,9 @@ export default function EngineeringNotebook() {
                     <p className="text-xs mt-0.5">
                       Tell it about the meeting and it writes the entry. To put it on your phone, open <b>everythingthatsscrum.meckman.org/helper</b> in Safari, tap Share, then <b>Add to Home Screen</b>.
                     </p>
-                    <a href="/helper/" className="inline-block mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700">
+                    <button onClick={() => setShowHelper(true)} className="inline-block mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700">
                       Open EN Helper
-                    </a>
+                    </button>
                   </div>
                   <button
                     aria-label="Hide"
@@ -1622,6 +1627,26 @@ export default function EngineeringNotebook() {
             >
               Submit Request
             </button>
+          </div>
+        </div>
+      )}
+
+      {showHelper && (
+        <div className="fixed inset-0 z-[60] bg-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-white">
+            <button
+              onClick={() => setShowHelper(false)}
+              className="flex items-center gap-1 text-sm font-semibold text-gray-600 px-2 py-1.5 rounded-lg hover:bg-gray-100"
+            >
+              ← Back to Notebook
+            </button>
+          </div>
+          {/* The Helper's own recorder, run here rather than in a frame: a
+              second copy of the app would fight this one over the sign-in. */}
+          <div className="flex-1 overflow-y-auto">
+            <Suspense fallback={<div className="flex justify-center pt-24 text-gray-400"><Loader2 className="animate-spin" size={26} /></div>}>
+              <HelperRecorder embedded />
+            </Suspense>
           </div>
         </div>
       )}
