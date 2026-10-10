@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { ClipboardCheck, RefreshCw } from 'lucide-react'
 
@@ -29,12 +30,12 @@ export default function ScoutingAccountability({ sessionId }) {
       let sid = sessionId
       if (!sid) {
         // Try active session first, then most recent
-        const active = await restGet('comp_day_sessions?is_active=eq.true&limit=1')
+        const active = await restGet(`comp_day_sessions?${storedTeamScope()}&is_active=eq.true&limit=1`)
         if (active.length > 0) {
           sid = active[0].id
           setSession(active[0])
         } else {
-          const recent = await restGet('comp_day_sessions?order=created_at.desc&limit=1')
+          const recent = await restGet(`comp_day_sessions?${storedTeamScope()}&order=created_at.desc&limit=1`)
           if (recent.length > 0) {
             sid = recent[0].id
             setSession(recent[0])
