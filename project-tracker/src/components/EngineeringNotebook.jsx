@@ -771,8 +771,12 @@ export default function EngineeringNotebook() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Engineering Notebook
             </h1>
-          {/* Sub-tabs */}
-          <div className="flex gap-1 mt-2 overflow-x-auto">
+          {/* Everything that says "what am I looking at" on one line: the
+              sub-tabs, whose notebook, and which season. These were three
+              stacked rows, which made the header taller than the page it sits
+              above. Wraps on a narrow screen rather than scrolling off. */}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+          <div className="flex gap-1 overflow-x-auto">
             {views.map(v => {
               const Icon = v.icon
               return (
@@ -799,7 +803,7 @@ export default function EngineeringNotebook() {
           {/* Whose notebook, and which season — the two "what am I looking at"
               controls, together. Leads always see everyone, so the switch would
               do nothing for them. */}
-          <div className="mt-2 inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+          <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
               {[[false, 'Mine'], [true, "Everyone's"]].map(([val, label]) => (
                 <button
                   key={label}
@@ -816,7 +820,7 @@ export default function EngineeringNotebook() {
           </div>
 
           {/* Season selector — view the current season or an archived one */}
-          <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="text-xs text-gray-400">Season</span>
             <select
               value={filterSeason}
@@ -827,6 +831,7 @@ export default function EngineeringNotebook() {
                 <option key={s} value={s}>{s}{s === ACTIVE_SEASON ? ' (current)' : ' — archive'}</option>
               ))}
             </select>
+          </div>
           </div>
           </div>
           <NotificationBell />

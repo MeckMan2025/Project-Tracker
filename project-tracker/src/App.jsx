@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { completionFields } from './lib/taskDone'
 import { onlyMyTeam, scopeQuery, stampStored, storedTeamScope, teamScope } from './lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from './lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
@@ -1096,7 +1097,7 @@ function App() {
 
     // Update via REST
     try {
-      await restUpdate('tasks', `id=eq.${draggableId}`, { status: destination.droppableId })
+      await restUpdate('tasks', `id=eq.${draggableId}`, completionFields(destination.droppableId))
     } catch (err) {
       console.error('Failed to update task status:', err.message)
       addToast('Failed to move task.', 'error')
@@ -1115,7 +1116,7 @@ function App() {
       return updated
     })
     try {
-      await restUpdate('tasks', `id=eq.${taskId}`, { status: 'completed' })
+      await restUpdate('tasks', `id=eq.${taskId}`, completionFields('completed'))
       addToast('Task marked as done!', 'success')
 
       // Send scoped notifications for task completion
@@ -1587,7 +1588,7 @@ function App() {
       await fetch(`${supabaseUrl}/rest/v1/tasks?id=eq.${taskId}`, {
         method: 'PATCH',
         headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(completionFields(newStatus)),
       })
     } catch (err) { console.error('Failed to move task:', err) }
   }
