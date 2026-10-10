@@ -99,8 +99,14 @@ says "not switched on yet" and the Notebook tab hides its "Try EN Helper"
 card.
 
 You need a Supabase personal access token
-(https://supabase.com/dashboard/account/tokens). Commands below use
-`SUPABASE_ACCESS_TOKEN=sbp_...` in front of each; put yours there.
+(https://supabase.com/dashboard/account/tokens, starts with `sbp_`; a project
+`sb_secret_` key can't do this). Commands below use
+`SUPABASE_ACCESS_TOKEN=sbp_...` in front of each; put yours there. Use the
+current CLI through `npx -y supabase@latest`: older installed versions lack
+`--use-api`, which deploys without Docker.
+
+Setting secrets restarts every function in the project, so their version
+numbers in the dashboard all go up by one. That is expected.
 
 ### 1. Database
 
@@ -125,7 +131,7 @@ openssl rand -hex 24
 Then:
 
 ```bash
-SUPABASE_ACCESS_TOKEN=sbp_... npx supabase secrets set \
+SUPABASE_ACCESS_TOKEN=sbp_... npx -y supabase@latest secrets set \
   CLOUDFLARE_ACCOUNT_ID=your_account_id \
   CLOUDFLARE_API_TOKEN=your_workers_ai_token \
   CRON_SECRET=the_value_from_openssl \
@@ -146,21 +152,20 @@ The VAPID secrets the push functions already use are reused as they are.
 From `project-tracker/`:
 
 ```bash
-SUPABASE_ACCESS_TOKEN=sbp_... npx supabase functions deploy notebook-voice \
-  --no-verify-jwt --project-ref wqxjmykphkacbjfxmvzd
+SUPABASE_ACCESS_TOKEN=sbp_... npx -y supabase@latest functions deploy notebook-voice \
+  --no-verify-jwt --use-api --project-ref wqxjmykphkacbjfxmvzd
 ```
 
 `--no-verify-jwt` is required: the 15 minute job sends a shared secret, not a
 user token, and the function checks every caller itself.
 
 Then redeploy the two push functions so EN Helper's icon only gets notebook
-reminders. **Before you do,** open Supabase → Edge Functions → each one →
-Details and look at "Verify JWT". Deploy each the same way it is now: add
-`--no-verify-jwt` only if that setting is off.
+reminders. Both run with "Verify JWT" on (checked 2026-10-10), so deploy them
+without `--no-verify-jwt`:
 
 ```bash
-SUPABASE_ACCESS_TOKEN=sbp_... npx supabase functions deploy send-push --project-ref wqxjmykphkacbjfxmvzd
-SUPABASE_ACCESS_TOKEN=sbp_... npx supabase functions deploy process-scheduled --project-ref wqxjmykphkacbjfxmvzd
+SUPABASE_ACCESS_TOKEN=sbp_... npx -y supabase@latest functions deploy send-push --use-api --project-ref wqxjmykphkacbjfxmvzd
+SUPABASE_ACCESS_TOKEN=sbp_... npx -y supabase@latest functions deploy process-scheduled --use-api --project-ref wqxjmykphkacbjfxmvzd
 ```
 
 ### 5. The 15 minute schedule
@@ -223,6 +228,9 @@ storage only until it is transcribed.
 - **Retries.** A failed write-up is retried every 15 minutes, up to 5 tries,
   and also whenever the student opens EN Helper. The last error is in
   `notebook_entries.ai_error`.
+- **No Cloudflare secrets yet.** Voice entries still save, count and claim
+  attendance; their write-up waits without using up retries, and runs once
+  the secrets are set.
 
 ## Changing things
 

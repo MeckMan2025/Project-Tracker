@@ -101,6 +101,13 @@ function teamKey(n: unknown): string {
 // ─── One voice entry: clip -> transcript -> filled-in entry ─────────────────
 
 async function processEntry(admin: SupabaseClient, id: string) {
+  // Not set up yet: leave it waiting rather than spend its retries on errors.
+  // Once the Cloudflare secrets are in, the next tick (or the student opening
+  // EN Helper) picks it up with all five tries left.
+  if (!Deno.env.get("CLOUDFLARE_ACCOUNT_ID") || !Deno.env.get("CLOUDFLARE_API_TOKEN")) {
+    return { id, status: "waiting for Cloudflare secrets" };
+  }
+
   // Claim it, so two callers (the Helper and the 15 minute tick) can't both
   // spend AI allowance on the same entry.
   const { data: claimed } = await admin
