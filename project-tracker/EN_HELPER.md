@@ -20,8 +20,9 @@ Students end up with two icons: **Scrum** (the whole app) and **EN Helper**
 That's it. The entry is saved, and the meeting's attendance is won back,
 the moment they tap Done. No review step, nothing to type.
 
-The same recorder is in the Scrum app too: **Open EN Helper** on the Notebook
-tab opens it as a full-screen panel over the notebook, and **Back to Notebook**
+The same recorder is in the Scrum app too: the EN Helper icon (the page with
+the mic) next to **New Entry** on the Notebook tab opens it as a full-screen
+panel over the notebook, and **Back to Notebook**
 closes it with no reload. It runs inside the app rather than in a frame,
 because a framed second copy of the app fights the first over the sign-in.
 
@@ -102,8 +103,7 @@ get no reminder.
 ## Setup (one time)
 
 The app code is safe to ship before any of this: until step 1 runs, EN Helper
-says "not switched on yet" and the Notebook tab hides its "Try EN Helper"
-card.
+says "not switched on yet" and the Notebook tab hides its EN Helper icon.
 
 You need a Supabase personal access token
 (https://supabase.com/dashboard/account/tokens, starts with `sbp_`; a project

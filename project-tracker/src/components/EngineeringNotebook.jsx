@@ -198,9 +198,6 @@ export default function EngineeringNotebook() {
   // EN Helper opened from here sits on top of the notebook, so closing it
   // lands straight back on the notebook: no reload, no intro, no sign-in.
   const [showHelper, setShowHelper] = useState(false)
-  const [helperCardHidden, setHelperCardHidden] = useState(() => {
-    try { return localStorage.getItem('en-helper-card') === 'hidden' } catch { return false }
-  })
 
   // Load data via direct fetch
   useEffect(() => {
@@ -893,27 +890,6 @@ export default function EngineeringNotebook() {
 
           {view === 'projects' && (
             <>
-              {voiceReady && canSubmitNotebook && !helperCardHidden && (
-                <div className="bg-white rounded-xl shadow-sm p-3 flex items-start gap-3">
-                  <img src="/helper/icon-192.png" alt="" className="w-11 h-11 rounded-xl shrink-0" />
-                  <div className="flex-1 min-w-0 text-sm text-gray-600">
-                    <p className="font-semibold text-gray-800">Rather talk than type? Try EN Helper.</p>
-                    <p className="text-xs mt-0.5">
-                      Tell it about the meeting and it writes the entry. To put it on your phone, open <b>everythingthatsscrum.meckman.org/helper</b> in Safari, tap Share, then <b>Add to Home Screen</b>.
-                    </p>
-                    <button onClick={() => setShowHelper(true)} className="inline-block mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700">
-                      Open EN Helper
-                    </button>
-                  </div>
-                  <button
-                    aria-label="Hide"
-                    onClick={() => { setHelperCardHidden(true); try { localStorage.setItem('en-helper-card', 'hidden') } catch { /* fine */ } }}
-                    className="text-gray-300 hover:text-gray-500"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <button
                   onClick={() => { setBookProject(null); setView('book') }}
@@ -936,12 +912,26 @@ export default function EngineeringNotebook() {
                     <Plus size={14} /> Request Project
                   </button>
                 )}
-                <button
-                  onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setView('entry') }}
-                  className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
-                >
-                  <Plus size={14} /> New Entry
-                </button>
+                <span className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setView('entry') }}
+                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
+                  >
+                    <Plus size={14} /> New Entry
+                  </button>
+                  {/* EN Helper: say the entry instead of typing it. Its own
+                      icon is the button, so it needs no words here. */}
+                  {voiceReady && canSubmitNotebook && (
+                    <button
+                      onClick={() => setShowHelper(true)}
+                      aria-label="Open EN Helper"
+                      title="EN Helper: talk instead of type"
+                      className="shrink-0 rounded-lg shadow-sm hover:scale-105 active:scale-95 transition-transform"
+                    >
+                      <img src="/helper/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
+                    </button>
+                  )}
+                </span>
               </div>
 
               <div className="space-y-2">
