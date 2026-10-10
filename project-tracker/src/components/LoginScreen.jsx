@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
-import { isHomeTeamNumber, teamAuthEmail, legacyTeamEmails } from '../data/team'
+import { HOME_TEAM_NUMBER, isHomeTeamNumber, teamAuthEmail, legacyTeamEmails } from '../data/team'
+import { supabase } from '../supabase'
+import { restHeaders } from '../lib/restHeaders'
 
 function LoginScreen({ sessionExpired, linkError, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
@@ -66,23 +68,25 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
         const n = teamNumber.trim()
         const mail = email.trim().toLowerCase()
 
-        // Which team they said they were signing in for. Someone on a sister
-        // team is still one of ours, and signing in as 7196 has to put them
-        // on 7196 — their profile's team number can't be the only answer.
+        // Which team they said they were signing in for.
         localStorage.setItem('scrum-signin-team', n)
 
+        let signedIn = null
         if (isHomeTeamNumber(n)) {
           // Ours sign in with their own address, plainly.
-          await login(mail, password)
+          signedIn = await login(mail, password)
         } else {
-          // A visiting team's account carries the team in its address, so one
-          // coach can run several. Tried first; the older shapes follow, so
-          // teams added before this keep working untouched.
-          const candidates = [teamAuthEmail(mail, n), ...legacyTeamEmails(mail, n)]
+          // Two kinds of login share this box. A visiting team's shared
+          // account carries the team in its address, so one coach can run
+          // several — those shapes are tried first, oldest last, so teams
+          // added before this keep working. A person who is simply ON another
+          // team signs in with their own address, so that is tried too;
+          // without it they could not reach their own team at all.
+          const candidates = [teamAuthEmail(mail, n), ...legacyTeamEmails(mail, n), mail]
           let lastErr = null
           for (const candidate of candidates) {
             try {
-              await login(candidate, password)
+              signedIn = await login(candidate, password)
               lastErr = null
               break
             } catch (err) {
@@ -92,6 +96,39 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
             }
           }
           if (lastErr) throw lastErr
+        }
+
+        // You may only enter the team you are in.
+        //
+        // Authenticating proves who you are, not which team you belong to.
+        // Those were the same thing while everyone was on one team; now a
+        // person taken off a roster must not be able to type the old number
+        // and carry on, which is the whole point of taking them off. So the
+        // number typed has to match the team their profile says they are on,
+        // and a mismatch ends the session rather than quietly putting them
+        // somewhere.
+        //
+        // Team accounts are exempt: their address already names their team, so
+        // they cannot be anywhere else.
+        const userId = signedIn?.user?.id
+        const usedTeamAddress = !isHomeTeamNumber(n) && signedIn?.user?.email !== mail
+        if (userId && !usedTeamAddress) {
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=team_number&id=eq.${userId}&limit=1`,
+            { headers: restHeaders() }
+          )
+          const rows = res.ok ? await res.json() : null
+          const theirTeam = String(rows?.[0]?.team_number || HOME_TEAM_NUMBER)
+          if (rows && theirTeam !== n) {
+            await supabase.auth.signOut()
+            localStorage.removeItem('scrum-signin-team')
+            setError(
+              `That account isn't on team ${n}. Sign in with team ${theirTeam}, ` +
+              `or ask a lead to add you to ${n}.`
+            )
+            setSubmitting(false)
+            return
+          }
         }
       }
     } catch (err) {

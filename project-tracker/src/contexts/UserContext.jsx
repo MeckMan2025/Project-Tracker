@@ -240,16 +240,17 @@ export function UserProvider({ children }) {
       // A team account with no number resolves to empty, and everything
       // downstream treats empty as "load nothing", which is the safe failure.
       //
-      // For a person, the team they signed in for wins — but only ever
-      // towards home. Someone on a sister team is one of ours and can sign in
-      // as 7196 to work on 7196; anyone typing a number that isn't theirs and
-      // isn't home falls back to their own team rather than reaching another.
-      const signInTeam = (localStorage.getItem('scrum-signin-team') || '').trim()
+      // The profile decides, full stop. Sign-in refuses a team number that
+      // does not match it, so by the time we are here the two agree — and a
+      // person taken off a roster cannot type the old number and carry on,
+      // which is the point of taking them off.
+      //
+      // This used to let anyone on a sister team resolve to 7196 so the
+      // thirteen could keep writing to Radical. That also meant being removed
+      // from a roster stopped nothing, so it is gone.
       const teamNum = isTeamAccount
         ? (profile.team_number || (teamMatch ? teamMatch[1] : ''))
-        : (signInTeam === HOME_TEAM_NUMBER
-            ? HOME_TEAM_NUMBER
-            : (profile.team_number || HOME_TEAM_NUMBER))
+        : (profile.team_number || HOME_TEAM_NUMBER)
       setIsTeam(isTeamAccount)
       setTeamNumber(teamNum)
       localStorage.setItem('scrum-is-team', String(isTeamAccount))
