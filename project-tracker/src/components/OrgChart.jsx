@@ -304,8 +304,13 @@ function OrgChart({ onViewProfile }) {
 
   // Include any custom role tags that aren't in the catalog or leadership set
   const catalogTags = new Set([...BUSINESS_ROLES, ...TECHNICAL_ROLES].map(r => r.tag))
+  // Tags that are settings, not jobs. FullAccess marks a team that runs the
+  // whole app and Team marks a shared login; neither is something a person
+  // does, and the org chart showing "FullAccess" as a department was just this
+  // list sweeping up every unfamiliar tag.
+  const NOT_A_ROLE = new Set(['Team', 'FullAccess', 'Guest'])
   const extraTags = [...new Set(profiles.flatMap(p => p.function_tags || []))]
-    .filter(t => !LEADERSHIP_TAGS.has(t) && !catalogTags.has(t))
+    .filter(t => !LEADERSHIP_TAGS.has(t) && !catalogTags.has(t) && !NOT_A_ROLE.has(t))
   const extraTech = extraTags.map(t => ({ tag: t, desc: ROLE_DESC[t] || 'Custom team role.' }))
 
   // Custom (non-catalog) role tags get appended to the last department (Software).

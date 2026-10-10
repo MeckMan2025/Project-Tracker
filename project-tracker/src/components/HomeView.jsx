@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { storedTeamScope, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
@@ -119,7 +119,31 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         const res = await fetchMyTasks(supabaseUrl, headers, username, functionTags)
         if (!res.ok) return
         const data = await res.json()
-        const active = (Array.isArray(data) ? data : []).filter(t => t.status !== 'done' && t.status !== 'completed')
+
+        // ...but only from my own team's boards.
+        //
+        // That query matches on assignee and side and nothing else, so a task
+        // given to Everyone showed up on every team's dashboard: Radical's
+        // "Decide Awards" was sitting on the Prime Suspects home page.
+        //
+        // tasks has no team column of its own yet (supabase/task_owner_team.sql
+        // is still unrun), so the board is what says whose task it is. Boards
+        // do carry owner_team, so this asks for mine and keeps only tasks filed
+        // on them. If that lookup fails we keep the old behaviour rather than
+        // showing an empty list.
+        let mineBoards = null
+        try {
+          const bres = await fetch(
+            `${supabaseUrl}/rest/v1/boards?select=id&${storedTeamScope('owner_team')}`,
+            { headers },
+          )
+          if (bres.ok) mineBoards = new Set((await bres.json()).map(b => b.id))
+        } catch { /* keep mineBoards null */ }
+
+        const onMyBoards = (t) => !mineBoards || !t.board_id || mineBoards.has(t.board_id)
+        const active = (Array.isArray(data) ? data : [])
+          .filter(onMyBoards)
+          .filter(t => t.status !== 'done' && t.status !== 'completed')
 
         // Most urgent first, per the kickoff plan: soonest due (so overdue rises
         // to the top), then priority, then whatever is closest to finishing.

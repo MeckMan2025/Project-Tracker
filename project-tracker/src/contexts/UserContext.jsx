@@ -248,9 +248,19 @@ export function UserProvider({ children }) {
       // This used to let anyone on a sister team resolve to 7196 so the
       // thirteen could keep writing to Radical. That also meant being removed
       // from a roster stopped nothing, so it is gone.
+      // Which team this session is on.
+      //
+      // Normally the profile decides and sign-in refuses anything else. The
+      // exception is extra_teams: a mentor or coach who helps another team
+      // signs in with that team's number, and for that session they are on it
+      // — their own team's data is not what they came for.
+      const signInTeam = (localStorage.getItem('scrum-signin-team') || '').trim()
+      const alsoAllowed = (profile.extra_teams || []).map(String)
       const teamNum = isTeamAccount
         ? (profile.team_number || (teamMatch ? teamMatch[1] : ''))
-        : (profile.team_number || HOME_TEAM_NUMBER)
+        : (signInTeam && alsoAllowed.includes(signInTeam)
+            ? signInTeam
+            : (profile.team_number || HOME_TEAM_NUMBER))
       setIsTeam(isTeamAccount)
       setTeamNumber(teamNum)
       localStorage.setItem('scrum-is-team', String(isTeamAccount))

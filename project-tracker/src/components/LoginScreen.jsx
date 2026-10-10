@@ -114,12 +114,18 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
         const usedTeamAddress = !isHomeTeamNumber(n) && signedIn?.user?.email !== mail
         if (userId && !usedTeamAddress) {
           const res = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=team_number&id=eq.${userId}&limit=1`,
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=team_number,extra_teams&id=eq.${userId}&limit=1`,
             { headers: restHeaders() }
           )
           const rows = res.ok ? await res.json() : null
           const theirTeam = String(rows?.[0]?.team_number || HOME_TEAM_NUMBER)
-          if (rows && theirTeam !== n) {
+          // Mentors and coaches help more than one team, and should not need a
+          // second account to do it. extra_teams lists the other teams this
+          // person may enter; typing one of those numbers is allowed and puts
+          // them on that team for the session. Nobody else has any, so the
+          // one-person-one-team rule is unchanged for students.
+          const alsoAllowed = (rows?.[0]?.extra_teams || []).map(String)
+          if (rows && theirTeam !== n && !alsoAllowed.includes(n)) {
             await supabase.auth.signOut()
             localStorage.removeItem('scrum-signin-team')
             setError(
