@@ -156,8 +156,8 @@ export function UserProvider({ children }) {
   // A team row pointing at this account means this account runs that team.
   // Best effort: before the column exists, or if the lookup fails, nobody is a
   // controller — which locks the feature rather than opening it.
-  const checkTeamController = async (userId, teamNum, attempt = 0) => {
-    if (!userId) { setIsTeamController(false); applyTeamFullAccess(false); return }
+  const checkTeamController = async (userId, teamNum, attempt = 0, tagFullAccess = false) => {
+    if (!userId) { setIsTeamController(false); applyTeamFullAccess(tagFullAccess); return }
     try {
       // These two answers decide whether a coach is a lead of their own team,
       // so they have to be asked as that coach. team_accounts is behind RLS
@@ -178,12 +178,12 @@ export function UserProvider({ children }) {
       } catch { /* fall through to the cached one */ }
       if (!token) {
         if (attempt < 3) {
-          setTimeout(() => checkTeamController(userId, teamNum, attempt + 1), 600)
+          setTimeout(() => checkTeamController(userId, teamNum, attempt + 1, tagFullAccess), 600)
           return
         }
         // Out of tries: leave it locked, which is the safe direction.
         setIsTeamController(false)
-        applyTeamFullAccess(false)
+        applyTeamFullAccess(tagFullAccess)
         return
       }
       const authed = { apikey: anonKey, Authorization: `Bearer ${token}` }
@@ -203,11 +203,11 @@ export function UserProvider({ children }) {
       setIsTeamController(Array.isArray(mine) && mine.length > 0)
 
       const team = teamRes && teamRes.ok ? await teamRes.json() : []
-      applyTeamFullAccess(!!team?.[0]?.full_access)
+      applyTeamFullAccess(tagFullAccess || !!team?.[0]?.full_access)
     } catch {
       // Locks the feature rather than opening it.
       setIsTeamController(false)
-      applyTeamFullAccess(false)
+      applyTeamFullAccess(tagFullAccess)
     }
   }
 
@@ -256,7 +256,20 @@ export function UserProvider({ children }) {
       localStorage.setItem('scrum-is-team', String(isTeamAccount))
       localStorage.setItem('scrum-team-number', teamNum)
 
-      checkTeamController(profile.id, teamNum)
+      // Does this team run the whole app?
+      //
+      // This was a lookup against team_accounts, and it kept losing: the Sidebar,
+      // the tabs and the dashboard all render before a fetch can answer, and if
+      // the request failed — no session token yet, most often — the fallback was
+      // "no", which hides every feature. Six attempts at narrowing that race
+      // later, the answer is to stop racing: the flag rides on the profile,
+      // which is already loaded here and which everything else waits for.
+      //
+      // team_accounts.full_access stays the source of truth, and the lookup
+      // below still runs and can only ever turn this ON, never off.
+      const tagFullAccess = (profile.function_tags || []).includes('FullAccess')
+      if (tagFullAccess) applyTeamFullAccess(true)
+      checkTeamController(profile.id, teamNum, 0, tagFullAccess)
       setUsername(profile.display_name)
       localStorage.setItem('scrum-cached-user-id', profile.id)
       setIsLead(profile.role === 'lead')
