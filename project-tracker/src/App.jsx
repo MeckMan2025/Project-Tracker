@@ -1295,7 +1295,49 @@ function App() {
     }
   }
 
+  // Leaving a task you are on.
+  //
+  // A lead does not ask permission for this. The request exists so somebody
+  // cannot quietly drop work nobody notices — but a lead is the person who
+  // would be approving it, and Lily filing one as Business Lead and then
+  // having it approved is a round trip that decided nothing.
+  //
+  // So a lead puts the task straight back up for grabs, which is where an
+  // unassigned task belongs and exactly what approving the request did.
+  const handleLeaveTaskDirect = async (task) => {
+    const prevTasks = tasksByTab[activeTab] || []
+    setTasksByTab(prev => {
+      const updated = {
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(t =>
+          t.id === task.id ? { ...t, assignee: UP_FOR_GRABS } : t),
+      }
+      syncCache(updated)
+      return updated
+    })
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/tasks?id=eq.${task.id}`, {
+        method: 'PATCH',
+        headers: { ...restHeaders(), 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ assignee: UP_FOR_GRABS }),
+      })
+      const data = res.ok ? await res.json() : null
+      if (!res.ok || !data || data.length === 0) throw new Error('no rows')
+      addToast('Left the task — it is up for grabs.', 'success')
+    } catch {
+      setTasksByTab(prev => {
+        const updated = { ...prev, [activeTab]: prevTasks }
+        syncCache(updated)
+        return updated
+      })
+      addToast('Could not leave the task.', 'error')
+    }
+  }
+
   const handleLeaveTaskRequest = async (task) => {
+    // A lead leaves; everyone else asks.
+    if (hasLeadTag) return handleLeaveTaskDirect(task)
+
     // Check for duplicate pending leave_task request
     const { data: existing } = await scopeQuery(supabase
       .from('requests')
@@ -2107,6 +2149,7 @@ function App() {
                                   canEdit={canEditContent}
                                   onClaim={handleClaimTask}
                                   onLeaveTask={handleLeaveTaskRequest}
+                                  leaveIsImmediate={hasLeadTag}
                                   onMarkDone={handleMarkDone}
                                   currentUser={username}
                                   isGuest={isGuest}

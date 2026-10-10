@@ -4,7 +4,7 @@ import { isTeamAssignee, teamLabel, SIDES } from '../lib/taskTeams'
 const UP_FOR_GRABS = '__up_for_grabs__'
 const EVERYONE = '__everyone__'
 
-function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim, onLeaveTask, onMarkDone, currentUser, isGuest }) {
+function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim, onLeaveTask, onMarkDone, currentUser, isGuest, leaveIsImmediate = false }) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
   const isUpForGrabs = task.assignee === UP_FOR_GRABS
   const isEveryone = task.assignee === EVERYONE
@@ -135,7 +135,8 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
         </button>
       )}
 
-      {/* Request to Leave button for the assigned user */}
+      {/* Leaving the task. A lead does it; everyone else asks, so the button
+          says which one is about to happen. */}
       {isAssignedToMe && !isUpForGrabs && onLeaveTask && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -144,7 +145,7 @@ function TaskCard({ task, isDragging, onEdit, onDelete, canEdit, onOpen, onClaim
           className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-500 text-xs font-medium rounded-lg transition-colors"
         >
           <LogOut size={12} />
-          Request to Leave
+          {leaveIsImmediate ? 'Leave Task' : 'Request to Leave'}
         </button>
       )}
     </div>
