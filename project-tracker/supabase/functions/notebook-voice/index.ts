@@ -173,7 +173,7 @@ async function processEntry(admin: SupabaseClient, id: string) {
 
     // Complete, with its answers given one by one: write it up from all of it.
     if (entry.what_did || (entry.signals || []).length) {
-      const polished = await screenText(await polishText(transcript, entry), { drop: true });
+      const polished = await screenText(await polishText(transcript, entry));
       await admin.from("notebook_entries").update({
         polished, ai_status: "done", ai_error: null, ai_updated_at: new Date().toISOString(),
       }).eq("id", id);
@@ -193,7 +193,7 @@ async function processEntry(admin: SupabaseClient, id: string) {
     }
 
     const fields = cleanAiFields(await polish(transcript));
-    fields.polished = await screenText(fields.polished, { drop: true });
+    fields.polished = await screenText(fields.polished);
     await admin.from("notebook_entries").update({
       ...fields,
       ai_status: "done",
@@ -268,11 +268,13 @@ async function answerQuestion(admin: SupabaseClient, id: string, question: strin
   const heard = await transcribe(decodeBase64(audio), question);
   if (!heard) return { text: "", option: null };
   // Screened before it's shown back ("Got it: ...") or stored. The database's
-  // word filter is applied here too, so the echo matches what's saved.
+  // word filter is applied here too, so the echo matches what's saved. If
+  // nothing is left, the Helper says it didn't come through, exactly as it
+  // does for silence: nobody is told something was taken out.
   const screened = await screenText(heard);
-  const { data: clean } = await admin.rpc("clean_notebook_text", { t: screened });
+  const { data: clean } = await admin.rpc("clean_notebook_text_tidy", { t: screened });
   const said = String(clean ?? screened).trim();
-  if (!said.replace(/\[removed\]/g, "").trim()) return { text: "", option: null, removed: true };
+  if (!said.replace(/[\s.,!?;:]/g, "")) return { text: "", option: null };
   const option = options.length ? await matchChoice(said, question, options).catch(() => null) : null;
   const { data: entry } = await admin.from("notebook_entries").select("transcript").eq("id", id).maybeSingle();
   const transcript = `${entry?.transcript || ""}\n\nQ: ${question}\nA: ${said}`.trim();

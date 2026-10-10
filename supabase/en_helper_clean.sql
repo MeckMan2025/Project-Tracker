@@ -7,7 +7,9 @@
 -- every text a voice entry holds (the transcript, the AI's write-up, every
 -- answer, every follow-up) passes through clean_notebook_text() on its way into
 -- the table, whoever writes it: the speech model, the AI, or a student typing.
--- A match becomes "[removed]".
+-- A match is taken out silently, with no marker: a "[removed]" in someone's
+-- notebook tells everyone reading it that something was said, and a student
+-- who didn't say it (it was someone nearby) shouldn't wear that.
 --
 -- The notebook-voice function also asks the AI to take out whole sentences
 -- that are crude or inappropriate without using a listed word. That catches
@@ -39,8 +41,27 @@ as $$
         'porn[a-z]*|nude|nudes|sexy|horny|boner|blowjob[a-z]*|handjob[a-z]*|dildo[a-z]*|' ||
         -- slurs
         'fag|fags|faggot[a-z]*|nigg[a-z]*|retard|retards|retarded|tranny|trannies|spic|spics|chink|chinks|kike|kikes' ||
-      ')\M',
-      '[removed]', 'gi')
+      ')(''[a-z]+)?\M',
+      '', 'gi')
+  end
+$$;
+
+-- The same, with the gap it leaves tidied: no doubled spaces, no space
+-- before punctuation, no stray leading punctuation on a line. Newlines are
+-- kept, because they separate a transcript's answers.
+create or replace function public.clean_notebook_text_tidy(t text)
+returns text
+language sql
+immutable
+as $$
+  select case when t is null then null else
+    btrim(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+      public.clean_notebook_text(t),
+      '\[removed\][ \t]*', '', 'g'),          -- markers left by the earlier version
+      '([.!?;:,])([ \t]*[.!?;,])+', '\1', 'g'),  -- punctuation stranded by a removal
+      '[ \t]{2,}', ' ', 'g'),
+      '[ \t]+([,.!?;:])', '\1', 'g'),
+      '(^|\n)[ \t]*[,.!?;:]+[ \t]*', '\1', 'g'), ' ')
   end
 $$;
 
@@ -50,17 +71,26 @@ language plpgsql
 as $$
 begin
   if new.source = 'voice' then
-    new.transcript      := public.clean_notebook_text(new.transcript);
-    new.polished        := public.clean_notebook_text(new.polished);
-    new.what_did        := public.clean_notebook_text(new.what_did);
-    new.why_note        := public.clean_notebook_text(new.why_note);
-    new.engagement_note := public.clean_notebook_text(new.engagement_note);
-    new.mentor_note     := public.clean_notebook_text(new.mentor_note);
-    new.next_step       := public.clean_notebook_text(new.next_step);
-    -- The follow-up answers live in jsonb. "[removed]" holds no quote or
-    -- backslash, so replacing inside the JSON text keeps it valid.
-    if new.signal_data is not null then
-      new.signal_data   := public.clean_notebook_text(new.signal_data::text)::jsonb;
+    new.transcript      := public.clean_notebook_text_tidy(new.transcript);
+    new.polished        := public.clean_notebook_text_tidy(new.polished);
+    new.what_did        := public.clean_notebook_text_tidy(new.what_did);
+    new.why_note        := public.clean_notebook_text_tidy(new.why_note);
+    new.engagement_note := public.clean_notebook_text_tidy(new.engagement_note);
+    new.mentor_note     := public.clean_notebook_text_tidy(new.mentor_note);
+    new.next_step       := public.clean_notebook_text_tidy(new.next_step);
+    -- The follow-up answers live in jsonb: clean each answer as its own text,
+    -- so the JSON itself is never touched.
+    if new.signal_data is not null and jsonb_typeof(new.signal_data) = 'object' then
+      new.signal_data := (
+        select coalesce(jsonb_object_agg(sig.key,
+          case when jsonb_typeof(sig.value) = 'object' then (
+            select coalesce(jsonb_object_agg(ans.key,
+              case when jsonb_typeof(ans.value) = 'string'
+                then to_jsonb(public.clean_notebook_text_tidy(ans.value #>> '{}'))
+                else ans.value end), '{}'::jsonb)
+            from jsonb_each(sig.value) ans)
+          else sig.value end), '{}'::jsonb)
+        from jsonb_each(new.signal_data) sig);
     end if;
   end if;
   return new;

@@ -79,29 +79,36 @@ last answer: complete: true, claim attendance
 ## Keeping it school-appropriate
 
 A phone in a shop hears everyone, and speech-to-text writes down whatever it
-hears, including someone swearing nearby. Three layers keep that out:
+hears, including someone swearing nearby. Three layers keep that out, and all
+of them take things out **silently**: no "[removed]" marker anywhere, not in
+the green "Got it" line, the transcript, the notebook or the write-up. A
+marker would tell the student and everyone reading the notebook that
+something was said, and it's often someone nearby who said it.
 
 1. **The database (the guarantee).** `supabase/en_helper_clean.sql` adds
    `clean_notebook_text()` and a trigger that runs it on every text a voice
    entry stores (transcript, write-up, every answer and follow-up), whoever
-   writes it: the speech model, the AI, or a student typing. Listed words
-   become "[removed]". It matches whole words only, so "class", "assembly",
-   "shell", "cockpit", "screw", "ball bearings" and "flame retardant" are
-   untouched. To add a word, edit the list in that file and run it again.
+   writes it: the speech model, the AI, or a student typing. Listed words are
+   taken out and the gap tidied. It matches whole words only, so "class",
+   "assembly", "shell", "cockpit", "screw", "ball bearings" and "flame
+   retardant" are untouched. To add a word, edit the list in that file and
+   run it again.
 2. **An AI sentence check (the wider net).** Before anything is stored or
    shown back, Llama 3.3 reads it a sentence at a time and takes out any
    sentence with profanity, sexual content, put-downs aimed at someone,
-   slurs, threats or crude humor, listed words or not. It is told to keep
-   normal robotics talk ("the shooter killed it", "kill the program") and
-   honest self-reflection ("that was stupid of me, but I fixed it").
-   `screenText()` in `ai.ts`.
+   slurs, threats or crude humor, listed words or not. It keeps normal
+   robotics talk ("the shooter killed it", "kill the program") and honest
+   self-reflection ("that was stupid of me, but I fixed it"). `screenText()`
+   in `ai.ts`.
 3. **The prompts.** The first pass and the write-up are told the microphone
    may hear other people, and to use only the student describing their work.
 
-If a spoken answer is nothing but removed content, it isn't saved, and the
-student is asked to try again. Cloudflare's safety model (Llama Guard) was
-tried and isn't used: it rated swearing and a sexual comment "safe", because
-it's built for dangerous content, not for a school notebook.
+If a spoken answer is nothing but removed content, the Helper says "That one
+didn't come through. Tap the mic and try again." That's the same message as
+for silence, so nobody is told something was taken out. Cloudflare's safety model
+(Llama Guard) was tried and isn't used: it rated swearing and a sexual
+comment "safe", because it's built for dangerous content, not for a school
+notebook.
 
 ## How it reads in the notebook
 

@@ -385,8 +385,11 @@ Use only what they said and chose. Never add a fact, number, part, person, resul
 //   1. here, the AI reads the text a sentence at a time and takes out any
 //      sentence that isn't fit for a school notebook, listed words or not;
 //   2. in the database, clean_notebook_text() (supabase/en_helper_clean.sql)
-//      replaces every listed word in everything a voice entry stores. That one
+//      takes every listed word out of everything a voice entry stores. That one
 //      can't miss and can't be skipped; this one catches what a list can't.
+// Both take things out silently. A "[removed]" marker would tell everyone
+// reading the notebook (and the student, in the "Got it" line) that something
+// was said, and it's often someone nearby who said it.
 
 const SCREEN_RULES = `You check sentences from a high school student's robotics engineering notebook. They were spoken and transcribed, and the microphone may also have picked up other people nearby.
 
@@ -399,11 +402,10 @@ Answer with JSON: {"remove": [numbers]}, and an empty list when every sentence i
 const splitSentences = (text: string) =>
   text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
 
-// Returns the text with inappropriate sentences replaced by "[removed]" (or
-// dropped, for the polished version, where a marker would read oddly). If the
-// check itself fails, the text goes on unchanged: the database's word filter
-// still applies when it's saved.
-export async function screenText(text: string, { drop = false } = {}): Promise<string> {
+// Returns the text without its inappropriate sentences. If the check itself
+// fails, the text goes on unchanged: the database's word filter still applies
+// when it's saved.
+export async function screenText(text: string): Promise<string> {
   if (!text || !text.trim()) return text;
   const paragraphs = text.split(/\n+/);
   const all: { p: number; s: string }[] = [];
@@ -429,11 +431,11 @@ export async function screenText(text: string, { drop = false } = {}): Promise<s
     const kept = paragraphs.map((_, p) =>
       all.map((x, i) => ({ ...x, i }))
         .filter((x) => x.p === p)
-        .map((x) => (remove.has(x.i) ? (drop ? "" : "[removed]") : x.s))
-        .filter(Boolean)
+        .filter((x) => !remove.has(x.i))
+        .map((x) => x.s)
         .join(" ")
     );
-    return kept.filter(Boolean).join("\n\n").replace(/(\[removed\]\s*){2,}/g, "[removed] ").trim();
+    return kept.filter(Boolean).join("\n\n").trim();
   } catch (err) {
     console.warn("notebook-voice: screen failed, word filter only:", (err as Error)?.message);
     return text;
