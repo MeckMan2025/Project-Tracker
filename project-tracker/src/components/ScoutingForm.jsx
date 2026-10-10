@@ -4,10 +4,11 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, Loader2, Trash2, Download, Pencil, ChevronLeft, ChevronRight, ChevronDown, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
-  SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, blankEntry,
+  SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, FIELD_BY_KEY, blankEntry, yesNo, displayValue,
 } from '../data/scoutingFields'
 import { ALL_TEAMS, teamLabel } from '../data/teams'
 import { stampTeam } from '../lib/teamScope'
+import ScoutingSync from './ScoutingSync'
 
 // Match scouting: one row per team per match.
 //
@@ -44,6 +45,8 @@ export default function ScoutingForm() {
   const [editing, setEditing] = useState(false)
   const [view, setView] = useState('matches')   // matches | teams
   const [teamFilter, setTeamFilter] = useState('')
+  // Bumped when rows arrive from another device, to load them.
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -66,7 +69,7 @@ export default function ScoutingForm() {
       }
     })()
     return () => { alive = false }
-  }, []) // eslint-disable-line
+  }, [reload]) // eslint-disable-line
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -86,7 +89,8 @@ export default function ScoutingForm() {
       SCOUTING_FIELDS.forEach(f => {
         const raw = form[f.key]
         if (raw === '' || raw == null) { row[f.key] = null; return }
-        row[f.key] = (f.type === 'number' || f.type === 'scale') ? Number(raw) : String(raw).trim()
+        row[f.key] = f.type === 'yesno' ? (raw === 'Yes' ? 1 : 0)
+          : (f.type === 'number' || f.type === 'scale') ? Number(raw) : String(raw).trim()
       })
       const res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}`, {
         method: 'POST',
@@ -136,8 +140,12 @@ export default function ScoutingForm() {
     const mine = rows.filter(r => String(r.team_number) === String(t))
     const avg = {}
     NUMERIC_FIELDS.forEach(f => {
-      const vals = mine.map(r => r[f.key]).filter(v => v != null && v !== '')
-      avg[f.key] = vals.length ? Math.round((vals.reduce((a, b) => a + Number(b), 0) / vals.length) * 10) / 10 : null
+      const vals = mine.map(r => f.type === 'yesno' ? yesNo(r[f.key]) : r[f.key]).filter(v => v != null && v !== '')
+      const mean = vals.length ? vals.reduce((a, b) => a + Number(b), 0) / vals.length : null
+      // Yes/no averages into the share of matches they did it in.
+      avg[f.key] = mean == null ? null
+        : f.type === 'yesno' ? `${Math.round(mean * 100)}%`
+        : Math.round(mean * 10) / 10
     })
     return { team: t, matches: mine.length, avg }
   }), [teams, rows])
@@ -148,7 +156,7 @@ export default function ScoutingForm() {
       const s = v == null ? '' : String(v)
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
     }
-    const csv = [cols.join(','), ...shown.map(r => cols.map(c => esc(r[c])).join(','))].join('\n')
+    const csv = [cols.join(','), ...shown.map(r => cols.map(c => esc(FIELD_BY_KEY[c] ? displayValue(FIELD_BY_KEY[c], r[c]) : r[c])).join(','))].join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
     const a = document.createElement('a')
     a.href = url
@@ -303,6 +311,7 @@ export default function ScoutingForm() {
                     className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-pastel-blue/20">
               <Download size={13} /> CSV
             </button>
+            <ScoutingSync compact rows={shown} onReceived={() => setReload(n => n + 1)} />
             {hasLeadTag && (
               <button onClick={() => setEditing(v => !v)}
                       className={`p-1.5 rounded-lg transition-colors ${editing ? 'bg-pastel-pink text-gray-800' : 'text-gray-400 hover:bg-pastel-blue/25'}`}
@@ -500,7 +509,7 @@ function TeamPicker({ value, onChange, otherTeam, setOtherTeam }) {
   )
 }
 
-const COMPACT = ['match_number', 'auto_scored', 'teleop_scored', 'cycle_count',
+const COMPACT = ['match_number', 'auto_collected', 'auto_scored', 'teleop_collected', 'teleop_scored', 'cycle_count',
                  'defense', 'endgame', 'driver_skill', 'consistency', 'breakdowns']
 
 function MatchTable({ rows, editing, onRemove }) {
@@ -523,7 +532,7 @@ function MatchTable({ rows, editing, onRemove }) {
               <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{r.team_number}</td>
               {COMPACT.map(k => (
                 <td key={k} className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                  {r[k] == null || r[k] === '' ? <span className="text-gray-300">—</span> : String(r[k])}
+                  {r[k] == null || r[k] === '' ? <span className="text-gray-300">—</span> : displayValue(FIELD_BY_KEY[k], r[k])}
                 </td>
               ))}
               <td className="px-3 py-2 text-right">

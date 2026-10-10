@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { restHeaders } from '../lib/restHeaders'
-import { Settings, Bell, Music, Volume2, Lock, Sparkles } from 'lucide-react'
+import { Settings, Bell, Music, Volume2, Lock, Sparkles, RefreshCw } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import PasswordInput from './PasswordInput'
 import { ChangelogModal } from './ChangelogPopup'
+import ScoutingSync from './ScoutingSync'
 
 const MUSIC_OPTIONS = [
   { id: 'random', label: 'Random', description: 'Pick a random song each time' },
@@ -239,6 +240,19 @@ export default function SettingsView() {
             }`} />
           </button>
         </div>
+      </section>
+
+      {/* ─── Scouting Sync ─── */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h3 className="font-semibold text-gray-700 mb-1 flex items-center gap-2">
+          <RefreshCw size={16} className="text-pastel-yellow-dark" />
+          Scouting Sync
+        </h3>
+        <p className="text-xs text-gray-400 mb-3">
+          No Wi-Fi at the venue? AirDrop sends every match scouted so far as a file.
+          On the other device, tap Receive and pick it — matches already there are skipped.
+        </p>
+        <ScoutingSync />
       </section>
 
       {/* ─── What's New ─── */}

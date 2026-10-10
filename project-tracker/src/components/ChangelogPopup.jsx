@@ -8,9 +8,9 @@ const CHANGELOG = [
     id: 171,
     date: '2026-10-06',
     items: [
-      '\u{1F3AF} Beyond the Mean (38350) runs the whole app, not just boards. Sign in with that team number and you get the notebook, attendance, Data, Team Growth, Logs, Scouting and the org chart \u2014 the same tabs Radical has, holding Beyond the Mean\u2019s own work',
+      '\u{1F3AF} Prime Suspects (38350) runs the whole app, not just boards. Sign in with that team number and you get the notebook, attendance, Data, Team Growth, Logs, Scouting and the org chart \u2014 the same tabs Radical has, holding Prime Suspects\u2019s own work',
       '\u{1F512} Every one of those pages is scoped to the team you signed in as. The notebook, attendance, notices, scouting and the logs all ask for one team\u2019s rows and get one team\u2019s rows \u2014 a team\u2019s work is theirs to see and nobody else\u2019s. Visiting teams are unchanged: boards and a calendar, as before',
-      '\u{1F4DA} The thirteen who moved across brought their history with them. Their notebook entries, attendance and notices are readable from Beyond the Mean, and Radical keeps its own copy \u2014 that work happened on Radical and its season stays whole. Anything written from here on belongs to the team it was written on',
+      '\u{1F4DA} The thirteen who moved across brought their history with them. Their notebook entries, attendance and notices are readable from Prime Suspects, and Radical keeps its own copy \u2014 that work happened on Radical and its season stays whole. Anything written from here on belongs to the team it was written on',
       '\u{1F9D1}\u200D\u{1F3EB} A coach assigned to a team can run that team \u2014 roles, roster, accounts \u2014 for their own team only. Coaching two teams means two sign-ins, each seeing only its own',
       '\u{1F4C5} Two teams can now meet on the same day. Attendance allowed one session per day across the whole app and absence notices one per person per day, which quietly meant the second team to try either got turned away',
       '\u{1F6E0}\uFE0F Saving your profile works again. It had been failing outright on two preference fields that had lost their place in the form',

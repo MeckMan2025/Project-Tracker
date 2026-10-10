@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { restHeaders } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
-import { SCOUTING_FIELDS } from '../data/scoutingFields'
+import { SCOUTING_FIELDS, yesNo, displayValue } from '../data/scoutingFields'
 import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -62,18 +62,23 @@ function computeScoutingStats(matches) {
     return out
   }
 
-  const autoHit = sum('auto_scored'), autoMiss = sum('auto_missed')
-  const teleHit = sum('teleop_scored'), teleMiss = sum('teleop_missed')
+  // Share of the matches answered where they did it. A blank is skipped, the
+  // same as for averages.
+  const yesPct = (key) => {
+    const v = matches.map(m => yesNo(m[key])).filter(x => x != null)
+    return pct(v.filter(Boolean).length, v.length)
+  }
 
   return {
     scoutCount: n,
     startingPositions: tally('start_position'),
 
-    autoAvgScored: avg('auto_scored'),
-    teleAvgScored: avg('teleop_scored'),
-    avgScored: +(avg('auto_scored') + avg('teleop_scored')).toFixed(1),
-    autoAccuracy: pct(autoHit, autoHit + autoMiss),
-    teleAccuracy: pct(teleHit, teleHit + teleMiss),
+    autoCollectedPct: yesPct('auto_collected'),
+    autoScoredPct: yesPct('auto_scored'),
+    teleCollectedPct: yesPct('teleop_collected'),
+    teleScoredPct: yesPct('teleop_scored'),
+    autoAvgMissed: avg('auto_missed'),
+    teleAvgMissed: avg('teleop_missed'),
 
     avgCycles: avg('cycle_count'),
     avgCycleSec: avg('avg_cycle_sec'),
@@ -125,15 +130,16 @@ function ScoutPanel({ t }) {
         <>
           {/* Scoring — the first question anyone asks. */}
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <Stat value={t.avgScored} label="Scored / match" />
-            <Stat value={`${t.teleAccuracy}%`} label="Teleop accuracy" />
+            <Stat value={`${t.teleScoredPct}%`} label="Scores in teleop" />
+            <Stat value={`${t.teleCollectedPct}%`} label="Collects in teleop" />
             <Stat value={t.avgCycles} label="Cycles / match" />
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
-            <Line label="Auto scored" value={t.autoAvgScored} />
-            <Line label="Auto accuracy" value={`${t.autoAccuracy}%`} />
-            <Line label="Teleop scored" value={t.teleAvgScored} />
+            <Line label="Collects in auto" value={`${t.autoCollectedPct}%`} />
+            <Line label="Scores in auto" value={`${t.autoScoredPct}%`} />
+            <Line label="Auto misses / match" value={t.autoAvgMissed || '—'} />
+            <Line label="Teleop misses / match" value={t.teleAvgMissed || '—'} />
             <Line label="Seconds / cycle" value={t.avgCycleSec || '—'} />
           </div>
 
@@ -437,7 +443,7 @@ function ScoutingData() {
     }
     const rows = exportRecords.map(r => [
       r.team_number,
-      ...SCOUTING_FIELDS.filter(f => f.key !== 'team_number').map(f => r[f.key] ?? ''),
+      ...SCOUTING_FIELDS.filter(f => f.key !== 'team_number').map(f => displayValue(f, r[f.key])),
       r.scout || '', r.created_at || '',
     ])
     const csv = [headers.join(','), ...rows].join('\n')

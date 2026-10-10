@@ -223,7 +223,7 @@ export function UserProvider({ children }) {
       // plus-addressed team address, or the Team tag the add-team form sets.
       //
       // Carrying a team number is NOT enough on its own. The thirteen who
-      // moved to Beyond the Mean carry 38350 and are people, with their own
+      // moved to Prime Suspects carry 38350 and are people, with their own
       // names, roles and notebook entries — classifying them as team accounts
       // gave them a shared login's cut-down tab set.
       const isTeamAccount = !!teamMatch

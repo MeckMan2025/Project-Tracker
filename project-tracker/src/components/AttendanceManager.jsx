@@ -400,7 +400,7 @@ export default function AttendanceManager({ onBack }) {
         //
         // A past meeting: everyone who has a record, roster or not. They were
         // there. Filtering those out hid people the moment they moved teams —
-        // Shraddha's records survived the move to Beyond the Mean and then
+        // Shraddha's records survived the move to Prime Suspects and then
         // vanished from Radical's past meetings anyway, which is the same as
         // rewriting them, and exactly what keeping the records was meant to
         // prevent.

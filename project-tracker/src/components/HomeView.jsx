@@ -73,7 +73,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
 
   const SCOPE = teamScope(myTeamNumber)
   // Our Goals is Radical's own season goals, hard-coded in lib/seasonGoals.
-  // Beyond the Mean has its own season and isn't measured against ours, so
+  // Prime Suspects has its own season and isn't measured against ours, so
   // showing them there would be wrong rather than merely irrelevant. My Tasks
   // takes the full width instead of leaving a gap where the note was.
   const isHomeTeam = !myTeamNumber || myTeamNumber === '7196'

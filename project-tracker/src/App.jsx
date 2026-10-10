@@ -8,6 +8,7 @@ import { Plus, Download, Upload, ChevronRight, CheckCircle, User, Calendar, Tras
 import { downloadRowsCSV, csvName } from './utils/csvUtils'
 import { triggerPush } from './utils/pushHelper'
 import { TEAM_TAB_IDS } from './data/teamTabs'
+import { HOME_TEAM_NUMBER } from './data/team'
 import TaskModal from './components/TaskModal'
 import TaskCard from './components/TaskCard'
 import TaskDetailModal from './components/TaskDetailModal'
@@ -768,7 +769,13 @@ function App() {
         return
       }
 
-      const boardQuery = isTeam
+      // Which team's data to load is a question about the TEAM, not about the
+      // kind of login. isTeam only means "a shared team account" — so a
+      // student whose profile sits on 38350 fell down the Radical branch and
+      // was served Radical's boards and tasks. That is both a leak and why
+      // their own team looked like it had nothing in it.
+      const scopedToTeam = !!(teamNumber && String(teamNumber) !== HOME_TEAM_NUMBER)
+      const boardQuery = scopedToTeam
         ? `select=*&order=created_at&owner_team=eq.${encodeURIComponent(teamNumber)}`
         : 'select=*&order=created_at&owner_team=is.null'
 
@@ -787,18 +794,18 @@ function App() {
       // keeps working either way.
       let tasks = []
       try {
-        tasks = await restGet('tasks', isTeam
+        tasks = await restGet('tasks', scopedToTeam
           ? `select=*&owner_team=eq.${encodeURIComponent(teamNumber)}`
           : 'select=*&owner_team=is.null')
       } catch (err) {
         console.warn('tasks.owner_team not present yet — scoping by board instead.')
         const ids = boards.map(b => `"${String(b.id).replace(/"/g, '')}"`).join(',')
-        tasks = isTeam
+        tasks = scopedToTeam
           ? (boards.length ? await restGet('tasks', `select=*&board_id=in.(${ids})`) : [])
           : await restGet('tasks', 'select=*')
       }
 
-      if (!isTeam) {
+      if (!scopedToTeam) {
         // Seed default boards if missing (only for Radical members)
         const existingIds = boards.map(b => b.id)
         // Main is a view over the others, so it never gets a row of its own.
@@ -850,7 +857,13 @@ function App() {
         // the tasks come from the other tabs further down rather than from a
         // query of its own.
         const boardTabs = [MAIN_BOARD, ...boards.map(b => ({ id: b.id, name: b.name, permanent: false }))]
-        setTabs([...(teamFullAccess ? SYSTEM_TABS : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))), ...boardTabs])
+        // The cut-down tab list is for a visiting team's shared login. A
+        // person on another team is still a person, and a sister team's
+        // account runs the whole app, so both get everything.
+        const systemTabs = (!isTeam || teamFullAccess)
+          ? SYSTEM_TABS
+          : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))
+        setTabs([...systemTabs, ...boardTabs])
 
         const grouped = {}
         boards.forEach(b => { grouped[b.id] = [] })
