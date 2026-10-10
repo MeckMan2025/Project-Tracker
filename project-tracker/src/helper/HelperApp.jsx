@@ -244,6 +244,7 @@ function Recorder() {
 
   const start = async () => {
     setError('')
+    if (speaking) { audioRef.current?.pause(); setSpeaking(false) }
     try {
       recRef.current = await startRecording()
     } catch (err) {
@@ -266,13 +267,30 @@ function Recorder() {
 
   const redo = () => { setClip(null); setStage('idle'); setSeconds(0) }
 
+  // The prompt never changes, so it's a recorded clip (public/helper/prompt.mp3,
+  // made once with Cloudflare's text-to-speech) rather than the browser's own
+  // voice. On an iPhone that voice is unreliable in home-screen apps and goes
+  // quiet with the silent switch on; an ordinary audio clip plays either way.
+  // Tap again to stop. The browser's voice is only the fallback.
+  const audioRef = useRef(null)
+  const [speaking, setSpeaking] = useState(false)
   const speak = () => {
-    try {
-      window.speechSynthesis.cancel()
-      const u = new SpeechSynthesisUtterance(PROMPT)
-      u.rate = 0.95
-      window.speechSynthesis.speak(u)
-    } catch { /* no voice on this device */ }
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/helper/prompt.mp3')
+      audioRef.current.onended = () => setSpeaking(false)
+    }
+    const a = audioRef.current
+    if (speaking) { a.pause(); a.currentTime = 0; setSpeaking(false); return }
+    a.currentTime = 0
+    setSpeaking(true)
+    a.play().catch(() => {
+      setSpeaking(false)
+      try {
+        const u = new SpeechSynthesisUtterance(PROMPT)
+        u.rate = 0.95
+        window.speechSynthesis.speak(u)
+      } catch { /* no voice on this device */ }
+    })
   }
 
   // ── Photo (optional), the same upload as the typed form ────────────────
@@ -405,12 +423,10 @@ function Recorder() {
             {dayLabel(meetingDate)}
             {days.length > 1 && <ChevronDown size={16} className="text-gray-400" />}
           </button>
-          {'speechSynthesis' in window && (
-            <button onClick={speak} aria-label="Read the question out loud"
-              className="flex items-center gap-1 text-xs text-gray-500 px-2.5 py-1.5 rounded-lg bg-gray-100">
-              <Volume2 size={16} /> Hear it
-            </button>
-          )}
+          <button onClick={speak} aria-label={speaking ? 'Stop reading' : 'Read the question out loud'}
+            className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg ${speaking ? 'bg-pastel-pink/50 text-gray-700' : 'bg-gray-100 text-gray-500'}`}>
+            <Volume2 size={16} /> {speaking ? 'Stop' : 'Hear it'}
+          </button>
         </div>
         {pickingDay && (
           <div className="flex flex-wrap gap-2">
