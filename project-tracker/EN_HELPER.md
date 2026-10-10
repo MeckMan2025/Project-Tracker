@@ -11,50 +11,70 @@ Students end up with two icons: **Scrum** (the whole app) and **EN Helper**
 ## What a student does
 
 1. Tap the **EN Helper** icon, or the reminder that arrives after a meeting.
-2. Tap the big mic, talk about the meeting, tap again to stop. The card on
-   screen says what to cover (what you worked on, what went wrong or what you
-   tested, what's next). **Hear it** reads that out loud.
-3. Tap a face for how engaged they felt, then **Done**. A photo is optional
-   and uses the same upload as the typed form.
+2. Tap the big mic and talk about the meeting: what they worked on, what went
+   wrong or what they tested, what's next. Tap again to stop, then **Next**.
+3. Answer whatever that didn't cover, one question at a time. Each question
+   is shown and read out loud (in the same voice as the opening prompt).
+   - Open questions ("What did you learn from it?"): tap the mic and say it,
+     or **Type instead**.
+   - Choices ("How did you test it?"): tap one, or **Or say it** and the
+     answer is matched to a choice.
+   - **What happened today?** arrives with the signals they described
+     already ticked: check it and tap Next.
+   - Last: a photo of the work, or a link to it.
+4. When the last question is answered, the entry is complete: it counts, and
+   it wins the meeting's attendance back.
 
-That's it. The entry is saved, and the meeting's attendance is won back,
-the moment they tap Done. No review step, nothing to type.
+**Every question is answered, the same as the typed form:** what they did, why
+it mattered (and in their own words if "Other"), how engaged they were and
+why, the project (when the team has projects), whether a mentor helped (and
+who and how), which signals happened and every follow-up question for each,
+what's next, and a photo or link. The first recording usually answers several
+of these already, so a student typically answers about 5 to 10 short
+questions, not the whole list.
+
+A green **Got it** line echoes each spoken answer, with **Redo**, and the
+back arrow goes to the previous question.
+
+**Finish later** is always there. The entry and everything answered so far is
+saved, but it doesn't count until it's done: the Helper shows **Finish your
+entry** with how many questions are left, and the notebook shows it as "not
+finished yet". Reminders still go to anyone whose entry isn't finished.
 
 The same recorder is in the Scrum app too: the EN Helper icon (the page with
 the mic) next to **New Entry** on the Notebook tab opens it as a full-screen
-panel over the notebook, and **Back to Notebook**
-closes it with no reload. It runs inside the app rather than in a frame,
-because a framed second copy of the app fights the first over the sign-in.
+panel over the notebook, and **Back to Notebook** closes it with no reload. It
+runs inside the app rather than in a frame, because a framed second copy of
+the app fights the first over the sign-in.
 
-## What happens after Done
+## What happens behind it
 
 ```
-Phone                                   Supabase                        Cloudflare Workers AI
-─────                                   ────────                        ─────────────────────
-record clip, convert to 16 kHz WAV
-keep a copy on the phone (IndexedDB)
-upload clip ─────────────────────────▶  notebook-audio bucket (private)
-save entry row (ai_status 'pending') ─▶ notebook_entries
-claim attendance ────────────────────▶  attendance_records
-ask notebook-voice to process ───────▶  notebook-voice function
-delete phone copy                         download clip
-                                          ──────────────────────────────▶ Whisper: clip -> transcript
-                                          save transcript, delete clip
-                                          ──────────────────────────────▶ Llama 3.3 70B: transcript ->
-                                                                          category, why, signals and
-                                                                          answers, next step, polished
-                                          check every answer against the
-                                          app's own lists, save, 'done'
+Phone                                         notebook-voice (Supabase)              Workers AI
+─────                                         ─────────────────────────              ──────────
+record, convert to 16 kHz WAV, keep a copy
+upload clip; save entry (complete: false) ──▶
+"analyze" ─────────────────────────────────▶  download clip ────────────────────────▶ Whisper
+                                              save transcript, delete clip
+                                              fill only what was said ─────────────▶ Llama 3.3 (JSON)
+ask each unanswered question ◀──────────────  the updated entry
+  spoken answer: "answer" ─────────────────▶  transcribe ──────────────────────────▶ Whisper
+                                              match to a choice ───────────────────▶ Llama 3.3
+                                              add "Q: ... A: ..." to the transcript
+  each answer saved to the entry (PATCH)
+last answer: complete: true, claim attendance
+"finish" ──────────────────────────────────▶  write the polished version ──────────▶ Llama 3.3 (text)
 ```
 
-- **The save never waits on the AI.** If Cloudflare is down or the free
-  allowance is used up, the entry still exists and still counts. It shows
-  "being written up…" until a retry finishes it.
-- **Bad wifi can't lose a recording.** The clip stays on the phone until the
-  server confirms the save, and it is sent automatically the next time EN
-  Helper opens (or with the **Send** button on the yellow banner).
-- **The clip is deleted** as soon as its transcript is saved. Only the text is
-  kept.
+- **Nothing said is lost.** The first recording stays on the phone until the
+  server has it, and the entry exists from the moment Next is tapped.
+- **The first pass only fills what was said.** It's told to leave anything
+  the student didn't actually say empty, because empty means "ask them"; a
+  guess would skip a question they never answered.
+- **The transcript is the record.** Every spoken answer is added to it as
+  "Q: ... A: ...", so "What I said" in the notebook holds the student's words
+  for all of it. Tapped choices aren't spoken, so they aren't in it.
+- **If the AI is unavailable,** the Helper simply asks every question.
 
 ## How it reads in the notebook
 
@@ -119,6 +139,10 @@ numbers in the dashboard all go up by one. That is expected.
 
 Supabase dashboard → SQL Editor → paste `supabase/en_helper.sql` (repo root)
 → Run. Leave the commented STEP 4 block at the bottom for later.
+
+Then paste `supabase/en_helper_complete.sql` and Run. It adds `complete`
+(an unfinished voice entry doesn't count, including for the notebook
+attendance rule) and `voice_state`.
 
 ### 2. A Cloudflare API token for Workers AI
 
@@ -196,30 +220,36 @@ order by start_time desc limit 5;
 1. On your phone, open `everythingthatsscrum.meckman.org/helper/` in Safari →
    Share → **Add to Home Screen**. Open it from the icon and sign in once
    (a home-screen app keeps its own sign-in on iPhone).
-2. Record ten seconds, pick a face, Done.
-3. In the Scrum app, Notebook → Read as a notebook: the entry shows "being
-   written up…", then both versions within a minute.
+2. Talk for twenty seconds, tap Next, and answer the questions it asks.
+3. In the Scrum app, Notebook → Read it: the entry shows "being written
+   up…", then both versions within a minute.
 
 ## Costs and limits
 
 Workers AI's free plan gives 10,000 "neurons" a day, shared by every team,
-resetting at 00:00 UTC. Estimated from Cloudflare's published rates for a
-one-minute recording:
+resetting at 00:00 UTC (7pm Central). Estimated from Cloudflare's published
+rates for a typical entry (a one-minute recording and about eight follow-up
+questions, half of them spoken):
 
 | Step | Neurons |
 |------|---------|
-| Whisper, per audio minute | about 47 |
-| Llama 3.3 70B write-up (about 3,300 tokens in, 500 out) | about 190 |
-| **One entry** | **about 240** |
+| Whisper, first recording (1 minute) | about 47 |
+| First pass (Llama 3.3 70B) | about 120 |
+| Spoken answers (Whisper, a few seconds each) and choice matching | about 40 |
+| Written-up version (Llama 3.3 70B) | about 80 |
+| **One entry** | **about 290** |
 
-That is roughly **40 voice entries a day** for free. Check real usage in the
-Cloudflare dashboard → Workers AI after the first week. Past that, the
-entries still save and count; their write-up waits for the retry after the
-allowance resets. If teams outgrow it, the Workers Paid plan ($5 a month) lifts
-the cap, or set `CF_TEXT_MODEL` to a cheaper model.
+That is roughly **30 to 35 voice entries a day** for free. Past that,
+transcription fails until the reset: entries still save, and the Helper asks
+every question so the student can type their answers. If the team writes
+more than that, the Workers Paid plan ($5 a month) lifts the cap; at its
+rates, each entry beyond the free allowance costs about a third of a cent.
 
-Recordings stop at 3 minutes. A 16 kHz WAV is about 2 MB a minute, held in
-storage only until it is transcribed.
+Recordings stop at 3 minutes (90 seconds for an answer). A 16 kHz WAV is
+about 2 MB a minute, held in storage only until it is transcribed.
+
+The question audio is 43 small clips (about 500 KB) recorded once, so reading
+questions out costs nothing.
 
 ## Things to know
 
@@ -251,6 +281,20 @@ npm run sync:notebook-schema
 
 then redeploy `notebook-voice`. `npm run build` warns if the copy is out of
 date.
+
+**The question audio.** The clips in `public/helper/q/` are named by each
+question's wording. After changing a question, record the new ones (unchanged
+clips are kept, removed questions' clips are deleted):
+
+```bash
+CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... npm run make:question-audio
+```
+
+Until then the Helper reads a changed question in the phone's own voice.
+
+**Which questions are asked.** `src/data/notebookQuestions.js`. It is the one
+list of what a complete voice entry answers, read by the Helper and the
+notebook alike.
 
 **Words that get misheard.** Add them to `GLOSSARY` in
 `supabase/functions/notebook-voice/ai.ts` (this season's game pieces, your part
@@ -296,10 +340,14 @@ CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... \
 | `public/helper/manifest.json`, icons | Its home-screen name and icon |
 | `public/helper/sw.js` | Its own service worker (scope `/helper/`), for its own push subscription |
 | `src/helper/main.jsx`, `HelperApp.jsx` | The app: sign-in, recorder, Done, saved screen. `Recorder` is also the Notebook tab's panel (`embedded`) |
+| `src/helper/Questions.jsx` | One follow-up question: mic, choices, signals, photo or link |
+| `src/helper/questionVoice.js` | Reads questions out from the recorded clips |
+| `src/data/notebookQuestions.js` | Every question a complete entry answers, and which are left |
+| `public/helper/q/` | The question clips and their manifest (`npm run make:question-audio`) |
 | `src/helper/recorder.js` | Recording and conversion to 16 kHz WAV |
 | `src/helper/voiceEntries.js` | Phone queue, upload, save, attendance claim, processing nudge |
 | `src/helper/helperPush.js` | Reminder sign-up |
 | `src/components/VoiceEntry.jsx` | Side-by-side view and the polished-text editor |
 | `src/lib/notebookAttendance.js`, `notebookPhoto.js` | Shared with the typed form so both behave the same |
-| `supabase/functions/notebook-voice/` | `index.ts` (process, reminders, retries), `ai.ts` (Whisper, Llama, checks), `notebookSchema.json` (generated) |
-| `supabase/en_helper.sql` (repo root) | Columns, bucket, reminders table, schedule |
+| `supabase/functions/notebook-voice/` | `index.ts` (analyze, answer, finish, reminders, retries), `ai.ts` (Whisper, first pass, choice matching, write-up), `notebookSchema.json` (generated) |
+| `supabase/en_helper.sql`, `en_helper_complete.sql` (repo root) | Columns, bucket, reminders table, schedule; `complete` and `voice_state` |

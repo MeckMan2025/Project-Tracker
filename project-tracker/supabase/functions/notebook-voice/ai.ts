@@ -46,12 +46,17 @@ async function runModel(model: string, input: unknown) {
   return data.result;
 }
 
-export async function transcribe(audio: Uint8Array): Promise<string> {
+// `question`, when given, is what the student was just asked: it tells
+// Whisper what kind of answer to expect.
+export async function transcribe(audio: Uint8Array, question = ""): Promise<string> {
+  const context = question
+    ? `A student on an FTC robotics team answering: "${question}"`
+    : "A student on an FTC robotics team describing today's meeting.";
   const result = await runModel(WHISPER_MODEL, {
     audio: encodeBase64(audio),
     language: "en",
     vad_filter: true,
-    initial_prompt: `A student on an FTC robotics team describing today's meeting. ${GLOSSARY.join(", ")}.`,
+    initial_prompt: `${context} ${GLOSSARY.join(", ")}.`,
   });
   return String(result?.text || "").trim();
 }
@@ -200,4 +205,171 @@ export function cleanAiFields(ai: any) {
     signal_data,
     polished: text(ai?.polished, 4000),
   };
+}
+
+// ─── EN Helper, part 2: every question answered ─────────────────────────────
+//
+// The first recording is read once for whatever it already answers
+// (extractFields). The Helper asks the student everything still empty, one
+// question at a time, and each spoken answer is transcribed (and matched to
+// a choice when the question has choices). At the end, polishText writes the
+// notebook version from everything the student said.
+
+// The first pass. Unlike polish(), it must leave a question empty when the
+// student didn't actually answer it: the Helper asks those, and a guessed
+// answer would skip a question the student never answered.
+export async function extractFields(transcript: string) {
+  const model = Deno.env.get("CF_TEXT_MODEL") || DEFAULT_TEXT_MODEL;
+  const signalData: Record<string, unknown> = {};
+  for (const sig of schema.signals as SignalSchema[]) {
+    const props: Record<string, unknown> = {};
+    for (const q of sig.questions) {
+      props[q.id] = "options" in q && q.options
+        ? { type: "string", enum: ["", ...q.options] }
+        : { type: "string", maxLength: 160 };
+    }
+    signalData[sig.key] = { type: "object", properties: props };
+  }
+  const answerSchema = {
+    type: "object",
+    properties: {
+      category: { type: "string", enum: schema.categories },
+      what_did: { type: "string", maxLength: 300 },
+      why_option: { type: "string", enum: ["", ...schema.whyOptions] },
+      mentor: { type: "string", enum: ["yes", "no", "not said"] },
+      next_step: { type: "string", maxLength: 300 },
+      signals: { type: "array", items: { type: "string", enum: schema.signals.map((s) => s.key) } },
+      signal_data: { type: "object", properties: signalData },
+    },
+    required: ["category", "what_did", "why_option", "mentor", "next_step", "signals", "signal_data"],
+  };
+  const signals = (schema.signals as SignalSchema[]).map((s) => {
+    const qs = s.questions.map((q) => {
+      const opts = "options" in q && q.options ? ` One of: ${q.options.map((o) => `"${o}"`).join(", ")}` : " Free text.";
+      return `    - ${q.id}: ${q.label}${opts}`;
+    }).join("\n");
+    return `- ${s.key}: "${s.label}" (${s.helper})\n${qs}`;
+  }).join("\n");
+
+  const system = `A high school FTC robotics student recorded a spoken recap of a team meeting. Fill in their engineering notebook entry from it.
+
+This is a first pass: anything you leave empty, the student will be asked next. So only fill in what the student actually said. Never guess, never infer, never fill a field just because it is likely. Empty is always the right answer when they didn't say it.
+
+- category: Technical (building, hardware, mechanical design, CAD), Programming (code, software, autonomous, sensors), or Business (outreach, fundraising, sponsors, marketing, the notebook). Always pick one.
+- what_did: one plain first-person sentence saying what they worked on, or empty.
+- why_option: only if they said why the work mattered; otherwise "".
+- mentor: "yes" if they said a mentor or coach helped, "no" if they said they did it on their own, otherwise "not said".
+- next_step: what they said happens next, or empty.
+- signals: which of these they described. Usually one to three.
+${signals}
+- signal_data: one key per signal you chose. Under each, only the questions their words answer, in a few words each (under 15). Choice answers must be one of the options exactly; use "" when not said.
+
+Answer with JSON only, using straight double quotes.`;
+
+  const ask = (temperature: number) => runModel(model, {
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: `Transcript:\n"""${transcript}"""` },
+    ],
+    response_format: { type: "json_schema", json_schema: answerSchema },
+    max_tokens: 1200,
+    temperature,
+  });
+  for (const temperature of [0.1, 0]) {
+    const out = readAnswer(await ask(temperature));
+    if (out) return cleanExtract(out);
+  }
+  throw new Error("The AI's first pass wasn't valid JSON, twice");
+}
+
+// deno-lint-ignore no-explicit-any
+function cleanExtract(ai: any) {
+  const text = (v: unknown, max: number) =>
+    typeof v === "string" ? v.replace(/\s*\u2014\s*/g, ", ").trim().slice(0, max) : "";
+  const signalKeys = new Set(schema.signals.map((s) => s.key));
+  const signals = [...new Set<string>(Array.isArray(ai?.signals) ? ai.signals : [])].filter((k) => signalKeys.has(k));
+  const signal_data: Record<string, Record<string, string>> = {};
+  for (const key of signals) {
+    const sig = (schema.signals as SignalSchema[]).find((s) => s.key === key)!;
+    const given = ai?.signal_data?.[key] || {};
+    const answers: Record<string, string> = {};
+    for (const q of sig.questions) {
+      const v = text(given[q.id], 300);
+      if (!v) continue;
+      if ("options" in q && q.options && !q.options.includes(v)) continue;
+      answers[q.id] = v;
+    }
+    signal_data[key] = answers;
+  }
+  return {
+    category: schema.categories.includes(ai?.category) ? ai.category : "Technical",
+    what_did: text(ai?.what_did, 300),
+    why_option: schema.whyOptions.includes(ai?.why_option) ? ai.why_option : "",
+    mentor: ai?.mentor === "yes" || ai?.mentor === "no" ? ai.mentor : "",
+    next_step: text(ai?.next_step, 300),
+    signals,
+    signal_data,
+  };
+}
+
+// A spoken answer to a choice question, matched to one of its options. Returns
+// the option exactly, or null when the answer fits none (the Helper then shows
+// the choices to tap).
+export async function matchChoice(said: string, question: string, options: string[]) {
+  if (!said.trim() || !options.length) return null;
+  const lower = said.toLowerCase();
+  const exact = options.find((o) => lower.includes(o.toLowerCase()));
+  if (exact) return exact;
+  const model = Deno.env.get("CF_TEXT_MODEL") || DEFAULT_TEXT_MODEL;
+  const result = await runModel(model, {
+    messages: [
+      { role: "system", content: "You match a student's spoken answer to one of the listed options. Reply with only the option's number, or 0 if none of them fits what they said." },
+      { role: "user", content: `Question: ${question}\nOptions:\n${options.map((o, i) => `${i + 1}. ${o}`).join("\n")}\nThey said: "${said}"` },
+    ],
+    max_tokens: 5,
+    temperature: 0,
+  });
+  const n = parseInt(String(result?.response ?? result?.choices?.[0]?.message?.content ?? "").match(/\d+/)?.[0] || "0", 10);
+  return n >= 1 && n <= options.length ? options[n - 1] : null;
+}
+
+// The notebook version, from everything the student said and chose. Plain
+// text, not JSON: there is nothing to parse, so nothing to break.
+// deno-lint-ignore no-explicit-any
+export async function polishText(transcript: string, entry: any) {
+  const model = Deno.env.get("CF_TEXT_MODEL") || DEFAULT_TEXT_MODEL;
+  const chose: string[] = [];
+  if (entry.why_option) chose.push(`Why it mattered: ${entry.why_option === "Other" ? entry.why_note : entry.why_option}`);
+  if (entry.engagement) chose.push(`Engagement: ${entry.engagement}${entry.engagement_note ? ` (${entry.engagement_note})` : ""}`);
+  if (entry.mentor_help) chose.push(`A mentor helped: ${entry.mentor_name || "yes"}${entry.mentor_note ? `, ${entry.mentor_note}` : ""}`);
+  for (const [key, answers] of Object.entries(entry.signal_data || {})) {
+    const sig = (schema.signals as SignalSchema[]).find((s) => s.key === key);
+    if (!sig) continue;
+    const parts = sig.questions
+      .map((q) => (answers as Record<string, string>)[q.id] ? `${q.label} ${(answers as Record<string, string>)[q.id]}` : "")
+      .filter(Boolean);
+    chose.push(`${sig.label}. ${parts.join(" ")}`);
+  }
+  if (entry.next_step) chose.push(`Next: ${entry.next_step}`);
+
+  const result = await runModel(model, {
+    messages: [
+      {
+        role: "system",
+        content: `You write a high school FTC robotics student's engineering notebook entry from their own spoken words and the answers they gave.
+
+Use only what they said and chose. Never add a fact, number, part, person, result or plan they didn't give. First person, past tense, written the way a thoughtful student would write it: clear, specific, and in their voice. Keep every concrete detail (measurements, counts, part names, what failed, what they changed and why). Fix speech-to-text mistakes using this glossary: ${GLOSSARY.join(", ")}. Remove filler ("um", "like", "so yeah"). Two or three short paragraphs at most. No headings, no bullet points, no em dashes. Reply with the entry only.`,
+      },
+      {
+        role: "user",
+        content: `What they said (their recap, then their answers to follow-up questions):\n"""${transcript}"""\n\nWhat they chose:\n${chose.join("\n") || "(nothing)"}`,
+      },
+    ],
+    max_tokens: 700,
+    temperature: 0.3,
+  });
+  const text = String(result?.response ?? result?.choices?.[0]?.message?.content ?? "")
+    .replace(/\s*\u2014\s*/g, ", ").trim();
+  if (!text) throw new Error("The AI wrote nothing");
+  return text.slice(0, 4000);
 }

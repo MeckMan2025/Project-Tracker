@@ -11,7 +11,8 @@
     "cap:sync": "npx cap sync",
     "cap:ios": "node scripts/bump-ios-build.mjs && vite build && npx cap sync ios && npx cap open ios",
     "ship:ios": "node scripts/ship-ios.mjs",
-    "sync:notebook-schema": "node scripts/sync-notebook-schema.mjs"
+    "sync:notebook-schema": "node scripts/sync-notebook-schema.mjs",
+    "make:question-audio": "node scripts/make-question-audio.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.0.1",

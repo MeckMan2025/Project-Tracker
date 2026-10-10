@@ -1,7 +1,17 @@
 // notebook-voice: everything the EN Helper needs on the server.
 //
-//   { action: "process", entry_id }   called by the Helper right after a voice
-//                                     entry saves (student's own token)
+//   { action: "analyze", entry_id }   right after the first recording saves:
+//                                     transcribe it and fill in whatever it
+//                                     already answers; returns the row
+//   { action: "answer", entry_id,     one spoken answer to a follow-up
+//     question, options?, audio }     question: its text, and the matching
+//                                     option when the question has choices
+//   { action: "finish", entry_id }    every question answered: write the
+//                                     polished version (in the background)
+//   { action: "process", entry_id }   the original one-shot flow, kept for
+//                                     Helpers still on the old page
+//
+// The first four are called with the student's own token.
 //   { action: "tick" }                called every 15 minutes by pg_cron
 //                                     (x-cron-secret header): sends
 //                                     end-of-meeting reminders and retries any
@@ -17,7 +27,8 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 // @ts-ignore: esm.sh's types claim no default export; the module has one (send-push uses it the same way).
 import webpush from "https://esm.sh/web-push@3.6.7";
-import { transcribe, polish, cleanAiFields } from "./ai.ts";
+import { transcribe, polish, cleanAiFields, extractFields, matchChoice, polishText } from "./ai.ts";
+import { decodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +52,7 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
-  let body: { action?: string; entry_id?: string } = {};
+  let body: { action?: string; entry_id?: string; question?: string; options?: string[]; audio?: string } = {};
   try { body = await req.json(); } catch { /* empty body */ }
 
   const cronSecret = Deno.env.get("CRON_SECRET") || "";
@@ -53,7 +64,7 @@ Deno.serve(async (req: Request) => {
       return json(await tick(admin));
     }
 
-    if (body.action === "process") {
+    if (["process", "analyze", "answer", "finish"].includes(body.action || "")) {
       if (!body.entry_id) return json({ error: "entry_id required" }, 400);
       if (!isCron) {
         const caller = await callerProfile(admin, req);
@@ -62,6 +73,19 @@ Deno.serve(async (req: Request) => {
           .from("notebook_entries").select("id, team_number").eq("id", body.entry_id).maybeSingle();
         if (!entry) return json({ error: "no such entry" }, 404);
         if (teamKey(entry.team_number) !== teamKey(caller.team_number)) return json({ error: "not your team" }, 403);
+      }
+
+      // The student is waiting on these two, so they answer directly.
+      if (body.action === "analyze") return json(await analyzeEntry(admin, body.entry_id));
+      if (body.action === "answer") {
+        if (!body.audio || !body.question) return json({ error: "question and audio required" }, 400);
+        return json(await answerQuestion(admin, body.entry_id, body.question, body.options || [], body.audio));
+      }
+
+      if (body.action === "finish") {
+        await admin.from("notebook_entries")
+          .update({ ai_status: "pending", ai_attempts: 0, ai_error: null, ai_updated_at: new Date().toISOString() })
+          .eq("id", body.entry_id);
       }
       // Answer straight away and keep working. The student's phone may close
       // the Helper the moment it sees "Saved", and that must not cancel this.
@@ -116,7 +140,7 @@ async function processEntry(admin: SupabaseClient, id: string) {
     .eq("id", id)
     .in("ai_status", ["pending", "failed"])
     .lt("ai_attempts", MAX_ATTEMPTS)
-    .select("id, transcript, audio_path, ai_attempts");
+    .select("*");
   const entry = claimed?.[0];
   if (!entry) return { id, status: "skipped" };
 
@@ -137,6 +161,27 @@ async function processEntry(admin: SupabaseClient, id: string) {
         .update({ transcript, audio_path: null }).eq("id", id);
       await admin.storage.from(AUDIO_BUCKET).remove([entry.audio_path]).catch(() => {});
     }
+
+    // Still being answered: the transcript is all there is to do for now.
+    // The write-up waits for "finish", once every question has an answer.
+    if (entry.complete === false) {
+      await admin.from("notebook_entries").update({
+        ai_status: "transcribed", ai_error: null, ai_updated_at: new Date().toISOString(),
+      }).eq("id", id);
+      return { id, status: "transcribed" };
+    }
+
+    // Complete, with its answers given one by one: write it up from all of it.
+    if (entry.what_did || (entry.signals || []).length) {
+      const polished = await polishText(transcript, entry);
+      await admin.from("notebook_entries").update({
+        polished, ai_status: "done", ai_error: null, ai_updated_at: new Date().toISOString(),
+      }).eq("id", id);
+      return { id, status: "done" };
+    }
+
+    // From here on, the original one-shot flow (a Helper still on the old
+    // page): one recording, everything read from it.
 
     // Silence, or a pocket recording. The entry stays (it is still the
     // student's), but there is nothing to polish.
@@ -163,6 +208,69 @@ async function processEntry(admin: SupabaseClient, id: string) {
     }).eq("id", id);
     return { id, status: "failed", error: message };
   }
+}
+
+// ─── Every question answered ────────────────────────────────────────────────
+
+async function ensureTranscript(admin: SupabaseClient, entry: Record<string, any>) {
+  if (entry.transcript || !entry.audio_path) return entry.transcript || "";
+  const { data: blob, error } = await admin.storage.from(AUDIO_BUCKET).download(entry.audio_path);
+  if (error || !blob) throw new Error(`Could not download the clip: ${error?.message || "missing"}`);
+  const transcript = await transcribe(new Uint8Array(await blob.arrayBuffer()));
+  await admin.from("notebook_entries").update({ transcript, audio_path: null }).eq("id", entry.id);
+  await admin.storage.from(AUDIO_BUCKET).remove([entry.audio_path]).catch(() => {});
+  return transcript;
+}
+
+// The first recording, read once for whatever it already answers. Only empty
+// fields are filled, so nothing the student answered is overwritten, and a
+// failure here just means the Helper asks every question.
+async function analyzeEntry(admin: SupabaseClient, id: string) {
+  const { data: entry } = await admin.from("notebook_entries").select("*").eq("id", id).maybeSingle();
+  if (!entry) return { error: "no such entry" };
+  if (!Deno.env.get("CLOUDFLARE_ACCOUNT_ID") || !Deno.env.get("CLOUDFLARE_API_TOKEN")) return { entry };
+
+  let patch: Record<string, unknown> = {};
+  try {
+    const transcript = await ensureTranscript(admin, entry);
+    patch = { ai_status: "transcribed", ai_error: null, ai_updated_at: new Date().toISOString() };
+
+    if (transcript.split(/\s+/).filter(Boolean).length >= 3) {
+      const ai = await extractFields(transcript);
+      const confirmed = new Set<string>(entry.voice_state?.confirmed || []);
+      if (!entry.what_did && ai.what_did) patch.what_did = ai.what_did;
+      if (!entry.why_option && ai.why_option) patch.why_option = ai.why_option;
+      if (!entry.next_step && ai.next_step) patch.next_step = ai.next_step;
+      if (!confirmed.has("project")) patch.category = ai.category;
+      if (!confirmed.has("mentor") && ai.mentor) {
+        patch.mentor_help = ai.mentor === "yes";
+        confirmed.add("mentor");
+      }
+      if (!(entry.signals || []).length && ai.signals.length) patch.signals = ai.signals;
+      const data: Record<string, Record<string, string>> = { ...(entry.signal_data || {}) };
+      for (const [key, answers] of Object.entries(ai.signal_data)) data[key] = { ...answers, ...(data[key] || {}) };
+      patch.signal_data = data;
+      patch.voice_state = { ...(entry.voice_state || {}), confirmed: [...confirmed] };
+    }
+  } catch (err) {
+    const message = String((err as Error)?.message || err).slice(0, 500);
+    console.error(`notebook-voice: analyze ${id} failed:`, message);
+    patch = { ai_error: message, ai_updated_at: new Date().toISOString() };
+  }
+  const { data: updated } = await admin.from("notebook_entries").update(patch).eq("id", id).select("*").maybeSingle();
+  return { entry: updated || entry };
+}
+
+// One spoken answer. Its words join the transcript (the "what I said" record
+// judges see), and a choice question also gets the option it matches.
+async function answerQuestion(admin: SupabaseClient, id: string, question: string, options: string[], audio: string) {
+  const said = await transcribe(decodeBase64(audio), question);
+  if (!said) return { text: "", option: null };
+  const option = options.length ? await matchChoice(said, question, options).catch(() => null) : null;
+  const { data: entry } = await admin.from("notebook_entries").select("transcript").eq("id", id).maybeSingle();
+  const transcript = `${entry?.transcript || ""}\n\nQ: ${question}\nA: ${said}`.trim();
+  await admin.from("notebook_entries").update({ transcript }).eq("id", id);
+  return { text: said, option };
 }
 
 // ─── Every 15 minutes ───────────────────────────────────────────────────────
@@ -271,7 +379,9 @@ async function sendReminders(admin: SupabaseClient) {
 
     const [{ data: records }, { data: written }, { data: already }] = await Promise.all([
       admin.from("attendance_records").select("username, status, marked_by").eq("session_id", session.id),
-      scoped(admin.from("notebook_entries").select("username").eq("meeting_date", date)),
+      // An unfinished voice entry isn't written yet: its author still gets
+      // the reminder, which takes them back to finish it.
+      scoped(admin.from("notebook_entries").select("username").eq("meeting_date", date).eq("complete", true)),
       admin.from("notebook_reminders").select("username").eq("session_id", session.id),
     ]);
 

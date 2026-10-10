@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Mic, Square, Camera, Loader2, Volume2, X, Check, RotateCcw, Bell, ChevronDown } from 'lucide-react'
+import { Mic, Square, Loader2, Volume2, X, Check, RotateCcw, Bell, ChevronDown } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { teamScope } from '../lib/teamScope'
@@ -7,30 +7,26 @@ import { restHeaders } from '../lib/restHeaders'
 import { authLinkError } from '../supabase'
 import LoginScreen from '../components/LoginScreen'
 import ForcePasswordChange from '../components/ForcePasswordChange'
-import { uploadNotebookPhoto } from '../lib/notebookPhoto'
-import { thumbUrl } from '../lib/photos'
+import { entryQuestions, nextQuestion, questionsLeft } from '../data/notebookQuestions'
 import { canRecord, startRecording, toWav, MAX_SECONDS } from './recorder'
 import {
   voiceBackendReady, queueEntry, pendingEntries, sendEntry, nudgeUnfinished, latestVoiceEntry,
+  analyzeEntry, loadEntry, patchEntry, finishEntry, unfinishedEntries, questionContext,
 } from './voiceEntries'
 import { pushSupported, registerHelperWorker, remindersOn, syncReminders, turnOnReminders } from './helperPush'
+import { unlockVoice, stopVoice } from './questionVoice'
+import QuestionStep from './Questions'
 
 // EN Helper: the engineering notebook for students who won't type one.
 //
-// Three taps: talk, pick a face, Done. The entry saves the moment Done is
-// pressed (and wins the meeting's attendance back), and the AI writes it up
-// afterwards on the server. Nothing the AI does can hold up or lose a save.
-// The design notes and setup are in EN_HELPER.md.
+// Talk about the meeting, then answer whatever that didn't cover, one question
+// at a time, by voice or a tap. Every question gets an answer, the same as the
+// typed form. The design notes and setup are in EN_HELPER.md.
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 
 const PROMPT = "Tell your notebook about today. What did you work on? What went wrong, or what did you test? And what's next?"
 
-const FACES = [
-  { value: 'Very', emoji: '😄', label: 'Very' },
-  { value: 'Somewhat', emoji: '🙂', label: 'Somewhat' },
-  { value: 'Not', emoji: '😕', label: 'Not really' },
-]
 
 // Local calendar date, not UTC: after about 7pm Central, UTC is already
 // tomorrow and an evening entry would land on the wrong meeting.
@@ -162,17 +158,21 @@ function ProfileWait() {
 // The recorder itself. The Helper page shows it full screen; the Scrum app's
 // Notebook tab shows it as a panel (embedded), where the app already handles
 // sign-in, notifications and the way back.
+//
+// One open recording first, then every question it didn't answer, one at a
+// time. The recording saves the moment Next is tapped, as an unfinished entry,
+// so nothing said is ever lost; the entry only counts (and only wins the
+// meeting's attendance back) once the last question is answered.
 export function Recorder({ embedded = false }) {
   const { user, username } = useUser()
   const { myTeamNumber } = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
 
   const [ready, setReady] = useState(null) // null = checking
-  const [stage, setStage] = useState('idle') // idle | recording | recorded | saving | saved
+  // idle | recording | recorded | saving | analyzing | asking | finishing | saved
+  const [stage, setStage] = useState('idle')
   const [seconds, setSeconds] = useState(0)
   const [clip, setClip] = useState(null)
-  const [engagement, setEngagement] = useState('')
-  const [photo, setPhoto] = useState({ url: '', uploading: false, error: '' })
   const [error, setError] = useState('')
   const [claimed, setClaimed] = useState(false)
   const [waiting, setWaiting] = useState(0) // recordings still on this phone
@@ -183,6 +183,14 @@ export function Recorder({ embedded = false }) {
   const [meetingDate, setMeetingDate] = useState(todayLocal())
   const [pickingDay, setPickingDay] = useState(false)
   const [installHint, setInstallHint] = useState(false)
+
+  // The questions.
+  const [entry, setEntry] = useState(null)
+  const [ctx, setCtx] = useState({ projects: [], mentors: [] })
+  const [unfinished, setUnfinished] = useState([])
+  const [history, setHistory] = useState([]) // questions answered this visit, for Back
+  const [revisit, setRevisit] = useState(null) // a question being answered again
+  const [heard, setHeard] = useState(null) // { text, qid }: the last spoken answer
 
   const recRef = useRef(null)
   const timerRef = useRef(null)
@@ -202,24 +210,30 @@ export function Recorder({ embedded = false }) {
     remindersOn().then(setReminders)
   }, [user?.id])
 
-  // Send anything left on the phone from last time, then show how the last
-  // entry is doing.
+  const refreshLists = useCallback(() => {
+    unfinishedEntries(username, SCOPE).then(setUnfinished)
+    latestVoiceEntry(username, SCOPE).then(setLast)
+  }, [username, SCOPE])
+
+  // Send anything left on the phone from last time. Each one becomes an
+  // unfinished entry, waiting for its questions.
   const flushWaiting = useCallback(async () => {
     const queued = await pendingEntries(username)
     let left = queued.length
     setWaiting(left)
     for (const item of queued) {
-      try { await sendEntry(item, SCOPE); left -= 1 } catch (err) { console.warn('[EN Helper] still waiting:', err.message) }
+      try { await sendEntry(item); left -= 1 } catch (err) { console.warn('[EN Helper] still waiting:', err.message) }
     }
     setWaiting(left)
     return left
-  }, [username, SCOPE])
+  }, [username])
 
   useEffect(() => {
     if (!ready || !username) return
+    questionContext(SCOPE).then(setCtx)
     flushWaiting().finally(() => {
       nudgeUnfinished(username, SCOPE)
-      latestVoiceEntry(username, SCOPE).then(setLast)
+      refreshLists()
     })
   }, [ready, username]) // eslint-disable-line
 
@@ -234,7 +248,7 @@ export function Recorder({ embedded = false }) {
     Promise.all([
       fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date&order=session_date.desc&limit=60`, { headers: h }).then(r => (r.ok ? r.json() : [])),
       fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${name}&select=session_id,status,marked_by`, { headers: h }).then(r => (r.ok ? r.json() : [])),
-      fetch(`${supabaseUrl}/rest/v1/notebook_entries?${SCOPE}&username=eq.${name}&select=meeting_date`, { headers: h }).then(r => (r.ok ? r.json() : [])),
+      fetch(`${supabaseUrl}/rest/v1/notebook_entries?${SCOPE}&username=eq.${name}&complete=eq.true&select=meeting_date`, { headers: h }).then(r => (r.ok ? r.json() : [])),
     ]).then(([sessions, records, written]) => {
       if (!live) return
       const today = todayLocal()
@@ -256,7 +270,7 @@ export function Recorder({ embedded = false }) {
     return () => { live = false }
   }, [username]) // eslint-disable-line
 
-  // ── Recording ─────────────────────────────────────────────────────────
+  // ── The first recording ───────────────────────────────────────────────
   const stopTimer = () => { clearInterval(timerRef.current); timerRef.current = null }
 
   const stop = async () => {
@@ -295,7 +309,7 @@ export function Recorder({ embedded = false }) {
     }, 250)
   }
 
-  useEffect(() => () => { stopTimer(); recRef.current?.cancel() }, [])
+  useEffect(() => () => { stopTimer(); recRef.current?.cancel(); stopVoice() }, [])
 
   const redo = () => { setClip(null); setStage('idle'); setSeconds(0) }
 
@@ -325,20 +339,19 @@ export function Recorder({ embedded = false }) {
     })
   }
 
-  // ── Photo (optional), the same upload as the typed form ────────────────
-  const pickPhoto = (e) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setPhoto({ url: '', uploading: true, error: '' })
-    uploadNotebookPhoto(file)
-      .then(url => setPhoto({ url, uploading: false, error: '' }))
-      .catch(err => setPhoto({ url: '', uploading: false, error: err.message }))
+  // ── Into the questions ────────────────────────────────────────────────
+  const beginQuestions = (row) => {
+    setEntry(row)
+    setHistory([])
+    setRevisit(null)
+    setHeard(null)
+    setError('')
+    setStage('asking')
   }
 
-  // ── Done ──────────────────────────────────────────────────────────────
-  const done = async () => {
-    if (!clip || !engagement || photo.uploading || stage === 'saving') return
+  const next = async () => {
+    if (!clip || stage === 'saving') return
+    unlockVoice() // this tap is what lets the questions be read out later
     setStage('saving')
     setError('')
     const audio = (await toWav(clip)) || clip
@@ -347,8 +360,6 @@ export function Recorder({ embedded = false }) {
       username,
       team_number: myTeamNumber || '',
       meeting_date: meetingDate,
-      engagement,
-      photo_url: photo.url,
       created_at: new Date().toISOString(),
       audio: await audio.arrayBuffer(),
       audioType: audio.type,
@@ -356,21 +367,88 @@ export function Recorder({ embedded = false }) {
     // On the phone first, so nothing after this line can lose it.
     await queueEntry(item).catch(err => console.warn('[EN Helper] could not keep a copy on the phone:', err))
     try {
-      const { claimed: won } = await sendEntry(item, SCOPE)
-      setClaimed(won)
-      setStage('saved')
-      latestVoiceEntry(username, SCOPE).then(setLast)
+      await sendEntry(item)
     } catch (err) {
       console.warn('[EN Helper] save failed, kept on the phone:', err)
       setStage('recorded')
-      setError("Couldn't reach the notebook. Your recording is safe on this phone. Tap Done again when you have signal.")
+      setError("Couldn't reach the notebook. Your recording is safe on this phone. Tap Next again when you have signal.")
+      setWaiting((await pendingEntries(username)).length)
+      return
     }
     setWaiting((await pendingEntries(username)).length)
+    setStage('analyzing')
+    const row = (await analyzeEntry(item.id)) || (await loadEntry(item.id).catch(() => null))
+    if (!row) {
+      setStage('idle')
+      setClip(null)
+      setError("Your recording is saved. Couldn't load the questions just now; tap Continue above when you have signal.")
+      refreshLists()
+      return
+    }
+    beginQuestions(row)
   }
 
+  const resume = async (row) => {
+    unlockVoice()
+    setError('')
+    const fresh = await loadEntry(row.id).catch(() => null)
+    // Saved before its recording was read (offline, say): read it now.
+    const current = fresh || row
+    if (current.audio_path && !current.transcript) {
+      setStage('analyzing')
+      beginQuestions((await analyzeEntry(current.id)) || current)
+    } else {
+      beginQuestions(current)
+    }
+  }
+
+  const all = entry ? entryQuestions(entry, ctx) : []
+  const left = all.filter(q => !q.answered(entry)).length
+  const current = !entry ? null
+    : (revisit && all.find(q => q.id === revisit)) || nextQuestion(entry, ctx)
+
+  const answer = async (value) => {
+    const q = current
+    const patch = q.patch(entry, value)
+    const saved = await patchEntry(entry.id, patch)
+    setEntry(saved || { ...entry, ...patch })
+    setHistory(h => [...h.filter(id => id !== q.id), q.id])
+    setRevisit(null)
+    setHeard(q.kind === 'text' ? { text: value, qid: q.id } : null)
+  }
+
+  const backTo = (() => {
+    const at = revisit ? history.indexOf(revisit) : history.length
+    return at > 0 ? history[at - 1] : null
+  })()
+
+  const finish = async () => {
+    setStage('finishing')
+    setError('')
+    try {
+      const { claimed: won } = await finishEntry(entry, SCOPE)
+      setClaimed(won)
+      setStage('saved')
+      refreshLists()
+    } catch {
+      setStage('asking')
+      setError("Couldn't finish saving. Check your signal and try again.")
+    }
+  }
+
+  // The last answer in: finish.
+  useEffect(() => {
+    if (stage === 'asking' && entry && !current && !error) finish()
+  }, [stage, entry, current?.id]) // eslint-disable-line
+
   const another = () => {
-    setClip(null); setEngagement(''); setPhoto({ url: '', uploading: false, error: '' })
-    setClaimed(false); setSeconds(0); setError(''); setStage('idle')
+    setClip(null); setEntry(null); setClaimed(false); setSeconds(0); setError(''); setStage('idle')
+  }
+
+  const later = () => {
+    stopVoice()
+    setEntry(null); setClip(null); setError(''); setStage('idle')
+    refreshLists()
   }
 
   // ── Screens ───────────────────────────────────────────────────────────
@@ -382,6 +460,55 @@ export function Recorder({ embedded = false }) {
     )
   }
 
+  if (stage === 'analyzing') {
+    return (
+      <Screen>
+        <Header name={username} />
+        <div className="bg-white rounded-2xl shadow-sm p-8 text-center space-y-3">
+          <Loader2 className="animate-spin mx-auto text-pastel-pink-dark" size={34} />
+          <p className="text-gray-700 font-medium">Listening to what you said…</p>
+          <p className="text-xs text-gray-400">Then just the questions it didn't answer.</p>
+        </div>
+      </Screen>
+    )
+  }
+
+  if ((stage === 'asking' || stage === 'finishing') && entry) {
+    return (
+      <Screen>
+        <Header name={username} />
+        <p className="text-xs text-gray-500 -mb-1">Entry for {dayLabel(entry.meeting_date)}</p>
+        {current ? (
+          <QuestionStep
+            key={current.id}
+            entry={entry}
+            question={current}
+            done={all.length - left}
+            left={left}
+            heard={revisit ? null : heard?.text}
+            onRedoHeard={heard ? () => { setRevisit(heard.qid); setHeard(null) } : null}
+            onAnswer={answer}
+            onBack={backTo ? () => { setHeard(null); setRevisit(backTo) } : null}
+          />
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm p-8 text-center space-y-3">
+            <Loader2 className="animate-spin mx-auto text-pastel-pink-dark" size={30} />
+            <p className="text-gray-700 font-medium">Saving your entry…</p>
+            {error && (
+              <>
+                <p className="text-sm text-red-500">{error}</p>
+                <button onClick={finish} className="px-4 py-2 rounded-xl bg-pastel-pink font-semibold text-gray-800">Try again</button>
+              </>
+            )}
+          </div>
+        )}
+        <button onClick={later} className="w-full text-center text-xs text-gray-400 underline">
+          Finish later (it's saved, but it won't count until it's done)
+        </button>
+      </Screen>
+    )
+  }
+
   if (stage === 'saved') {
     return (
       <Screen>
@@ -390,10 +517,10 @@ export function Recorder({ embedded = false }) {
           <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
             <Check className="text-green-600" size={34} />
           </div>
-          <h2 className="text-xl font-semibold text-gray-800">Saved to your notebook</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Done. It's in your notebook.</h2>
           <p className="text-sm text-gray-500">
             {claimed ? "You're marked present for that meeting again. " : ''}
-            Your words are being written up now. Both versions will be in the notebook in a minute or two.
+            Every question is answered. The written-up version will be next to your words in a minute or two.
           </p>
           {!reminders && !embedded && !openedFromApp && pushSupported() && (
             <button
@@ -440,9 +567,22 @@ export function Recorder({ embedded = false }) {
       {waiting > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 flex items-center gap-2">
           <span className="flex-1">{waiting === 1 ? 'A recording is' : `${waiting} recordings are`} waiting on this phone to be saved.</span>
-          <button onClick={flushWaiting} className="px-3 py-1 rounded-lg bg-amber-200/70 font-semibold">Send</button>
+          <button onClick={() => flushWaiting().then(refreshLists)} className="px-3 py-1 rounded-lg bg-amber-200/70 font-semibold">Send</button>
         </div>
       )}
+
+      {/* An entry with questions left comes first: it doesn't count yet. */}
+      {!recording && !recorded && unfinished.map(u => (
+        <div key={u.id} className="bg-pastel-pink/20 border border-pastel-pink rounded-xl p-3 flex items-center gap-3">
+          <span className="flex-1 text-sm text-gray-700">
+            <b>Finish your entry</b> for {dayLabel(u.meeting_date)}
+            <span className="block text-xs text-gray-500">{questionsLeft(u, ctx)} questions left. It counts once they're done.</span>
+          </span>
+          <button onClick={() => resume(u)} className="px-4 py-2 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark font-semibold text-gray-800 text-sm">
+            Continue
+          </button>
+        </div>
+      ))}
 
       {/* The prompt, and the day it's for. */}
       <div className="bg-white rounded-2xl shadow-sm p-5 space-y-3">
@@ -480,7 +620,6 @@ export function Recorder({ embedded = false }) {
         </ul>
       </div>
 
-      {/* Tap 1: talk. */}
       <div className="flex flex-col items-center gap-2 py-2">
         {!canRecord() ? (
           <p className="text-sm text-gray-500 text-center">
@@ -515,50 +654,14 @@ export function Recorder({ embedded = false }) {
 
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
-      {/* Tap 2: how it went. Tap 3: Done. */}
       {recorded && (
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-600 mb-2">How engaged did you feel?</p>
-            <div className="grid grid-cols-3 gap-2">
-              {FACES.map(f => (
-                <button key={f.value} onClick={() => setEngagement(f.value)} disabled={saving}
-                  className={`rounded-xl py-3 border-2 flex flex-col items-center gap-1 ${
-                    engagement === f.value ? 'border-pastel-pink-dark bg-pastel-pink/30' : 'border-gray-200'
-                  }`}>
-                  <span className="text-3xl leading-none">{f.emoji}</span>
-                  <span className="text-xs text-gray-600">{f.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {photo.url ? (
-            <div className="flex items-center gap-3">
-              <img src={thumbUrl(photo.url)} onError={e => { e.currentTarget.src = photo.url }} alt=""
-                className="h-16 w-16 rounded-lg object-cover border" />
-              <button onClick={() => setPhoto({ url: '', uploading: false, error: '' })} disabled={saving}
-                className="text-xs text-gray-500 underline">Remove photo</button>
-            </div>
-          ) : (
-            <label className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-500">
-              <Camera size={18} className="text-gray-400" />
-              <span className="flex-1">Add a photo <span className="text-gray-400">(optional)</span></span>
-              {photo.uploading && <Loader2 size={16} className="animate-spin text-pastel-blue-dark" />}
-              <input type="file" accept="image/*" className="hidden" onChange={pickPhoto} disabled={saving} />
-            </label>
-          )}
-          {photo.error && <p className="text-xs text-red-500">{photo.error}</p>}
-
-          <button
-            onClick={done}
-            disabled={!engagement || photo.uploading || saving}
-            className="w-full py-4 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 text-lg font-bold text-gray-800 flex items-center justify-center gap-2"
-          >
-            {saving ? <><Loader2 className="animate-spin" size={20} /> Saving…</> : 'Done'}
-          </button>
-          {!engagement && <p className="text-xs text-gray-400 text-center -mt-2">Pick a face, then tap Done.</p>}
-        </div>
+        <button
+          onClick={next}
+          disabled={saving}
+          className="w-full py-4 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:opacity-40 text-lg font-bold text-gray-800 flex items-center justify-center gap-2"
+        >
+          {saving ? <><Loader2 className="animate-spin" size={20} /> Saving…</> : 'Next'}
+        </button>
       )}
 
       {/* How the last one is doing, so nobody wonders whether it worked. */}

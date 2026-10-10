@@ -13,6 +13,7 @@ export const isVoice = (entry) => entry?.source === 'voice'
 
 // One line for places with no room for both versions (the list view).
 export function voiceStatusLine(entry) {
+  if (entry.complete === false) return "Voice entry: not finished yet. It counts once every question is answered in EN Helper."
   if (entry.ai_status === 'empty') return 'Voice entry: no speech was heard in the recording.'
   if (entry.ai_status !== 'done') return 'Voice entry: being written up…'
   return ''
@@ -28,6 +29,13 @@ export function VoiceTag() {
 
 export function VoiceSides({ entry }) {
   const pending = entry.ai_status !== 'done' && entry.ai_status !== 'empty'
+  if (entry.complete === false) {
+    return (
+      <p className="text-sm text-gray-500 italic bg-white/80 rounded-lg border border-gray-200 p-2.5">
+        Not finished yet. It counts once every question is answered in EN Helper.
+      </p>
+    )
+  }
   return (
     <div className="grid grid-cols-2 gap-2">
       <div className="rounded-lg border border-gray-200 bg-white/90 p-2.5">

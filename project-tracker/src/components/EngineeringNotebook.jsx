@@ -190,7 +190,7 @@ export default function EngineeringNotebook() {
   const ENTRY_COLS = `${BASE_ENTRY_COLS},${SIGNAL_COLS}`
   // EN Helper's voice entries (supabase/en_helper.sql). Asked for the same
   // way, so the notebook loads exactly as before until that file is run.
-  const VOICE_COLS = 'source,transcript,polished,ai_status'
+  const VOICE_COLS = 'source,transcript,polished,ai_status,complete'
   // Whether the voice columns exist, which is also whether EN Helper is on.
   const [voiceReady, setVoiceReady] = useState(false)
   // A voice entry whose written-up version is being corrected.
@@ -363,7 +363,7 @@ export default function EngineeringNotebook() {
   // nothing to win back there.
   const missingDays = meetingDays.filter(
     d => d <= todayLocal()
-      && !entries.some(e => e.username === username && e.meeting_date === d)
+      && !entries.some(e => e.username === username && e.meeting_date === d && e.complete !== false)
       && !leadAbsentDays.has(d)
       && !excusedDays.has(d)
   )
@@ -1000,7 +1000,9 @@ export default function EngineeringNotebook() {
                                         </div>
                                         {isVoice(entry) && <div className="mt-1"><VoiceTag /></div>}
                                         <p className="text-sm text-gray-800 mt-1 font-medium">
-                                          {entry.what_did || (isVoice(entry) && <span className="text-gray-400 font-normal italic">{voiceStatusLine(entry)}</span>)}
+                                          {isVoice(entry) && entry.complete === false
+                                            ? <span className="text-gray-400 font-normal italic">{voiceStatusLine(entry)}</span>
+                                            : entry.what_did || (isVoice(entry) && <span className="text-gray-400 font-normal italic">{voiceStatusLine(entry)}</span>)}
                                         </p>
                                         {/* Read on the page, not just as a tooltip — this is the
                                             half of engagement anyone can actually act on. */}

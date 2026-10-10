@@ -65,7 +65,9 @@ export default function AttendanceManager({ onBack }) {
       fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
-      fetch(`${REST_URL}/rest/v1/notebook_entries?${SCOPE}&select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
+      // Finished entries only: an EN Helper entry with questions left doesn't
+      // count until they're answered (complete is true for every typed one).
+      fetch(`${REST_URL}/rest/v1/notebook_entries?${SCOPE}&complete=not.is.false&select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
     ]).then(([s, r, p, n]) => {
       setSessions(s)
       setRecords(r)
