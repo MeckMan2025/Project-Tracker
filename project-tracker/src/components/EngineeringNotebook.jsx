@@ -759,84 +759,47 @@ export default function EngineeringNotebook() {
     }).catch(err => console.error('Failed to request project:', err))
   }
 
-  const views = [
-    { id: 'projects', label: 'Projects', icon: FolderOpen },
-    { id: 'entry', label: 'New Entry', icon: Plus },
-  ]
-
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 ml-14 flex items-start justify-between">
-          <div>
+        <div className="px-4 py-3 ml-14">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               Engineering Notebook
             </h1>
-          {/* Everything that says "what am I looking at" on one line: the
-              sub-tabs, whose notebook, and which season. These were three
-              stacked rows, which made the header taller than the page it sits
-              above. Wraps on a narrow screen rather than scrolling off. */}
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-          <div className="flex gap-1 overflow-x-auto">
-            {views.map(v => {
-              const Icon = v.icon
-              return (
-                <button
-                  key={v.id}
-                  onClick={() => {
-                    if (v.id === 'entry') {
-                      setFormData({ ...INITIAL_ENTRY })
-                      setEditingEntryId(null)
-
-                    }
-                    setView(v.id)
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                    view === v.id ? 'bg-pastel-pink text-gray-800' : 'text-gray-500 hover:bg-pastel-blue/30'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {v.label}
-                </button>
-              )
-            })}
+            <NotificationBell />
           </div>
-          {/* Whose notebook, and which season — the two "what am I looking at"
-              controls, together. Leads always see everyone, so the switch would
-              do nothing for them. */}
-          <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+          {/* What you're looking at: whose entries, and which season. One row,
+              one height, one shape. Writing and reading live in the toolbar
+              below, so the header only answers "what am I looking at". */}
+          <div className="flex items-center gap-2 mt-2">
+            <div className="inline-flex h-8 rounded-lg border border-gray-200 overflow-hidden text-xs bg-white">
               {[[false, 'Mine'], [true, "Everyone's"]].map(([val, label]) => (
                 <button
                   key={label}
                   onClick={() => setShowTeamEntries(val)}
-                  className={`px-3 py-1 font-medium transition-colors ${
+                  className={`px-3 font-medium transition-colors ${
                     showTeamEntries === val
                       ? 'bg-pastel-pink text-gray-800'
-                      : 'bg-white text-gray-500 hover:bg-pastel-blue/20'
+                      : 'text-gray-500 hover:bg-pastel-blue/20'
                   }`}
                 >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Season selector — view the current season or an archived one */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-gray-400">Season</span>
+                  {label}
+                </button>
+              ))}
+            </div>
             <select
               value={filterSeason}
               onChange={e => setFilterSeason(e.target.value)}
-              className="border rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+              aria-label="Season"
+              className="h-8 min-w-0 border border-gray-200 rounded-lg px-2 text-xs text-gray-600 bg-white focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
             >
               {availableSeasons.map(s => (
-                <option key={s} value={s}>{s}{s === ACTIVE_SEASON ? ' (current)' : ' — archive'}</option>
+                <option key={s} value={s}>{s}{s === ACTIVE_SEASON ? '' : ' (archive)'}</option>
               ))}
             </select>
           </div>
-          </div>
-          </div>
-          <NotificationBell />
         </div>
       </header>
 
@@ -890,48 +853,44 @@ export default function EngineeringNotebook() {
 
           {view === 'projects' && (
             <>
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <button
-                  onClick={() => { setBookProject(null); setView('book') }}
-                  className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-orange/30 hover:bg-pastel-orange/50 transition-colors font-medium"
-                >
-                  <BookOpen size={14} /> Read as a notebook
-                </button>
-                {isLead ? (
-                  <button
-                    onClick={() => { setProjectForm({ ...INITIAL_PROJECT }); setEditingProjectId(null); setShowProjectModal(true) }}
-                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50 transition-colors font-medium"
-                  >
-                    <Plus size={14} /> New Project
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowRequestProjectModal(true)}
-                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-blue/30 hover:bg-pastel-blue/50 transition-colors font-medium"
-                  >
-                    <Plus size={14} /> Request Project
-                  </button>
-                )}
-                <span className="flex items-center gap-2">
+              {/* Writing is the main thing here, so it gets the full width; the
+                  EN Helper icon beside it is the same action, spoken. Reading
+                  and projects are quieter and share the row below equally. */}
+              <div className="space-y-2">
+                <div className="flex gap-2">
                   <button
                     onClick={() => { setFormData({ ...INITIAL_ENTRY }); setEditingEntryId(null); setView('entry') }}
-                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-semibold text-gray-800"
                   >
-                    <Plus size={14} /> New Entry
+                    <Plus size={16} /> New Entry
                   </button>
-                  {/* EN Helper: say the entry instead of typing it. Its own
-                      icon is the button, so it needs no words here. */}
                   {voiceReady && canSubmitNotebook && (
                     <button
                       onClick={() => setShowHelper(true)}
                       aria-label="Open EN Helper"
                       title="EN Helper: talk instead of type"
-                      className="shrink-0 rounded-lg shadow-sm hover:scale-105 active:scale-95 transition-transform"
+                      className="h-11 w-11 shrink-0 rounded-xl overflow-hidden shadow-sm hover:scale-105 active:scale-95 transition-transform"
                     >
-                      <img src="/helper/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
+                      <img src="/helper/icon-192.png" alt="" className="w-full h-full" />
                     </button>
                   )}
-                </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => { setBookProject(null); setView('book') }}
+                    className="h-9 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-pastel-orange/20 transition-colors text-sm font-medium text-gray-600"
+                  >
+                    <BookOpen size={14} /> Read it
+                  </button>
+                  <button
+                    onClick={() => isLead
+                      ? (setProjectForm({ ...INITIAL_PROJECT }), setEditingProjectId(null), setShowProjectModal(true))
+                      : setShowRequestProjectModal(true)}
+                    className="h-9 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-pastel-blue/20 transition-colors text-sm font-medium text-gray-600"
+                  >
+                    <Plus size={14} /> {isLead ? 'New Project' : 'Request Project'}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1096,6 +1055,12 @@ export default function EngineeringNotebook() {
           {/* ========== ENTRY FORM VIEW ========== */}
           {view === 'entry' && (
             <div className="space-y-4">
+              <button
+                onClick={() => setView('projects')}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                ← Back to projects
+              </button>
               <SectionHeader title={editingEntryId ? 'Update Entry' : 'New Notebook Entry'} />
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
