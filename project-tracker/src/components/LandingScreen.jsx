@@ -8,7 +8,7 @@ function LandingScreen({ onGetRadical, onTeamLogin, onRadicalRundown }) {
           className="w-24 h-24 mx-auto rounded-2xl shadow-md"
         />
         <h1 className="text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-          Everything That's Radical
+          Everything That's Scrum
         </h1>
 
         <button

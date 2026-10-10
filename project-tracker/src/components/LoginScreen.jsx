@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useUser } from '../contexts/UserContext'
 import PasswordInput from './PasswordInput'
-import { HOME_TEAM_NUMBER, isHomeTeamNumber, teamAuthEmail, legacyTeamEmails } from '../data/team'
+import { isHomeTeamNumber, teamAuthEmail, legacyTeamEmails } from '../data/team'
 
 function LoginScreen({ sessionExpired, linkError, onBack }) {
   const { login, signup, checkWhitelist, resetPassword, updatePassword, passwordRecovery } = useUser()
@@ -434,10 +434,6 @@ function LoginScreen({ sessionExpired, linkError, onBack }) {
           >
             {submitting ? 'Signing in...' : 'Sign In'}
           </button>
-
-          <p className="text-[11px] text-center text-gray-400 -mt-1">
-            Radical members: your team number is {HOME_TEAM_NUMBER}.
-          </p>
 
           <p className="text-sm text-center text-gray-500">
             <button

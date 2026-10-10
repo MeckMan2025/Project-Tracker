@@ -1,7 +1,7 @@
 // Who we are, and how a visiting team's login is put together.
 
 export const HOME_TEAM_NUMBER = '7196'
-export const HOME_TEAM_NAME = "Everything That's Radical"
+export const HOME_TEAM_NAME = "Everything That's Scrum"
 
 export const isHomeTeamNumber = (value) => String(value || '').trim() === HOME_TEAM_NUMBER
 
