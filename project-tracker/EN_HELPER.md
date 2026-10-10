@@ -76,6 +76,33 @@ last answer: complete: true, claim attendance
   for all of it. Tapped choices aren't spoken, so they aren't in it.
 - **If the AI is unavailable,** the Helper simply asks every question.
 
+## Keeping it school-appropriate
+
+A phone in a shop hears everyone, and speech-to-text writes down whatever it
+hears, including someone swearing nearby. Three layers keep that out:
+
+1. **The database (the guarantee).** `supabase/en_helper_clean.sql` adds
+   `clean_notebook_text()` and a trigger that runs it on every text a voice
+   entry stores (transcript, write-up, every answer and follow-up), whoever
+   writes it: the speech model, the AI, or a student typing. Listed words
+   become "[removed]". It matches whole words only, so "class", "assembly",
+   "shell", "cockpit", "screw", "ball bearings" and "flame retardant" are
+   untouched. To add a word, edit the list in that file and run it again.
+2. **An AI sentence check (the wider net).** Before anything is stored or
+   shown back, Llama 3.3 reads it a sentence at a time and takes out any
+   sentence with profanity, sexual content, put-downs aimed at someone,
+   slurs, threats or crude humor, listed words or not. It is told to keep
+   normal robotics talk ("the shooter killed it", "kill the program") and
+   honest self-reflection ("that was stupid of me, but I fixed it").
+   `screenText()` in `ai.ts`.
+3. **The prompts.** The first pass and the write-up are told the microphone
+   may hear other people, and to use only the student describing their work.
+
+If a spoken answer is nothing but removed content, it isn't saved, and the
+student is asked to try again. Cloudflare's safety model (Llama Guard) was
+tried and isn't used: it rated swearing and a sexual comment "safe", because
+it's built for dangerous content, not for a school notebook.
+
 ## How it reads in the notebook
 
 A voice entry is an ordinary `notebook_entries` row with `source = 'voice'`, so
@@ -140,7 +167,11 @@ numbers in the dashboard all go up by one. That is expected.
 Supabase dashboard → SQL Editor → paste `supabase/en_helper.sql` (repo root)
 → Run. Leave the commented STEP 4 block at the bottom for later.
 
-Then paste `supabase/en_helper_complete.sql` and Run. It adds `complete`
+Then `supabase/en_helper_complete.sql`, then `supabase/en_helper_clean.sql`.
+The first is below; the second is the profanity filter (see "Keeping it
+school-appropriate").
+
+Paste `supabase/en_helper_complete.sql` and Run. It adds `complete`
 (an unfinished voice entry doesn't count, including for the notebook
 attendance rule) and `voice_state`.
 

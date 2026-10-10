@@ -27,7 +27,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 // @ts-ignore: esm.sh's types claim no default export; the module has one (send-push uses it the same way).
 import webpush from "https://esm.sh/web-push@3.6.7";
-import { transcribe, polish, cleanAiFields, extractFields, matchChoice, polishText } from "./ai.ts";
+import { transcribe, polish, cleanAiFields, extractFields, matchChoice, polishText, screenText } from "./ai.ts";
 import { decodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
@@ -153,7 +153,7 @@ async function processEntry(admin: SupabaseClient, id: string) {
       if (!entry.audio_path) throw new Error("No recording and no transcript");
       const { data: blob, error } = await admin.storage.from(AUDIO_BUCKET).download(entry.audio_path);
       if (error || !blob) throw new Error(`Could not download the clip: ${error?.message || "missing"}`);
-      transcript = await transcribe(new Uint8Array(await blob.arrayBuffer()));
+      transcript = await screenText(await transcribe(new Uint8Array(await blob.arrayBuffer())));
 
       // Saved the moment it exists, then the clip goes. If the AI step below
       // fails, the retry starts from this text and never needs the audio.
@@ -173,7 +173,7 @@ async function processEntry(admin: SupabaseClient, id: string) {
 
     // Complete, with its answers given one by one: write it up from all of it.
     if (entry.what_did || (entry.signals || []).length) {
-      const polished = await polishText(transcript, entry);
+      const polished = await screenText(await polishText(transcript, entry), { drop: true });
       await admin.from("notebook_entries").update({
         polished, ai_status: "done", ai_error: null, ai_updated_at: new Date().toISOString(),
       }).eq("id", id);
@@ -193,6 +193,7 @@ async function processEntry(admin: SupabaseClient, id: string) {
     }
 
     const fields = cleanAiFields(await polish(transcript));
+    fields.polished = await screenText(fields.polished, { drop: true });
     await admin.from("notebook_entries").update({
       ...fields,
       ai_status: "done",
@@ -216,7 +217,7 @@ async function ensureTranscript(admin: SupabaseClient, entry: Record<string, any
   if (entry.transcript || !entry.audio_path) return entry.transcript || "";
   const { data: blob, error } = await admin.storage.from(AUDIO_BUCKET).download(entry.audio_path);
   if (error || !blob) throw new Error(`Could not download the clip: ${error?.message || "missing"}`);
-  const transcript = await transcribe(new Uint8Array(await blob.arrayBuffer()));
+  const transcript = await screenText(await transcribe(new Uint8Array(await blob.arrayBuffer())));
   await admin.from("notebook_entries").update({ transcript, audio_path: null }).eq("id", entry.id);
   await admin.storage.from(AUDIO_BUCKET).remove([entry.audio_path]).catch(() => {});
   return transcript;
@@ -264,8 +265,14 @@ async function analyzeEntry(admin: SupabaseClient, id: string) {
 // One spoken answer. Its words join the transcript (the "what I said" record
 // judges see), and a choice question also gets the option it matches.
 async function answerQuestion(admin: SupabaseClient, id: string, question: string, options: string[], audio: string) {
-  const said = await transcribe(decodeBase64(audio), question);
-  if (!said) return { text: "", option: null };
+  const heard = await transcribe(decodeBase64(audio), question);
+  if (!heard) return { text: "", option: null };
+  // Screened before it's shown back ("Got it: ...") or stored. The database's
+  // word filter is applied here too, so the echo matches what's saved.
+  const screened = await screenText(heard);
+  const { data: clean } = await admin.rpc("clean_notebook_text", { t: screened });
+  const said = String(clean ?? screened).trim();
+  if (!said.replace(/\[removed\]/g, "").trim()) return { text: "", option: null, removed: true };
   const option = options.length ? await matchChoice(said, question, options).catch(() => null) : null;
   const { data: entry } = await admin.from("notebook_entries").select("transcript").eq("id", id).maybeSingle();
   const transcript = `${entry?.transcript || ""}\n\nQ: ${question}\nA: ${said}`.trim();

@@ -81,7 +81,8 @@ export default function QuestionStep({ entry, question: q, done, left, heard, on
     try {
       const wav = (await toWav(raw)) || raw
       const choices = q.kind === 'choice' ? q.options.map(o => o.label) : []
-      const { text: said, option } = await answerByVoice(entry.id, q.label, choices, wav)
+      const { text: said, option, removed } = await answerByVoice(entry.id, q.label, choices, wav)
+      if (removed) { setMode('ready'); setError("That had something that can't go in the notebook, maybe someone talking nearby. Try again, just you about your work."); return }
       if (!said) { setMode('ready'); setError("I didn't catch that. Tap the mic and try again."); return }
       if (q.kind === 'choice') {
         const match = q.options.find(o => o.label === option)

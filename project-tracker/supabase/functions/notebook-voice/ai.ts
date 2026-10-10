@@ -107,7 +107,7 @@ function systemPrompt() {
 
   return `You turn a high school FTC robotics student's spoken recap of a team meeting into their engineering notebook entry.
 
-The transcript is the student's own words and is the only source of facts. Never add a fact, number, part, person, result or plan that the student did not say. If something wasn't said, leave that answer out rather than guessing.
+The transcript is the student's own words and is the only source of facts. The microphone may have picked up other people nearby: leave out anything that isn't the student describing their work, and never include profanity, insults, or anything not appropriate for a school notebook. Never add a fact, number, part, person, result or plan that the student did not say. If something wasn't said, leave that answer out rather than guessing.
 
 Fields:
 - category: Technical (building, hardware, mechanical design, CAD), Programming (code, software, autonomous, sensors), or Business (outreach, fundraising, sponsors, marketing, the notebook itself).
@@ -253,6 +253,8 @@ export async function extractFields(transcript: string) {
 
   const system = `A high school FTC robotics student recorded a spoken recap of a team meeting. Fill in their engineering notebook entry from it.
 
+The microphone may have picked up other people nearby. Use only what the student says about their own work, and never include profanity, insults, or anything not appropriate for a school notebook.
+
 This is a first pass: anything you leave empty, the student will be asked next. So only fill in what the student actually said. Never guess, never infer, never fill a field just because it is likely. Empty is always the right answer when they didn't say it.
 
 - category: Technical (building, hardware, mechanical design, CAD), Programming (code, software, autonomous, sensors), or Business (outreach, fundraising, sponsors, marketing, the notebook). Always pick one.
@@ -358,6 +360,8 @@ export async function polishText(transcript: string, entry: any) {
         role: "system",
         content: `You write a high school FTC robotics student's engineering notebook entry from their own spoken words and the answers they gave.
 
+The microphone may have picked up other people nearby: leave out anything that isn't the student describing their work. Never include profanity, insults, innuendo, or anything not appropriate for a school notebook, even if it appears in what they said.
+
 Use only what they said and chose. Never add a fact, number, part, person, result or plan they didn't give. First person, past tense, written the way a thoughtful student would write it: clear, specific, and in their voice. Keep every concrete detail (measurements, counts, part names, what failed, what they changed and why). Fix speech-to-text mistakes using this glossary: ${GLOSSARY.join(", ")}. Remove filler ("um", "like", "so yeah"). Two or three short paragraphs at most. No headings, no bullet points, no em dashes. Reply with the entry only.`,
       },
       {
@@ -372,4 +376,66 @@ Use only what they said and chose. Never add a fact, number, part, person, resul
     .replace(/\s*\u2014\s*/g, ", ").trim();
   if (!text) throw new Error("The AI wrote nothing");
   return text.slice(0, 4000);
+}
+
+// ─── Keeping it school-appropriate ──────────────────────────────────────────
+//
+// The microphone hears the whole shop, so a transcript can pick up someone
+// swearing nearby. Two layers keep that out of the notebook:
+//   1. here, the AI reads the text a sentence at a time and takes out any
+//      sentence that isn't fit for a school notebook, listed words or not;
+//   2. in the database, clean_notebook_text() (supabase/en_helper_clean.sql)
+//      replaces every listed word in everything a voice entry stores. That one
+//      can't miss and can't be skipped; this one catches what a list can't.
+
+const SCREEN_RULES = `You check sentences from a high school student's robotics engineering notebook. They were spoken and transcribed, and the microphone may also have picked up other people nearby.
+
+List the number of every sentence that contains any of: profanity or swearing (even mild, partly censored, or misspelled), sexual content or innuendo, insults or put-downs aimed at another person (including "your mom" jokes), slurs, threats or violent remarks aimed at people, crude or bathroom humor, or anything else a teacher would not want in a school notebook.
+
+Do NOT list normal robotics and school talk, even when it uses words like kill (a motor or program), killed it, shoot, shooter, screw, nuts, ball bearings, hot glue, or blow a fuse. Do NOT list a sentence just because it is off topic or casual, and do NOT list a student being hard on themselves about a mistake ("that was stupid of me, but I fixed it"): honest reflection belongs in a notebook.
+
+Answer with JSON: {"remove": [numbers]}, and an empty list when every sentence is fine.`;
+
+const splitSentences = (text: string) =>
+  text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+
+// Returns the text with inappropriate sentences replaced by "[removed]" (or
+// dropped, for the polished version, where a marker would read oddly). If the
+// check itself fails, the text goes on unchanged: the database's word filter
+// still applies when it's saved.
+export async function screenText(text: string, { drop = false } = {}): Promise<string> {
+  if (!text || !text.trim()) return text;
+  const paragraphs = text.split(/\n+/);
+  const all: { p: number; s: string }[] = [];
+  paragraphs.forEach((para, p) => splitSentences(para).forEach((s) => all.push({ p, s })));
+  if (!all.length) return text;
+  try {
+    const model = Deno.env.get("CF_TEXT_MODEL") || DEFAULT_TEXT_MODEL;
+    const result = await runModel(model, {
+      messages: [
+        { role: "system", content: SCREEN_RULES },
+        { role: "user", content: all.map((x, i) => `${i + 1}. ${x.s}`).join("\n") },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { type: "object", properties: { remove: { type: "array", items: { type: "integer" } } }, required: ["remove"] },
+      },
+      max_tokens: 200,
+      temperature: 0,
+    });
+    const out = readAnswer(result);
+    const remove = new Set<number>((Array.isArray(out?.remove) ? out.remove : []).map((n: number) => n - 1));
+    if (!remove.size) return text;
+    const kept = paragraphs.map((_, p) =>
+      all.map((x, i) => ({ ...x, i }))
+        .filter((x) => x.p === p)
+        .map((x) => (remove.has(x.i) ? (drop ? "" : "[removed]") : x.s))
+        .filter(Boolean)
+        .join(" ")
+    );
+    return kept.filter(Boolean).join("\n\n").replace(/(\[removed\]\s*){2,}/g, "[removed] ").trim();
+  } catch (err) {
+    console.warn("notebook-voice: screen failed, word filter only:", (err as Error)?.message);
+    return text;
+  }
 }
