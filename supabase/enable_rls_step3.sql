@@ -1,7 +1,8 @@
 -- WARNING (2026-10-10): this replaces every policy with "authenticated may
 -- do anything". That undoes supabase/security_privilege_guard.sql (who may
--- change roles, invite people, or edit team accounts). If you ever run this
--- again, run security_privilege_guard.sql right after it.
+-- change roles, invite people, or edit team accounts) and
+-- supabase/security_team_scope.sql (each team sees only its own rows). If you
+-- ever run this again, run those two right after it, in that order.
 --
 -- ETS: close the last of it. Run after enable_rls_step2.sql.
 --
