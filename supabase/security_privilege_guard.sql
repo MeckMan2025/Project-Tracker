@@ -68,8 +68,15 @@ returns boolean
 language sql
 stable
 as $$
+  -- The service role (admin-* and notebook-voice functions), or a direct
+  -- database session with no request behind it at all (the SQL editor,
+  -- migrations, Auth's own triggers). Not "current_user is postgres": a
+  -- SECURITY DEFINER function runs as postgres even when anon called it, and
+  -- that is exactly how update_member_roles slipped past this guard.
   select coalesce(auth.role(), '') = 'service_role'
-      or current_user in ('postgres', 'supabase_admin', 'service_role')
+      or (nullif(current_setting('request.jwt.claims', true), '') is null
+          and nullif(current_setting('request.jwt.claim.role', true), '') is null
+          and current_user in ('postgres', 'supabase_admin'))
 $$;
 
 -- The profiles guard runs as the caller, so callers must be able to run
@@ -223,3 +230,17 @@ create policy team_accounts_read on public.team_accounts
   for select to authenticated using (true);
 create policy team_accounts_write_core_lead on public.team_accounts
   for all to authenticated using (public.is_core_lead()) with check (public.is_core_lead());
+
+-- ── Old privileged helpers (2026-10-10, Phase 3 step 0) ────────────────────
+-- update_member_roles / update_member_tier set anyone's tags or tier, and
+-- get_approved_emails / get_profiles_simple list every invited address and
+-- every person's tags. All four are SECURITY DEFINER and were executable by
+-- anon. The app calls none of them; only the server may now.
+revoke execute on function public.update_member_roles(uuid, text[]) from anon, authenticated, public;
+revoke execute on function public.update_member_tier(uuid, text) from anon, authenticated, public;
+revoke execute on function public.get_approved_emails() from anon, authenticated, public;
+revoke execute on function public.get_profiles_simple() from anon, authenticated, public;
+grant execute on function public.update_member_roles(uuid, text[]) to service_role;
+grant execute on function public.update_member_tier(uuid, text) to service_role;
+grant execute on function public.get_approved_emails() to service_role;
+grant execute on function public.get_profiles_simple() to service_role;
