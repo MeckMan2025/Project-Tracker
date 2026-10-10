@@ -221,7 +221,16 @@ function UserManagement({ onViewProfile }) {
     const known = new Set(
       visibleMembers.map(m => (emailFor(m) || '').trim().toLowerCase()).filter(Boolean)
     )
+    // This team's coach, not every team's. Without the first filter, `teams`
+    // is every row in team_accounts, so ETSTesting's coach email showed up as
+    // a coach of Prime Suspects and vice versa — Kayden listed as coaching a
+    // team he has nothing to do with.
+    //
+    // Radical matches no row here, which is right: our own coaches are real
+    // profiles carrying the Coach tag and appear as themselves.
+    const mine = String(myTeamNumber || HOME_TEAM_NUMBER)
     return (teams || [])
+      .filter(t => String(t.team_number) === mine)
       .filter(t => t.email && !known.has(String(t.email).trim().toLowerCase()))
       .map(t => ({
         ...t,
