@@ -59,6 +59,13 @@ const openedFromApp = (() => {
   } catch { return false }
 })()
 
+// The way back to Scrum shows on the Helper's own page whenever it isn't the
+// installed EN Helper app: in a browser tab, or opened inside the Scrum app by
+// a reminder. The installed app is its own app, so there you switch apps.
+const showBackToScrum = () => {
+  try { return window.location.pathname.startsWith('/helper') && (openedFromApp || !isStandalone()) } catch { return false }
+}
+
 // Back to the Scrum app, on the notebook.
 function backToScrum() {
   try { localStorage.setItem('scrum-active-tab', 'notebook') } catch { /* lands on its usual tab */ }
@@ -93,7 +100,7 @@ function Notice({ title, children }) {
 function Header({ name }) {
   return (
     <div className="flex items-center gap-3">
-      {openedFromApp && (
+      {showBackToScrum() && (
         <button onClick={backToScrum} className="text-sm font-semibold text-gray-600 px-2 py-1.5 rounded-lg bg-white/80 shadow-sm shrink-0">
           ← Scrum
         </button>
