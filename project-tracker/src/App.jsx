@@ -459,6 +459,18 @@ function App() {
   }, [])
 
   // Tabs this user can't reach, whatever their tier.
+  // What the load actually found out about this team.
+  //
+  // teamFullAccess comes from a lookup in UserContext that this component does
+  // not wait for, so it can still be false while the load already knows
+  // better. The tabs were fixed by asking during the load; the dashboard was
+  // not, and went on choosing the cut-down TeamHomeView from the stale value —
+  // which is the "version without many features" that kept coming back.
+  //
+  // Everything in App now reads the same answer: whichever of the two is true.
+  const [loadedFullAccess, setLoadedFullAccess] = useState(false)
+  const effectiveFullAccess = teamFullAccess || loadedFullAccess
+
   const blockedTabs = []
   if (!isCofounder) blockedTabs.push('chat-all', 'chat-alliances', 'chat-leagues')
   if (!canViewSpecialControls) blockedTabs.push('special-controls')
@@ -490,7 +502,7 @@ function App() {
     // Team accounts get only the system tabs open to them, and no default
     // boards — theirs load from the database by owner_team. Offering a tab
     // hasAccess will refuse is a door that doesn't open.
-    if (effectiveIsTeam) return teamFullAccess
+    if (effectiveIsTeam) return effectiveFullAccess
       ? [...SYSTEM_TABS]
       : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))
     return [...SYSTEM_TABS, ...DEFAULT_BOARDS]
@@ -511,7 +523,7 @@ function App() {
   // from before their access changed.
   useEffect(() => {
     if (!effectiveIsTeam) return
-    if (!hasAccess(activeTab, tier, true, blockedTabs, teamFullAccess)) setActiveTab('home')
+    if (!hasAccess(activeTab, tier, true, blockedTabs, effectiveFullAccess)) setActiveTab('home')
   }, [effectiveIsTeam, activeTab]) // eslint-disable-line
 
   // When a team logs in, skip the loading screen — they land on their boards.
@@ -793,7 +805,10 @@ function App() {
         try {
           const rows = await restGet('team_accounts',
             `select=full_access&team_number=eq.${encodeURIComponent(teamNumber)}`)
-          if (Array.isArray(rows) && rows.length) fullAccessNow = !!rows[0].full_access
+          if (Array.isArray(rows) && rows.length) {
+            fullAccessNow = !!rows[0].full_access
+            setLoadedFullAccess(fullAccessNow)
+          }
         } catch { /* keep whatever state had */ }
       }
       const boardQuery = scopedToTeam
@@ -906,7 +921,7 @@ function App() {
     // from a lookup that can land after this has already run. Without it in
     // here, whichever finished first decided — so the team's features appeared
     // or vanished at random, and on every refresh.
-  }, [user?.id, isTeam, teamNumber, teamFullAccess])
+  }, [user?.id, isTeam, teamNumber, teamFullAccess])  // loadedFullAccess is set BY this; adding it would loop
 
   useEffect(() => {
     loadData()
@@ -1763,7 +1778,7 @@ function App() {
           }}
           onAddTask={() => { setPrefillAssignee(viewPersonTasks); setCameFromPerson(viewPersonTasks); setIsModalOpen(true) }}
         />
-      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs, teamFullAccess)
+      ) : !hasAccess(activeTab, tier, effectiveIsTeam, blockedTabs, effectiveFullAccess)
           && !(activeTab === 'special-controls' && OPEN_SPECIAL_VIEWS.includes(specialView)) ? (
         <RestrictedAccess feature={tabs.find(t => t.id === activeTab)?.name || activeTab} />
       ) : activeTab === 'home' ? (
@@ -1772,7 +1787,7 @@ function App() {
         // "looks the same" means this page, not a second copy of it kept in
         // step by hand. What that team should not see (Radical's own season
         // goals) HomeView decides for itself from the team number.
-        (effectiveIsTeam && !teamFullAccess) ? <TeamHomeView onTabChange={setActiveTab} />
+        (effectiveIsTeam && !effectiveFullAccess) ? <TeamHomeView onTabChange={setActiveTab} />
         : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />
