@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyHeadersWith } from '../lib/restHeaders'
 import { Lightbulb, Send } from 'lucide-react'
 import NotificationBell from './NotificationBell'
@@ -35,7 +36,7 @@ export default function WorkingOnIt({ title }) {
         }),
       })
       // Ping the co-founders so ideas don't sit unseen.
-      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,function_tags`, { headers })
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,function_tags`, { headers })
       if (res.ok) {
         for (const pr of await res.json()) {
           if (!(pr.function_tags || []).includes('Co-Founder')) continue

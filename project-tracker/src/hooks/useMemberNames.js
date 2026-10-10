@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 
 // The team roster, for dropdowns. One shared source so every "pick a person"
@@ -14,7 +15,7 @@ export function useMemberNames() {
     ;(async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`,
+          `${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=display_name,function_tags&order=display_name`,
           { headers: restHeaders() }
         )
         if (!res.ok || !active) return
@@ -43,7 +44,7 @@ export function useMentorNames() {
     ;(async () => {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`,
+          `${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=display_name,function_tags&order=display_name`,
           { headers: restHeaders() }
         )
         if (!res.ok || !active) return

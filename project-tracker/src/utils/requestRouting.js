@@ -1,4 +1,5 @@
 import { triggerPush } from './pushHelper'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyHeadersWith } from '../lib/restHeaders'
 
 // Route a freshly submitted request to the people who actually review that
@@ -32,7 +33,7 @@ const matchers = {
 
 export async function notifyRequestReviewers(request) {
   try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,function_tags`, { headers })
+    const res = await fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,function_tags`, { headers })
     if (!res.ok) return
     const match = matchers[request.type] || matchers.default
     for (const p of await res.json()) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { onlyMyTeam } from '../lib/teamScope'
+import { onlyMyTeam, storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock, Briefcase, Cpu, ClipboardList, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -268,7 +268,7 @@ function OrgChart({ onViewProfile }) {
     async function fetchProfiles() {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/profiles?select=id,display_name,primary_role_label,function_tags,short_bio,authority_tier,role,avatar_url`,
+          `${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,display_name,primary_role_label,function_tags,short_bio,authority_tier,role,avatar_url`,
           { headers }
         )
         if (res.ok) {

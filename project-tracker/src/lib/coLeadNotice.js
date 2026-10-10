@@ -3,6 +3,7 @@
 // after the fact, but so nobody is surprised by a decision made on their side.
 
 import { triggerPush } from '../utils/pushHelper'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyHeadersWith } from '../lib/restHeaders'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -36,7 +37,7 @@ export async function notifyLeadOfCoLeadAction({ actor, tags, type, detail }) {
   if (coTags.length === 0) return
   const leadTags = coTags.map(t => CO_LEAD_PAIRS[t])
   try {
-    const res = await fetch(`${REST_URL}/rest/v1/profiles?select=id,display_name,function_tags`, { headers: HEADERS })
+    const res = await fetch(`${REST_URL}/rest/v1/profiles?${storedTeamScope()}&select=id,display_name,function_tags`, { headers: HEADERS })
     if (!res.ok) return
     for (const p of await res.json()) {
       if (p.display_name === actor) continue

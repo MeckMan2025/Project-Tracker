@@ -6,7 +6,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, BookOpen } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
-import { onlyMyTeam, stampTeam, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampTeam, storedTeamScope, teamScope } from '../lib/teamScope'
 import NotebookBook from './NotebookBook'
 import { SIGNAL_BY_KEY } from '../data/notebookSignals'
 import SignalPicker, { SignalQuestions } from './NotebookSignals'
@@ -270,7 +270,7 @@ export default function EngineeringNotebook() {
   // Mentors and coaches, for the "who helped" dropdown.
   useEffect(() => {
     let active = true
-    fetch(`${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags&order=display_name`, {
+    fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=display_name,function_tags&order=display_name`, {
       headers: restHeaders(),
     })
       .then(res => (res.ok ? res.json() : []))

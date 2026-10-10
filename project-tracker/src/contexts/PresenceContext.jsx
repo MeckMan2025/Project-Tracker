@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, useEffect } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { useUser } from './UserContext'
 import { usePresence } from '../hooks/usePresence'
@@ -29,7 +30,7 @@ export function PresenceProvider({ children }) {
     const load = async () => {
       if (document.visibilityState !== 'visible') return
       try {
-        const res = await fetch(`${url}/rest/v1/profiles?select=display_name,last_seen_at`, { headers })
+        const res = await fetch(`${url}/rest/v1/profiles?${storedTeamScope()}&select=display_name,last_seen_at`, { headers })
         if (!alive || !res.ok) return
         const rows = await res.json()
         const map = {}

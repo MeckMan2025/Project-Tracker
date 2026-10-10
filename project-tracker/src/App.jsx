@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { onlyMyTeam, scopeQuery, stampStored, teamScope } from './lib/teamScope'
+import { onlyMyTeam, scopeQuery, stampStored, storedTeamScope, teamScope } from './lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from './lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
 import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES, sidesForTags, EVERYONE, UP_FOR_GRABS } from './lib/taskTeams'
@@ -1200,7 +1200,7 @@ function App() {
 
       try {
         const completerName = username || localStorage.getItem('scrum-username') || 'Someone'
-        const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,display_name,function_tags`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,display_name,function_tags`, { headers })
         if (!res.ok) throw new Error('Failed to fetch profiles')
         const allProfiles = await res.json()
 

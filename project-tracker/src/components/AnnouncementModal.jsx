@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyHeadersWith, restHeaders } from '../lib/restHeaders'
 import { X, Megaphone, BarChart3, Plus, Minus } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
@@ -35,7 +36,7 @@ function AnnouncementModal({ onClose }) {
   const notifyAll = async (announcement) => {
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/profiles?authority_tier=neq.guest&select=id`,
+        `${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&authority_tier=neq.guest&select=id`,
         { headers: restHeaders() }
       )
       if (!res.ok) return

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { storedTeamScope, teamScope } from '../lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
 import { getSession, withSession, scoreKey, tally, hasFinished, finishedVoters, withSeen } from '../lib/matrixSession'
 import { triggerPush } from '../utils/pushHelper'
@@ -781,7 +781,7 @@ function HostPicker({ matrix, username, onHost, onCancel }) {
   }, [username])
   const [busy, setBusy] = useState(false)
   useEffect(() => {
-    fetch(`${REST_URL}/rest/v1/profiles?select=display_name,authority_tier,function_tags&order=display_name`, { headers: REST_HEADERS })
+    fetch(`${REST_URL}/rest/v1/profiles?${storedTeamScope()}&select=display_name,authority_tier,function_tags&order=display_name`, { headers: REST_HEADERS })
       .then(r => r.ok ? r.json() : [])
       .then(rows => setPeople((rows || []).filter(p =>
         p.display_name && p.authority_tier !== 'guest' &&
@@ -1070,7 +1070,7 @@ export default function DesignMatrix({ onBack }) {
   // under "Waiting on you" and nobody knows to look.
   const notifyParticipants = async (matrix, participants) => {
     try {
-      const res = await fetch(`${REST_URL}/rest/v1/profiles?select=id,display_name`, { headers: REST_HEADERS })
+      const res = await fetch(`${REST_URL}/rest/v1/profiles?${storedTeamScope()}&select=id,display_name`, { headers: REST_HEADERS })
       if (!res.ok) return
       const byName = Object.fromEntries((await res.json()).map(p => [p.display_name, p.id]))
       for (const name of participants) {

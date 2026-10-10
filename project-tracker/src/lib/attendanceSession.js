@@ -6,6 +6,7 @@
 // would start a different meeting from the one a lead would have started.
 
 import { lazyHeadersWith, lazyRestHeaders } from './restHeaders'
+import { storedTeamScope } from '../lib/teamScope'
 import { teamScope, stampTeam } from './teamScope'
 import { excludedFromAttendance } from './attendanceRoster'
 
@@ -56,7 +57,7 @@ export async function ensureSessionForDate({ date, username, teamNumber }) {
 
   let profiles = null
   try {
-    const res = await fetch(`${REST_URL}/rest/v1/profiles?${scope}&select=${PROFILE_FIELDS}`, { headers: REST_HEADERS })
+    const res = await fetch(`${REST_URL}/rest/v1/profiles?${storedTeamScope()}&${scope}&select=${PROFILE_FIELDS}`, { headers: REST_HEADERS })
     if (res.ok) profiles = await res.json()
   } catch {}
   if (!profiles) throw new Error('Could not load the roster')

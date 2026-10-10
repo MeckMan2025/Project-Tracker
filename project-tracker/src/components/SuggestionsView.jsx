@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { onlyMyTeam, stampStored, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampStored, storedTeamScope, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2, Check, Clock, X } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -84,7 +84,7 @@ function SuggestionsView() {
   // mirrors what the "not built yet" pages already do with their idea box.
   const notifyReviewers = async (suggestion) => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,function_tags`, { headers })
+      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,function_tags`, { headers })
       if (!res.ok) return
       for (const p of await res.json()) {
         if (!(p.function_tags || []).includes('Co-Founder')) continue

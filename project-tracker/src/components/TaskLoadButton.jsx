@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { assigneeLabel } from '../lib/taskTeams'
 import { createPortal } from 'react-dom'
@@ -27,7 +28,7 @@ export default function TaskLoadButton() {
     const load = async () => {
       try {
         const [pRes, tRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/profiles?select=display_name,function_tags,authority_tier`, { headers }),
+          fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=display_name,function_tags,authority_tier`, { headers }),
           fetch(`${supabaseUrl}/rest/v1/tasks?select=id,title,assignee,status,due_date`, { headers }),
         ])
         if (!active || !pRes.ok || !tRes.ok) return

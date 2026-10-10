@@ -5,6 +5,7 @@
 // it's the one they haven't planned around.
 
 import { triggerPush } from '../utils/pushHelper'
+import { storedTeamScope } from '../lib/teamScope'
 import { lazyHeadersWith } from '../lib/restHeaders'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -31,7 +32,7 @@ const prettyDay = (d) => {
 // from being filed. The notice is the thing that matters.
 export async function alertLeadsOfLateNotice({ actor, date, hoursBefore, outAll, reason, arriveAt, leaveAt }) {
   try {
-    const res = await fetch(`${REST_URL}/rest/v1/profiles?select=id,display_name,function_tags`, { headers: HEADERS })
+    const res = await fetch(`${REST_URL}/rest/v1/profiles?${storedTeamScope()}&select=id,display_name,function_tags`, { headers: HEADERS })
     if (!res.ok) return
 
     const hrs = Math.max(0, Math.round((hoursBefore || 0) * 10) / 10)
