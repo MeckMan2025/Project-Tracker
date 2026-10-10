@@ -60,12 +60,15 @@ type SignalSchema = (typeof schema.signals)[number];
 
 // The answer the model must give, with every fixed choice as an enum, so JSON
 // mode can't hand back an option the app doesn't have.
-function answerSchema() {
+function answerSchema(full = true) {
   const signalData: Record<string, unknown> = {};
   for (const sig of schema.signals as SignalSchema[]) {
     const props: Record<string, unknown> = {};
     for (const q of sig.questions) {
-      props[q.id] = "options" in q && q.options ? { type: "string", enum: q.options } : { type: "string" };
+      // Free-text answers are capped: left open, the model sometimes loops
+      // inside one ("and then with the new setup...") until it runs out of
+      // room and the whole answer is cut off.
+      props[q.id] = "options" in q && q.options ? { type: "string", enum: q.options } : { type: "string", maxLength: 160 };
     }
     signalData[sig.key] = { type: "object", properties: props };
   }
@@ -80,10 +83,10 @@ function answerSchema() {
       mentor_name: { type: "string" },
       next_step: { type: "string" },
       signals: { type: "array", items: { type: "string", enum: schema.signals.map((s) => s.key) } },
-      signal_data: { type: "object", properties: signalData },
-      polished: { type: "string" },
+      ...(full ? { signal_data: { type: "object", properties: signalData } } : {}),
+      polished: { type: "string", maxLength: 2500 },
     },
-    required: ["category", "what_did", "why_option", "signals", "signal_data", "polished"],
+    required: ["category", "what_did", "why_option", "signals", ...(full ? ["signal_data"] : []), "polished"],
   };
 }
 
@@ -109,28 +112,54 @@ Fields:
 - next_step: what they said happens next, or empty.
 - signals: every one of these the student clearly described, usually one to four. If an adult or teammate helped them, that is "help". If they worked with a named teammate, that is "collaborated". Testing something is "tested"; changing something because of a result is "improved". Never include one that wasn't described.
 ${signals}
-- signal_data: an object with one key per signal you chose. Under each, answer that signal's questions that the transcript answers. Choice answers must be one of that question's options exactly. Leave out questions the transcript doesn't answer.
+- signal_data: an object with one key per signal you chose. Under each, answer that signal's questions that the transcript answers, in a few words each (under 15). Choice answers must be one of that question's options exactly. Leave out questions the transcript doesn't answer.
 - polished: the notebook entry itself. First person, past tense, written the way a thoughtful student would write it: clear, specific, and in their voice. Keep every concrete detail they gave (measurements, counts, part names, what failed, what they changed and why). Fix speech-to-text mistakes using this glossary: ${GLOSSARY.join(", ")}. Remove filler ("um", "like", "so yeah"). Two short paragraphs at most. Do not use em dashes. Do not use headings or bullet points.
+
+Answer with JSON only. Use straight double quotes for every key and string, never curly quotes.
 
 Example. Transcript: "So I was coding the arm, um, the PID was overshooting like crazy so Sam and I lowered kP and tried it a bunch, it's way better now, still a little wobble. Tomorrow add feedforward."
 Answer:
 {"category":"Programming","what_did":"I tuned the PID controller on the arm.","why_option":"Fixes a critical bug or issue","why_note":"","mentor_help":false,"mentor_name":"","next_step":"Add feedforward to the arm controller.","signals":["tested","improved","collaborated"],"signal_data":{"tested":{"what":"The arm's PID tuning after lowering kP","how":"Repeated trials","outcome":"It partly worked"},"improved":{"what":"Lowered kP on the arm's PID controller","why":"Test results","better":"Somewhat","next":"Add feedforward"},"collaborated":{"who":"Someone in my group","what":"Tuning the arm's PID controller"}},"polished":"I worked on the arm code with Sam. The PID controller was overshooting a lot, so we lowered kP and tested it several times. It is much better now, but there is still a little wobble. Next time I plan to add feedforward."}`;
 }
 
+// JSON mode isn't airtight: now and then the model closes a string with a
+// curly quote, and the answer won't parse. Try what it sent, then the same
+// with curly quotes straightened, from either place Workers AI puts it.
+// deno-lint-ignore no-explicit-any
+function readAnswer(result: any) {
+  for (const c of [result?.response, result?.choices?.[0]?.message?.content]) {
+    if (c && typeof c === "object") return c;
+    if (typeof c !== "string") continue;
+    for (const text of [c, c.replace(/[\u201C\u201D]/g, '"')]) {
+      try {
+        const out = JSON.parse(text);
+        if (out && typeof out === "object") return out;
+      } catch { /* try the next */ }
+    }
+  }
+  return null;
+}
+
 export async function polish(transcript: string) {
   const model = Deno.env.get("CF_TEXT_MODEL") || DEFAULT_TEXT_MODEL;
-  const result = await runModel(model, {
+  const ask = (full: boolean, temperature: number) => runModel(model, {
     messages: [
-      { role: "system", content: systemPrompt() },
+      { role: "system", content: systemPrompt() + (full ? "" : "\n\nThis time leave out signal_data.") },
       { role: "user", content: `Transcript:\n"""${transcript}"""` },
     ],
-    response_format: { type: "json_schema", json_schema: answerSchema() },
+    response_format: { type: "json_schema", json_schema: answerSchema(full) },
     max_tokens: 1500,
-    temperature: 0.2,
+    temperature,
   });
-  const out = result?.response;
-  if (out && typeof out === "object") return out;
-  try { return JSON.parse(String(out)); } catch { throw new Error("The AI's answer wasn't valid JSON"); }
+  // The full answer twice (the second with no randomness), then once without
+  // the follow-up answers, which is where the model goes wrong when it does.
+  // An entry without follow-ups still gets its write-up, category and signals.
+  for (const [full, temperature] of [[true, 0.2], [true, 0], [false, 0]] as const) {
+    const out = readAnswer(await ask(full, temperature));
+    if (out) return full ? out : { ...out, signal_data: {} };
+    console.warn(`notebook-voice: unreadable answer (full=${full}, temperature=${temperature})`);
+  }
+  throw new Error("The AI's answer wasn't valid JSON, three times");
 }
 
 // The model is asked for valid choices, but this is the check that counts:

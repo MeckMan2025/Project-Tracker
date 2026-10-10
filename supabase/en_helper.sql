@@ -96,7 +96,10 @@ alter table push_subscriptions add column if not exists app text default 'main';
 --       'Content-Type', 'application/json',
 --       'x-cron-secret', 'PASTE_CRON_SECRET_HERE'
 --     ),
---     body    := '{"action":"tick"}'::jsonb
+--     body    := '{"action":"tick"}'::jsonb,
+--     -- The AI work outlasts pg_net's 5 second default; without this the
+--     -- run still happens but its log shows a timeout.
+--     timeout_milliseconds := 120000
 --   );
 --   $$
 -- );
