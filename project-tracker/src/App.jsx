@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { scopeQuery, stampStored, teamScope } from './lib/teamScope'
+import { onlyMyTeam, scopeQuery, stampStored, teamScope } from './lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from './lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
 import { isTeamAssignee, teamLabel, boardsForSides, assigneeLabel, SIDES, sidesForTags, EVERYONE, UP_FOR_GRABS } from './lib/taskTeams'
@@ -763,7 +763,7 @@ function App() {
       // empty app than somebody else's.
       if (isTeam && !teamNumber) {
         console.warn('Team account with no team number — loading nothing.')
-        setTabs(teamFullAccess ? [...SYSTEM_TABS] : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)))
+        setTabs(fullAccessNow ? [...SYSTEM_TABS] : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id)))
         setTasksByTab({})
         setIsLoading(false)
         return
@@ -775,6 +775,27 @@ function App() {
       // was served Radical's boards and tasks. That is both a leak and why
       // their own team looked like it had nothing in it.
       const scopedToTeam = !!(teamNumber && String(teamNumber) !== HOME_TEAM_NUMBER)
+
+      // Whether this team runs the whole app, asked here rather than trusted
+      // from state.
+      //
+      // teamFullAccess resolves from its own lookup, and this load does not
+      // wait for it. Whichever finished first decided which tabs got built,
+      // so Prime Suspects kept coming up with the cut-down screen — and no
+      // amount of adding dependencies fixed it reliably, because the race was
+      // the design. Asking for the answer in the same breath as the boards
+      // removes the race instead of narrowing it.
+      //
+      // Falls back to the state value, so a failed lookup is no worse than
+      // before rather than a downgrade.
+      let fullAccessNow = teamFullAccess
+      if (scopedToTeam) {
+        try {
+          const rows = await restGet('team_accounts',
+            `select=full_access&team_number=eq.${encodeURIComponent(teamNumber)}`)
+          if (Array.isArray(rows) && rows.length) fullAccessNow = !!rows[0].full_access
+        } catch { /* keep whatever state had */ }
+      }
       const boardQuery = scopedToTeam
         ? `select=*&order=created_at&owner_team=eq.${encodeURIComponent(teamNumber)}`
         : 'select=*&order=created_at&owner_team=is.null'
@@ -860,7 +881,7 @@ function App() {
         // The cut-down tab list is for a visiting team's shared login. A
         // person on another team is still a person, and a sister team's
         // account runs the whole app, so both get everything.
-        const systemTabs = (!isTeam || teamFullAccess)
+        const systemTabs = (!isTeam || fullAccessNow)
           ? SYSTEM_TABS
           : SYSTEM_TABS.filter(t => TEAM_ALLOWED_TABS.includes(t.id))
         setTabs([...systemTabs, ...boardTabs])
@@ -895,7 +916,7 @@ function App() {
   useEffect(() => {
     const channel = supabase
       .channel('boards-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'boards' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'boards' }, onlyMyTeam((payload) => {
         const b = payload.new
         // Only add board if it belongs to our view
         if (isTeam && teamNumber) {
@@ -908,8 +929,8 @@ function App() {
           return [...prev, { id: b.id, name: b.name, permanent: b.permanent }]
         })
         setTasksByTab(prev => ({ ...prev, [b.id]: prev[b.id] || [] }))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'boards' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'boards' }, onlyMyTeam((payload) => {
         const id = payload.old.id
         setTabs(prev => prev.filter(t => t.id !== id))
         setTasksByTab(prev => {
@@ -917,7 +938,7 @@ function App() {
           delete updated[id]
           return updated
         })
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -946,13 +967,13 @@ function App() {
           return changed ? updated : prev
         })
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, onlyMyTeam((payload) => {
         const task = mapTask(payload.new)
         // The sides can change in an edit, so walk every board: the task joins
         // the ones it now names and leaves the ones it doesn't. Progress rides
         // along with it, which is what keeps the boards showing the same thing.
         setTasksByTab(prev => placeTask(prev, task))
-      })
+      }))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (payload) => {
         const id = payload.old.id
         setTasksByTab(prev => {

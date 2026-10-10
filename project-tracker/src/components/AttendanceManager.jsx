@@ -3,7 +3,7 @@ import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { teamScope, stampTeam } from '../lib/teamScope'
+import { rowBelongs, stampTeam, teamScope } from '../lib/teamScope'
 import { ensureSessionForDate, genId, todayStr } from '../lib/attendanceSession'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock, ScanLine, Contact } from 'lucide-react'
 import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
@@ -88,10 +88,20 @@ export default function AttendanceManager({ onBack }) {
   }, [])
 
   // Real-time subscriptions
+  //
+  // Unfiltered, these delivered every team's sessions and records to every
+  // open app: starting attendance on Radical made a session appear on Prime
+  // Suspects, because the insert was broadcast to everyone listening.
+  //
+  // Realtime filters cannot express "is null", which is how Radical's own
+  // rows are stored, so the check happens here instead — rowBelongs is the
+  // same rule the queries use. DELETE is left alone: it carries only an id,
+  // and dropping an id we never had is a no-op.
   useEffect(() => {
     const channel = supabase
       .channel('attendance-mgr-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions' }, (payload) => {
+        if (payload.eventType !== 'DELETE' && !rowBelongs(payload.new, myTeamNumber)) return
         if (payload.eventType === 'INSERT') {
           setSessions(prev => prev.some(s => s.id === payload.new.id) ? prev : [payload.new, ...prev])
         } else if (payload.eventType === 'UPDATE') {
@@ -102,6 +112,7 @@ export default function AttendanceManager({ onBack }) {
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, (payload) => {
+        if (payload.eventType !== 'DELETE' && !rowBelongs(payload.new, myTeamNumber)) return
         if (payload.eventType === 'INSERT') {
           setRecords(prev => prev.some(r => r.id === payload.new.id) ? prev : [...prev, payload.new])
         } else if (payload.eventType === 'UPDATE') {
@@ -112,7 +123,7 @@ export default function AttendanceManager({ onBack }) {
       })
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [])
+  }, [myTeamNumber])
 
   const showFeedback = (msg) => {
     setFeedback(msg)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -33,23 +33,23 @@ export default function QuotesManager({ onBack }) {
   useEffect(() => {
     const channel = supabase
       .channel('quotes-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fun_quotes' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fun_quotes' }, onlyMyTeam((payload) => {
         if (payload.new.approved) {
           setApprovedQuotes(prev => prev.some(q => q.id === payload.new.id) ? prev : [payload.new, ...prev])
         } else {
           setPendingQuotes(prev => prev.some(q => q.id === payload.new.id) ? prev : [payload.new, ...prev])
         }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fun_quotes' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fun_quotes' }, onlyMyTeam((payload) => {
         if (payload.new.approved) {
           setPendingQuotes(prev => prev.filter(q => q.id !== payload.new.id))
           setApprovedQuotes(prev => prev.some(q => q.id === payload.new.id) ? prev : [payload.new, ...prev])
         }
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'fun_quotes' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'fun_quotes' }, onlyMyTeam((payload) => {
         setPendingQuotes(prev => prev.filter(q => q.id !== payload.old.id))
         setApprovedQuotes(prev => prev.filter(q => q.id !== payload.old.id))
-      })
+      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])

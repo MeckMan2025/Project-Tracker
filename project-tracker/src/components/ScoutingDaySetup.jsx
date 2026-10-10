@@ -1,5 +1,5 @@
 import MemberPicker from './MemberPicker'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import TeamPicker from './TeamPicker'
 import { useState, useEffect, useRef, useCallback } from 'react'
@@ -139,17 +139,17 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   useEffect(() => {
     const channel = supabase
       .channel(`schedule-${scheduleId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, onlyMyTeam((payload) => {
         if (payload.new?.id === scheduleId && payload.new?.data) setData(withDefaults(payload.new.data))
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_periods' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_periods' }, onlyMyTeam((payload) => {
         if (payload.new?.is_active) { setActivePeriod(payload.new); loadSubmissions(payload.new.id) }
         else { setActivePeriod(null); setPeriodSubmissions([]) }
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, onlyMyTeam((payload) => {
         const current = activePeriodRef.current
         if (current && payload.new?.scouting_period_id === current.id) setPeriodSubmissions(prev => [...prev, payload.new.submitted_by])
-      })
+      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [loadSubmissions, scheduleId]) // eslint-disable-line react-hooks/exhaustive-deps

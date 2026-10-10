@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { usePermissions } from '../hooks/usePermissions'
 import { lazyRestHeaders } from '../lib/restHeaders'
 import { Megaphone, BarChart3, Check } from 'lucide-react'
@@ -49,24 +49,24 @@ function AnnouncementsView() {
   useEffect(() => {
     const channel = supabase
       .channel('announcements-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, onlyMyTeam((payload) => {
         setAnnouncements(prev => {
           if (prev.some(a => a.id === payload.new.id)) return prev
           return [payload.new, ...prev]
         })
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, onlyMyTeam((payload) => {
         setAnnouncements(prev => prev.filter(a => a.id !== payload.old.id))
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcement_votes' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcement_votes' }, onlyMyTeam((payload) => {
         setVotes(prev => {
           if (prev.some(v => v.id === payload.new.id)) return prev
           return [...prev, payload.new]
         })
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcement_votes' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcement_votes' }, onlyMyTeam((payload) => {
         setVotes(prev => prev.map(v => v.id === payload.new.id ? payload.new : v))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

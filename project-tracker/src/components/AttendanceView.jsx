@@ -3,7 +3,7 @@ import { lazyRestHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import AbsenceNotice from './AbsenceNotice'
 import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
@@ -90,7 +90,7 @@ export default function AttendanceView({ onOpenSessions }) {
   useEffect(() => {
     const channel = supabase
       .channel('attendance-view-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions' }, onlyMyTeam((payload) => {
         if (payload.eventType === 'INSERT') {
           setSessions(prev => prev.some(s => s.id === payload.new.id) ? prev : [payload.new, ...prev])
         } else if (payload.eventType === 'UPDATE') {
@@ -98,8 +98,8 @@ export default function AttendanceView({ onOpenSessions }) {
         } else if (payload.eventType === 'DELETE') {
           setSessions(prev => prev.filter(s => s.id !== payload.old.id))
         }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, onlyMyTeam((payload) => {
         if (payload.eventType === 'INSERT') {
           const rec = payload.new
           setRecords(prev => prev.some(r => r.id === rec.id) ? prev : [...prev, rec])
@@ -108,7 +108,7 @@ export default function AttendanceView({ onOpenSessions }) {
         } else if (payload.eventType === 'DELETE') {
           setRecords(prev => prev.filter(r => r.id !== payload.old.id))
         }
-      })
+      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [canViewAllAttendance, username])

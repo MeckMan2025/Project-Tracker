@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { usePermissions } from '../hooks/usePermissions'
@@ -45,9 +45,9 @@ export default function ScoutingSchedule() {
     })()
     const channel = supabase
       .channel('scouting-schedule-dates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, onlyMyTeam((payload) => {
         if (payload.new) applyRow(payload.new)
-      })
+      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

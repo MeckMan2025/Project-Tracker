@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { stampStored, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import {
@@ -209,15 +209,15 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     // optimistic inserts before the new row is visible to a SELECT.
     const channel = supabase
       .channel('calendar-events-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'calendar_events' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'calendar_events' }, onlyMyTeam((payload) => {
         setEvents(prev => prev.some(e => e.id === payload.new.id) ? prev : [...prev, payload.new])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calendar_events' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calendar_events' }, onlyMyTeam((payload) => {
         setEvents(prev => prev.map(e => e.id === payload.new.id ? payload.new : e))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'calendar_events' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'calendar_events' }, onlyMyTeam((payload) => {
         setEvents(prev => prev.filter(e => e.id !== payload.old.id))
-      })
+      }))
       .subscribe()
     return () => { alive = false; supabase.removeChannel(channel) }
   }, [])

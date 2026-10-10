@@ -6,7 +6,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, BookOpen } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
-import { teamScope, stampTeam } from '../lib/teamScope'
+import { onlyMyTeam, stampTeam, teamScope } from '../lib/teamScope'
 import NotebookBook from './NotebookBook'
 import { SIGNAL_BY_KEY } from '../data/notebookSignals'
 import SignalPicker, { SignalQuestions } from './NotebookSignals'
@@ -244,24 +244,24 @@ export default function EngineeringNotebook() {
   useEffect(() => {
     const channel = supabase
       .channel('notebook-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notebook_entries' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notebook_entries' }, onlyMyTeam((payload) => {
         setEntries(prev => prev.some(e => e.id === payload.new.id) ? prev : [payload.new, ...prev])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notebook_entries' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notebook_entries' }, onlyMyTeam((payload) => {
         setEntries(prev => prev.map(e => e.id === payload.new.id ? payload.new : e))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_entries' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_entries' }, onlyMyTeam((payload) => {
         setEntries(prev => prev.filter(e => e.id !== payload.old.id))
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notebook_projects' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notebook_projects' }, onlyMyTeam((payload) => {
         setProjects(prev => prev.some(p => p.id === payload.new.id) ? prev : [payload.new, ...prev])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notebook_projects' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notebook_projects' }, onlyMyTeam((payload) => {
         setProjects(prev => prev.map(p => p.id === payload.new.id ? payload.new : p))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_projects' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notebook_projects' }, onlyMyTeam((payload) => {
         setProjects(prev => prev.filter(p => p.id !== payload.old.id))
-      })
+      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])

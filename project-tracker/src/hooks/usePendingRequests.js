@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { scopeQuery, stampStored } from '../lib/teamScope'
+import { onlyMyTeam, scopeQuery, stampStored } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
@@ -34,7 +34,7 @@ export function usePendingRequests({ type, boardId } = {}) {
     const channelName = `requests-badge-${type || 'all'}-${boardId || 'all'}`
     const channel = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'requests' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'requests' }, onlyMyTeam((payload) => {
         const r = payload.new
         if (r.status !== 'pending') return
         if (type && r.type !== type) return
@@ -43,15 +43,15 @@ export function usePendingRequests({ type, boardId } = {}) {
           if (prev.some(x => x.id === r.id)) return prev
           return [r, ...prev]
         })
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests' }, onlyMyTeam((payload) => {
         if (payload.new.status !== 'pending') {
           setRequests(prev => prev.filter(r => r.id !== payload.new.id))
         }
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'requests' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'requests' }, onlyMyTeam((payload) => {
         setRequests(prev => prev.filter(r => r.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

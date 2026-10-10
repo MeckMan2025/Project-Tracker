@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { stampStored, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { notifyRequestReviewers } from '../utils/requestRouting'
 import { Pencil, UserPlus, Trash2, Upload, Shield, Users, KeyRound, Info, X, Plus, Send, ChevronRight, GraduationCap } from 'lucide-react'
@@ -416,15 +416,15 @@ function UserManagement({ onViewProfile }) {
     if (!canManageUsers) return
     const channel = supabase
       .channel('approved-emails-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'approved_emails' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'approved_emails' }, onlyMyTeam((payload) => {
         setWhitelistedEmails(prev => {
           if (prev.some(e => e.id === payload.new.id)) return prev
           return [payload.new, ...prev]
         })
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'approved_emails' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'approved_emails' }, onlyMyTeam((payload) => {
         setWhitelistedEmails(prev => prev.filter(e => e.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

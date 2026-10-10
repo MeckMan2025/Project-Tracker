@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import {
   Plus, Send, Trash2, Check, X, ChevronRight, ChevronLeft, Eye,
@@ -1181,28 +1181,28 @@ export default function WorkshopIdeas() {
   useEffect(() => {
     const channel = supabase
       .channel('workshops-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshops' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshops' }, onlyMyTeam((payload) => {
         setWorkshops(prev => prev.some(w => w.id === payload.new.id) ? prev : [payload.new, ...prev])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'workshops' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'workshops' }, onlyMyTeam((payload) => {
         setWorkshops(prev => prev.some(w => w.id === payload.new.id)
           ? prev.map(w => w.id === payload.new.id ? payload.new : w)
           : [payload.new, ...prev]
         )
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshops' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshops' }, onlyMyTeam((payload) => {
         setWorkshops(prev => prev.filter(w => w.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     const galleryChannel = supabase
       .channel('workshop-gallery-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshop_gallery' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workshop_gallery' }, onlyMyTeam((payload) => {
         setGalleryItems(prev => prev.some(g => g.id === payload.new.id) ? prev : [payload.new, ...prev])
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshop_gallery' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'workshop_gallery' }, onlyMyTeam((payload) => {
         setGalleryItems(prev => prev.filter(g => g.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel); supabase.removeChannel(galleryChannel) }

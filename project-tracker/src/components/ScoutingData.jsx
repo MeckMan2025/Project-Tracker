@@ -7,7 +7,7 @@ import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
 import ScoutingAccountability from './ScoutingAccountability'
 
@@ -248,15 +248,15 @@ function ScoutingData() {
   useEffect(() => {
     const channel = supabase
       .channel('scouting-data-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'match_scouting' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'match_scouting' }, onlyMyTeam((payload) => {
         setRecords(prev => {
           if (prev.some(r => r.id === payload.new.id)) return prev
           return [...prev, payload.new]
         })
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'match_scouting' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'match_scouting' }, onlyMyTeam((payload) => {
         setRecords(prev => prev.filter(r => r.id !== payload.old.id))
-      })
+      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])

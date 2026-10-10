@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { storedTeamScope } from '../lib/teamScope'
+import { onlyMyTeam, storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, Users, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -33,15 +33,15 @@ function InterestedTeams({ onBack, canDelete }) {
   useEffect(() => {
     const channel = supabase
       .channel('interested-teams-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'interested_teams' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'interested_teams' }, onlyMyTeam((payload) => {
         setSubmissions(prev => {
           if (prev.some(s => s.id === payload.new.id)) return prev
           return [payload.new, ...prev]
         })
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'interested_teams' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'interested_teams' }, onlyMyTeam((payload) => {
         setSubmissions(prev => prev.filter(s => s.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

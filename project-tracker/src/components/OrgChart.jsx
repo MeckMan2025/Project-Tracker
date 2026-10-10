@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { onlyMyTeam } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { X, Users, CheckCircle, Lock, XCircle, Wrench, Clock, Briefcase, Cpu, ClipboardList, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -284,7 +285,7 @@ function OrgChart({ onViewProfile }) {
   useEffect(() => {
     const channel = supabase
       .channel('org-chart-profiles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, onlyMyTeam((payload) => {
         if (payload.eventType === 'INSERT') {
           if (deriveTier(payload.new) !== 'guest') {
             setProfiles(prev => prev.some(p => p.id === payload.new.id) ? prev : [...prev, payload.new])
@@ -294,7 +295,7 @@ function OrgChart({ onViewProfile }) {
         } else if (payload.eventType === 'DELETE') {
           setProfiles(prev => prev.filter(p => p.id !== payload.old.id))
         }
-      })
+      }))
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])

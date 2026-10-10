@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Component } from 'react'
-import { teamScope } from '../lib/teamScope'
+import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -155,7 +155,7 @@ function QuickChat({ channel = 'all' }) {
   useEffect(() => {
     const sub = supabase
       .channel('messages-changes-' + channel)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, onlyMyTeam((payload) => {
         if ((payload.new.channel || 'all') !== channel) return
         const age = Date.now() - new Date(payload.new.created_at).getTime()
         if (age > 24 * 60 * 60 * 1000) return // ignore messages older than 24h
@@ -164,8 +164,8 @@ function QuickChat({ channel = 'all' }) {
           return [...prev, payload.new]
         })
         markMessagesAsSeen([payload.new])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, onlyMyTeam((payload) => {
         if ((payload.new.channel || 'all') !== channel) return
         setMessages(prev => {
           const old = prev.find(m => m.id === payload.new.id)
@@ -173,11 +173,11 @@ function QuickChat({ channel = 'all' }) {
           if (old && old.content === payload.new.content && old.sender === payload.new.sender) return prev
           return prev.map(m => m.id === payload.new.id ? payload.new : m)
         })
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, onlyMyTeam((payload) => {
         if (!payload.old?.id) return
         setMessages(prev => prev.filter(m => m.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(sub) }

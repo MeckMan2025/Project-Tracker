@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { stampStored, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2, Check, Clock, X } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -60,7 +60,7 @@ function SuggestionsView() {
   useEffect(() => {
     const channel = supabase
       .channel('suggestions-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, onlyMyTeam((payload) => {
         setSuggestions(prev => {
           if (prev.some(s => s.id === payload.new.id)) return prev
           if (isReviewer || payload.new.author === username) {
@@ -68,13 +68,13 @@ function SuggestionsView() {
           }
           return prev
         })
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'suggestions' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'suggestions' }, onlyMyTeam((payload) => {
         setSuggestions(prev => prev.map(s => s.id === payload.new.id ? payload.new : s))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'suggestions' }, (payload) => {
+      }))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'suggestions' }, onlyMyTeam((payload) => {
         setSuggestions(prev => prev.filter(s => s.id !== payload.old.id))
-      })
+      }))
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

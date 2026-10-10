@@ -61,6 +61,30 @@ export function stampStored(row) {
   return stampTeam(row, n)
 }
 
+// Live updates arrive for every team, not just ours.
+//
+// A realtime subscription with no filter is broadcast to everyone listening,
+// and realtime filters cannot express "is null" — which is how our own rows
+// are stored. So handlers that drop payload rows straight into state were
+// showing one team another team's work the moment it was created: start
+// attendance on Radical and a session appeared on Prime Suspects.
+//
+// Wrap the handler in this. DELETE is let through untouched: it carries only
+// an id, and removing an id we never had changes nothing.
+export function onlyMyTeam(handler) {
+  return (payload) => {
+    if (payload?.eventType !== 'DELETE' && !rowIsMine(payload?.new)) return
+    return handler(payload)
+  }
+}
+
+// rowBelongs against the team this session is signed in as.
+export function rowIsMine(row) {
+  let n = ''
+  try { n = window.localStorage.getItem('scrum-team-number') || '' } catch { n = '' }
+  return rowBelongs(row, n)
+}
+
 // Is this row ours to show? For filtering in memory where a query cannot be
 // changed — a last line, never the only one.
 export function rowBelongs(row, teamNumber) {
