@@ -7,7 +7,7 @@ import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { onlyMyTeam, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, scopeQuery, stampTeam, teamScope } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
 import ScoutingAccountability from './ScoutingAccountability'
 
@@ -233,9 +233,11 @@ function ScoutingData() {
 
   // Load from Supabase
   useEffect(() => {
-    supabase
+    // This team's scouting. owner_team, not team_number: team_number here is
+    // the robot that was scouted.
+    scopeQuery(supabase
       .from('match_scouting')
-      .select('*')
+      .select('*'), 'owner_team')
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (error) console.error('Failed to load scouting records:', error.message)
@@ -253,19 +255,19 @@ function ScoutingData() {
           if (prev.some(r => r.id === payload.new.id)) return prev
           return [...prev, payload.new]
         })
-      }))
+      }, 'owner_team'))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'match_scouting' }, onlyMyTeam((payload) => {
         setRecords(prev => prev.filter(r => r.id !== payload.old.id))
-      }))
+      }, 'owner_team'))
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])
 
   // Load considered teams from Supabase
   useEffect(() => {
-    supabase
+    scopeQuery(supabase
       .from('considered_teams')
-      .select('*')
+      .select('*'), 'owner_team')
       .then(({ data, error }) => {
         if (error) console.error('Failed to load considered teams:', error.message)
         if (data) setConsideredList(data)
@@ -277,7 +279,7 @@ function ScoutingData() {
     const channel = supabase
       .channel('considered-teams-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'considered_teams' }, () => {
-        supabase.from('considered_teams').select('*').then(({ data }) => {
+        scopeQuery(supabase.from('considered_teams').select('*'), 'owner_team').then(({ data }) => {
           if (data) setConsideredList(data)
         })
       })
@@ -296,22 +298,22 @@ function ScoutingData() {
       if (rank) {
         const toShift = consideredList.filter(c => c.rank && c.rank >= rank)
         for (const c of toShift) {
-          await supabase.from('considered_teams').update({ rank: c.rank + 1 }).eq('team_number', c.team_number)
+          await scopeQuery(supabase.from('considered_teams').update({ rank: c.rank + 1 }).eq('team_number', c.team_number), 'owner_team')
         }
       }
 
-      const { data: insertData, error } = await supabase.from('considered_teams').insert({
+      const { data: insertData, error } = await supabase.from('considered_teams').insert(stampTeam({
         team_number: number,
         team_name: name,
         rank: rank,
         added_by: username
-      }).select()
+      }, myTeamNumber, 'owner_team')).select()
       if (error) {
         alert('Failed to add team: ' + error.message)
         return
       }
       // Refetch to get updated ranks
-      const { data } = await supabase.from('considered_teams').select('*')
+      const { data } = await scopeQuery(supabase.from('considered_teams').select('*'), 'owner_team')
       if (data) setConsideredList(data)
       setAddForm({ name: '', number: '', rank: '' })
       setShowAddModal(false)
@@ -321,7 +323,7 @@ function ScoutingData() {
   }
 
   const handleRemoveConsidered = async (teamNumber) => {
-    const { error } = await supabase.from('considered_teams').delete().eq('team_number', teamNumber)
+    const { error } = await scopeQuery(supabase.from('considered_teams').delete().eq('team_number', teamNumber), 'owner_team')
     if (error) console.error('Failed to remove considered team:', error.message)
     else setConsideredList(prev => prev.filter(c => c.team_number !== teamNumber))
   }
@@ -412,7 +414,7 @@ function ScoutingData() {
   useEffect(() => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-    fetch(`${supabaseUrl}/rest/v1/match_scouting?${SCOPE}&select=*&order=created_at.asc`, {
+    fetch(`${supabaseUrl}/rest/v1/match_scouting?${teamScope(myTeamNumber, 'owner_team')}&select=*&order=created_at.asc`, {
       headers: restHeaders(),
     })
       .then(r => r.json())

@@ -362,6 +362,11 @@ function RoleChangeModal({ alert, onDismiss }) {
 
 function App() {
   const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, reportTeamFullAccess, functionTags } = useUser()
+  // The team this session works in when it isn't Radical: a team login, or a
+  // member of another team. Boards and tasks are read by it, so they must be
+  // stamped with it too; stamping only team logins filed every other member's
+  // boards and tasks under Radical. Null means Radical (owner_team NULL).
+  const sessionTeam = teamNumber && String(teamNumber) !== HOME_TEAM_NUMBER ? String(teamNumber) : null
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs, myTeamNumber} = usePermissions()
@@ -880,8 +885,8 @@ function App() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'boards' }, onlyMyTeam((payload) => {
         const b = payload.new
         // Only add board if it belongs to our view
-        if (isTeam && teamNumber) {
-          if (b.owner_team !== teamNumber) return
+        if (sessionTeam) {
+          if (b.owner_team !== sessionTeam) return
         } else {
           if (b.owner_team) return
         }
@@ -913,7 +918,7 @@ function App() {
         event: 'INSERT', schema: 'public', table: 'tasks',
         // Server-side, so another team's rows never reach this browser. The UI
         // check below still stands as a second line, but it was the only line.
-        ...(isTeam && teamNumber ? { filter: `owner_team=eq.${teamNumber}` } : {}),
+        ...(sessionTeam ? { filter: `owner_team=eq.${sessionTeam}` } : {}),
       }, (payload) => {
         const task = mapTask(payload.new)
         setTasksByTab(prev => {
@@ -1012,9 +1017,9 @@ function App() {
     setTabs(prev => [...prev, { id: newId, name, permanent: false }])
     setTasksByTab(prev => ({ ...prev, [newId]: [] }))
     setActiveTab(newId)
-    // Persist via REST — tag with owner_team for team accounts
+    // Persist via REST, tagged with the team this session works in
     const boardData = { id: newId, name, permanent: false }
-    if (isTeam && teamNumber) boardData.owner_team = teamNumber
+    if (sessionTeam) boardData.owner_team = sessionTeam
     try {
       await restInsert('boards', boardData)
       notifyLeadOfCoLeadAction({ actor: username, tags: functionTags, type: 'board', detail: name })
@@ -1227,7 +1232,7 @@ function App() {
     try {
       // Whose task this is, so the server can keep it off everyone else's
       // screen. NULL means ours, matching how boards already read.
-      if (isTeam && teamNumber) task.owner_team = teamNumber
+      if (sessionTeam) task.owner_team = sessionTeam
       await restInsert('tasks', task)
       // Everyone put on it hears about it, not just the first name.
       const told = task.assignees?.length ? task.assignees : [task.assignee]

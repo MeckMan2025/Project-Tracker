@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { lazyHeadersWith } from '../lib/restHeaders'
+import { stampStored, storedTeamScope } from '../lib/teamScope'
 import { X } from 'lucide-react'
 
 // Pick FTC teams from the shared considered_teams list (the same one RadRank
@@ -17,7 +18,7 @@ export default function TeamPicker({ value = [], onChange, addedBy = '' }) {
     let active = true
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/considered_teams?select=team_number,team_name`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/considered_teams?${storedTeamScope('owner_team')}&select=team_number,team_name`, { headers })
         if (!res.ok || !active) return
         const rows = await res.json()
         setTeams((rows || []).sort((a, b) => Number(a.team_number) - Number(b.team_number)))
@@ -36,10 +37,10 @@ export default function TeamPicker({ value = [], onChange, addedBy = '' }) {
     if (!teams.some(t => t.team_number === num)) {
       setTeams(prev => [...prev, { team_number: num, team_name: '' }].sort((a, b) => Number(a.team_number) - Number(b.team_number)))
       // Feed the canonical list too (ignore conflicts — it may already exist).
-      fetch(`${supabaseUrl}/rest/v1/considered_teams`, {
+      fetch(`${supabaseUrl}/rest/v1/considered_teams?on_conflict=owner_team,team_number`, {
         method: 'POST',
         headers: { ...headers, Prefer: 'resolution=ignore-duplicates, return=minimal' },
-        body: JSON.stringify({ team_number: num, added_by: addedBy }),
+        body: JSON.stringify(stampStored({ team_number: num, added_by: addedBy }, 'owner_team')),
       }).catch(() => {})
     }
   }

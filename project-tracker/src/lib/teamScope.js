@@ -37,9 +37,12 @@ export function storedTeamScope(column = 'team_number') {
 
 // Stamp a row with its owner on the way in, so the filter above has something
 // to match next time. Radical rows are left unstamped, matching NULL.
-export function stampTeam(row, teamNumber) {
+// `column` is 'team_number' except where a table keeps its owner elsewhere:
+// boards, tasks and the scouting tables use owner_team, because in
+// match_scouting and considered_teams team_number is the robot being scouted.
+export function stampTeam(row, teamNumber, column = 'team_number') {
   const n = String(teamNumber || '').trim()
-  return n && n !== HOME ? { ...row, team_number: n } : row
+  return n && n !== HOME ? { ...row, [column]: n } : row
 }
 
 // The same two rules again, for the supabase-js query builder rather than a
@@ -55,10 +58,10 @@ export function scopeQuery(query, column = 'team_number') {
 }
 
 // Stamp on the way in, for the same callers.
-export function stampStored(row) {
+export function stampStored(row, column = 'team_number') {
   let n = ''
   try { n = window.localStorage.getItem('scrum-team-number') || '' } catch { n = '' }
-  return stampTeam(row, n)
+  return stampTeam(row, n, column)
 }
 
 // Live updates arrive for every team, not just ours.
@@ -71,24 +74,26 @@ export function stampStored(row) {
 //
 // Wrap the handler in this. DELETE is let through untouched: it carries only
 // an id, and removing an id we never had changes nothing.
-export function onlyMyTeam(handler) {
+export function onlyMyTeam(handler, column = 'team_number') {
   return (payload) => {
-    if (payload?.eventType !== 'DELETE' && !rowIsMine(payload?.new)) return
+    if (payload?.eventType !== 'DELETE' && !rowIsMine(payload?.new, column)) return
     return handler(payload)
   }
 }
 
 // rowBelongs against the team this session is signed in as.
-export function rowIsMine(row) {
+export function rowIsMine(row, column = 'team_number') {
   let n = ''
   try { n = window.localStorage.getItem('scrum-team-number') || '' } catch { n = '' }
-  return rowBelongs(row, n)
+  return rowBelongs(row, n, column)
 }
 
 // Is this row ours to show? For filtering in memory where a query cannot be
 // changed — a last line, never the only one.
-export function rowBelongs(row, teamNumber) {
+export function rowBelongs(row, teamNumber, column = 'team_number') {
   const mine = String(teamNumber || '').trim()
-  const theirs = String(row?.team_number || '').trim()
-  return (!mine || mine === HOME) ? !theirs : theirs === mine
+  const theirs = String(row?.[column] || '').trim()
+  // '7196' on a row is Radical too, the same as NULL.
+  const theirsKey = theirs === HOME ? '' : theirs
+  return (!mine || mine === HOME) ? !theirsKey : theirsKey === mine
 }

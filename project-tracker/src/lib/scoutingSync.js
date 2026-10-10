@@ -1,4 +1,5 @@
 import { restHeaders } from './restHeaders'
+import { stampStored, storedTeamScope } from './teamScope'
 import { SCOUTING_FIELDS } from '../data/scoutingFields'
 
 // Moving scouting rows between devices as a file — AirDrop at a competition,
@@ -22,7 +23,7 @@ const pick = (r) => Object.fromEntries(KEYS.filter(k => k in r).map(k => [k, r[k
 
 export async function loadScoutingRows() {
   const url = import.meta.env.VITE_SUPABASE_URL
-  const res = await fetch(`${url}/rest/v1/${TABLE}?select=*&order=created_at.desc`, { headers: restHeaders() })
+  const res = await fetch(`${url}/rest/v1/${TABLE}?${storedTeamScope('owner_team')}&select=*&order=created_at.desc`, { headers: restHeaders() })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -60,13 +61,16 @@ export async function receiveScouting(file) {
   try { data = JSON.parse(await file.text()) } catch { throw new Error("That file isn't scouting data.") }
   if (data?.kind !== KIND || !Array.isArray(data.rows)) throw new Error("That file isn't scouting data.")
 
+  // Received scouting becomes this team's: owner_team is never taken from
+  // the file (pick() drops it), only from who is saving it.
   const rows = data.rows.map(pick).filter(r => r.id && r.team_number && r.match_number)
+    .map(r => stampStored(r, 'owner_team'))
   if (!rows.length) return { added: 0, already: 0 }
 
   const url = import.meta.env.VITE_SUPABASE_URL
   // Naming the columns lets rows from an older file, missing a field added
   // since, go in alongside newer ones — the missing field takes its default.
-  const res = await fetch(`${url}/rest/v1/${TABLE}?columns=${KEYS.join(',')}&on_conflict=id`, {
+  const res = await fetch(`${url}/rest/v1/${TABLE}?columns=${[...KEYS, 'owner_team'].join(',')}&on_conflict=id`, {
     method: 'POST',
     headers: {
       ...restHeaders(),

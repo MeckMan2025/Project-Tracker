@@ -10,6 +10,7 @@ const TAB_ICONS = {
   Home, FolderKanban, Calendar, Shield, Lightbulb, User, Settings,
 }
 import { useUser } from '../contexts/UserContext'
+import { stampTeam } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
 
 // Built from the list App.jsx enforces, so the guide and the app can never
@@ -86,13 +87,14 @@ function TeamHomeView({ onTabChange }) {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({
-          team_number: teamNumber || '',
+        // Radical's own answers stay unstamped (NULL), like every other table;
+        // '' was a third spelling of Radical.
+        body: JSON.stringify(stampTeam({
           team_name: username || '',
           feature_request: featureRequest.trim(),
           usage_frequency: usageFrequency,
           submitted_at: new Date().toISOString(),
-        }),
+        }, teamNumber)),
       })
     } catch (err) {
       console.error('Failed to submit survey:', err)

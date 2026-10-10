@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { onlyMyTeam, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Plus, Trash2, ArrowLeft, Send, X, MessageCircle } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -91,11 +91,12 @@ function AllianceHubs() {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({
+        // Stamped, so a hub a sister team makes is theirs, not Radical's.
+        body: JSON.stringify(stampTeam({
           team1: sorted1,
           team2: sorted2,
           created_by: isTeam ? `${teamNumber} ${username}` : username,
-        }),
+        }, myTeamNumber)),
       })
       if (res.ok) {
         setShowCreate(false)
@@ -186,13 +187,13 @@ function AllianceHubs() {
     e.preventDefault()
     if (!newMessage.trim() || !channel) return
 
-    const message = {
+    const message = stampTeam({
       id: (user?.id || 'anon') + ':' + Date.now() + Math.random().toString(36).slice(2),
       sender: isTeam ? `${teamNumber} ${username}` : username,
       content: newMessage.trim(),
       created_at: new Date().toISOString(),
       channel,
-    }
+    }, myTeamNumber)
 
     setNewMessage('')
     setMessages(prev => [...prev, message])

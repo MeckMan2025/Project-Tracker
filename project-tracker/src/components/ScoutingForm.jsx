@@ -7,7 +7,7 @@ import {
   SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, FIELD_BY_KEY, blankEntry, yesNo, displayValue,
 } from '../data/scoutingFields'
 import { ALL_TEAMS, teamLabel } from '../data/teams'
-import { stampTeam } from '../lib/teamScope'
+import { stampTeam, teamScope } from '../lib/teamScope'
 import ScoutingSync from './ScoutingSync'
 
 // Match scouting: one row per team per match.
@@ -52,7 +52,7 @@ export default function ScoutingForm() {
     let alive = true
     ;(async () => {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}?select=*&order=created_at.desc`, { headers })
+        const res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}?${teamScope(myTeamNumber, 'owner_team')}&select=*&order=created_at.desc`, { headers })
         if (!res.ok) {
           const body = await res.text().catch(() => '')
           // The table doesn't exist until the migration runs. Say so plainly
@@ -85,7 +85,9 @@ export default function ScoutingForm() {
     if (!ready || saving) return
     setSaving(true); setError('')
     try {
-      const row = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, scout: username, ...stampTeam({}, myTeamNumber) }
+      // Whose scouting this is goes in owner_team: team_number is a form
+      // field here, the robot being scouted, and overwrote the stamp before.
+      const row = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, scout: username, ...stampTeam({}, myTeamNumber, 'owner_team') }
       SCOUTING_FIELDS.forEach(f => {
         const raw = form[f.key]
         if (raw === '' || raw == null) { row[f.key] = null; return }

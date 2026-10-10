@@ -72,7 +72,9 @@ Deno.serve(async (req: Request) => {
         const { data: entry } = await admin
           .from("notebook_entries").select("id, team_number").eq("id", body.entry_id).maybeSingle();
         if (!entry) return json({ error: "no such entry" }, 404);
-        if (teamKey(entry.team_number) !== teamKey(caller.team_number)) return json({ error: "not your team" }, 403);
+        // A mentor on two teams (extra_teams) may be writing for either.
+        const callerTeams = new Set([teamKey(caller.team_number), ...((caller.extra_teams || []) as string[]).map(teamKey)]);
+        if (!callerTeams.has(teamKey(entry.team_number))) return json({ error: "not your team" }, 403);
       }
 
       // The student is waiting on these two, so they answer directly.
@@ -112,7 +114,7 @@ async function callerProfile(admin: SupabaseClient, req: Request) {
   const user = data?.user;
   if (!user) return null;
   const { data: profile } = await admin
-    .from("profiles").select("id, display_name, team_number").eq("id", user.id).maybeSingle();
+    .from("profiles").select("id, display_name, team_number, extra_teams").eq("id", user.id).maybeSingle();
   return profile;
 }
 
