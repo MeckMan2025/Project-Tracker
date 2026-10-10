@@ -814,7 +814,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamFullAccess, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamFullAccess, reportTeamFullAccess: applyTeamFullAccess, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
     >
       {children}
     </UserContext.Provider>

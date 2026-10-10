@@ -434,7 +434,7 @@ function RoleChangeModal({ alert, onDismiss }) {
 }
 
 function App() {
-  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, functionTags } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, reportTeamFullAccess, functionTags } = useUser()
   // Derive team status directly from user email OR function_tags — never depends on async context timing
   const effectiveIsTeam = isTeam || !!(user?.email && /^team\d+@teams\.radical$/.test(user.email.toLowerCase())) || (functionTags && functionTags.includes('Team'))
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs, myTeamNumber} = usePermissions()
@@ -808,6 +808,11 @@ function App() {
           if (Array.isArray(rows) && rows.length) {
             fullAccessNow = !!rows[0].full_access
             setLoadedFullAccess(fullAccessNow)
+            // Tell the context too. The Sidebar renders the whole feature
+            // menu and reads teamFullAccess through usePermissions — eleven
+            // gates on it — so fixing only App's own copy left the menu
+            // hidden. One answer, shared, rather than a fix per component.
+            reportTeamFullAccess?.(fullAccessNow)
           }
         } catch { /* keep whatever state had */ }
       }
