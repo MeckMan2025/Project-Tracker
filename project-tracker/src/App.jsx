@@ -873,9 +873,23 @@ function App() {
           const mapped = mapTask(t)
           // One row, filed under each of its boards — so the same task object
           // shows on every side it was given to.
+          let placed = false
           mapped.boardIds.forEach(b => {
-            if (grouped[b] !== undefined) grouped[b].push(mapped)
+            if (grouped[b] !== undefined) { grouped[b].push(mapped); placed = true }
           })
+          // A task whose board no longer exists used to be dropped here, and
+          // then showed nowhere: not on any board, but still on the dashboard,
+          // which asks by assignee and does not care about boards. Decide
+          // Awards sat on a deleted board for weeks exactly like that.
+          //
+          // Keep it instead, under its own missing board id. No tab renders
+          // that id, but Main gathers every bucket, so the task surfaces there
+          // where somebody can see it and move it.
+          if (!placed) {
+            const key = mapped.boardIds[0] || mapped.boardId || 'unfiled'
+            if (!grouped[key]) grouped[key] = []
+            grouped[key].push(mapped)
+          }
         })
         setTasksByTab(grouped)
 
