@@ -393,18 +393,25 @@ export default function AttendanceManager({ onBack }) {
   const sessionRecords = selectedSession
     ? (() => {
         const sid = selectedSession.id
-        // Only people who are still on the roster. A record is kept after
-        // someone is removed in User Management — deleting it would rewrite the
-        // history of meetings they really did attend — but they shouldn't be
-        // standing in today's session waiting to be marked. `profiles` is the
-        // live roster, so anyone no longer in it has gone.
+        // Who belongs in this session depends on whether it is today's.
+        //
+        // Today's: the live roster only. Somebody who has left shouldn't be
+        // standing in the current meeting waiting to be marked.
+        //
+        // A past meeting: everyone who has a record, roster or not. They were
+        // there. Filtering those out hid people the moment they moved teams —
+        // Shraddha's records survived the move to Beyond the Mean and then
+        // vanished from Radical's past meetings anyway, which is the same as
+        // rewriting them, and exactly what keeping the records was meant to
+        // prevent.
         //
         // Guarded on profiles.length: before they load, every record would
         // look like a stranger and the session would come up empty.
         const roster = new Set(teamMembers.map(m => m.display_name))
+        const isTodaysSession = (selectedSession.session_date || '') === todayStr()
         const real = records
           .filter(r => r.session_id === sid)
-          .filter(r => profiles.length === 0 || roster.has(r.username))
+          .filter(r => !isTodaysSession || profiles.length === 0 || roster.has(r.username))
         const haveRecord = new Set(real.map(r => r.username))
         const virtuals = teamMembers
           .filter(m => !haveRecord.has(m.display_name))
