@@ -134,7 +134,17 @@ function UserManagement({ onViewProfile }) {
   // Done once, here, rather than at each place the list is used — a filter you
   // have to remember is a filter that gets forgotten, and forgetting this one
   // shows another team your roster.
-  const onMyTeam = (p) => !canManageOwnTeam || (p?.team_number || '') === String(myTeamNumber || '')
+  // Whose roster this is.
+  //
+  // This only filtered when the viewer ran a team account, so a Radical lead
+  // matched everybody and saw every team's people in their own Members list —
+  // which meant moving somebody to another team changed nothing you could see.
+  //
+  // It filters for everyone now, with NULL read as 7196 on both sides, the
+  // same convention teamScope uses. Otherwise our own profiles (team_number
+  // null) would fail to match our own team number and the list would be empty.
+  const teamOf = (p) => String(p?.team_number || HOME_TEAM_NUMBER)
+  const onMyTeam = (p) => teamOf(p) === String(myTeamNumber || HOME_TEAM_NUMBER)
   const visibleMembers = registeredMembers.filter(onMyTeam)
   const [activeSection, setActiveSection] = useState('radmems') // 'radmems' | 'mentors' | 'teamro'
   // Direct "Add Member" (no whitelist) — creates the account and sets roles at once
