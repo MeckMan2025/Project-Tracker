@@ -112,10 +112,12 @@ Deno.serve(async (req: Request) => {
           }
 
           if (shouldPush) {
-            const { data: subscriptions } = await supabaseAdmin
+            const { data: allSubscriptions } = await supabaseAdmin
               .from("push_subscriptions")
               .select("*")
               .eq("user_id", p.id);
+            // Not EN Helper's: it only ever gets notebook reminders.
+            const subscriptions = (allSubscriptions || []).filter((s: any) => s.app !== "helper");
 
             if (subscriptions && subscriptions.length > 0) {
               const payload = JSON.stringify({

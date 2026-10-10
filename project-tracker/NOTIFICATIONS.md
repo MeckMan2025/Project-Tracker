@@ -52,6 +52,7 @@ SUPABASE_ACCESS_TOKEN=sbp_XXXXXX npx supabase secrets set \
 
 Hardcoded in:
 - `project-tracker/src/hooks/usePushNotifications.js` (~line 73 and ~line 137)
+- `project-tracker/src/helper/helperPush.js` (EN Helper, see EN_HELPER.md)
 - `src/hooks/usePushNotifications.js` (mirror)
 
 The constant name is `VAPID_PUBLIC_KEY` / `vapidPublicKey`. It's hardcoded (not from an env var) so the GitHub Actions `VITE_VAPID_PUBLIC_KEY` secret can't override and drift.
@@ -119,6 +120,8 @@ Look at the `debug` object in the response:
 | `project-tracker/public/sw.js` | Service worker — receives push events and calls `showNotification` |
 | `project-tracker/supabase/functions/send-push/index.ts` | Edge function — fans subscription → web-push library → Apple/Google |
 | `project-tracker/supabase/functions/process-scheduled/index.ts` | Runs on cron, drains `scheduled_notifications` (calendar reminders) |
+| `project-tracker/public/helper/sw.js`, `src/helper/helperPush.js` | EN Helper's own worker and subscription (`push_subscriptions.app = 'helper'`), notebook reminders only |
+| `project-tracker/supabase/functions/notebook-voice/index.ts` | Sends EN Helper's end-of-meeting reminders (see EN_HELPER.md) |
 
 ## Tables involved
 

@@ -8,15 +8,13 @@ import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import { onlyMyTeam, stampTeam, storedTeamScope, teamScope } from '../lib/teamScope'
 import NotebookBook from './NotebookBook'
+import { isVoice, voiceStatusLine, VoiceTag, VoiceEntryEditor } from './VoiceEntry'
 import { SIGNAL_BY_KEY } from '../data/notebookSignals'
+import { CATEGORIES, WHY_OPTIONS } from '../data/notebookOptions'
+import { claimNotebookAttendance } from '../lib/notebookAttendance'
 import SignalPicker, { SignalQuestions } from './NotebookSignals'
-import { loadImageFile, resizeToBlob, uploadPhotoWithThumb, newPhotoName, thumbUrl, thumbFallback } from '../lib/photos'
-
-const CATEGORIES = ['Technical', 'Programming', 'Business', 'Custom']
-
-// Where notebook photos live. Entries made before this hold the image inline as
-// a data: URL, and both still render — the <img> only ever sees a src.
-const NOTEBOOK_PHOTO_BUCKET = 'notebook-photos'
+import { thumbUrl, thumbFallback } from '../lib/photos'
+import { uploadNotebookPhoto } from '../lib/notebookPhoto'
 
 // One page of the entry, drawn as a page: cream stock, faint rules, and the
 // red margin a notebook has. The question is the heading, in the handwriting
@@ -69,17 +67,6 @@ const CATEGORY_COLORS = {
   Business: 'bg-pink-100 text-pink-700',
   Custom: 'bg-gray-100 text-gray-600',
 }
-
-const WHY_OPTIONS = [
-  'Directly advances the robot design',
-  'Improves autonomous performance',
-  'Supports outreach/business goals',
-  'Fixes a critical bug or issue',
-  'Prepares for upcoming competition',
-  'Improves team workflow/process',
-  'Research & learning',
-  'Other',
-]
 
 const ENGAGEMENT_OPTIONS = [
   { value: 'Very', label: 'Very Engaged', dot: 'bg-green-400' },
@@ -199,6 +186,16 @@ export default function EngineeringNotebook() {
   // notebook down with it — see the retry below.
   const SIGNAL_COLS = 'signals,signal_data,next_step'
   const ENTRY_COLS = `${BASE_ENTRY_COLS},${SIGNAL_COLS}`
+  // EN Helper's voice entries (supabase/en_helper.sql). Asked for the same
+  // way, so the notebook loads exactly as before until that file is run.
+  const VOICE_COLS = 'source,transcript,polished,ai_status'
+  // Whether the voice columns exist, which is also whether EN Helper is on.
+  const [voiceReady, setVoiceReady] = useState(false)
+  // A voice entry whose written-up version is being corrected.
+  const [editingVoice, setEditingVoice] = useState(null)
+  const [helperCardHidden, setHelperCardHidden] = useState(() => {
+    try { return localStorage.getItem('en-helper-card') === 'hidden' } catch { return false }
+  })
 
   // Load data via direct fetch
   useEffect(() => {
@@ -207,10 +204,15 @@ export default function EngineeringNotebook() {
     const scope = teamScope(myTeamNumber)
     async function load() {
       try {
-        const [eRes, pRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS}&${scope}&order=created_at.desc`, { headers }),
+        const [vRes, pRes] = await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS},${VOICE_COLS}&${scope}&order=created_at.desc`, { headers }),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=*&${scope}&order=created_at.desc`, { headers }),
         ])
+        // Without the voice columns yet, ask again without them: every entry
+        // still loads, and EN Helper simply stays out of sight.
+        const eRes = vRes.ok ? vRes
+          : await fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${ENTRY_COLS}&${scope}&order=created_at.desc`, { headers })
+        if (vRes.ok) setVoiceReady(true)
         if (eRes.ok) {
           setEntries(await eRes.json())
         } else {
@@ -366,33 +368,10 @@ export default function EngineeringNotebook() {
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
 
-  // Writing the entry is what wins the meeting back, so claim it here rather
-  // than waiting for a lead to open the Attendance Manager. Only absences the
-  // rule handed out (marked_by 'notebook-rule') can be claimed — a lead marking
-  // someone absent because they weren't there still stands.
+  // Writing the entry is what wins the meeting back. See lib/notebookAttendance.js.
   const claimAttendance = async (dateStr) => {
-    if (!username || !dateStr) return
-    const h = restHeaders()
-    try {
-      const sRes = await fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&session_date=eq.${dateStr}&select=id`, { headers: h })
-      if (!sRes.ok) return
-      const sessions = await sRes.json()
-      if (!sessions.length) return
-      const q = new URLSearchParams({
-        session_id: `eq.${sessions[0].id}`,
-        username: `eq.${username}`,
-        status: 'eq.absent',
-        marked_by: 'eq.notebook-rule',
-      })
-      const res = await fetch(`${supabaseUrl}/rest/v1/attendance_records?${q}`, {
-        method: 'PATCH',
-        headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify({ status: 'present', marked_by: username }),
-      })
-      const rows = res.ok ? await res.json() : []
-      if (rows.length > 0) setSubmitFeedback('Entry saved — you\'re marked present for that meeting again')
-    } catch (err) {
-      console.error('Failed to claim attendance back:', err)
+    if (await claimNotebookAttendance(username, dateStr, SCOPE)) {
+      setSubmitFeedback('Entry saved. You\'re marked present for that meeting again.')
     }
   }
 
@@ -526,6 +505,9 @@ export default function EngineeringNotebook() {
   // PATCHes when editingEntryId is set — nothing ever set it until now.
   const startEditEntry = (entry) => {
     if (entry.username !== username) return
+    // A voice entry is corrected by fixing its written-up version. The typed
+    // form would ask for a photo or link it never needed.
+    if (entry.source === 'voice') { setEditingVoice(entry); return }
     setFormData({
       category: entry.category || 'Technical',
       customCategory: entry.custom_category || '',
@@ -901,6 +883,27 @@ export default function EngineeringNotebook() {
 
           {view === 'projects' && (
             <>
+              {voiceReady && canSubmitNotebook && !helperCardHidden && (
+                <div className="bg-white rounded-xl shadow-sm p-3 flex items-start gap-3">
+                  <img src="/helper/icon-192.png" alt="" className="w-11 h-11 rounded-xl shrink-0" />
+                  <div className="flex-1 min-w-0 text-sm text-gray-600">
+                    <p className="font-semibold text-gray-800">Rather talk than type? Try EN Helper.</p>
+                    <p className="text-xs mt-0.5">
+                      Tell it about the meeting and it writes the entry. To put it on your phone, open <b>everythingthatsscrum.meckman.org/helper</b> in Safari, tap Share, then <b>Add to Home Screen</b>.
+                    </p>
+                    <a href="/helper/" className="inline-block mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700">
+                      Open EN Helper
+                    </a>
+                  </div>
+                  <button
+                    aria-label="Hide"
+                    onClick={() => { setHelperCardHidden(true); try { localStorage.setItem('en-helper-card', 'hidden') } catch { /* fine */ } }}
+                    className="text-gray-300 hover:text-gray-500"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <button
                   onClick={() => { setBookProject(null); setView('book') }}
@@ -1036,7 +1039,10 @@ export default function EngineeringNotebook() {
                                             )}
                                           </div>
                                         </div>
-                                        <p className="text-sm text-gray-800 mt-1 font-medium">{entry.what_did}</p>
+                                        {isVoice(entry) && <div className="mt-1"><VoiceTag /></div>}
+                                        <p className="text-sm text-gray-800 mt-1 font-medium">
+                                          {entry.what_did || (isVoice(entry) && <span className="text-gray-400 font-normal italic">{voiceStatusLine(entry)}</span>)}
+                                        </p>
                                         {/* Read on the page, not just as a tooltip — this is the
                                             half of engagement anyone can actually act on. */}
                                         {entry.engagement_note && (
@@ -1420,47 +1426,17 @@ export default function EngineeringNotebook() {
                         // file again after a failure still fires onChange.
                         e.target.value = ''
                         if (!file) return
-                        if (file.size > 10 * 1024 * 1024) {
-                          setFormData(prev => ({ ...prev, _uploading: false, _photoError: 'That photo is over 10 MB — try a smaller one.' }))
-                          return
-                        }
-                        setFormData(prev => ({ ...prev, _uploading: true, _photoError: '' }))
-
                         // Every path out of here has to clear _uploading. It
                         // previously only cleared on success, so a photo the
-                        // browser couldn't decode — an iPhone HEIC on Chrome,
-                        // most often — left the spinner going forever and the
+                        // browser couldn't decode (an iPhone HEIC on Chrome,
+                        // most often) left the spinner going forever and the
                         // Submit button disabled with nothing to explain why.
-                        const fail = (msg) => setFormData(prev => ({ ...prev, _uploading: false, _photoError: msg }))
-                        const CANT_READ = "Couldn't read that photo. If it came from an iPhone it may be HEIC — open it, screenshot it, and add the screenshot, or use the project link instead."
-
-                        ;(async () => {
-                          let img
-                          try { img = await loadImageFile(file) } catch { return fail(CANT_READ) }
-                          const done = (url) => setFormData(prev => ({
-                            ...prev, photoUrl: url, _uploading: false, _photoError: '',
-                          }))
-                          // The photo goes to storage with a small thumbnail beside it, and the
-                          // row keeps a link — sizes and why are in lib/photos.js.
-                          try {
-                            done(await uploadPhotoWithThumb(supabaseUrl, supabaseKey, NOTEBOOK_PHOTO_BUCKET, img, newPhotoName()))
-                          } catch (err) {
-                            // Bucket missing, upload refused, or timed out: keep it inline so
-                            // nobody is blocked on it, but smaller, since it rides along with
-                            // every notebook read.
-                            console.error('Photo upload failed, keeping it inline:', err.message)
-                            try {
-                              const blob = await resizeToBlob(img, { max: 1024, quality: 0.7 })
-                              if (!blob) return fail(CANT_READ)
-                              const r = new FileReader()
-                              r.onload = () => done(r.result)
-                              r.onerror = () => fail(CANT_READ)
-                              r.readAsDataURL(blob)
-                            } catch {
-                              fail(CANT_READ)
-                            }
-                          }
-                        })()
+                        // The upload itself lives in lib/notebookPhoto.js,
+                        // shared with the EN Helper.
+                        setFormData(prev => ({ ...prev, _uploading: true, _photoError: '' }))
+                        uploadNotebookPhoto(file)
+                          .then(url => setFormData(prev => ({ ...prev, photoUrl: url, _uploading: false, _photoError: '' })))
+                          .catch(err => setFormData(prev => ({ ...prev, _uploading: false, _photoError: err.message })))
                       }}
                     />
                     {formData._uploading && (
@@ -1643,6 +1619,14 @@ export default function EngineeringNotebook() {
             </button>
           </div>
         </div>
+      )}
+
+      {editingVoice && (
+        <VoiceEntryEditor
+          entry={editingVoice}
+          onClose={() => setEditingVoice(null)}
+          onSaved={updated => setEntries(prev => prev.map(e => e.id === updated.id ? { ...e, polished: updated.polished } : e))}
+        />
       )}
     </div>
   )

@@ -165,10 +165,13 @@ Deno.serve(async (req: Request) => {
     let webSent = 0;
     const webExpired: string[] = [];
     const webErrors: string[] = [];
-    const { data: webSubs, error: webSubsError } = await supabaseAdmin
+    const { data: allWebSubs, error: webSubsError } = await supabaseAdmin
       .from("push_subscriptions")
       .select("*")
       .eq("user_id", user_id);
+    // EN Helper's own subscription only ever gets notebook reminders, which
+    // notebook-voice sends itself. Everything else goes to the main app.
+    const webSubs = (allWebSubs || []).filter((s: any) => s.app !== "helper");
     debug.webSubsCount = Array.isArray(webSubs) ? webSubs.length : null;
     if (webSubsError) debug.webSubsError = webSubsError.message;
 

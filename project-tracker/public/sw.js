@@ -26,17 +26,21 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
+  // A notification can name the page it is about (the EN Helper reminder
+  // sends '/helper/'). Without one, it opens the app as it always has.
+  const target = event.notification.data?.url
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window if found
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus()
-        }
+        if (!client.url.includes(self.location.origin) || !('focus' in client)) continue
+        if (!target) return client.focus()
+        // Already on that page: bring it forward. Otherwise take this window
+        // there, which keeps it inside the installed app instead of Safari.
+        if (new URL(client.url).pathname.startsWith(target)) return client.focus()
+        if ('navigate' in client) return client.navigate(target).then(c => (c || client).focus())
       }
-      // Otherwise open a new window
-      return clients.openWindow('/')
+      return clients.openWindow(target || '/')
     })
   )
 })

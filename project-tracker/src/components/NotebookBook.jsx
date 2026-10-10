@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, GraduationCap, ExternalLink, Trash2, Pencil } from 'lucide-react'
 import { SIGNAL_BY_KEY, signalsOf, answersFor, visibleQuestions } from '../data/notebookSignals'
 import { thumbUrl, thumbFallback } from '../lib/photos'
+import { isVoice, VoiceSides, VoiceTag } from './VoiceEntry'
 
 // The notebook read as a notebook: a contents page, then one page per meeting
 // date, turned with the arrow in the corner. The list view is still there for
@@ -190,9 +191,18 @@ export default function NotebookBook({ entries, projectName, canEdit, onEdit, on
               )}
             </p>
 
-            <p className="text-lg text-gray-800" style={{ lineHeight: `${RULE}px`, marginTop: RULE }}>
-              {entry.what_did}
-            </p>
+            {/* A voice entry is read as both versions side by side; see
+                VoiceEntry.jsx for why. A typed one is written on the rules. */}
+            {isVoice(entry) ? (
+              <div style={{ marginTop: RULE / 2 }}>
+                <VoiceTag />
+                <div className="mt-2"><VoiceSides entry={entry} /></div>
+              </div>
+            ) : (
+              <p className="text-lg text-gray-800" style={{ lineHeight: `${RULE}px`, marginTop: RULE }}>
+                {entry.what_did}
+              </p>
+            )}
 
             {entry.why_option && (
               <p className="text-base text-gray-600" style={{ lineHeight: `${RULE}px`, marginTop: RULE }}>
@@ -207,6 +217,9 @@ export default function NotebookBook({ entries, projectName, canEdit, onEdit, on
               </p>
             )}
 
+            {/* A voice entry only says a mentor helped when the student said
+                so. Not mentioning one isn't the same as doing it alone. */}
+            {(!isVoice(entry) || entry.mentor_help) && (
             <p className="text-sm text-gray-400 flex items-center gap-1 flex-wrap"
                style={{ lineHeight: `${RULE}px`, marginTop: RULE }}>
               {entry.mentor_help ? (
@@ -217,6 +230,7 @@ export default function NotebookBook({ entries, projectName, canEdit, onEdit, on
                 </>
               ) : 'Done on their own'}
             </p>
+            )}
 
             {/* What happened that day. An older entry has none of this and
                 simply shows nothing extra. */}
