@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { onlyMyTeam, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampTeam, teamScope } from '../lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
 import {
   Plus, Send, Trash2, Check, X, ChevronRight, ChevronLeft, Eye,
@@ -1161,7 +1161,7 @@ export default function WorkshopIdeas() {
 
   const loadCompletions = async () => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_completions?select=*&order=completed_at.desc`, { headers })
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_completions?${SCOPE}&select=*&order=completed_at.desc`, { headers })
       if (res.ok) setCompletions(await res.json())
     } catch (err) {
       console.error('Failed to load completions:', err)
@@ -1358,21 +1358,25 @@ export default function WorkshopIdeas() {
   }
 
   const handleWorkshopComplete = async (workshop, photoUrl) => {
-    const completion = {
+    const completion = stampTeam({
       id: String(Date.now()) + Math.random().toString(36).slice(2),
       workshop_id: workshop.id,
       workshop_title: workshop.title,
       completed_by: username,
       photo_url: photoUrl || null,
       completed_at: new Date().toISOString(),
-    }
+    }, myTeamNumber)
     setCompletions(prev => [completion, ...prev])
     try {
-      await fetch(`${supabaseUrl}/rest/v1/workshop_completions`, {
+      const res = await fetch(`${supabaseUrl}/rest/v1/workshop_completions`, {
         method: 'POST', headers: jsonHeaders, body: JSON.stringify(completion),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
     } catch (err) {
+      // Don't let it look saved when it isn't: it would vanish on reload.
       console.error('Failed to save completion:', err)
+      setCompletions(prev => prev.filter(c => c.id !== completion.id))
+      window.alert("Couldn't save that workshop as completed. Please try again.")
     }
     // Also add to gallery if photo was provided
     if (photoUrl) {

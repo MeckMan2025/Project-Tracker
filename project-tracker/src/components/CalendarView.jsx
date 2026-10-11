@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { onlyMyTeam, stampStored, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampStored, stampTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import {
@@ -347,7 +347,8 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
     const url = import.meta.env.VITE_SUPABASE_URL
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY
     const cat = CATEGORIES[event.category] || CATEGORIES[event.event_type] || CATEGORIES.meeting
-    const row = {
+    // Stamped with the team, so process-scheduled sends it to this team only.
+    const row = stampTeam({
       id: 'sn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
       event_id: event.id,
       send_at: sendAt.toISOString(),
@@ -358,7 +359,7 @@ function CalendarView({ tabs = [], tasksByTab = {}, onOpenTask } = {}) {
       created_by: username,
       created_by_user_id: user?.id || null,
       status: 'pending',
-    }
+    }, myTeamNumber)
     try {
       await fetch(`${url}/rest/v1/scheduled_notifications`, {
         method: 'POST',

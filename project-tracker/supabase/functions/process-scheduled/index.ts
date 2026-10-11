@@ -47,10 +47,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fetch all user profiles once
-    const { data: profiles } = await supabaseAdmin
+    // Fetch all user profiles once, with their teams: a reminder goes only to
+    // the team it was scheduled for. Radical is spelled NULL, '' or '7196'.
+    const { data: allProfiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, notification_prefs");
+      .select("id, notification_prefs, team_number, extra_teams");
+    const teamKey = (t: unknown) => {
+      const s = String(t ?? "").trim();
+      return s === "" || s === "7196" ? "7196" : s;
+    };
+    const onTeam = (p: any, team: string) =>
+      teamKey(p.team_number) === team ||
+      (p.extra_teams || []).some((x: unknown) => teamKey(x) === team);
 
     let totalProcessed = 0;
 
@@ -67,8 +75,11 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Send in-app + push notifications to all users (including the creator —
-      // they scheduled it, but they still want their own reminder)
+      // Send in-app + push notifications to everyone on the reminder's team
+      // (including the creator: they scheduled it, but they still want their
+      // own reminder).
+      const team = teamKey(sn.team_number);
+      const profiles = (allProfiles || []).filter((p: any) => onTeam(p, team));
       if (profiles) {
         for (const p of profiles) {
 
