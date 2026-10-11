@@ -111,7 +111,7 @@ function Header({ name }) {
 }
 
 export default function HelperApp() {
-  const { user, username, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired } = useUser()
+  const { user, username, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, sessionLost, logout } = useUser()
   const { canSubmitNotebook } = usePermissions()
 
   if (loading) {
@@ -130,6 +130,14 @@ export default function HelperApp() {
   if (!user) return <LoginScreen sessionExpired={sessionExpired} linkError={authLinkError} />
   if (mustChangePassword) return <ForcePasswordChange updatePassword={updatePassword} />
   if (!username) return <ProfileWait />
+  if (sessionLost) {
+    return (
+      <Notice title="Please sign in again">
+        Your sign-in expired, so the notebook can't save.{' '}
+        <button onClick={() => logout()} className="mt-3 block mx-auto px-4 py-2 rounded-xl bg-pastel-pink font-semibold text-gray-800">Sign in again</button>
+      </Notice>
+    )
+  }
   if (!canSubmitNotebook) {
     return <Notice title="Notebook entries are for team members">This account can read the notebook but can't write in it.</Notice>
   }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { restHeaders } from '../lib/restHeaders'
+import { restHeaders, startSessionKeeper } from '../lib/restHeaders'
 import { supabase, arrivedFromRecoveryLink } from '../supabase'
 import { HOME_TEAM_NUMBER } from '../data/team'
 
@@ -818,6 +818,24 @@ export function UserProvider({ children }) {
     setPasswordRecovery(false)
   }
 
+  // The sign-in is really gone: say so once, rather than every screen
+  // quietly coming back empty.
+  const [sessionLost, setSessionLost] = useState(false)
+
+  // Keep the sign-in alive while someone is signed in (lib/restHeaders.js).
+  // A new sign-in clears any earlier "sign in again".
+  useEffect(() => {
+    if (!user?.id) return
+    setSessionLost(false)
+    return startSessionKeeper()
+  }, [user?.id])
+
+  useEffect(() => {
+    const onLost = () => setSessionLost(true)
+    window.addEventListener('scrum-session-lost', onLost)
+    return () => window.removeEventListener('scrum-session-lost', onLost)
+  }, [])
+
   const logout = async () => {
     // signOut() can hang if the Supabase auth lock is stuck (e.g. after hard refresh).
     // Give it 3 seconds max, then proceed with local cleanup regardless.
@@ -837,7 +855,7 @@ export function UserProvider({ children }) {
 
   return (
     <UserContext.Provider
-      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamFullAccess, reportTeamFullAccess: applyTeamFullAccess, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
+      value={{ username, nickname, useNickname, chatName: (useNickname && nickname) ? nickname : username, isLead, role, secondaryRoles, authorityTier, isAuthorityAdmin, primaryRoleLabel, functionTags, shortBio, user, loading, login, signup, logout, checkWhitelist, resetPassword, updatePassword, passwordRecovery, mustChangePassword, sessionExpired, sessionLost, roleChangeAlert, dismissRoleChangeAlert: () => setRoleChangeAlert(null), isTeam, isTeamController, teamFullAccess, reportTeamFullAccess: applyTeamFullAccess, teamNumber, profileSync, refreshProfileNow: () => pollProfileRef.current?.() }}
     >
       {children}
     </UserContext.Provider>

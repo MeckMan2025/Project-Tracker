@@ -1,5 +1,4 @@
-import { restHeaders, hasUserToken } from '../lib/restHeaders'
-import { supabase } from '../supabase'
+import { restHeaders, hasUserToken, refreshSessionViaRest } from '../lib/restHeaders'
 import { stampTeam, storedTeamScope } from '../lib/teamScope'
 import { ACTIVE_SEASON } from '../data/season'
 import { claimNotebookAttendance } from '../lib/notebookAttendance'
@@ -69,13 +68,13 @@ async function dropEntry(id) {
 // ─── Sending one ──────────────────────────────────────────────────────────
 
 // A phone waking from sleep can hold an expired token, and an upload sent
-// without a live one is refused. Refresh only then, and never wait forever on
-// it: the client's refresh can sit on a lock.
+// without a live one is refused. Renew it first (lib/restHeaders.js, no
+// lock to get stuck on), but never wait forever on it.
 async function freshSession() {
   if (hasUserToken()) return
   await Promise.race([
-    supabase.auth.getSession(),
-    new Promise(resolve => setTimeout(resolve, 4000)),
+    refreshSessionViaRest(),
+    new Promise(resolve => setTimeout(resolve, 5000)),
   ]).catch(() => {})
 }
 

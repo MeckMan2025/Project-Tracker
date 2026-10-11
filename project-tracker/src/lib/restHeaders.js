@@ -37,9 +37,13 @@ function cachedAccessToken() {
     if (!token) return null
     // A token within ten seconds of expiry is treated as gone: better to send
     // the anon key and be refused by a policy than to send something the API
-    // will reject outright.
+    // will reject outright. This request goes out without it, so start a
+    // refresh for the next one.
     const expiresAt = (session?.expires_at || 0) * 1000
-    if (expiresAt && Date.now() >= expiresAt - 10000) return null
+    if (expiresAt && Date.now() >= expiresAt - 10000) {
+      if (session?.refresh_token) refreshSessionViaRest()
+      return null
+    }
     return token
   } catch {
     // Private browsing, cleared storage, a corrupt value. Fall back.
@@ -123,4 +127,85 @@ export function lazyHeadersWith(extra) {
         || Object.prototype.hasOwnProperty.call(fixed, prop)
     },
   })
+}
+
+// ── Keeping the sign-in alive ───────────────────────────────────────────────
+//
+// supabase-js refreshes the access token itself, but on a phone that has been
+// asleep, or while its own auth lock is stuck, it doesn't, and the token runs
+// out. Every request then goes out with the anon key, and since the database
+// gives anon nothing, screens come back empty with no error: the notebook
+// "has no entries". So the app refreshes the token itself too, straight
+// against the Auth API with no lock, and when the sign-in is really gone it
+// says so (the 'scrum-session-lost' event) instead of showing empty pages.
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+
+function readSession() {
+  try { return JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null') } catch { return null }
+}
+
+let refreshing = null
+
+// One refresh at a time. Resolves true when the stored token is good again.
+export function refreshSessionViaRest() {
+  if (refreshing) return refreshing
+  refreshing = (async () => {
+    const before = readSession()
+    const refreshToken = before?.refresh_token
+    if (!refreshToken) return false
+    try {
+      const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+      // Refresh tokens rotate. If supabase-js refreshed while this was in
+      // flight, what is stored now is newer than anything this could write.
+      const now = readSession()
+      if (now?.refresh_token && now.refresh_token !== refreshToken) return true
+      if (!res.ok) {
+        // Refused (revoked, or signed out elsewhere): only signing in again
+        // fixes it. Anything else, like a server hiccup, is tried again later.
+        if (res.status === 400 || res.status === 401 || res.status === 403) {
+          window.dispatchEvent(new CustomEvent('scrum-session-lost'))
+        }
+        return false
+      }
+      const fresh = await res.json()
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...(now || before),
+        ...fresh,
+        expires_at: fresh.expires_at || Math.floor(Date.now() / 1000) + (fresh.expires_in || 3600),
+      }))
+      return true
+    } catch {
+      return false // offline: the next tick tries again
+    } finally {
+      setTimeout(() => { refreshing = null }, 0)
+    }
+  })()
+  return refreshing
+}
+
+// Refresh shortly before the token runs out, and whenever the app comes back
+// to the front (a phone waking up). supabase-js starts its own refresh about
+// 90 seconds out, so this waits until 45: it only steps in when that stalled.
+// Returns a stop function. Started by UserContext while someone is signed in.
+export function startSessionKeeper() {
+  const tick = () => {
+    const s = readSession()
+    if (!s?.refresh_token) return
+    if (Date.now() >= (s.expires_at || 0) * 1000 - 45000) refreshSessionViaRest()
+  }
+  const onVisible = () => { if (document.visibilityState === 'visible') tick() }
+  tick()
+  const timer = setInterval(tick, 20000)
+  document.addEventListener('visibilitychange', onVisible)
+  window.addEventListener('focus', tick)
+  return () => {
+    clearInterval(timer)
+    document.removeEventListener('visibilitychange', onVisible)
+    window.removeEventListener('focus', tick)
+  }
 }

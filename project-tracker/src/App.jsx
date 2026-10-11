@@ -361,7 +361,7 @@ function RoleChangeModal({ alert, onDismiss }) {
 }
 
 function App() {
-  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, reportTeamFullAccess, functionTags } = useUser()
+  const { username, isLead, user, loading, passwordRecovery, mustChangePassword, updatePassword, sessionExpired, sessionLost, logout, roleChangeAlert, dismissRoleChangeAlert, isTeam, teamNumber, teamFullAccess, reportTeamFullAccess, functionTags } = useUser()
   // The team this session works in when it isn't Radical: a team login, or a
   // member of another team. Boards and tasks are read by it, so they must be
   // stamped with it too; stamping only team logins filed every other member's
@@ -1655,6 +1655,19 @@ function App() {
   return (
     <>
       {isLoading && !effectiveIsTeam && <LoadingScreen onComplete={handleLoadingComplete} onMusicStart={handleMusicStart} />}
+      {/* The sign-in can't be renewed (lib/restHeaders.js). Without this the
+          app keeps running on the public key and every screen comes back
+          empty, which looks like lost data rather than a sign-in problem. */}
+      {sessionLost && (
+        <div className="fixed top-0 inset-x-0 z-[200] flex justify-center p-3" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+          <div className="flex items-center gap-3 bg-white border border-amber-300 shadow-lg rounded-xl px-4 py-3 text-sm text-gray-700 max-w-md">
+            <span className="flex-1">Your sign-in expired, so nothing new can load. Sign in again to see your team's data.</span>
+            <button onClick={() => logout()} className="shrink-0 px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark font-semibold">
+              Sign in again
+            </button>
+          </div>
+        </div>
+      )}
       {/* Guests and kiosk accounts aren't people we send notifications to. */}
       {!isLoading && !effectiveIsTeam && (<><ChangelogPopup /><MeetingRecapPopup /><BirthdayConfetti />{!isGuest && <NotificationNudge />}</>)}
       {viewTask && (
