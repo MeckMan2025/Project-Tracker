@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authorizeAdmin, refuseTarget } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,11 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Service role. Used for the authorisation check below as well as the
+    // reset itself, because a caller cannot be trusted to report their own
+    // permissions and RLS would hide the rows that settle it.
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const {
       data: { user: caller },
       error: authError,
@@ -42,20 +48,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify caller is a lead (has a lead-level function tag)
-    const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
-      // Co-leads do the same job as the lead they share it with.
-      'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead'];
-    const { data: profile, error: profileError } = await supabaseUser
-      .from("profiles")
-      .select("function_tags")
-      .eq("id", caller.id)
-      .single();
-
-    const callerTags = profile?.function_tags || [];
-    const isLead = callerTags.some((t: string) => LEAD_TAGS.includes(t));
-
-    if (profileError || !isLead) {
+    // Who may, and with what reach (_shared/adminAuth.ts).
+    const who = await authorizeAdmin(supabaseAdmin, caller);
+    if (!who) {
       return new Response(
         JSON.stringify({ error: "Only leads can reset passwords" }),
         {
@@ -64,13 +59,16 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+    const callerTeam = who.team;
 
-    // Parse request body
-    const { userId, newPassword } = await req.json();
+    // Parse request body. newEmail is optional and is how a team gets a new
+    // coach: the address IS the login, so it has to move with the person or
+    // the new coach cannot get in and the old one still can.
+    const { userId, newPassword, newEmail } = await req.json();
 
-    if (!userId || !newPassword) {
+    if (!userId || (!newPassword && !newEmail)) {
       return new Response(
-        JSON.stringify({ error: "userId and newPassword are required" }),
+        JSON.stringify({ error: "userId and one of newPassword or newEmail are required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,7 +76,31 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (newPassword.length < 6) {
+    // The reach, enforced: a team's controller resets only their own team's
+    // members, and only a senior lead resets another lead's or a team's login.
+    const refusal = await refuseTarget(supabaseAdmin, who, userId, "reset passwords for");
+    if (refusal) {
+      return new Response(JSON.stringify({ error: refusal }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (callerTeam) {
+      // Moving a login to a new address is how a team changes coach. That
+      // stays with our leads: a coach must not be able to reassign the
+      // account they are signed in as.
+      if (newEmail) {
+        return new Response(
+          JSON.stringify({ error: "Only leads can change a login email" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
+    if (newPassword && newPassword.length < 6) {
       return new Response(
         JSON.stringify({
           error: "Password must be at least 6 characters",
@@ -90,14 +112,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    // Whichever was asked for. Both go through the same call, so changing a
+    // team's coach and resetting their password are one round trip when both
+    // are needed.
+    const changes: Record<string, unknown> = {};
+    if (newPassword) changes.password = newPassword;
+    if (newEmail) {
+      changes.email = String(newEmail).trim().toLowerCase();
+      // Admin-set, so there is nobody to click a confirmation link.
+      changes.email_confirm = true;
+    }
 
-    // Reset the password
     const { error: resetError } =
-      await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password: newPassword,
-      });
+      await supabaseAdmin.auth.admin.updateUserById(userId, changes);
 
     if (resetError) {
       return new Response(JSON.stringify({ error: resetError.message }), {
@@ -109,7 +136,7 @@ Deno.serve(async (req: Request) => {
     // Force password change on next login
     await supabaseAdmin
       .from("profiles")
-      .update({ must_change_password: true })
+      .update({ must_change_password: !!newPassword })
       .eq("id", userId);
 
     return new Response(JSON.stringify({ success: true }), {

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authorizeAdmin, refuseTarget } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,11 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Service role. Used for the authorisation check below as well as the work
+    // itself, because a caller cannot be trusted to report their own
+    // permissions and RLS would hide the rows that settle it.
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const {
       data: { user: caller },
       error: authError,
@@ -42,28 +48,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify caller is a lead (has a lead-level function tag)
-    const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
-      // Co-leads do the same job as the lead they share it with.
-      'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead'];
-    const { data: profile, error: profileError } = await supabaseUser
-      .from("profiles")
-      .select("function_tags")
-      .eq("id", caller.id)
-      .single();
-
-    const callerTags = profile?.function_tags || [];
-    const isLead = callerTags.some((t: string) => LEAD_TAGS.includes(t));
-
-    if (profileError || !isLead) {
+    // Who may, and with what reach (_shared/adminAuth.ts).
+    const who = await authorizeAdmin(supabaseAdmin, caller);
+    if (!who) {
       return new Response(
-        JSON.stringify({ error: "Only leads can delete users" }),
+        JSON.stringify({ error: "Only leads can delete accounts" }),
         {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
+    const callerTeam = who.team;
 
     // Parse request body
     const { userId } = await req.json();
@@ -89,10 +85,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Look up the email before anything is destroyed — the caller uses it to
+    // The reach, enforced before anything is destroyed: a team's controller
+    // deletes only their own team's members, and only a senior lead deletes
+    // another lead's or a team's login.
+    const refusal = await refuseTarget(supabaseAdmin, who, userId, "delete");
+    if (refusal) {
+      return new Response(JSON.stringify({ error: refusal }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Look up the email before anything is destroyed: the caller uses it to
     // clear the person off the signup whitelist.
     let deletedEmail = null;
     try {
@@ -101,7 +106,7 @@ Deno.serve(async (req: Request) => {
     } catch (_) { /* not fatal */ }
 
     // Delete the AUTH USER first. Doing the profile first meant a failed auth
-    // delete left a login with no profile — an account nobody could see but
+    // delete left a login with no profile, an account nobody could see but
     // that still blocked re-registration. Order it so the irreversible,
     // failure-prone step happens while the profile is still there to retry.
     const { error: deleteError } =

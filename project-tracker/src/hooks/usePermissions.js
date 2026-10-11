@@ -5,17 +5,15 @@ const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
   'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
 
-// Account administration — resetting a password, creating someone's login,
+// Account administration: resetting a password, creating someone's login,
 // deleting a member. These go through the admin-* edge functions, which check
-// their own tag list server-side. This MUST mirror the LEAD_TAGS in
-// supabase/functions/admin-{reset-password,delete-user,create-user}/index.ts:
-// when it drifted wider, a Programming Lead was shown the buttons and every
-// click came back "Only leads can reset passwords".
-// NOTE: the co-lead tags are in the edge functions' source but the deployed
-// functions are still running the old list until someone redeploys them. Adding
-// them here before that would show co-leads buttons that fail every time, which
-// is the bug this list exists to prevent. Add them once the functions are out.
-const ACCOUNT_ADMIN_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead']
+// the same list server-side (ADMIN_TAGS in supabase/functions/_shared/
+// adminAuth.ts). The two MUST match: when they drifted, a Programming Lead
+// was shown the buttons and every click came back "Only leads can reset
+// passwords". The server also keeps a student lead's hands off a mentor's,
+// co-founder's or team's login; those clicks come back with a reason.
+const ACCOUNT_ADMIN_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
+  'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
 
 // Same rule as canAddEvents below, but computed from a raw function_tags array
 // so callers can re-check against a freshly-fetched profile (not cached state).

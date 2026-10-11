@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authorizeAdmin, refuseTarget } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,11 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Service role. Used for the authorisation check below as well as the work
+    // itself, because a caller cannot be trusted to report their own
+    // permissions and RLS would hide the rows that settle it.
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const {
       data: { user: caller },
       error: authError,
@@ -42,20 +48,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify caller is a lead (has a lead-level function tag)
-    const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
-      // Co-leads do the same job as the lead they share it with.
-      'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead'];
-    const { data: profile, error: profileError } = await supabaseUser
-      .from("profiles")
-      .select("function_tags")
-      .eq("id", caller.id)
-      .single();
-
-    const callerTags = profile?.function_tags || [];
-    const isLead = callerTags.some((t: string) => LEAD_TAGS.includes(t));
-
-    if (profileError || !isLead) {
+    // Who may, and with what reach (_shared/adminAuth.ts).
+    const who = await authorizeAdmin(supabaseAdmin, caller);
+    if (!who) {
       return new Response(
         JSON.stringify({ error: "Only leads can create accounts" }),
         {
@@ -64,6 +59,7 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+    const callerTeam = who.team;
 
     // Parse request body
     const { email, password, displayName, role } = await req.json();
@@ -90,8 +86,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     // Create the user account (email_confirm: true skips email verification)
     const { data: newUser, error: createError } =
@@ -116,10 +110,15 @@ Deno.serve(async (req: Request) => {
       .insert({
         id: newUser.user.id,
         display_name: displayName.trim(),
-        role: role || "member",
+        // 'lead' makes a full lead (the database reads it), so only a senior
+        // lead may hand it out. Anything else is an ordinary label.
+        role: role === "lead" && !who.isSenior ? "member" : (role || "member"),
         authority_tier: authorityTier,
         function_tags: functionTags,
         must_change_password: true,
+        // Created by a team's own coach, so it is their member, not ours.
+        // A lead creating from our side leaves this null, which means us.
+        ...(callerTeam ? { team_number: callerTeam } : {}),
       });
 
     if (profileInsertError) {
