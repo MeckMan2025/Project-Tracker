@@ -779,11 +779,14 @@ function App() {
       }
 
       if (!scopedToTeam) {
-        // Seed default boards if missing (only for Radical members)
+        // Seed default boards if missing (only for Radical members). Only
+        // someone who may create boards (a lead or a team login; the database
+        // refuses anyone else) tries: before a sister team's profile has
+        // loaded, their session looks like Radical's for a moment.
         const existingIds = boards.map(b => b.id)
         // Main is a view over the others, so it never gets a row of its own.
         const missing = DEFAULT_BOARDS.filter(b => !b.readOnly && !existingIds.includes(b.id))
-        if (missing.length > 0) {
+        if (missing.length > 0 && canEditContent) {
           try {
             for (const b of missing) {
               await restInsert('boards', { id: b.id, name: b.name, permanent: true })

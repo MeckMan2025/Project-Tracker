@@ -363,25 +363,6 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
     return () => { active = false }
   }, [shownName]) // eslint-disable-line
 
-  // Point this person's attendance history at their new name. Without it the
-  // manager lists the old name (with its real status) alongside a fresh
-  // "no record" row for the new one.
-  const renameAttendanceRecords = async (oldName, newName) => {
-    try {
-      await fetch(`${supabaseUrl}/rest/v1/attendance_records?username=eq.${encodeURIComponent(oldName)}`, {
-        method: 'PATCH',
-        headers: {
-          ...restHeaders(),
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify({ username: newName }),
-      })
-    } catch (err) {
-      console.error('Failed to migrate attendance records to the new name:', err)
-    }
-  }
-
   const handleSave = async () => {
     if (!user) return
     setSaving(true)
@@ -455,9 +436,10 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
 
       if (res.ok) {
         const newName = editName.trim() || username
-        const oldName = savedNameRef.current
         savedNameRef.current = newName
-        if (oldName && oldName !== newName) await renameAttendanceRecords(oldName, newName)
+        // Rows record their author by name. The database moves them all to
+        // the new name in the same save (profiles_name_cascade in
+        // supabase/security_person_rules.sql), attendance included.
         localStorage.setItem('scrum-username', newName)
         localStorage.setItem('scrum-nickname', editNickname.trim())
         localStorage.setItem('scrum-use-nickname', String(editUseNickname))
