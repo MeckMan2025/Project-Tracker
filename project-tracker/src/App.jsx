@@ -1897,8 +1897,7 @@ function App() {
       ) : activeTab === 'chat-leagues' ? (
         <QuickChat channel="leagues" />
       ) : activeTab === 'comp-day' ? (
-        <CompDayView onBack={() => setActiveTab('special-controls')}
-                     onOpenSchedule={() => setActiveTab('schedule')} />
+        <CompDayView onBack={() => setActiveTab('special-controls')} />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">

@@ -86,13 +86,13 @@ function Slot({ label, value, onChange, isLead, tint }) {
   )
 }
 
-export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack }) {
+export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, initialTab = 'groups' }) {
   const { username } = useUser()
   const { hasLeadTag, myTeamNumber} = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
   const isLead = hasLeadTag
   const [data, setData] = useState(null)
-  const [tab, setTab] = useState('groups')
+  const [tab, setTab] = useState(initialTab)
   const [activePeriod, setActivePeriod] = useState(null)
   const [periodSubmissions, setPeriodSubmissions] = useState([])
   const [showPeriodForm, setShowPeriodForm] = useState(false)

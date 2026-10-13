@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
-import { Plus, Play, Pause, Trash2, Users, ArrowLeft, ClipboardCheck, AlertCircle, ChevronRight, Calendar, Shield, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Calendar, ChevronRight, ClipboardCheck, ClipboardList, Pause, Play, Plus, Shield, Trash2, Users, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
+import ScoutingDaySetup from './ScoutingDaySetup'
 import PitChecklist from './PitChecklist'
 import BagWatchTimer from './BagWatchTimer'
 import BreakTimer from './BreakTimer'
@@ -43,12 +44,13 @@ const ROLES = [
 
 const ROLE_MAP = Object.fromEntries(ROLES.map(r => [r.id, r]))
 
-export default function CompDayView({ onBack, onOpenSchedule }) {
+export default function CompDayView({ onBack }) {
   const { username } = useUser()
   const { hasLeadTag } = usePermissions()
 
   const [sessions, setSessions] = useState([])
   const [activeSession, setActiveSession] = useState(null)  // currently open session
+  const [showSetup, setShowSetup] = useState(null)   // session whose match schedule is being edited
   const [blocks, setBlocks] = useState([])
   const [assignments, setAssignments] = useState([])
   const [members, setMembers] = useState([])
@@ -427,21 +429,26 @@ export default function CompDayView({ onBack, onOpenSchedule }) {
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
 
-            {/* What a scout's screen needs before it can say anything useful.
-                The editor lives on the Schedule tab rather than being built a
-                second time here — two editors on the same document is how they
-                drift. */}
-            {onOpenSchedule && (
-              <button
-                onClick={onOpenSchedule}
-                className="w-full text-left px-4 py-3 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md hover:bg-white transition-all"
-              >
-                <span className="font-semibold text-gray-700">Match schedule &amp; scouting groups</span>
-                <p className="text-sm text-gray-400 mt-0.5">
-                  Which teams play each match, which group covers it, and who scouts
-                  each position — this is what fills in a scout's screen.
-                </p>
-              </button>
+            {/* What a scout's screen needs before it can say anything useful:
+                which teams play each match, which group covers it, who scouts
+                each position.
+                
+                This is the setup editor itself rather than a link to it — the
+                question "what do my teammates see" is asked here, so it is
+                answered here. The same component as the Schedule tab, opened on
+                its Match Schedule page, writing the same document, so there is
+                one editor and not two drifting copies. Keyed to the session, so
+                each competition keeps its own. */}
+            {showSetup && (
+              <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                <ScoutingDaySetup
+                  scheduleId={`day-comp-${showSetup.id}`}
+                  dateTitle={showSetup.name || 'Competition Day'}
+                  dateSubtitle="What everyone sees on the day"
+                  initialTab="schedule"
+                  onBack={() => setShowSetup(null)}
+                />
+              </div>
             )}
 
             {error && (
@@ -492,6 +499,21 @@ export default function CompDayView({ onBack, onOpenSchedule }) {
                           <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}</p>
                         </div>
                         <ChevronRight size={18} className="text-gray-400" />
+                      </button>
+                      {/* The teams and the rota for this competition. Separate
+                          from the role blocks beside it: blocks say who is
+                          doing what job, this says which teams they are
+                          watching and in which match. */}
+                      <button
+                        onClick={() => setShowSetup(showSetup?.id === s.id ? null : s)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          showSetup?.id === s.id
+                            ? 'bg-pastel-blue text-gray-700'
+                            : 'hover:bg-pastel-blue/30 text-gray-400'
+                        }`}
+                        title="Match schedule & scouting groups"
+                      >
+                        <ClipboardList size={16} />
                       </button>
                       <button onClick={() => deleteSession(s.id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete plan">
                         <Trash2 size={16} />
