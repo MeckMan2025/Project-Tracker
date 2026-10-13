@@ -54,6 +54,7 @@ import TeamPulseDashboard from './components/TeamPulseDashboard'
 import { useAppSettings } from './hooks/useAppSettings'
 import SettingsView from './components/SettingsView'
 import CompDayView from './components/CompDayView'
+import PitScoutingForm from './components/PitScoutingForm'
 import TestingDashboard from './components/TestingDashboard'
 import MeetingRecapPopup from './components/MeetingRecapPopup'
 import { MeetingStatsView } from './components/MeetingRecorder'
@@ -1837,6 +1838,8 @@ function App() {
         <WorkingOnIt title="Log Reach" />
       ) : activeTab === 'portfolio' ? (
         <WorkingOnIt title="Portfolio" />
+      ) : activeTab === 'pit-scouting' ? (
+        <PitScoutingForm />
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
@@ -1894,7 +1897,8 @@ function App() {
       ) : activeTab === 'chat-leagues' ? (
         <QuickChat channel="leagues" />
       ) : activeTab === 'comp-day' ? (
-        <CompDayView onBack={() => setActiveTab('special-controls')} />
+        <CompDayView onBack={() => setActiveTab('special-controls')}
+                     onOpenSchedule={() => setActiveTab('schedule')} />
       ) : activeTab === 'special-controls' ? (
         <div className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">

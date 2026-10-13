@@ -43,7 +43,7 @@ const ROLES = [
 
 const ROLE_MAP = Object.fromEntries(ROLES.map(r => [r.id, r]))
 
-export default function CompDayView({ onBack }) {
+export default function CompDayView({ onBack, onOpenSchedule }) {
   const { username } = useUser()
   const { hasLeadTag } = usePermissions()
 
@@ -426,6 +426,23 @@ export default function CompDayView({ onBack }) {
 
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
+
+            {/* What a scout's screen needs before it can say anything useful.
+                The editor lives on the Schedule tab rather than being built a
+                second time here — two editors on the same document is how they
+                drift. */}
+            {onOpenSchedule && (
+              <button
+                onClick={onOpenSchedule}
+                className="w-full text-left px-4 py-3 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md hover:bg-white transition-all"
+              >
+                <span className="font-semibold text-gray-700">Match schedule &amp; scouting groups</span>
+                <p className="text-sm text-gray-400 mt-0.5">
+                  Which teams play each match, which group covers it, and who scouts
+                  each position — this is what fills in a scout's screen.
+                </p>
+              </button>
+            )}
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">

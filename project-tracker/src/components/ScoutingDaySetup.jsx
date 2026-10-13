@@ -6,8 +6,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Users, Wrench, Target, ListOrdered, ChevronLeft, Plus, Trash2, Play, Square, Star } from 'lucide-react'
+import { Users, Wrench, Target, ListOrdered, ClipboardList, ChevronLeft, Plus, Trash2, Play, Square, Star } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { ALL_TEAMS } from '../data/teams'
 
 // ---- Default data (from the team's scouting spreadsheet) -------------------
 const DEFAULT_DATA = {
@@ -32,6 +33,12 @@ const DEFAULT_DATA = {
     { id: 's3', name: 'Group 3', head: 'Chethan', red1: 'Anish', red2: 'Keegan', blue1: 'Weston', blue2: 'Daegus' },
   ],
   standBy: 'Yukti',
+  // Which teams actually play in each match. Without this the app knows who
+  // is scouting but not what they are looking at, and the comp-day screen can
+  // only say "you are on match 4" rather than "team 5062, match 4".
+  matchSchedule: [
+    { id: 'ms1', match: '1', red1: '', red2: '', blue1: '', blue2: '' },
+  ],
   matchPlan: [
     { id: 'm1', group: 'A', field: 'A', matches: '1, 3, 5, 7, 9' },
     { id: 'm2', group: 'B', field: 'B', matches: '2, 4, 6, 8, 10' },
@@ -53,6 +60,7 @@ const TABS = [
   { key: 'roles', label: 'Event Roles', icon: Wrench },
   { key: 'scouting', label: 'Scouting', icon: Target },
   { key: 'matches', label: 'Match Plan', icon: ListOrdered },
+  { key: 'schedule', label: 'Match Schedule', icon: ClipboardList },
 ]
 
 const uid = () => String(Date.now()) + Math.random().toString(36).slice(2)
@@ -104,6 +112,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     scoutGroups: loaded.scoutGroups || DEFAULT_DATA.scoutGroups.map(s => ({ ...s })),
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
     matchPlan: loaded.matchPlan || DEFAULT_DATA.matchPlan.map(m => ({ ...m })),
+    matchSchedule: loaded.matchSchedule || DEFAULT_DATA.matchSchedule.map(m => ({ ...m })),
   })
 
   const loadSubmissions = useCallback(async (periodId) => {
@@ -386,6 +395,81 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
               </div>
               {isLead && (
                 <button onClick={() => update(p => ({ ...p, matchPlan: [...p.matchPlan, { id: uid(), group: 'A', field: 'A', matches: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group Rotation</button>
+              )}
+            </>
+          )}
+
+          {/* ---- MATCH SCHEDULE TAB ---- */}
+          {tab === 'schedule' && (
+            <>
+              <p className="text-xs text-gray-400 mb-3">
+                Who plays in each match. A team number fills in its name from the
+                team list; anything not on the list still saves, it just shows as
+                a number. This is what lets a scout's screen say which team they
+                are watching rather than only which match.
+              </p>
+              <div className="space-y-2">
+                {data.matchSchedule.map((row, i) => {
+                  const set = (key, value) => update(p => {
+                    const m = [...p.matchSchedule]; m[i] = { ...m[i], [key]: value }
+                    return { ...p, matchSchedule: m }
+                  })
+                  const nameOf = (n) => (ALL_TEAMS.find(t => String(t.number) === String(n).trim()) || {}).name || ''
+                  const cell = (key, label) => (
+                    <div key={key} className="min-w-0">
+                      <label className="block text-[10px] uppercase tracking-wide text-gray-400">{label}</label>
+                      <input
+                        value={row[key] || ''}
+                        onChange={e => set(key, e.target.value)}
+                        disabled={!isLead}
+                        inputMode="numeric"
+                        placeholder="—"
+                        className="w-full text-sm border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
+                      />
+                      <span className="block text-[10px] text-gray-400 truncate">{nameOf(row[key])}</span>
+                    </div>
+                  )
+                  return (
+                    <div key={row.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-400">Match</span>
+                        <input
+                          value={row.match || ''}
+                          onChange={e => set('match', e.target.value)}
+                          disabled={!isLead}
+                          inputMode="numeric"
+                          className="w-14 text-sm font-semibold border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
+                        />
+                        {isLead && (
+                          <button
+                            onClick={() => update(p => ({ ...p, matchSchedule: p.matchSchedule.filter(x => x.id !== row.id) }))}
+                            className="ml-auto p-1 rounded hover:bg-red-50"
+                          >
+                            <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {cell('red1', 'Red 1')}
+                        {cell('red2', 'Red 2')}
+                        {cell('blue1', 'Blue 1')}
+                        {cell('blue2', 'Blue 2')}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {isLead && (
+                <button
+                  onClick={() => update(p => {
+                    const last = p.matchSchedule[p.matchSchedule.length - 1]
+                    const next = last && /^\d+$/.test(String(last.match)) ? String(Number(last.match) + 1) : ''
+                    return { ...p, matchSchedule: [...p.matchSchedule, { id: uid(), match: next, red1: '', red2: '', blue1: '', blue2: '' }] }
+                  })}
+                  className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"
+                >
+                  <Plus size={14} /> Add Match
+                </button>
               )}
             </>
           )}
