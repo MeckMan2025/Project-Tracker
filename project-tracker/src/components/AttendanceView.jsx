@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { lazyRestHeaders } from '../lib/restHeaders'
+import { lazyRestHeaders, ensureUserToken } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -8,7 +8,7 @@ import AbsenceNotice from './AbsenceNotice'
 import NotificationBell from './NotificationBell'
 import { Download } from 'lucide-react'
 import { ArrowLeft, ChevronRight, CalendarDays, CalendarX } from 'lucide-react'
-import { useAttendancePartial, presencePct, recordTiming } from '../lib/attendancePartial'
+import { presencePct, timingLabel } from '../lib/attendanceTiming'
 import { excludedAttName, excludedNamesFrom } from '../lib/attendanceRoster'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -64,7 +64,6 @@ export default function AttendanceView({ onOpenSessions }) {
   const [records, setRecords] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [profiles, setProfiles] = useState([])
-  const { partial } = useAttendancePartial()
 
   // Mentors and coaches are tagged, not named, so the roster rules need the
   // profile rows — records only carry a username.
@@ -73,13 +72,16 @@ export default function AttendanceView({ onOpenSessions }) {
 
   useEffect(() => {
     const headers = REST_HEADERS
-    Promise.all([
+    // Wait for a real token first: on a phone that was asleep the stored one
+    // has often run out, and a request sent with the anon key comes back as
+    // an empty history rather than an error.
+    ensureUserToken().then(() => Promise.all([
       fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       // All records are loaded so everyone can see the team-average trend;
       // individual names/rates stay gated to leads in the Team Overview list.
       fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,function_tags`, { headers }).then(r => r.ok ? r.json() : []),
-    ]).then(([s, r, p]) => {
+    ])).then(([s, r, p]) => {
       setSessions(s)
       setRecords(r)
       setProfiles(p)
@@ -114,8 +116,10 @@ export default function AttendanceView({ onOpenSessions }) {
   }, [canViewAllAttendance, username])
 
   // Presence-weighted rate: average of "% of each meeting they were present for"
-  // across all sessions (0 for absent/excused/no-record).
-  const statusFor = (name, sid) => (records.find(r => r.session_id === sid && r.username === name)?.status) || 'no record'
+  // across all sessions (0 for absent/excused/no-record). The minutes somebody
+  // missed are on their record, so a record and its session are all the maths needs.
+  const recordFor = (name, sid) => records.find(r => r.session_id === sid && r.username === name)
+  const statusFor = (name, sid) => recordFor(name, sid)?.status || 'no record'
   // Meetings this person was actually on the roster for. "No record" means they
   // were never marked either way — usually a meeting from before they joined —
   // so it shouldn't be averaged in as a zero against them.
@@ -123,7 +127,7 @@ export default function AttendanceView({ onOpenSessions }) {
   const rateFor = (name) => {
     const mine = countedFor(name)
     return mine.length > 0
-      ? Math.round(mine.reduce((sum, s) => sum + presencePct(s.id, name, statusFor(name, s.id), partial, s.session_date), 0) / mine.length)
+      ? Math.round(mine.reduce((sum, s) => sum + presencePct(recordFor(name, s.id), s), 0) / mine.length)
       : 0
   }
 
@@ -151,7 +155,7 @@ export default function AttendanceView({ onOpenSessions }) {
   if (selectedUser) {
     const userRecords = records.filter(r => r.username === selectedUser)
     const userRecordMap = {}
-    userRecords.forEach(r => { userRecordMap[r.session_id] = r.status })
+    userRecords.forEach(r => { userRecordMap[r.session_id] = r })
 
     return (
       <div className="flex-1 flex flex-col min-w-0">
@@ -180,17 +184,17 @@ export default function AttendanceView({ onOpenSessions }) {
             {sessions.length >= 1 && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Trend</h3>
-                <TrendChart points={[...sessions].filter(s => userRecordMap[s.id]).reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, selectedUser, userRecordMap[s.id], partial, s.session_date) }))} />
+                <TrendChart points={[...sessions].filter(s => userRecordMap[s.id]).reverse().map(s => ({ date: s.session_date, pct: presencePct(userRecordMap[s.id], s) }))} />
               </div>
             )}
 
             <div className="space-y-2">
               {sessions.map(s => {
-                const status = userRecordMap[s.id] || 'no record'
+                const rec = userRecordMap[s.id]
+                const status = rec?.status || 'no record'
                 const colorClass = STATUS_COLORS[status] || 'bg-gray-100 text-gray-400'
-                const pct = presencePct(s.id, selectedUser, status, partial, s.session_date)
-                const t = recordTiming(s.id, selectedUser, partial)
-                const tag = [t.lateMin ? `late ${t.lateMin}m${t.lateExcused ? ' (exc)' : ''}` : '', t.earlyMin ? `left ${t.earlyMin}m${t.earlyExcused ? ' (exc)' : ''}` : ''].filter(Boolean).join(' · ')
+                const pct = presencePct(rec, s)
+                const tag = timingLabel(rec)
                 return (
                   <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -337,7 +341,7 @@ export default function AttendanceView({ onOpenSessions }) {
           {sessions.length >= 1 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-2">Your Trend</h3>
-              <TrendChart points={[...countedFor(username)].reverse().map(s => ({ date: s.session_date, pct: presencePct(s.id, username, statusFor(username, s.id), partial, s.session_date) }))} />
+              <TrendChart points={[...countedFor(username)].reverse().map(s => ({ date: s.session_date, pct: presencePct(recordFor(username, s.id), s) }))} />
             </div>
           )}
 
@@ -351,9 +355,8 @@ export default function AttendanceView({ onOpenSessions }) {
                 const myRecord = myRecords.find(r => r.session_id === s.id)
                 const status = myRecord ? myRecord.status : 'no record'
                 const colorClass = STATUS_COLORS[status] || 'bg-gray-100 text-gray-400'
-                const pct = presencePct(s.id, username, status, partial, s.session_date)
-                const t = recordTiming(s.id, username, partial)
-                const tag = [t.lateMin ? `late ${t.lateMin}m${t.lateExcused ? ' (exc)' : ''}` : '', t.earlyMin ? `left ${t.earlyMin}m${t.earlyExcused ? ' (exc)' : ''}` : ''].filter(Boolean).join(' · ')
+                const pct = presencePct(myRecord, s)
+                const tag = timingLabel(myRecord)
                 return (
                   <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -380,7 +383,7 @@ export default function AttendanceView({ onOpenSessions }) {
                 color="#10b981"
                 points={[...sessions].reverse().map(s => {
                   const recs = records.filter(r => r.session_id === s.id && !isExcluded(r.username))
-                  const vals = recs.map(r => presencePct(s.id, r.username, r.status, partial, s.session_date))
+                  const vals = recs.map(r => presencePct(r, s))
                   return { date: s.session_date, pct: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0 }
                 })}
               />

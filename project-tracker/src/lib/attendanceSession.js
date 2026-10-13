@@ -9,6 +9,7 @@ import { lazyHeadersWith, lazyRestHeaders } from './restHeaders'
 import { storedTeamScope } from '../lib/teamScope'
 import { teamScope, stampTeam } from './teamScope'
 import { excludedFromAttendance } from './attendanceRoster'
+import { filedTiming, loadStandingNotices, standingFor, timingColumns } from './attendanceTiming'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_HEADERS = lazyRestHeaders
@@ -68,18 +69,26 @@ export async function ensureSessionForDate({ date, username, teamNumber }) {
   // and waiting for a lead to undo it would throw away the one thing they
   // did right, so their notice is honoured from the start: excused if they
   // filed in time, absent if they filed late. A 'partial' notice means
-  // they'll be here for some of it, so that still starts present.
-  const noticed = new Map()
+  // they'll be here for some of it, so that still starts present — with the
+  // minutes they said they'd miss written on the record straight away.
+  //
+  // Standing notices ("I leave at 6:30 every Thursday") count the same way
+  // on their weekday, unless a notice for this exact day says otherwise.
+  let notices = []
   try {
     const nres = await fetch(
-      `${REST_URL}/rest/v1/absence_notices?${scope}&meeting_date=eq.${date}&select=username,on_time,kind`,
+      `${REST_URL}/rest/v1/absence_notices?${scope}&meeting_date=eq.${date}&select=username,on_time,kind,meeting_date,late_min,early_min`,
       { headers: REST_HEADERS })
-    if (nres.ok) for (const n of await nres.json()) noticed.set(n.username, n)
+    if (nres.ok) notices = await nres.json()
   } catch {}
+  const standing = await loadStandingNotices(scope)
+  const noticed = new Map(notices.map(n => [n.username, n]))
 
   const startingStatus = (name) => {
     const n = noticed.get(name)
-    if (n && n.kind === 'out') return n.on_time ? 'excused' : 'absent'
+    if (n) return n.kind === 'out' ? (n.on_time ? 'excused' : 'absent') : 'present'
+    const s = standingFor(name, date, standing)
+    if (s?.kind === 'out') return 'excused'
     return 'present'
   }
 
@@ -96,14 +105,21 @@ export async function ensureSessionForDate({ date, username, teamNumber }) {
   // is the shorter job at almost every meeting, and it beats the old rule
   // — present only if the app had been open in the last 30 seconds —
   // which marked the whole room absent whenever nobody had it open.
-  const records = members.map(p => stampTeam({
-    id: genId(),
-    session_id: sessionId,
-    username: p.display_name,
-    status: startingStatus(p.display_name),
-    marked_by: username,
-    created_at: new Date().toISOString(),
-  }, teamNumber))
+  const records = members.map(p => {
+    const status = startingStatus(p.display_name)
+    const timing = status === 'present'
+      ? timingColumns(filedTiming({ sessionDate: date, username: p.display_name, notices, standing }))
+      : null
+    return stampTeam({
+      id: genId(),
+      session_id: sessionId,
+      username: p.display_name,
+      status,
+      marked_by: username,
+      created_at: new Date().toISOString(),
+      ...(timing || {}),
+    }, teamNumber)
+  })
 
   const sessRes = await fetch(`${REST_URL}/rest/v1/attendance_sessions`, {
     method: 'POST', headers: REST_JSON, body: JSON.stringify(session),

@@ -188,6 +188,29 @@ export function refreshSessionViaRest() {
   return refreshing
 }
 
+// Make sure the next request will carry the signed-in person's token.
+//
+// A screen that loads on mount reads the token at that moment. On a phone
+// that has been asleep the token has often run out, so the request went out
+// with the anon key, the database (correctly) returned nothing, and the
+// screen drew an empty page: Team Growth said "nothing to show" with 460
+// entries in the notebook. Awaiting this first turns that into a short wait.
+//
+// Resolves true when a usable token is stored. False when nobody is signed
+// in, or when the refresh was refused (which also raises 'scrum-session-lost'
+// so the app can say so). Never waits more than a few seconds.
+export async function ensureUserToken() {
+  if (cachedAccessToken()) return true
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (!readSession()?.refresh_token) return false
+    const ok = await refreshSessionViaRest()
+    if (ok && cachedAccessToken()) return true
+    if (!ok && !readSession()?.refresh_token) return false
+    await new Promise(r => setTimeout(r, 700))
+  }
+  return !!cachedAccessToken()
+}
+
 // Refresh shortly before the token runs out, and whenever the app comes back
 // to the front (a phone waking up). supabase-js starts its own refresh about
 // 90 seconds out, so this waits until 45: it only steps in when that stalled.

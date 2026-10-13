@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
-import { teamScope } from '../lib/teamScope'
-import { Pencil, Check as CheckIcon, Trash2, ArrowLeft, CalendarX, Clock, Check, AlertTriangle } from 'lucide-react'
+import { teamScope, stampTeam } from '../lib/teamScope'
+import { Pencil, Check as CheckIcon, Trash2, ArrowLeft, CalendarX, Clock, Check, AlertTriangle, Repeat } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { defaultDurationForDate, defaultStartForDate } from '../lib/attendancePartial'
+import { defaultDurationForDate, defaultStartForDate, WEEKDAY_NAMES, weekdayOf, loadStandingNotices } from '../lib/attendanceTiming'
 import { alertLeadsOfLateNotice } from '../lib/lateNoticeAlert'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
@@ -44,6 +44,9 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
   const SCOPE = teamScope(myTeamNumber)
   const [events, setEvents] = useState([])
   const [mine, setMine] = useState([])
+  // Standing notices: "every Thursday", filed once. Yours only, here.
+  const [standing, setStanding] = useState([])
+  const [weekly, setWeekly] = useState(false)
   const [date, setDate] = useState(localDay(2))
   // Either they're not coming at all, or they're telling us the window they
   // will be there for. Two times, said the way people say it.
@@ -72,8 +75,13 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
       .then(r => (r.ok ? r.json() : []))
       .then(rows => setMine(Array.isArray(rows) ? rows : []))
       .catch(() => {})
+    loadStandingNotices(SCOPE)
+      .then(rows => setStanding(rows.filter(r => r.username === username)))
+      .catch(() => {})
   }
   useEffect(loadMine, [username])
+
+  const dayName = date ? WEEKDAY_NAMES[weekdayOf(date)] : 'week'
 
   // The meeting being reported on, and therefore what the 24 hours counts
   // against: the calendar's start time if the day is on there, else the usual one.
@@ -139,6 +147,21 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
     }
   }
 
+  // A standing notice is always yours to take back: it is about weeks that
+  // haven't happened yet.
+  const removeStanding = async (s) => {
+    setStanding(prev => prev.filter(x => x.id !== s.id))
+    try {
+      const res = await fetch(`${REST_URL}/rest/v1/standing_notices?id=eq.${encodeURIComponent(s.id)}`, {
+        method: 'DELETE', headers: JSON_HEADERS,
+      })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (err) {
+      console.error('Failed to remove the standing notice:', err)
+      setStanding(prev => [s, ...prev])
+    }
+  }
+
   const submit = async () => {
     setError('')
     // Everything is required. A half-filled notice is one a lead can't act on,
@@ -153,6 +176,40 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
     }
     if (!reason.trim()) { setError('Say why, even briefly — a lead has to make a call on it.'); return }
     setSaving(true)
+
+    // "Every Thursday": one row per weekday, filed once, applied to every
+    // session on that day from now on. Always in time, by definition.
+    if (weekly) {
+      const weekday = weekdayOf(date)
+      const srow = stampTeam({
+        id: genId(),
+        username,
+        weekday,
+        kind: outAll ? 'out' : 'partial',
+        arrive_at: outAll ? null : arriveAt,
+        leave_at: outAll ? null : leaveAt,
+        reason: reason.trim(),
+      }, myTeamNumber)
+      try {
+        const res = await fetch(`${REST_URL}/rest/v1/standing_notices?on_conflict=username,weekday,team_number`, {
+          method: 'POST',
+          headers: { ...JSON_HEADERS, Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(srow),
+        })
+        if (!res.ok) throw new Error(await res.text())
+        setDone({ date, inTime: true, outAll, weekly: true, weekday })
+        setReason('')
+        setWeekly(false)
+        loadMine()
+      } catch (err) {
+        console.error('Failed to file the standing notice:', err)
+        setError("Couldn't save that. Check your connection and try again.")
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     const row = {
       id: genId(),
       username,
@@ -237,11 +294,13 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                   ? <Check size={16} className="text-green-600" />
                   : <AlertTriangle size={16} className="text-red-500" />}
                 <p className={`font-semibold text-sm ${done.inTime ? 'text-green-800' : 'text-red-800'}`}>
-                  {done.inTime ? 'Filed in time' : 'Filed, but late'}
+                  {done.weekly ? `Filed for every ${WEEKDAY_NAMES[done.weekday]}` : done.inTime ? 'Filed in time' : 'Filed, but late'}
                 </p>
               </div>
               <p className={`text-xs ${done.inTime ? 'text-green-700' : 'text-red-700'}`}>
-                {done.inTime
+                {done.weekly
+                  ? `It applies to every ${WEEKDAY_NAMES[done.weekday]} meeting from now on and counts as told in time. Remove it below if it stops being true.`
+                  : done.inTime
                   ? `Your leads will see this before ${prettyDay(done.date)}.`
                   : done.outAll
                     ? `This is under ${NOTICE_HOURS} hours before the meeting, so it counts absent. Your leads will still see the reason.`
@@ -304,19 +363,44 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
 
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Which day?</label>
-                <input type="date" value={date} min={localDay()}
+                <input type="date" value={date} min={weekly ? undefined : localDay()}
                   onChange={(e) => setDate(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
               </div>
+
+              {/* A fixed commitment — gymnastics, a lesson, a shift — is the
+                  same every week. Filing it once beats filing it every week
+                  and forgetting the one that counts. */}
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={weekly}
+                  onChange={(e) => setWeekly(e.target.checked)}
+                  className="accent-pastel-blue-dark mt-0.5" />
+                <span className="text-sm text-gray-700">
+                  Every {dayName}, from now on
+                  <span className="block text-xs text-gray-400">
+                    A regular thing like a lesson or practice. Filed once, it applies to
+                    every {dayName} meeting until you remove it.
+                  </span>
+                </span>
+              </label>
 
               {/* The number is the whole point, so it leads — how far ahead
                   this notice is, against the day they picked. Seeing it before
                   they submit is what stops a late one being a surprise. */}
               <div className={`rounded-lg px-3 py-2.5 flex items-start gap-2.5 ${
-                past ? 'bg-gray-100 text-gray-500'
+                weekly ? 'bg-pastel-blue/20 text-gray-700'
+                  : past ? 'bg-gray-100 text-gray-500'
                   : inTime ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                <Clock size={15} className="shrink-0 mt-0.5" />
-                {past ? (
+                {weekly ? <Repeat size={15} className="shrink-0 mt-0.5" /> : <Clock size={15} className="shrink-0 mt-0.5" />}
+                {weekly ? (
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight">Every {dayName}</p>
+                    <p className="text-xs opacity-80 mt-0.5">
+                      Applies to each {dayName} meeting from now on, and always counts as told in time.
+                      A notice for one particular day still wins over it.
+                    </p>
+                  </div>
+                ) : past ? (
                   <span className="text-xs">That day has already started.</span>
                 ) : (
                   <div className="min-w-0">
@@ -348,20 +432,20 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
               {error && <p className="text-xs text-red-500">{error}</p>}
 
               <button onClick={submit}
-                disabled={saving || past || !date || !reason.trim() || (!outAll && (!arriveAt || !leaveAt))}
+                disabled={saving || (!weekly && past) || !date || !reason.trim() || (!outAll && (!arriveAt || !leaveAt))}
                 className="w-full py-2.5 rounded-xl bg-pastel-blue hover:bg-pastel-blue-dark disabled:opacity-40 text-sm font-semibold transition-colors">
-                {saving ? 'Sending…' : past ? 'That day has passed' : "Let them know"}
+                {saving ? 'Sending…' : weekly ? `File for every ${dayName}` : past ? 'That day has passed' : "Let them know"}
               </button>
             </div>
           )}
 
-          {mine.length > 0 && (
+          {(mine.length > 0 || standing.length > 0) && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h2 className="font-semibold text-gray-700 text-sm">What you've filed</h2>
                 {/* Same as the logs: the bin lives behind the pencil rather
                     than sitting on every row. */}
-                {mine.some(canRemove) && (
+                {(mine.some(canRemove) || standing.length > 0) && (
                   <button
                     onClick={() => setEditingMine(v => !v)}
                     title={editingMine ? 'Done' : 'Remove one you filed by mistake'}
@@ -374,6 +458,31 @@ export default function AbsenceNotice({ onBack, embedded = false }) {
                 )}
               </div>
               <div className="space-y-2">
+                {standing.map(s => (
+                  <div key={s.id} className="flex items-start gap-2 text-xs">
+                    <span className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded font-semibold bg-pastel-blue/40 text-gray-700">
+                      weekly
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-gray-700 font-medium">Every {WEEKDAY_NAMES[s.weekday]}</p>
+                      <p className="text-gray-500">
+                        {s.kind === 'partial'
+                          ? `${pretty(s.arrive_at)} – ${pretty(s.leave_at)}`
+                          : 'out for the meeting'}
+                      </p>
+                      <p className="text-gray-400 break-words">{s.reason}</p>
+                    </div>
+                    {editingMine && (
+                      <button
+                        onClick={() => removeStanding(s)}
+                        title="Remove this standing notice"
+                        className="ml-auto shrink-0 text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
                 {mine.map(n => (
                   <div key={n.id} className="flex items-start gap-2 text-xs">
                     <span className={`shrink-0 mt-0.5 px-1.5 py-0.5 rounded font-semibold ${

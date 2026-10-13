@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
+import { lazyHeadersWith, lazyRestHeaders, ensureUserToken } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { rowBelongs, stampTeam, teamScope } from '../lib/teamScope'
 import { ensureSessionForDate, genId, todayStr } from '../lib/attendanceSession'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock, ScanLine, Contact } from 'lucide-react'
-import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
+import {
+  presencePct, sessionDuration, recordTiming, timingTouched, filedTiming, timingColumns,
+  loadStandingNotices, saveRecordTiming, applyTimingPatch, saveSessionDuration,
+  weekdayOf, WEEKDAY_NAMES,
+} from '../lib/attendanceTiming'
 import { excludedFromAttendance } from '../lib/attendanceRoster'
 import BadgeScanInput from './BadgeScanInput'
 import BadgeKiosk from './BadgeKiosk'
@@ -37,7 +41,9 @@ export default function AttendanceManager({ onBack }) {
   const [editing, setEditing] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
-  const { partial, setSessionDurationMin, setTiming } = useAttendancePartial()
+  // Standing notices for the whole team ("every Thursday I leave at 6:30").
+  // One small read; each session picks out its own weekday.
+  const [standing, setStanding] = useState([])
   const [expandedRec, setExpandedRec] = useState(null)
   // The list, the badge kiosk at the door, or linking badges to people.
   const [mode, setMode] = useState('list')
@@ -50,9 +56,11 @@ export default function AttendanceManager({ onBack }) {
   // leaving early never decides it on its own.
   const [notebookByDate, setNotebookByDate] = useState({})
   const [applyingRule, setApplyingRule] = useState(false)
-  // Absence notices filed for the open session's date. Shown to leads, never
-  // applied automatically.
+  // Absence notices filed for the open session's date. noticesFor says which
+  // date they were loaded for, so nothing acts on an empty list that simply
+  // hasn't arrived yet.
   const [notices, setNotices] = useState([])
+  const [noticesFor, setNoticesFor] = useState(null)
 
   // Mentors, coaches, team accounts and the ETS account are never part of
   // attendance — see lib/attendanceRoster.
@@ -61,17 +69,21 @@ export default function AttendanceManager({ onBack }) {
   // Fetch sessions, records, profiles on mount
   useEffect(() => {
     const headers = REST_HEADERS
-    Promise.all([
+    // A real token first: sent with the anon key, every one of these comes
+    // back empty and the manager looks like no meeting was ever logged.
+    ensureUserToken().then(() => Promise.all([
       fetch(`${REST_URL}/rest/v1/attendance_sessions?${SCOPE}&select=*&order=session_date.desc`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/attendance_records?${SCOPE}&select=*`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${REST_URL}/rest/v1/profiles?${SCOPE}&select=display_name,authority_tier,function_tags,last_seen_at`, { headers }).then(r => r.ok ? r.json() : []),
       // Finished entries only: an EN Helper entry with questions left doesn't
       // count until they're answered (complete is true for every typed one).
       fetch(`${REST_URL}/rest/v1/notebook_entries?${SCOPE}&complete=not.is.false&select=username,meeting_date`, { headers }).then(r => r.ok ? r.json() : []),
-    ]).then(([s, r, p, n]) => {
+      loadStandingNotices(SCOPE),
+    ])).then(([s, r, p, n, st]) => {
       setSessions(s)
       setRecords(r)
       setProfiles(p)
+      setStanding(st)
       const by = {}
       for (const e of n || []) (by[e.meeting_date] ||= new Set()).add(e.username)
       setNotebookByDate(by)
@@ -108,6 +120,9 @@ export default function AttendanceManager({ onBack }) {
           setSessions(prev => prev.some(s => s.id === payload.new.id) ? prev : [payload.new, ...prev])
         } else if (payload.eventType === 'UPDATE') {
           setSessions(prev => prev.map(s => s.id === payload.new.id ? payload.new : s))
+          // The open session too, so a meeting length typed on another
+          // device changes the percentages on this one.
+          setSelectedSession(prev => prev?.id === payload.new.id ? payload.new : prev)
         } else if (payload.eventType === 'DELETE') {
           setSessions(prev => prev.filter(s => s.id !== payload.old.id))
           setSelectedSession(prev => prev?.id === payload.old.id ? null : prev)
@@ -258,6 +273,47 @@ export default function AttendanceManager({ onBack }) {
       })
     } catch (err) {
       console.error('Failed to change excused:', err)
+    }
+  }
+
+  // Minutes late or left early, on the record itself. The screen updates at
+  // once; the server catches up, and other open apps hear about it through
+  // the records channel above.
+  const setTiming = async (record, patch) => {
+    if (!hasLeadTag || !record || record.virtual) return
+    setRecords(prev => prev.map(r => r.id === record.id ? applyTimingPatch(r, patch) : r))
+    try {
+      await saveRecordTiming(record.id, patch)
+    } catch (err) {
+      console.error('Failed to save late/left-early minutes:', err)
+    }
+  }
+
+  // How long this meeting ran. Blank goes back to the usual length for the day.
+  const setSessionDurationMin = async (session, min) => {
+    if (!hasLeadTag || !session) return
+    const duration_min = Number(min) > 0 ? Math.round(Number(min)) : null
+    setSessions(prev => prev.map(s => s.id === session.id ? { ...s, duration_min } : s))
+    setSelectedSession(prev => prev?.id === session.id ? { ...prev, duration_min } : prev)
+    try {
+      await saveSessionDuration(session.id, min)
+    } catch (err) {
+      console.error('Failed to save the meeting length:', err)
+    }
+  }
+
+  // A standing notice is the person's own to keep or drop, but a lead can
+  // clear one that no longer applies.
+  const deleteStanding = async (s) => {
+    if (!hasLeadTag) return
+    if (!window.confirm(`Remove ${s.username}'s standing notice for every ${WEEKDAY_NAMES[s.weekday]}?`)) return
+    setStanding(prev => prev.filter(x => x.id !== s.id))
+    try {
+      await fetch(`${REST_URL}/rest/v1/standing_notices?id=eq.${encodeURIComponent(s.id)}`, {
+        method: 'DELETE', headers: REST_HEADERS,
+      })
+    } catch (err) {
+      console.error('Failed to remove the standing notice:', err)
     }
   }
 
@@ -495,53 +551,59 @@ export default function AttendanceManager({ onBack }) {
   const noticeDate = selectedSession?.session_date
   useEffect(() => {
     setNotices([])
+    setNoticesFor(null)
     if (!noticeDate) return
     let cancelled = false
     fetch(`${REST_URL}/rest/v1/absence_notices?${SCOPE}&meeting_date=eq.${noticeDate}&select=*`, { headers: REST_HEADERS })
       .then(r => (r.ok ? r.json() : []))
-      .then(rows => { if (!cancelled) setNotices(Array.isArray(rows) ? rows : []) })
-      .catch(() => {})
+      .then(rows => {
+        if (cancelled) return
+        setNotices(Array.isArray(rows) ? rows : [])
+        setNoticesFor(noticeDate)
+      })
+      .catch(() => { if (!cancelled) setNoticesFor(noticeDate) })
     return () => { cancelled = true }
   }, [noticeDate])
 
+  // Standing notices that apply to the open session's weekday, for people who
+  // haven't filed something more specific for this exact day.
+  const standingToday = selectedSession
+    ? standing.filter(s => Number(s.weekday) === weekdayOf(selectedSession.session_date)
+        && !notices.some(n => n.username === s.username))
+    : []
+
   // A filed notice has to turn into real minutes, or it is just a message
-  // nobody acted on. It said "there 5:00–7:00" and the session showed that
-  // line, but the attendance maths read partial.timing, which nothing wrote —
-  // so the person still counted as fully present.
+  // nobody acted on. Starting a session writes them on the records (see
+  // lib/attendanceSession); this catches whatever came after — a notice
+  // filed the same day, a standing notice added since, a person added to the
+  // meeting by hand.
   //
   // Only fills a blank. Once a lead has typed a number for someone, or ticked
   // excused, their judgement stands and the notice never overwrites it.
   // appliedRef keeps a notice from being re-applied after a lead deliberately
-  // clears it back to zero.
+  // clears it back to zero. Waits for the day's notices to have loaded, so a
+  // standing notice never wins over an "I'm out this Thursday" that simply
+  // hadn't arrived yet.
   const appliedRef = useRef(new Set())
   useEffect(() => {
     if (!selectedSession || !hasLeadTag) return
+    if (noticesFor !== selectedSession.session_date) return
     const sid = selectedSession.id
-    for (const n of notices) {
-      if (n.kind !== 'partial') continue
-      const late = Number(n.late_min) || 0
-      const early = Number(n.early_min) || 0
-      if (!late && !early) continue
-
-      const mark = `${sid}|${n.username}|${late}|${early}`
-      if (appliedRef.current.has(mark)) continue
-
-      const cur = recordTiming(sid, n.username, partial)
-      const touched = cur.lateMin != null || cur.earlyMin != null ||
-                      cur.lateExcused != null || cur.earlyExcused != null
-      if (touched) { appliedRef.current.add(mark); continue }
-
-      appliedRef.current.add(mark)
-      setTiming(sid, n.username, {
-        lateMin: late,
-        earlyMin: early,
-        // Told us in time, so the missed minutes are excused. Late notice, and
-        // the minutes count against them — the rule the form already states.
-        lateExcused: !!n.on_time,
-        earlyExcused: !!n.on_time,
+    const date = selectedSession.session_date
+    for (const r of records) {
+      if (r.session_id !== sid || r.status !== 'present') continue
+      const want = filedTiming({
+        sessionDate: date, username: r.username, notices, standing,
+        durationMin: selectedSession.duration_min,
       })
+      if (!want) continue
+      const mark = `${r.id}|${want.late_min}|${want.early_min}`
+      if (appliedRef.current.has(mark)) continue
+      appliedRef.current.add(mark)
+      if (timingTouched(r)) continue
+      setTiming(r, timingColumns(want))
     }
-  }, [selectedSession, notices, partial, hasLeadTag, setTiming])
+  }, [selectedSession, notices, noticesFor, standing, records, hasLeadTag]) // eslint-disable-line
 
   const settledRef = useRef(false)
   useEffect(() => {
@@ -648,10 +710,10 @@ export default function AttendanceManager({ onBack }) {
             <div className="text-center text-green-600 font-medium animate-pulse text-sm">{feedback}</div>
           )}
 
-          {notices.length > 0 && (
+          {(notices.length > 0 || standingToday.length > 0) && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                Said they'd be out ({notices.length})
+                Said they'd be out ({notices.length + standingToday.length})
               </h3>
               <div className="space-y-2">
                 {/* In-time notices first — those are the ones a lead is deciding on. */}
@@ -721,9 +783,31 @@ export default function AttendanceManager({ onBack }) {
                     </div>
                   </div>
                 ))}
+                {/* Standing arrangements: filed once, apply every week. Always
+                    in time, so always excused. */}
+                {standingToday.map(s => (
+                  <div key={s.id} className="flex items-start gap-2 text-xs">
+                    <span className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded font-semibold bg-pastel-blue/40 text-gray-700">
+                      every {WEEKDAY_NAMES[s.weekday].slice(0, 3)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-700">{s.username}</p>
+                      <p className="text-gray-500">
+                        {s.kind === 'partial'
+                          ? `there ${s.arrive_at || '?'} – ${s.leave_at || '?'}`
+                          : 'out for the meeting'}
+                      </p>
+                      <p className="text-gray-400 break-words">{s.reason}</p>
+                      {editing && hasLeadTag && (
+                        <button onClick={() => deleteStanding(s)}
+                          className="text-[11px] text-gray-400 hover:text-red-500">Remove</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
               <p className="text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
-                Nothing is marked from this — a late notice counts absent.
+                Minutes from a notice are written on the person's record when the meeting starts; a late notice counts absent.
                 {editing && hasLeadTag && ' Edit mode: you can correct times and reasons here.'}
               </p>
             </section>
@@ -761,10 +845,14 @@ export default function AttendanceManager({ onBack }) {
             <label className="flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
               Meeting length
               <input
+                key={`${selectedSession.id}:${selectedSession.duration_min ?? ''}`}
                 type="number" min="1"
-                value={sessionDuration(selectedSession.id, partial, selectedSession.session_date)}
-                onChange={e => setSessionDurationMin(selectedSession.id, e.target.value)}
-                className="w-16 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
+                defaultValue={sessionDuration(selectedSession)}
+                disabled={!hasLeadTag || !editing}
+                onBlur={e => {
+                  if (Number(e.target.value) !== sessionDuration(selectedSession)) setSessionDurationMin(selectedSession, e.target.value)
+                }}
+                className="w-16 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent disabled:bg-gray-50"
               /> min
             </label>
           </div>
@@ -772,8 +860,8 @@ export default function AttendanceManager({ onBack }) {
           <div className="space-y-2">
             {sessionRecords.map(r => {
               const present = r.status === 'present'
-              const t = recordTiming(selectedSession.id, r.username, partial)
-              const pct = presencePct(selectedSession.id, r.username, r.status, partial, selectedSession.session_date)
+              const t = recordTiming(r)
+              const pct = presencePct(r, selectedSession)
               const open = expandedRec === r.id
               const tag = (mins, exc, label) => mins ? `${label} ${mins}m${exc ? ' (exc)' : ''}` : ''
               const timingLine = [tag(t.lateMin, t.lateExcused, 'late'), tag(t.earlyMin, t.earlyExcused, 'left')].filter(Boolean).join(' · ')
@@ -838,22 +926,22 @@ export default function AttendanceManager({ onBack }) {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 w-24 shrink-0">Late (min)</span>
                         <input type="number" min="0" value={t.lateMin || ''} placeholder="0"
-                          onChange={e => setTiming(selectedSession.id, r.username, { lateMin: Math.max(0, Number(e.target.value) || 0) })}
+                          onChange={e => setTiming(r, { lateMin: Math.max(0, Number(e.target.value) || 0) })}
                           className="w-20 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
                         <label className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
-                          <input type="checkbox" checked={!!t.lateExcused} onChange={e => setTiming(selectedSession.id, r.username, { lateExcused: e.target.checked })} /> excused
+                          <input type="checkbox" checked={!!t.lateExcused} onChange={e => setTiming(r, { lateExcused: e.target.checked })} /> excused
                         </label>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 w-24 shrink-0">Left early (min)</span>
                         <input type="number" min="0" value={t.earlyMin || ''} placeholder="0"
-                          onChange={e => setTiming(selectedSession.id, r.username, { earlyMin: Math.max(0, Number(e.target.value) || 0) })}
+                          onChange={e => setTiming(r, { earlyMin: Math.max(0, Number(e.target.value) || 0) })}
                           className="w-20 text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
                         <label className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
-                          <input type="checkbox" checked={!!t.earlyExcused} onChange={e => setTiming(selectedSession.id, r.username, { earlyExcused: e.target.checked })} /> excused
+                          <input type="checkbox" checked={!!t.earlyExcused} onChange={e => setTiming(r, { earlyExcused: e.target.checked })} /> excused
                         </label>
                       </div>
-                      <p className="text-[11px] text-gray-400">Present for <b>{pct}%</b> of the {sessionDuration(selectedSession.id, partial, selectedSession.session_date)}-min meeting.</p>
+                      <p className="text-[11px] text-gray-400">Present for <b>{pct}%</b> of the {sessionDuration(selectedSession)}-min meeting.</p>
                     </div>
                   )}
                 </div>

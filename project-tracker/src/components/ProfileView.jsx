@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { restHeaders } from '../lib/restHeaders'
+import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from '../lib/coLeadNotice'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { User, ChevronDown, AlertTriangle, CheckCircle, Clock, Lock, XCircle, Wrench, Shield, MessageCircle, Camera } from 'lucide-react'
@@ -13,7 +13,7 @@ import NotificationBell from './NotificationBell'
 import NotebookBook from './NotebookBook'
 import { getSideStyle, getSideLabel, getSides, SIDE_HEX, SIDE_LABEL } from '../utils/sideColors'
 import { triggerPush } from '../utils/pushHelper'
-import { useAttendancePartial, presencePct } from '../lib/attendancePartial'
+import { presencePct } from '../lib/attendanceTiming'
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Available', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' },
@@ -99,7 +99,6 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   // What someone else's profile shows about them — loaded only when actually
   // looking at someone else.
   const [otherWork, setOtherWork] = useState({ sessions: [], records: [], tasks: [], entries: [], loading: true })
-  const { partial } = useAttendancePartial()
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -349,15 +348,18 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
   useEffect(() => {
     if (!shownName) { setOtherWork({ sessions: [], records: [], tasks: [], entries: [], loading: false }); return }
     let active = true
-    const h = restHeaders()
     const name = encodeURIComponent(shownName)
     setOtherWork(w => ({ ...w, loading: true }))
-    Promise.all([
-      fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
-      fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${name}&select=session_id,status`, { headers: h }).then(r => r.ok ? r.json() : []),
-      fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${name}&select=*`, { headers: h }).then(r => r.ok ? r.json() : []),
-      fetch(`${supabaseUrl}/rest/v1/notebook_entries?${SCOPE}&username=eq.${name}&select=*&order=meeting_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
-    ]).then(([sessions, records, tasks, entries]) => {
+    // A real token first, or a phone that was asleep loads an empty page.
+    ensureUserToken().then(() => {
+      const h = restHeaders()
+      return Promise.all([
+        fetch(`${supabaseUrl}/rest/v1/attendance_sessions?${SCOPE}&select=id,session_date,duration_min&order=session_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
+        fetch(`${supabaseUrl}/rest/v1/attendance_records?${SCOPE}&username=eq.${name}&select=session_id,status,reason,late_min,early_min,late_excused,early_excused`, { headers: h }).then(r => r.ok ? r.json() : []),
+        fetch(`${supabaseUrl}/rest/v1/tasks?assignee=ilike.${name}&select=*`, { headers: h }).then(r => r.ok ? r.json() : []),
+        fetch(`${supabaseUrl}/rest/v1/notebook_entries?${SCOPE}&username=eq.${name}&select=*&order=meeting_date.desc`, { headers: h }).then(r => r.ok ? r.json() : []),
+      ])
+    }).then(([sessions, records, tasks, entries]) => {
       if (active) setOtherWork({ sessions, records, tasks, entries, loading: false })
     }).catch(() => { if (active) setOtherWork(w => ({ ...w, loading: false })) })
     return () => { active = false }
@@ -537,7 +539,7 @@ function ProfileView({ viewingProfileId, onClearViewing }) {
               const counted = sessions.filter(sn => byId[sn.id])
               const pts = [...counted].reverse().map(sn => ({
                 date: sn.session_date,
-                pct: presencePct(sn.id, shownName, byId[sn.id], partial, sn.session_date),
+                pct: presencePct(recById[sn.id], sn),
               }))
               const rate = pts.length ? Math.round(pts.reduce((a, b) => a + b.pct, 0) / pts.length) : 0
               const present = records.filter(r => r.status === 'present').length

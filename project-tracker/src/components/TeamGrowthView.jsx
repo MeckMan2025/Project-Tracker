@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { restHeaders } from '../lib/restHeaders'
+import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import { SIGNALS, SIGNAL_BY_KEY, signalsOf, answersFor } from '../data/notebookSignals'
 import { teamScope } from '../lib/teamScope'
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 
 // Team Growth reads the engineering notebook and nothing else. Every number on
 // this page is a count of entries people actually wrote, which is why clicking
@@ -48,6 +48,31 @@ const prettyDate = (d) => {
   } catch { return d }
 }
 
+const prettyTime = (d) => {
+  try { return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) } catch { return '' }
+}
+
+// Every row, however many there are.
+//
+// PostgREST caps a single response (a thousand rows by default, and the cap
+// can be lowered in the project settings), and a capped list sorted by a
+// column with ties is a different list on every load. From the outside that
+// is "the numbers keep changing". So: fixed-size pages, in an order with no
+// ties (id breaks them), until a page comes back short.
+async function fetchAllRows(url, headers) {
+  const PAGE = 1000
+  const all = []
+  for (let offset = 0; ; offset += PAGE) {
+    const res = await fetch(`${url}&limit=${PAGE}&offset=${offset}`, { headers })
+    if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`))
+    const rows = await res.json()
+    if (!Array.isArray(rows)) break
+    all.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return all
+}
+
 export default function TeamGrowthView() {
   const { username } = useUser()
   const { canOrganizeNotebook: isLead, myTeamNumber } = usePermissions()
@@ -57,7 +82,12 @@ export default function TeamGrowthView() {
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
+  // A failed load is said out loud, not drawn as an empty page.
+  const [error, setError] = useState('')
+  const [loadedAt, setLoadedAt] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // Filters. Season and whole-team are the defaults the spec asks for.
   const [season, setSeason] = useState(ACTIVE_SEASON)
@@ -82,36 +112,64 @@ export default function TeamGrowthView() {
     localStorage.setItem('ets-growth-graphs-only', String(graphsOnly))
   }, [graphsOnly])
 
+  // Load everything, and load it properly.
+  //
+  // This used to fetch once, on mount, with whatever token was in storage at
+  // that moment. On a phone that had been asleep the token had run out, the
+  // request went out as an anonymous visitor, the database (rightly) returned
+  // nothing, and the page said "nothing to show" — until the next reload,
+  // when it showed everything. The server logs have those anonymous requests
+  // in them. So: wait for a real token, read every page, and say when the
+  // numbers were loaded.
   useEffect(() => {
     let alive = true
-    const headers = restHeaders()
     ;(async () => {
+      if (!loading) setRefreshing(true)
       try {
-        const [eRes, pRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${teamScope(myTeamNumber)}&order=meeting_date.desc`, { headers }),
-          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=id,name&${teamScope(myTeamNumber)}`, { headers }),
+        const signedIn = await ensureUserToken()
+        if (!signedIn) throw new Error('Not signed in. Sign in again and reload.')
+        const headers = restHeaders()
+        const scope = teamScope(myTeamNumber)
+        const [all, pRes] = await Promise.all([
+          fetchAllRows(`${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${scope}&order=meeting_date.desc,id.desc`, headers),
+          fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=id,name&${scope}`, { headers }),
         ])
-        if (!eRes.ok) {
-          // The columns don't exist until the migration runs. Say so plainly
-          // rather than drawing a page of zeroes that looks like bad news.
-          const body = await eRes.text().catch(() => '')
-          if (alive && /signals|signal_data|next_step/.test(body)) setUnavailable(true)
-          throw new Error(body)
-        }
-        const data = await eRes.json()
-        if (alive) setEntries(Array.isArray(data) ? data : [])
+        if (!alive) return
+        setEntries(all)
+        setLoadedAt(new Date())
+        setError('')
         if (pRes.ok) {
           const p = await pRes.json()
           if (alive) setProjects(Array.isArray(p) ? p : [])
         }
       } catch (err) {
         console.error('Failed to load notebook entries:', err)
+        if (!alive) return
+        const msg = String(err?.message || 'Could not load the notebook.')
+        // The columns don't exist until the migration runs. Say so plainly
+        // rather than drawing a page of zeroes that looks like bad news.
+        if (/signals|signal_data|next_step/.test(msg)) setUnavailable(true)
+        else setError(msg)
       } finally {
-        if (alive) setLoading(false)
+        if (alive) { setLoading(false); setRefreshing(false) }
       }
     })()
     return () => { alive = false }
-  }, []) // eslint-disable-line
+  }, [myTeamNumber, reloadKey]) // eslint-disable-line
+
+  // Coming back to the tab after a while reloads, so a page left open on a
+  // phone doesn't show the afternoon's numbers all evening.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (loadedAt && Date.now() - loadedAt.getTime() < 60000) return
+      setReloadKey(k => k + 1)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [loadedAt])
+
+  const reload = () => setReloadKey(k => k + 1)
 
   // The notebook's own rule, unchanged: your own entries unless you're a lead.
   // This reads notebook rows, so it must not be looser than the notebook.
@@ -260,15 +318,39 @@ export default function TeamGrowthView() {
     )
   }
 
+  // Nothing loaded and a reason why. This is the page that used to be a
+  // blank "nothing to show"; now it says what happened and offers another go.
+  if (error && entries.length === 0) {
+    return (
+      <Frame>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
+          <p className="text-gray-600 font-medium">Couldn't load the notebook.</p>
+          <p className="text-sm text-gray-400 mt-1 max-w-md mx-auto break-words">{error}</p>
+          <button onClick={reload}
+                  className="mt-4 px-4 py-2 rounded-xl bg-pastel-blue hover:bg-pastel-blue-dark text-sm font-semibold transition-colors">
+            Try again
+          </button>
+        </div>
+      </Frame>
+    )
+  }
+
   const sec = SECTIONS[Math.min(section, SECTIONS.length - 1)]
   const go = (delta) => setSection(prev =>
     (prev + delta + SECTIONS.length) % SECTIONS.length)
 
   return (
     <Frame
-      sub={`${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${isLead ? '' : ' — yours'}`}
+      sub={`${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}${isLead ? '' : ' — yours'}`
+        + (loadedAt ? ` · all ${entries.length} loaded at ${prettyTime(loadedAt)}` : '')}
       filters={
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+          {/* Reload by hand, and a spinner while one is running. The count
+              in the header is the proof that it finished. */}
+          <button onClick={reload} disabled={refreshing} title="Reload the notebook"
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-pastel-blue/25 disabled:opacity-60 transition-colors">
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          </button>
           <Select value={season} onChange={setSeason}
                   options={seasons.map(s => [s, s === ACTIVE_SEASON ? `${s} (current)` : `${s} — archive`])} />
           {isLead && members.length > 1 && (
@@ -294,11 +376,20 @@ export default function TeamGrowthView() {
         </div>
       }
     >
+      {error && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-900 flex items-center justify-between gap-2">
+          <span>Couldn't refresh just now. Showing the {entries.length} entries loaded at {prettyTime(loadedAt)}.</span>
+          <button onClick={reload} className="font-semibold underline shrink-0">Try again</button>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
           <p className="text-gray-500 font-medium">Nothing to show for these filters.</p>
           <p className="text-sm text-gray-400 mt-1">
-            This page fills itself in from notebook entries — nothing extra to do.
+            {entries.length > 0
+              ? `${entries.length} entries are loaded; none match the season, person, project or dates picked above.`
+              : 'This page fills itself in from notebook entries — nothing extra to do.'}
           </p>
         </div>
       ) : (
