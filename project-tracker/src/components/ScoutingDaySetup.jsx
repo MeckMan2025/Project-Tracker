@@ -11,39 +11,40 @@ import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
 // ---- Default data (from the team's scouting spreadsheet) -------------------
+// What a fresh day starts as.
+//
+// Structure only — the groups, the jobs that need covering, the shape of a
+// scouting rotation — and no names. There used to be twenty-nine people in
+// here, copied from the spreadsheet the season it was written: fourteen of
+// them have since left the app entirely and three moved to another team, so
+// every new day began by offering a lead a rota of people who are not there.
+//
+// A hard-coded roster is wrong the moment somebody joins or leaves, and it is
+// wrong quietly. Leads pick real people from the real roster instead.
 const DEFAULT_DATA = {
   groups: [
-    { id: '1', name: 'Group 1', members: ['Lily', 'Ricky', 'Lucy'], teams: ['367', '4177', '4237'] },
-    { id: '2', name: 'Group 2', members: ['Reyansh', 'Aakansha', 'Varsha'], teams: ['10602', '12745', '15050'] },
-    { id: '3', name: 'Group 3', members: ['James', 'Kayden', 'Weston'], teams: ['5062', '6072', '6093'] },
-    { id: '4', name: 'Group 4', members: ['Braden', 'Rian', 'Arav'], teams: ['15055', '18482', '22064'] },
-    { id: '5', name: 'Group 5', members: ['Jacob', 'Anish', 'Yasu'], teams: ['7196', '8588', '8696'] },
-    { id: '6', name: 'Group 6', members: ['Yukti', 'Daegus'], teams: ['23971', '25788', '31541'] },
-    { id: '7', name: 'Group 7', members: ['Thanuja', 'Pragnya'], teams: ['8743', '8988', '10082'] },
+    { id: '1', name: 'Group 1', members: [], teams: [] },
+    { id: '2', name: 'Group 2', members: [], teams: [] },
+    { id: '3', name: 'Group 3', members: [], teams: [] },
   ],
   fixedRoles: [
-    { role: 'Drive Team', members: ['Harshita', 'Saumyaa', 'Nick', 'Amruta'] },
-    { role: 'Pit Crew', members: ['Lucy', 'James'] },
-    { role: 'Media', members: ['Lily', 'Yasu', 'Aakansha'] },
-    { role: 'Observation', members: ['Thanuja', 'Pragnya'] },
+    { role: 'Drive Team', members: [] },
+    { role: 'Pit Crew', members: [] },
+    { role: 'Media', members: [] },
+    { role: 'Observation', members: [] },
   ],
   scoutGroups: [
-    { id: 's1', name: 'Group 1', head: 'Braden', red1: 'Kayden', red2: 'Ashrit', blue1: 'Jacob', blue2: 'Charan' },
-    { id: 's2', name: 'Group 2', head: 'Rian', red1: 'Kashvi', red2: 'Ricky', blue1: 'Alexiandria', blue2: 'Reyansh' },
-    { id: 's3', name: 'Group 3', head: 'Chethan', red1: 'Anish', red2: 'Keegan', blue1: 'Weston', blue2: 'Daegus' },
+    { id: 's1', name: 'Group 1', head: '', red1: '', red2: '', blue1: '', blue2: '' },
+    { id: 's2', name: 'Group 2', head: '', red1: '', red2: '', blue1: '', blue2: '' },
+    { id: 's3', name: 'Group 3', head: '', red1: '', red2: '', blue1: '', blue2: '' },
   ],
-  standBy: 'Yukti',
-  // Which teams actually play in each match. Without this the app knows who
-  // is scouting but not what they are looking at, and the comp-day screen can
-  // only say "you are on match 4" rather than "team 5062, match 4".
+  standBy: '',
   matchSchedule: [
     { id: 'ms1', match: '1', red1: '', red2: '', blue1: '', blue2: '' },
   ],
   matchPlan: [
-    { id: 'm1', group: 'A', field: 'A', matches: '1, 3, 5, 7, 9' },
-    { id: 'm2', group: 'B', field: 'B', matches: '2, 4, 6, 8, 10' },
-    { id: 'm3', group: 'C', field: 'A', matches: '11, 13, 15, 17, 19' },
-    { id: 'm4', group: 'A', field: 'B', matches: '12, 14, 16, 18, 20' },
+    { id: 'm1', group: 'A', field: 'A', matches: '' },
+    { id: 'm2', group: 'B', field: 'B', matches: '' },
   ],
 }
 

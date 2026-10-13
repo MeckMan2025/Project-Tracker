@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { lazyHeadersWith, lazyRestHeaders } from '../lib/restHeaders'
+import { stampTeam } from '../lib/teamScope'
+import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
 import { AlertCircle, ArrowLeft, Calendar, ChevronRight, ClipboardCheck, ClipboardList, Pause, Play, Plus, Shield, Trash2, Users, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -46,7 +47,7 @@ const ROLE_MAP = Object.fromEntries(ROLES.map(r => [r.id, r]))
 
 export default function CompDayView({ onBack }) {
   const { username } = useUser()
-  const { hasLeadTag } = usePermissions()
+  const { hasLeadTag, myTeamNumber } = usePermissions()
 
   const [sessions, setSessions] = useState([])
   const [activeSession, setActiveSession] = useState(null)  // currently open session
@@ -80,7 +81,29 @@ export default function CompDayView({ onBack }) {
     try { setCompTasks(JSON.parse(localStorage.getItem(`${sk}-tasks`) || '[]')) } catch { setCompTasks([]) }
     try { setBlockTimes(JSON.parse(localStorage.getItem(`${sk}-times`) || '{}')) } catch { setBlockTimes({}) }
   }, [activeSession?.id])
-  const saveMatches = (m) => { setCompMatches(m); setStored('matches', m) }
+  // The match list is what a scout's screen reads, so it cannot live only in
+  // the lead's own browser. It was kept in localStorage, which meant a lead
+  // could fill in the whole competition and no teammate would see a word of
+  // it. Stored alongside the rest of the day's setup now; the local copy stays
+  // so the tab still works offline and fills in instantly.
+  const saveMatches = (m) => {
+    setCompMatches(m)
+    setStored('matches', m)
+    if (!activeSession) return
+    const docId = `day-comp-${activeSession.id}`
+    ;(async () => {
+      try {
+        const url = import.meta.env.VITE_SUPABASE_URL
+        const existing = await restGet(`scouting_schedule?id=eq.${docId}&select=data`)
+        const data = { ...(existing?.[0]?.data || {}), matchSchedule: m }
+        await fetch(`${url}/rest/v1/scouting_schedule`, {
+          method: 'POST',
+          headers: { ...restHeaders(), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(stampTeam({ id: docId, data }, myTeamNumber)),
+        })
+      } catch (err) { console.error('Could not share the match list:', err) }
+    })()
+  }
   const saveTasks = (t) => { setCompTasks(t); setStored('tasks', t) }
   const saveBlockTimes = (t) => { setBlockTimes(t); localStorage.setItem(`${storageKey}-times`, JSON.stringify(t)) }
 
@@ -898,21 +921,51 @@ export default function CompDayView({ onBack }) {
                   />
                   <input
                     type="text"
+                    placeholder="Red 1"
+                    id="match-red1"
+                    className="w-20 border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Red 2"
+                    id="match-red2"
+                    className="w-20 border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Blue 1"
+                    id="match-blue1"
+                    className="w-20 border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Blue 2"
+                    id="match-blue2"
+                    className="w-20 border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
+                  />
+                  <input
+                    type="text"
                     placeholder="Notes (optional)"
                     id="match-notes"
                     className="flex-1 border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-pink focus:border-transparent"
                   />
                   <button
                     onClick={() => {
-                      const num = document.getElementById('match-num').value.trim()
-                      const time = document.getElementById('match-time').value
-                      const notes = document.getElementById('match-notes').value.trim()
+                      const val = (id) => (document.getElementById(id)?.value || '').trim()
+                      const num = val('match-num')
                       if (!num) return
-                      const updated = [...compMatches, { id: Date.now(), number: num, time, notes }]
+                      const updated = [...compMatches, {
+                        id: Date.now(), number: num,
+                        time: document.getElementById('match-time').value,
+                        notes: val('match-notes'),
+                        // Who is playing. This is what lets a scout's screen
+                        // name the team instead of only the match.
+                        red1: val('match-red1'), red2: val('match-red2'),
+                        blue1: val('match-blue1'), blue2: val('match-blue2'),
+                      }]
                       saveMatches(updated)
-                      document.getElementById('match-num').value = ''
-                      document.getElementById('match-time').value = ''
-                      document.getElementById('match-notes').value = ''
+                      ;['match-num','match-time','match-notes','match-red1','match-red2','match-blue1','match-blue2']
+                        .forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
                     }}
                     className="px-4 py-2.5 rounded-lg bg-pastel-pink text-gray-800 text-sm font-medium hover:bg-pastel-pink-dark transition-colors"
                   >
@@ -933,6 +986,16 @@ export default function CompDayView({ onBack }) {
                       <div className="flex items-center gap-3">
                         <span className="text-lg font-bold text-gray-800">{match.number}</span>
                         {match.time && <span className="text-sm text-gray-500">{match.time}</span>}
+                        {(match.red1 || match.red2 || match.blue1 || match.blue2) && (
+                          <span className="flex items-center gap-1">
+                            {[match.red1, match.red2].filter(Boolean).map(t => (
+                              <span key={`r${t}`} className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-red-50 text-red-700">{t}</span>
+                            ))}
+                            {[match.blue1, match.blue2].filter(Boolean).map(t => (
+                              <span key={`b${t}`} className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">{t}</span>
+                            ))}
+                          </span>
+                        )}
                         {match.notes && <span className="text-xs text-gray-400">— {match.notes}</span>}
                       </div>
                       {hasLeadTag && (
