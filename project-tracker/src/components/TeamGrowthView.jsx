@@ -29,6 +29,12 @@ const BANDS = [
   { key: 'Not',      label: 'Not engaged',  colour: '#d98a8a' },
 ]
 
+// Engagement on the activity chart. It isn't a signal (it is a percentage,
+// not a count), so it gets its own key and its own axis, but it belongs on
+// the same timeline: "we tested a lot that week" next to "and it felt good".
+const ENGAGEMENT_KEY = '__engagement'
+const ENGAGEMENT_SERIES = { key: ENGAGEMENT_KEY, emoji: '📈', metric: 'Engagement', color: '#4d7fd6' }
+
 // One topic per screen. Ordered the way you'd actually read it: what happened,
 // then how it felt, then each part of the work in turn.
 const SECTIONS = [
@@ -97,7 +103,7 @@ export default function TeamGrowthView() {
   const [to, setTo] = useState('')
 
   // Which series the activity chart is drawing.
-  const [series, setSeries] = useState(() => SIGNALS.map(s => s.key))
+  const [series, setSeries] = useState(() => [...SIGNALS.map(s => s.key), ENGAGEMENT_KEY])
   // The entries behind a number someone clicked.
   const [drill, setDrill] = useState(null)
   // Which topic is on screen.
@@ -468,9 +474,9 @@ export default function TeamGrowthView() {
               </div>
 
               <Card title="What we've been doing"
-                    sub="Entries per meeting carrying each signal. Tap a name to show or hide it, or a point to read that day.">
+                    sub="Entries per meeting carrying each signal, and average engagement (dashed, right axis). Tap a name to show or hide it, or a point to read that day.">
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {SIGNALS.map(s => {
+                  {[...SIGNALS, ENGAGEMENT_SERIES].map(s => {
                     const on = series.includes(s.key)
                     return (
                       <button
@@ -865,20 +871,38 @@ function Breakdown({ rows, color, onPick }) {
 function LineChart({ points, series, getValue, max, suffix = '', onPickDate }) {
   if (points.length === 0) return <p className="text-sm text-gray-400">Nothing yet.</p>
 
-  const W = 700, H = 190, PAD = { l: 28, r: 10, t: 12, b: 26 }
+  // Engagement rides on the same chart as the counts but on its own scale: a
+  // percentage on the right axis, dashed. One timeline, two questions — how
+  // much got done and how it felt — without either squashing the other.
+  // (The Engagement page draws it alone through getValue, which is left as it was.)
+  const withEngagement = !getValue && series.includes(ENGAGEMENT_KEY)
+  const countSeries = series.filter(k => k !== ENGAGEMENT_KEY)
+
+  const W = 700, H = 190, PAD = { l: 28, r: withEngagement ? 34 : 10, t: 12, b: 26 }
   const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b
 
   // Named getValue, not valueOf: `valueOf` is inherited from
   // Object.prototype, so destructuring it from props never yields undefined
   // and the "no custom accessor" branch below could never be reached.
   const valueAt = (d, key) => (getValue ? getValue(d) : (d.counts[key] || 0))
-  const top = max || Math.max(1, ...points.flatMap(d => series.map(k => valueAt(d, k))))
+  const top = max || Math.max(1, ...points.flatMap(d => countSeries.map(k => valueAt(d, k))))
 
   const x = (i) => PAD.l + (points.length === 1 ? iw / 2 : (i / (points.length - 1)) * iw)
   const y = (v) => PAD.t + ih - (v / top) * ih
+  const yPct = (v) => PAD.t + ih - (Math.max(0, Math.min(100, v)) / 100) * ih
   const step = Math.ceil(points.length / 8)
 
   const ticks = max ? [0, 50, 100] : [0, Math.round(top / 2), top].filter((v, i, a) => a.indexOf(v) === i)
+
+  // A meeting with no ratings leaves a gap in the line rather than a zero —
+  // nobody felt 0% that day, nobody said.
+  const engPath = withEngagement
+    ? points.reduce((d, p, i) => {
+        if (p.engagement == null) return d
+        const gapBefore = i === 0 || points[i - 1].engagement == null
+        return `${d} ${gapBefore ? 'M' : 'L'} ${x(i).toFixed(1)} ${yPct(p.engagement).toFixed(1)}`
+      }, '').trim()
+    : ''
 
   return (
     <div className="overflow-x-auto">
@@ -889,14 +913,18 @@ function LineChart({ points, series, getValue, max, suffix = '', onPickDate }) {
             <text x={PAD.l - 6} y={y(v) + 3} textAnchor="end" fontSize="9" fill="#9ca3af">{v}{suffix}</text>
           </g>
         ))}
+        {withEngagement && [0, 50, 100].map(v => (
+          <text key={'r' + v} x={W - PAD.r + 6} y={yPct(v) + 3} textAnchor="start" fontSize="9"
+                fill={ENGAGEMENT_SERIES.color}>{v}%</text>
+        ))}
 
-        {series.map(key => {
+        {countSeries.map(key => {
           const sig = SIGNAL_BY_KEY[key]
           const color = sig?.color || '#4d7fd6'
           const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(valueAt(p, key)).toFixed(1)}`).join(' ')
           return (
             <g key={key}>
-              {series.length === 1 && (
+              {countSeries.length === 1 && (
                 <path
                   d={`${d} L ${x(points.length - 1).toFixed(1)} ${(PAD.t + ih).toFixed(1)} L ${x(0).toFixed(1)} ${(PAD.t + ih).toFixed(1)} Z`}
                   fill={color} fillOpacity="0.12"
@@ -926,6 +954,30 @@ function LineChart({ points, series, getValue, max, suffix = '', onPickDate }) {
             </g>
           )
         })}
+
+        {withEngagement && (
+          <g>
+            <path d={engPath} fill="none" stroke={ENGAGEMENT_SERIES.color} strokeWidth="2"
+                  strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" />
+            {points.map((p, i) => p.engagement == null ? null : (
+              <g key={'e' + p.date}>
+                <circle
+                  cx={x(i)} cy={yPct(p.engagement)} r="11" fill="transparent"
+                  style={{ cursor: onPickDate ? 'pointer' : 'default' }}
+                  onClick={() => onPickDate?.(p.date)}
+                >
+                  <title>
+                    {`${prettyDate(p.date)} — ${p.engagement}% engagement` + (onPickDate ? ' · tap to read that day' : '')}
+                  </title>
+                </circle>
+                <circle
+                  cx={x(i)} cy={yPct(p.engagement)} r="3" fill={ENGAGEMENT_SERIES.color} stroke="#fff" strokeWidth="1.5"
+                  pointerEvents="none"
+                />
+              </g>
+            ))}
+          </g>
+        )}
 
         {points.map((p, i) => i % step === 0 && (
           <text
