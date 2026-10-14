@@ -19,40 +19,57 @@
 const YES_NO = ['Yes', 'No']
 
 export const SCOUTING_FIELDS = [
-  { key: 'team_number',   label: 'Team',              hint: 'Team number',                type: 'text', required: true,  group: 'Match' },
-  { key: 'match_number',  label: 'Match',             hint: 'Match number',               type: 'text', required: true,  group: 'Match' },
-  { key: 'start_position',label: 'Starting Position', hint: 'Where the robot starts',     type: 'choice', required: true, group: 'Match',
-    options: ['Left', 'Middle', 'Right', 'Other'] },
+  { key: 'team_number',   label: 'Team',  hint: 'Team number',  type: 'text', required: true, group: 'Match' },
+  { key: 'match_number',  label: 'Match', hint: 'Match number', type: 'text', required: true, group: 'Match' },
+  // Tapped on a picture of the field rather than picked off a list: a scout
+  // looking at the field should not have to translate what they can see into
+  // somebody else's word for it.
+  { key: 'start_position',label: 'Starting Position', hint: 'Tap where the robot starts', type: 'field', required: true, group: 'Match',
+    options: ['Left', 'Middle', 'Right'] },
 
-  { key: 'auto_collected',label: 'Auto Collected',    hint: 'Did they collect any balls?', type: 'yesno', required: true, group: 'Autonomous', options: YES_NO },
-  { key: 'auto_scored',   label: 'Auto Scored',       hint: 'Did they score any balls?',  type: 'yesno', required: true, group: 'Autonomous', options: YES_NO },
-  { key: 'auto_missed',   label: 'Auto Misses',       hint: 'Failed attempts',            type: 'number', required: true, group: 'Autonomous' },
-  { key: 'auto_reliability', label: 'Auto Reliability', hint: '0–3',                      type: 'scale', required: true,  min: 0, max: 3, group: 'Autonomous' },
+  // Shot vs made, not "did they score": a team that attempts ten and lands two
+  // is a different team from one that attempts two and lands two, and the old
+  // yes/no could not tell them apart. auto_collected is gone — collecting with
+  // nothing to show for it was never the question.
+  { key: 'auto_shot',     label: 'Auto Shot',   hint: 'How many they attempted', type: 'number', required: true, group: 'Autonomous' },
+  { key: 'auto_made',     label: 'Auto Made',   hint: 'How many went in',        type: 'number', required: true, group: 'Autonomous' },
+  { key: 'auto_leave',    label: 'Leave',       hint: 'Did they leave the start?', type: 'yesno', required: true, group: 'Autonomous', options: YES_NO },
+  { key: 'auto_park',     label: 'Park',        hint: 'Did they park?',          type: 'yesno', required: true, group: 'Autonomous', options: YES_NO },
+  { key: 'auto_reliability', label: 'Auto Reliability', hint: 'How much of it worked', type: 'percent', required: true, group: 'Autonomous' },
+  { key: 'auto_notes',    label: 'Auto Notes',  hint: 'Anything about their auto', type: 'text', required: false, group: 'Autonomous' },
 
-  { key: 'teleop_collected', label: 'Teleop Collected', hint: 'Did they collect any balls?', type: 'yesno', required: true, group: 'Teleop', options: YES_NO },
-  { key: 'teleop_scored', label: 'Teleop Scored',     hint: 'Did they score any balls?',  type: 'yesno', required: true, group: 'Teleop', options: YES_NO },
-  { key: 'teleop_missed', label: 'Teleop Misses',     hint: 'Failed attempts',            type: 'number', required: true, group: 'Teleop' },
-  { key: 'cycle_count',   label: 'Cycle Count',       hint: 'Completed scoring cycles',   type: 'number', required: true, group: 'Teleop' },
-  { key: 'avg_cycle_sec', label: 'Avg Cycle Time',    hint: 'Rough seconds per cycle',    type: 'number', required: true, group: 'Teleop' },
+  { key: 'teleop_shot',   label: 'Teleop Shot', hint: 'How many they attempted', type: 'number', required: true, group: 'Teleop' },
+  { key: 'teleop_made',   label: 'Teleop Made', hint: 'How many went in',        type: 'number', required: true, group: 'Teleop' },
+  { key: 'teleop_tips',   label: 'Tips',        hint: 'Times they tipped over',  type: 'number', required: true, group: 'Teleop' },
+  { key: 'cycle_count',   label: 'Cycle Count', hint: 'Completed scoring cycles', type: 'number', required: true, group: 'Teleop' },
+  { key: 'avg_cycle_sec', label: 'Avg Cycle Time', hint: 'Rough seconds per cycle', type: 'number', required: true, group: 'Teleop' },
+  { key: 'teleop_notes',  label: 'Teleop Notes', hint: 'Anything about their teleop', type: 'text', required: false, group: 'Teleop' },
 
-  { key: 'defense',       label: 'Defense',           hint: 'How much they played it',    type: 'choice', required: true, group: 'Defense',
+  { key: 'defense',       label: 'Defense', hint: 'How much they played it', type: 'choice', required: true, group: 'Defense',
     options: ['None', 'Some', 'Strong'] },
-  { key: 'defense_resistance', label: 'Defense Resistance', hint: '1–5 — how well they handle being defended', type: 'scale', required: true, min: 1, max: 5, group: 'Defense' },
+  { key: 'defense_resistance', label: 'Defense Resistance', hint: 'How well they handle being defended', type: 'percent', required: true, group: 'Defense' },
 
-  { key: 'endgame',       label: 'Endgame',           hint: 'How it went',                type: 'choice', required: true, group: 'Endgame',
-    options: ['Not attempted', 'Attempted', 'Successful', 'Failed'] },
+  // More than one can be true in the same endgame, so this is tick-all rather
+  // than pick-one.
+  { key: 'endgame',       label: 'Endgame', hint: 'Everything they did', type: 'multi', required: true, group: 'Endgame',
+    options: ['Garden', 'Parking', 'Flowers', 'Nothing'] },
+  { key: 'flowers_owned', label: 'Flowers Owned', hint: 'Which ones they finished owning', type: 'multi', required: false, group: 'Endgame',
+    options: ['Left', 'Centre Left', 'Centre Right', 'Right'] },
+  { key: 'rp_points',     label: 'RP Points', hint: 'Ranking points they earned', type: 'multi', required: false, group: 'Endgame',
+    options: ['Win', 'Auto', 'Endgame', 'Tie'] },
 
-  { key: 'robot_speed',   label: 'Robot Speed',       hint: '1–5',                        type: 'scale', required: true,  min: 1, max: 5, group: 'Ratings' },
-  { key: 'driver_skill',  label: 'Driver Skill',      hint: '1–5',                        type: 'scale', required: true,  min: 1, max: 5, group: 'Ratings' },
-  { key: 'consistency',   label: 'Consistency',       hint: '1–5',                        type: 'scale', required: true,  min: 1, max: 5, group: 'Ratings' },
+  { key: 'robot_speed',   label: 'Robot Speed',  hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
+  { key: 'driver_skill',  label: 'Driver Skill', hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
+  { key: 'consistency',   label: 'Consistency',  hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
 
-  { key: 'penalties',     label: 'Penalties',         hint: 'How many',                   type: 'number', required: true, group: 'Problems' },
-  { key: 'penalty_severity', label: 'Penalty Severity', hint: 'Worst one',                type: 'choice', required: true, group: 'Problems',
+  // Counted, not graded. "Major" told you the worst one and nothing about how
+  // often, which is the half that decides whether to pick them.
+  { key: 'minors',        label: 'Minor Penalties', hint: 'How many', type: 'number', required: true, group: 'Problems' },
+  { key: 'majors',        label: 'Major Penalties', hint: 'How many', type: 'number', required: true, group: 'Problems' },
+  { key: 'breakdowns',    label: 'Breakdowns', hint: 'Mechanical trouble', type: 'choice', required: true, group: 'Problems',
     options: ['None', 'Minor', 'Major'] },
-  { key: 'breakdowns',    label: 'Breakdowns',        hint: 'Mechanical trouble',         type: 'choice', required: true, group: 'Problems',
-    options: ['None', 'Minor', 'Major'] },
 
-  { key: 'comments',      label: 'Comments',          hint: 'Anything unusual',           type: 'text', required: true, group: 'Notes' },
+  { key: 'comments',      label: 'Comments', hint: 'Anything unusual', type: 'text', required: true, group: 'Notes' },
 ]
 
 // The order groups appear in, taken from the fields themselves so the two can
@@ -65,7 +82,7 @@ export const FIELD_BY_KEY = Object.fromEntries(SCOUTING_FIELDS.map(f => [f.key, 
 // Worth averaging across matches: counts, ratings and yes/no (as a share of
 // matches). A choice is a label and free text is prose — neither means
 // anything as a mean.
-export const NUMERIC_FIELDS = SCOUTING_FIELDS.filter(f => f.type === 'number' || f.type === 'scale' || f.type === 'yesno')
+export const NUMERIC_FIELDS = SCOUTING_FIELDS.filter(f => f.type === 'number' || f.type === 'scale' || f.type === 'yesno' || f.type === 'percent')
 
 // A stored yes/no as 1, 0 or null. Rows saved before these were yes/no hold
 // a count, and any count above zero means they did it.

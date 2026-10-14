@@ -69,21 +69,31 @@ function computeScoutingStats(matches) {
     return pct(v.filter(Boolean).length, v.length)
   }
 
+  // Made out of shot. Guarded, because a team nobody saw shoot is 0/0 and
+  // dividing there would read as 0% accuracy rather than "we do not know".
+  const madeRate = (made, shot) => (shot ? Math.round((made / shot) * 100) : null)
+
   return {
     scoutCount: n,
     startingPositions: tally('start_position'),
 
-    autoCollectedPct: yesPct('auto_collected'),
-    autoScoredPct: yesPct('auto_scored'),
-    teleCollectedPct: yesPct('teleop_collected'),
-    teleScoredPct: yesPct('teleop_scored'),
-    autoAvgMissed: avg('auto_missed'),
-    teleAvgMissed: avg('teleop_missed'),
+    // Shot and made, and the accuracy between them. "Did they score" could not
+    // tell ten-for-two apart from two-for-two, which is the whole question
+    // when you are choosing who to pick.
+    autoAvgShot: avg('auto_shot'),
+    autoAvgMade: avg('auto_made'),
+    autoAccuracy: madeRate(avg('auto_made'), avg('auto_shot')),
+    teleAvgShot: avg('teleop_shot'),
+    teleAvgMade: avg('teleop_made'),
+    teleAccuracy: madeRate(avg('teleop_made'), avg('teleop_shot')),
+    autoLeavePct: yesPct('auto_leave'),
+    autoParkPct: yesPct('auto_park'),
+    avgTips: avg('teleop_tips'),
 
     avgCycles: avg('cycle_count'),
     avgCycleSec: avg('avg_cycle_sec'),
 
-    autoReliability: avg('auto_reliability'),   // out of 3
+    autoReliability: avg('auto_reliability'),   // a percentage now
     robotSpeed: avg('robot_speed'),             // the rest out of 5
     driverSkill: avg('driver_skill'),
     consistency: avg('consistency'),
@@ -92,10 +102,17 @@ function computeScoutingStats(matches) {
     defense: tally('defense'),
     endgame: tally('endgame'),
     breakdowns: tally('breakdowns'),
-    avgPenalties: avg('penalties'),
+    avgMinors: avg('minors'),
+    avgMajors: avg('majors'),
 
     // Shares of matches, which a pick list cares about more than any average.
-    endgameSuccessPct: pct(matches.filter(m => m.endgame === 'Successful').length, n),
+    // Endgame is tick-all now, so "Successful" is no longer a value. Doing
+    // anything at all is the thing worth counting; "Nothing" is the only
+    // answer that is not something.
+    endgameSuccessPct: pct(matches.filter(m => {
+      const e = String(m.endgame || '')
+      return e && e !== 'Nothing'
+    }).length, n),
     cleanMatchPct: pct(matches.filter(m => !m.breakdowns || m.breakdowns === 'None').length, n),
   }
 }
@@ -130,34 +147,38 @@ function ScoutPanel({ t }) {
         <>
           {/* Scoring — the first question anyone asks. */}
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <Stat value={`${t.teleScoredPct}%`} label="Scores in teleop" />
-            <Stat value={`${t.teleCollectedPct}%`} label="Collects in teleop" />
+            <Stat value={t.teleAccuracy == null ? '—' : `${t.teleAccuracy}%`} label="Teleop accuracy" />
+            <Stat value={t.teleAvgMade || '—'} label="Made / match" />
             <Stat value={t.avgCycles} label="Cycles / match" />
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
-            <Line label="Collects in auto" value={`${t.autoCollectedPct}%`} />
-            <Line label="Scores in auto" value={`${t.autoScoredPct}%`} />
-            <Line label="Auto misses / match" value={t.autoAvgMissed || '—'} />
-            <Line label="Teleop misses / match" value={t.teleAvgMissed || '—'} />
+            <Line label="Teleop shot / match" value={t.teleAvgShot || '—'} />
+            <Line label="Auto shot / match" value={t.autoAvgShot || '—'} />
+            <Line label="Auto made / match" value={t.autoAvgMade || '—'} />
+            <Line label="Auto accuracy" value={t.autoAccuracy == null ? '—' : `${t.autoAccuracy}%`} />
+            <Line label="Leaves in auto" value={`${t.autoLeavePct}%`} />
+            <Line label="Parks in auto" value={`${t.autoParkPct}%`} />
             <Line label="Seconds / cycle" value={t.avgCycleSec || '—'} />
+            <Line label="Tips / match" value={t.avgTips || '—'} />
           </div>
 
-          {/* The ratings, as bars — out of 5 except auto reliability, which the
-              form asks out of 3. */}
+          {/* The ratings, as bars — out of 5, except the two the form now asks
+              as a percentage. */}
           <div className="space-y-1 mb-3">
             <Rated label="Driver skill" value={t.driverSkill} outOf={5} />
             <Rated label="Consistency" value={t.consistency} outOf={5} />
             <Rated label="Robot speed" value={t.robotSpeed} outOf={5} />
-            <Rated label="Auto reliability" value={t.autoReliability} outOf={3} />
-            <Rated label="Holds up to defense" value={t.defenseResistance} outOf={5} />
+            <Rated label="Auto reliability" value={t.autoReliability} outOf={100} />
+            <Rated label="Holds up to defense" value={t.defenseResistance} outOf={100} />
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <Line label="Endgame success" value={`${t.endgameSuccessPct}%`} />
+            <Line label="Does an endgame" value={`${t.endgameSuccessPct}%`} />
             <Line label="Matches without breakdown" value={`${t.cleanMatchPct}%`} />
             <Line label="Plays defense" value={most(t.defense)} />
-            <Line label="Penalties / match" value={t.avgPenalties || '—'} />
+            <Line label="Minors / match" value={t.avgMinors || '—'} />
+            <Line label="Majors / match" value={t.avgMajors || '—'} />
             <Line label="Usual start" value={most(t.startingPositions)} />
             <Line label="Usual endgame" value={most(t.endgame)} />
             <Line label="Worst breakdown" value={

@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { MATCH_ASSIGNMENTS } from '../data/scoutingGroups'
 import { restHeaders } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -28,6 +29,35 @@ export default function ScoutingForm() {
   const [loading, setLoading] = useState(true)
   const [unavailable, setUnavailable] = useState(false)
   const [form, setForm] = useState(blankEntry())
+
+  // The next match this person is down to scout, and the team they watch in it.
+  //
+  // Only ever THEIR OWN rota. Filling in somebody else's team because that
+  // person has not got round to it would quietly reassign the work and put
+  // their name on a row they never watched. The fields stay editable, so
+  // covering for somebody who forgot is a deliberate act — you type their team
+  // in — rather than something the form decided for you.
+  //
+  // "Next" is the earliest match of theirs with nothing submitted yet.
+  const nextAssignment = useMemo(() => {
+    const first = String(username || '').trim().split(' ')[0].toLowerCase()
+    if (!first) return null
+    const mine = MATCH_ASSIGNMENTS
+      .filter(a => String(a.who || '').toLowerCase() === first)
+      .sort((a, b) => Number(a.match) - Number(b.match))
+    const done = new Set(rows.map(r => String(r.team_number || '').trim() + '|' + String(r.match_number || '').trim()))
+    return mine.find(a => !done.has(a.team + '|' + a.match)) || null
+  }, [username, rows])
+
+  // Filled in once, while the form is still empty. A form that keeps
+  // correcting what you typed is worse than one that never helped.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (prefilled.current || !nextAssignment) return
+    if (form.team_number || form.match_number) { prefilled.current = true; return }
+    prefilled.current = true
+    setForm(f => ({ ...f, team_number: nextAssignment.team, match_number: nextAssignment.match }))
+  }, [nextAssignment]) // eslint-disable-line
   // The form IS the page — scouting happens at a match, and whoever opens this
   // is here to fill one in, not to read yesterday's. The saved rows are one
   // arrow away.
@@ -106,6 +136,8 @@ export default function ScoutingForm() {
       // match, or the same team match after match. Retyping them every time is
       // the fastest way to put people off doing it.
       setForm({ ...blankEntry(), team_number: form.team_number, match_number: form.match_number })
+      // Let the rota offer the next one now this is saved.
+      prefilled.current = false
       setSaved(true); setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       console.error('Failed to save scouting row:', err)
@@ -377,7 +409,7 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
         <input type="number" inputMode="numeric" min="0" value={value}
                onChange={e => onChange(e.target.value)} placeholder="0"
                className="w-28 border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
-      ) : f.type === 'text' && f.key === 'comments' ? (
+      ) : f.type === 'text' && ['comments', 'auto_notes', 'teleop_notes'].includes(f.key) ? (
         <textarea rows={2} value={value} onChange={e => onChange(e.target.value)}
                   placeholder="Anything unusual"
                   className="w-full border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
@@ -385,6 +417,71 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
         <input type="text" value={value} onChange={e => onChange(e.target.value)}
                placeholder={f.hint}
                className="w-full border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
+      ) : f.type === 'field' ? (
+        // The field, roughly. Tapping where the robot is beats reading
+        // "Left" and working out whose left is meant.
+        <div className="rounded-xl overflow-hidden border-2 border-pastel-yellow-dark/30">
+          <div className="flex h-24 bg-gradient-to-b from-gray-50 to-gray-100">
+            {f.options.map((opt, i) => (
+              <button
+                key={opt} type="button"
+                onClick={() => onChange(value === opt ? '' : opt)}
+                className={`flex-1 flex items-end justify-center pb-2 text-xs font-semibold transition-colors ${
+                  i ? 'border-l border-dashed border-gray-300' : ''
+                } ${value === opt
+                     ? 'bg-pastel-yellow text-gray-900'
+                     : 'text-gray-400 hover:bg-pastel-yellow/30'}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+          <div className="h-1.5 bg-pastel-blue-dark/60" title="Driver station side" />
+        </div>
+      ) : f.type === 'percent' ? (
+        // Bars, not a 0–3. Reliability is "how much of it worked", and people
+        // say that as a proportion, not a grade out of three.
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 flex-1">
+            {[0, 20, 40, 60, 80, 100].map(p => (
+              <button
+                key={p} type="button"
+                onClick={() => onChange(String(p))}
+                title={`${p}%`}
+                className={`flex-1 rounded-md transition-colors ${
+                  Number(value) >= p && value !== ''
+                    ? 'bg-pastel-yellow-dark'
+                    : 'bg-gray-100 hover:bg-pastel-yellow/40'
+                }`}
+                style={{ height: `${14 + (p / 100) * 24}px` }}
+              />
+            ))}
+          </div>
+          <span className="w-12 text-right text-sm font-semibold text-gray-600">
+            {value === '' ? '—' : `${value}%`}
+          </span>
+        </div>
+      ) : f.type === 'multi' ? (
+        // Tick all that happened. More than one can be true in an endgame, and
+        // forcing a single answer loses the rest.
+        <div className="flex flex-wrap gap-1.5">
+          {f.options.map(opt => {
+            const picked = String(value || '').split(',').filter(Boolean)
+            const on = picked.includes(opt)
+            return (
+              <button key={opt} type="button"
+                onClick={() => onChange(
+                  (on ? picked.filter(x => x !== opt) : [...picked, opt]).join(',')
+                )}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  on ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
+                     : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'
+                }`}>
+                {on ? '✓ ' : ''}{opt}
+              </button>
+            )
+          })}
+        </div>
       ) : f.type === 'scale' ? (
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: f.max - f.min + 1 }, (_, i) => f.min + i).map(n => (
@@ -511,7 +608,7 @@ function TeamPicker({ value, onChange, otherTeam, setOtherTeam }) {
   )
 }
 
-const COMPACT = ['match_number', 'auto_collected', 'auto_scored', 'teleop_collected', 'teleop_scored', 'cycle_count',
+const COMPACT = ['match_number', 'auto_shot', 'auto_made', 'teleop_shot', 'teleop_made', 'cycle_count',
                  'defense', 'endgame', 'driver_skill', 'consistency', 'breakdowns']
 
 function MatchTable({ rows, editing, onRemove }) {
