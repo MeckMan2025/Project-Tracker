@@ -1,4 +1,5 @@
 import MemberPicker from './MemberPicker'
+import { useMemberNames } from '../hooks/useMemberNames'
 import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import TeamPicker from './TeamPicker'
@@ -6,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Users, Wrench, Target, ListOrdered, ClipboardList, ChevronLeft, Plus, Trash2, Play, Square, Star } from 'lucide-react'
+import { ChevronLeft, ClipboardList, ListOrdered, Play, Plus, Shuffle, Square, Star, Target, Trash2, Users, Wrench } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
@@ -170,7 +171,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       try {
         await fetch(`${supabaseUrl}/rest/v1/scouting_schedule`, {
           method: 'POST',
-          headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates' },
+          headers: { ...restHeaders({ 'Content-Type': 'application/json' }), Prefer: 'resolution=merge-duplicates' },
           body: JSON.stringify({ id: scheduleId, data: newData, updated_by: username, updated_at: new Date().toISOString() }),
         })
       } catch (err) { console.error('Failed to save schedule:', err) }
@@ -178,6 +179,51 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   }, [username, supabaseUrl, supabaseKey, scheduleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (updater) => setData(prev => { const next = updater(prev); autoSave(next); return next })
+
+  // Fill the whole day at random.
+  //
+  // Not a toy: the rota is the longest part of setting up a competition and
+  // most of it is arbitrary. Who scouts Red 1 in Group 2 does not matter, only
+  // that somebody does and that nobody is in two places at once. So this deals
+  // everyone out and leaves the lead to fix the handful that do matter.
+  //
+  // Dealt, not sampled: everybody is shuffled once and handed out in turn, so
+  // nobody draws two jobs while somebody else sits out. Jobs are filled in
+  // order of how much they need a person — the scouting positions first,
+  // because an empty Red 2 means a match nobody watched.
+  //
+  // Only ever real people from the live roster, which is why it refuses rather
+  // than inventing anyone when the roster has not loaded.
+  const roster = useMemberNames()
+
+  const shuffleEverything = () => {
+    if (!roster.length) return
+    const deck = [...roster]
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[deck[i], deck[j]] = [deck[j], deck[i]]
+    }
+    let at = 0
+    // Round-robin: when there are fewer people than jobs, start the deck again
+    // rather than leaving the rest of the day blank. Somebody doubling up is a
+    // thing a lead can see and fix; an empty position is one they cannot.
+    const next = () => deck[at++ % deck.length]
+
+    update(p => {
+      const scoutGroups = p.scoutGroups.map(g => ({
+        ...g, head: next(), red1: next(), red2: next(), blue1: next(), blue2: next(),
+      }))
+      const standBy = next()
+      // What is left over, shared out evenly between the working groups.
+      const left = deck.slice(Math.min(at, deck.length))
+      const groups = p.groups.map((g, i) => ({
+        ...g,
+        members: left.filter((_, k) => k % Math.max(1, p.groups.length) === i),
+      }))
+      const fixedRoles = p.fixedRoles.map(r => ({ ...r, members: [next()] }))
+      return { ...p, scoutGroups, standBy, groups, fixedRoles }
+    })
+  }
   const csv = (arr) => (arr || []).join(', ')
   const parseCsv = (s) => s.split(',').map(x => x.trim()).filter(Boolean)
 
@@ -218,7 +264,21 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
               <p className="text-sm text-gray-500 truncate">{dateSubtitle || 'Groups, roles & scouting assignments'}</p>
             </div>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-1.5 shrink-0">
+            {isLead && (
+              <button
+                onClick={shuffleEverything}
+                disabled={!roster.length}
+                title={roster.length
+                  ? 'Deal everyone out at random — scouting positions, stand-by, groups and event roles'
+                  : 'Waiting for the roster'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800 transition-colors disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <Shuffle size={15} /> Randomise
+              </button>
+            )}
+            <NotificationBell />
+          </div>
         </div>
         {/* Tabs */}
         <div className="px-4 pb-2 ml-14 flex gap-1.5 overflow-x-auto">

@@ -127,7 +127,7 @@ export default function NotificationBell() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
     fetch(`${supabaseUrl}/rest/v1/notifications?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { ...restHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: { ...restHeaders(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ read: true }),
     }).catch(() => {})
   }
@@ -138,7 +138,7 @@ export default function NotificationBell() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}&read=eq.false`, {
       method: 'PATCH',
-      headers: { ...restHeaders, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: { ...restHeaders(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ read: true }),
     }).catch(() => {})
   }
@@ -148,7 +148,7 @@ export default function NotificationBell() {
     setNotifications([])
     fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}`, {
       method: 'DELETE',
-      headers: restHeaders,
+      headers: restHeaders(),
     }).catch(() => {})
   }
 

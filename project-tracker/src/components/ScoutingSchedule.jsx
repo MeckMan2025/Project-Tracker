@@ -59,7 +59,7 @@ export default function ScoutingSchedule() {
     try {
       await fetch(`${supabaseUrl}/rest/v1/scouting_schedule`, {
         method: 'POST',
-        headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates, return=minimal' },
+        headers: { ...restHeaders({ 'Content-Type': 'application/json' }), Prefer: 'resolution=merge-duplicates, return=minimal' },
         body: JSON.stringify({ id: 'main', data: merged }),
       })
     } catch { /* ignore */ }
