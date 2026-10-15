@@ -53,7 +53,12 @@ export const SCOUTING_FIELDS = [
   // than pick-one.
   { key: 'endgame',       label: 'Endgame', hint: 'Everything they did', type: 'multi', required: true, group: 'Endgame',
     options: ['Garden', 'Parking', 'Flowers', 'Nothing'] },
-  { key: 'flowers_owned', label: 'Flowers Owned', hint: 'Which ones they finished owning', type: 'multi', required: false, group: 'Endgame',
+  // map: asked by pointing at the flowers on the field rather than ticking
+  // four words in a row. Still type 'multi' and still stored as a
+  // comma-joined list, so the table, the CSV and everything already scouted
+  // read exactly the same — only the input changes. Positions live in
+  // data/fieldMap.js.
+  { key: 'flowers_owned', label: 'Flowers Owned', hint: 'Tap the ones they owned at the end', type: 'multi', map: true, required: false, group: 'Endgame',
     options: ['Left', 'Centre Left', 'Centre Right', 'Right'] },
   { key: 'rp_points',     label: 'RP Points', hint: 'Ranking points they earned', type: 'multi', required: false, group: 'Endgame',
     options: ['Win', 'Auto', 'Endgame', 'Tie'] },

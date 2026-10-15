@@ -56,3 +56,31 @@ export function zonesFor(options = []) {
     h: 0.40,
   }))
 }
+
+// ── The flowers ────────────────────────────────────────────────────────────
+//
+// Four of them, and which ones a team finished owning is a fact about places
+// on the field, so it is asked the same way as the start: by pointing at them.
+// Four words in a row can be ticked in the wrong order by a tired scout at
+// the end of a match; four marks in the positions they actually stand in
+// cannot be, because the scout is looking straight at them.
+//
+// x/y are the centre of each flower, 0-1 of the drawn field, spread across the
+// middle. These positions are a sensible guess at the layout, not a measured
+// one — correct them here and the map follows, no component to touch.
+export const FLOWER_SPOTS = {
+  'Left':         { x: 0.12, y: 0.33 },
+  'Centre Left':  { x: 0.37, y: 0.33 },
+  'Centre Right': { x: 0.63, y: 0.33 },
+  'Right':        { x: 0.88, y: 0.33 },
+}
+
+// As with the start zones: an option with no position gets an even share of
+// the same row, so renaming or adding a flower cannot leave the map blank.
+export function spotsFor(options = []) {
+  if (options.every(o => FLOWER_SPOTS[o])) {
+    return options.map(o => ({ option: o, ...FLOWER_SPOTS[o] }))
+  }
+  const step = 1 / (options.length + 1)
+  return options.map((o, i) => ({ option: o, x: step * (i + 1), y: 0.33 }))
+}

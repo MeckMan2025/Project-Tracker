@@ -470,6 +470,10 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
             ))}
           </div>
         </div>
+      ) : f.type === 'multi' && f.map ? (
+        // Tick-all, but the options are places on the field, so they are
+        // tapped where they stand. Same stored value as the chips below.
+        <FieldMap value={value} onChange={onChange} options={f.options} multi />
       ) : f.type === 'multi' ? (
         // Tick all that happened. More than one can be true in an endgame, and
         // forcing a single answer loses the rest.

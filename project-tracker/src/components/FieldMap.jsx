@@ -1,7 +1,12 @@
 import { useState } from 'react'
-import { FIELD, FIELD_IMAGE, zonesFor } from '../data/fieldMap'
+import { FIELD, FIELD_IMAGE, spotsFor, zonesFor } from '../data/fieldMap'
 
-// Tap the field to say where a robot started.
+// Tap the field to say where something was.
+//
+// Two questions use it. Where a robot started is one answer out of a few
+// areas, so those are drawn as zones. Which flowers a team finished owning is
+// several answers out of four fixed places, so those are drawn as marks
+// standing where the flowers stand, and tapping one toggles it.
 //
 // The geometry lives in data/fieldMap.js — this only draws it. If the official
 // overhead picture of the field is sitting at FIELD_IMAGE it goes underneath
@@ -12,10 +17,19 @@ import { FIELD, FIELD_IMAGE, zonesFor } from '../data/fieldMap'
 // The value saved is the zone's own option string, unchanged from when this
 // was three buttons, so everything already recorded still reads the same.
 
-export default function FieldMap({ value, onChange, options = [] }) {
+export default function FieldMap({ value, onChange, options = [], multi = false }) {
   const [hasImage, setHasImage] = useState(true)
-  const zones = zonesFor(options)
+  const zones = multi ? [] : zonesFor(options)
+  const spots = multi ? spotsFor(options) : []
   const pct = (n) => `${n * 100}%`
+
+  // Several answers are stored exactly as the tick-all inputs store them — a
+  // comma-joined list — so nothing downstream can tell the difference between
+  // a flower ticked off a list and the same flower tapped on the map.
+  const picked = multi ? String(value || '').split(',').filter(Boolean) : []
+  const toggle = (opt) => onChange(
+    (picked.includes(opt) ? picked.filter(x => x !== opt) : [...picked, opt]).join(',')
+  )
 
   return (
     <div>
@@ -80,6 +94,29 @@ export default function FieldMap({ value, onChange, options = [] }) {
           )
         })}
 
+        {spots.map(sp => {
+          const on = picked.includes(sp.option)
+          return (
+            <button
+              key={sp.option}
+              type="button"
+              onClick={() => toggle(sp.option)}
+              aria-pressed={on}
+              title={sp.option}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 flex items-center justify-center transition-colors ${
+                on
+                  ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
+                  : 'border-white/80 bg-white/35 text-gray-500 hover:bg-pastel-yellow/40'
+              }`}
+              style={{ left: pct(sp.x), top: pct(sp.y), width: '19%', aspectRatio: '1' }}
+            >
+              <span className="text-[9px] font-semibold leading-tight text-center px-0.5">
+                {sp.option}
+              </span>
+            </button>
+          )
+        })}
+
         {/* Which way round the field is. This is the whole reason the map
             exists: "Left" means nothing without knowing where you stand. */}
         <div className="absolute inset-x-0 bottom-0 h-4 bg-pastel-blue-dark/70 flex items-center justify-center">
@@ -90,9 +127,13 @@ export default function FieldMap({ value, onChange, options = [] }) {
       </div>
 
       <p className="text-[11px] text-gray-400 mt-1">
-        {value
-          ? `Starting ${value.toLowerCase()}, looking out from your driver station.`
-          : 'Tap the square where the robot lines up.'}
+        {multi
+          ? (picked.length
+              ? `Owned ${picked.length} of ${options.length}: ${picked.join(', ')}.`
+              : 'Tap each flower they finished owning. None is a fine answer.')
+          : (value
+              ? `Starting ${value.toLowerCase()}, looking out from your driver station.`
+              : 'Tap the square where the robot lines up.')}
       </p>
     </div>
   )
