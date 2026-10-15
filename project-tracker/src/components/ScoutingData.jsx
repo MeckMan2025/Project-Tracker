@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { startLabel } from '../data/fieldMap'
 import { restHeaders } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
@@ -56,9 +57,15 @@ function computeScoutingStats(matches) {
   }
   const sum = (key) => nums(key).reduce((a, b) => a + b, 0)
   const pct = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100)
-  const tally = (key) => {
+  // `as` groups answers before counting them. A starting position is now an
+  // exact point, so counting the raw values would give every team a handful
+  // of dots each seen once; it is counted by the side of the field instead.
+  const tally = (key, as) => {
     const out = {}
-    matches.forEach(m => { const v = m[key]; if (v) out[v] = (out[v] || 0) + 1 })
+    matches.forEach(m => {
+      const v = as ? as(m[key]) : m[key]
+      if (v) out[v] = (out[v] || 0) + 1
+    })
     return out
   }
 
@@ -75,7 +82,7 @@ function computeScoutingStats(matches) {
 
   return {
     scoutCount: n,
-    startingPositions: tally('start_position'),
+    startingPositions: tally('start_position', startLabel),
 
     // Shot and made, and the accuracy between them. "Did they score" could not
     // tell ten-for-two apart from two-for-two, which is the whole question

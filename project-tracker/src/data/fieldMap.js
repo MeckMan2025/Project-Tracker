@@ -116,3 +116,34 @@ export function spotsFor(options = []) {
   const step = 1 / (options.length + 1)
   return options.map((o, i) => ({ option: o, x: step * (i + 1), y: 0.45 }))
 }
+
+// ── Reading a starting position back ───────────────────────────────────────
+//
+// A start is now a point anywhere on the field, stored as "x,y" in percent.
+// Two older shapes have to keep working: matches scouted when the answer was
+// the word Left, Middle or Right, and anything else somebody typed in. Those
+// words are read as the middle of the area they used to mean, so an old match
+// still shows a dot in roughly the right place.
+export function pointOf(value) {
+  if (typeof value !== 'string') return null
+  const m = value.match(/^\s*(\d{1,3}(?:\.\d+)?)\s*,\s*(\d{1,3}(?:\.\d+)?)\s*$/)
+  if (m) {
+    const clamp = (n) => Math.max(0, Math.min(1, n / 100))
+    return { x: clamp(Number(m[1])), y: clamp(Number(m[2])) }
+  }
+  const z = START_ZONES[value.trim()]
+  return z ? { x: z.x + z.w / 2, y: z.y + z.h / 2 } : null
+}
+
+// The side of the field a start is on, for counting.
+//
+// "Usual start" is the commonest answer across a team's matches, and once
+// every answer is an exact point no two are ever the same — every team would
+// show one arbitrary dot seen once. Counting the third of the field it falls
+// in gives that back, and gives the same three words as before, so matches
+// scouted under the old question count alongside the new ones.
+export function startLabel(value) {
+  const p = pointOf(value)
+  if (!p) return typeof value === 'string' ? value.trim() : ''
+  return p.x < 1 / 3 ? 'Left' : p.x < 2 / 3 ? 'Middle' : 'Right'
+}

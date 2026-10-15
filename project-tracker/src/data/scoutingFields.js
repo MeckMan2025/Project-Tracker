@@ -16,6 +16,8 @@
 // one, so a scout who genuinely did not see something should say so in
 // Comments rather than leave a silent gap in the averages.
 
+import { startLabel } from './fieldMap'
+
 const YES_NO = ['Yes', 'No']
 
 // Tick-all answers that cancel the rest: nothing happened, or no points were
@@ -30,8 +32,12 @@ export const SCOUTING_FIELDS = [
   // Tapped on a picture of the field rather than picked off a list: a scout
   // looking at the field should not have to translate what they can see into
   // somebody else's word for it.
-  { key: 'start_position',label: 'Starting Position', hint: 'Tap where the robot starts', type: 'field', required: true, group: 'Match',
-    options: ['Left', 'Middle', 'Right'] },
+  // No options: a start is a dot anywhere on the field, stored as "x,y" in
+  // percent. Three areas made a robot that lined up on the edge of one a
+  // coin toss between two words, and the word is what everything downstream
+  // then believed. Matches scouted when the answer was Left, Middle or Right
+  // still read, as the middle of the area they meant — see data/fieldMap.js.
+  { key: 'start_position',label: 'Starting Position', hint: 'Tap the field where the robot starts', type: 'field', required: true, group: 'Match' },
 
   // Shot vs made, not "did they score": a team that attempts ten and lands two
   // is a different team from one that attempts two and lands two, and the old
@@ -116,6 +122,12 @@ export const yesNo = (v) => (v == null || v === '' ? null : Number(v) > 0 ? 1 : 
 export const displayValue = (f, v) => {
   if (v == null || v === '') return ''
   if (f?.type === 'yesno') return yesNo(v) ? 'Yes' : 'No'
+  // A start is a point. On its own "34,81" tells a reader nothing, so it is
+  // shown as the side of the field it is on with the point kept beside it.
+  if (f?.type === 'field') {
+    const label = startLabel(v)
+    return label && label !== String(v) ? `${label} (${v})` : String(v)
+  }
   return String(v)
 }
 

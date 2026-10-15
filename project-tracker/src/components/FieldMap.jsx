@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import {
-  ALLIANCE_ZONES, BARS, FIELD, FIELD_IMAGE, POSTS, STRUCTURES, spotsFor, zonesFor,
+  ALLIANCE_ZONES, BARS, FIELD, FIELD_IMAGE, POSTS, STRUCTURES,
+  pointOf, spotsFor, startLabel, zonesFor,
 } from '../data/fieldMap'
 
 // Tap the field to say where something was.
 //
-// Two questions use it. Where a robot started is one answer out of a few
-// areas, so those are drawn as zones. Which flowers a team finished owning is
-// several answers out of four fixed places, so those are drawn as marks
-// standing where the flowers stand, and tapping one toggles it.
+// Two questions use it. Where a robot started is a dot put down anywhere on
+// the field, because a robot lines up where it lines up and three areas made
+// anything near a boundary a coin toss between two words. Which flowers a
+// team finished owning is several answers out of four fixed places, so those
+// are drawn as marks standing where the flowers stand, and tapping one
+// toggles it.
 //
 // The geometry lives in data/fieldMap.js — this only draws it. If the official
 // overhead picture of the field is sitting at FIELD_IMAGE it goes underneath
@@ -21,9 +24,21 @@ import {
 
 export default function FieldMap({ value, onChange, options = [], multi = false }) {
   const [hasImage, setHasImage] = useState(true)
-  const zones = multi ? [] : zonesFor(options)
+  // No options and one answer means put the dot where you like.
+  const free = !multi && options.length === 0
+  const zones = multi || free ? [] : zonesFor(options)
   const spots = multi ? spotsFor(options) : []
+  const point = free ? pointOf(value) : null
   const pct = (n) => `${n * 100}%`
+
+  // Where the tap landed, as a percentage of the field each way. Rounded to
+  // a tenth: finer than anyone can tap, and it keeps the stored value short.
+  const place = (e) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    if (!r.width || !r.height) return
+    const at = (v, size) => Math.round(Math.max(0, Math.min(1, v / size)) * 1000) / 10
+    onChange(`${at(e.clientX - r.left, r.width)},${at(e.clientY - r.top, r.height)}`)
+  }
 
   // Several answers are stored exactly as the tick-all inputs store them — a
   // comma-joined list — so nothing downstream can tell the difference between
@@ -36,7 +51,13 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
   return (
     <div>
       <div
-        className="relative w-full rounded-xl overflow-hidden border-2 border-pastel-yellow-dark/30 bg-gray-100 select-none"
+        onClick={free ? place : undefined}
+        role={free ? 'button' : undefined}
+        tabIndex={free ? 0 : undefined}
+        aria-label={free ? 'Tap the field where the robot starts' : undefined}
+        className={`relative w-full rounded-xl overflow-hidden border-2 border-pastel-yellow-dark/30 bg-gray-100 select-none ${
+          free ? 'cursor-crosshair' : ''
+        }`}
         style={{ aspectRatio: String(FIELD.aspect) }}
       >
         {hasImage && (
@@ -152,6 +173,26 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
           )
         })}
 
+        {point && (
+          // The robot, where it was put. The ring makes it findable against
+          // the structures; the crosshair lines say which exact spot is meant,
+          // since the square alone is wider than the tap that placed it.
+          <>
+            <div
+              className="absolute pointer-events-none border-t border-pastel-yellow-dark/60"
+              style={{ left: 0, right: 0, top: pct(point.y) }}
+            />
+            <div
+              className="absolute pointer-events-none border-l border-pastel-yellow-dark/60"
+              style={{ top: 0, bottom: 0, left: pct(point.x) }}
+            />
+            <div
+              className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 rounded-md bg-pastel-yellow-dark border-2 border-gray-800/70 shadow"
+              style={{ left: pct(point.x), top: pct(point.y), width: '11%', aspectRatio: '1' }}
+            />
+          </>
+        )}
+
         {/* Which way round the field is. This is the whole reason the map
             exists: "Left" means nothing without knowing where you stand. */}
         <div className="absolute inset-x-0 bottom-0 h-4 bg-pastel-blue-dark/70 flex items-center justify-center">
@@ -161,15 +202,30 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
         </div>
       </div>
 
-      <p className="text-[11px] text-gray-400 mt-1">
-        {multi
-          ? (picked.length
-              ? `Owned ${picked.length} of ${options.length}: ${picked.join(', ')}.`
-              : 'Tap each flower they finished owning. None is a fine answer.')
-          : (value
-              ? `Starting ${value.toLowerCase()}, looking out from your driver station.`
-              : 'Tap the square where the robot lines up.')}
-      </p>
+      <div className="flex items-start justify-between gap-2 mt-1">
+        <p className="text-[11px] text-gray-400">
+          {multi
+            ? (picked.length
+                ? `Owned ${picked.length} of ${options.length}: ${picked.join(', ')}.`
+                : 'Tap each flower they finished owning. None is a fine answer.')
+            : free
+              ? (point
+                  ? `${startLabel(value)} side, looking out from your driver station. Tap again to move it.`
+                  : 'Tap anywhere on the field where the robot lines up.')
+              : (value
+                  ? `Starting ${String(value).toLowerCase()}, looking out from your driver station.`
+                  : 'Tap the square where the robot lines up.')}
+        </p>
+        {free && point && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-[11px] text-gray-400 underline hover:text-gray-600 shrink-0"
+          >
+            Clear
+          </button>
+        )}
+      </div>
     </div>
   )
 }
