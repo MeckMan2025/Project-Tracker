@@ -18,6 +18,12 @@
 
 const YES_NO = ['Yes', 'No']
 
+// Tick-all answers that cancel the rest: nothing happened, or no points were
+// won. Ticking one of these clears the others, and ticking anything else
+// clears this — otherwise a row can claim both Garden and Nothing, and
+// whichever the averages believe is wrong.
+export const EXCLUSIVE_OPTIONS = ['None', 'Nothing']
+
 export const SCOUTING_FIELDS = [
   { key: 'team_number',   label: 'Team',  hint: 'Team number',  type: 'text', required: true, group: 'Match' },
   { key: 'match_number',  label: 'Match', hint: 'Match number', type: 'text', required: true, group: 'Match' },
@@ -58,10 +64,23 @@ export const SCOUTING_FIELDS = [
   // comma-joined list, so the table, the CSV and everything already scouted
   // read exactly the same — only the input changes. Positions live in
   // data/fieldMap.js.
+  // The endgame ticks say what a team went for. These two say how it went,
+  // because "Garden" against a team that scored one and a team that scored
+  // six is the same tick and a different robot. Parking is where they
+  // finished, which is the part worth a pick.
+  { key: 'garden_score',  label: 'Garden Scoring', hint: 'How many they scored in the garden', type: 'number', required: true, group: 'Endgame' },
+  { key: 'parking',       label: 'Parking', hint: 'Where they finished', type: 'choice', required: true, group: 'Endgame',
+    options: ['None', 'Partial', 'Full'] },
+
   { key: 'flowers_owned', label: 'Flowers Owned', hint: 'Tap the ones they owned at the end', type: 'multi', map: true, required: false, group: 'Endgame',
     options: ['Left', 'Centre Left', 'Centre Right', 'Right'] },
-  { key: 'rp_points',     label: 'RP Points', hint: 'Ranking points they earned', type: 'multi', required: false, group: 'Endgame',
-    options: ['Win', 'Auto', 'Endgame', 'Tie'] },
+  // None is on the list on purpose. Plenty of teams finish a match with no
+  // ranking points at all, and without it the only way to record that is to
+  // leave the question blank — which reads identically to a scout who never
+  // got round to answering. Ticking None says it was nil, and that is a
+  // different fact worth being able to tell apart.
+  { key: 'rp_points',     label: 'RP Points', hint: 'Tick each one they earned, or None', type: 'multi', required: false, group: 'Endgame',
+    options: ['Win', 'Auto', 'Endgame', 'Tie', 'None'] },
 
   { key: 'robot_speed',   label: 'Robot Speed',  hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
   { key: 'driver_skill',  label: 'Driver Skill', hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },

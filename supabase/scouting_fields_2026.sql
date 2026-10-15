@@ -36,3 +36,9 @@ alter table match_scouting add column if not exists majors           integer;
 -- percentages, which is why the season's rows are worth keeping separate from
 -- the new ones in your head.
 select count(*) as rows_so_far from match_scouting;
+
+-- The endgame ticks say what a team went for; these say how it went. "Garden"
+-- against a team that scored one and a team that scored six is the same tick
+-- and a different robot.
+alter table match_scouting add column if not exists garden_score     integer;
+alter table match_scouting add column if not exists parking          text;

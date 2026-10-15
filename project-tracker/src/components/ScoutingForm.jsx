@@ -5,7 +5,8 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, Loader2, Trash2, Download, Pencil, ChevronLeft, ChevronRight, ChevronDown, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
-  SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, FIELD_BY_KEY, blankEntry, yesNo, displayValue,
+  SCOUTING_FIELDS, SCOUTING_GROUPS, NUMERIC_FIELDS, FIELD_BY_KEY, EXCLUSIVE_OPTIONS,
+  blankEntry, yesNo, displayValue,
 } from '../data/scoutingFields'
 import { ALL_TEAMS, teamLabel } from '../data/teams'
 import { stampTeam, teamScope } from '../lib/teamScope'
@@ -18,6 +19,15 @@ import FieldMap from './FieldMap'
 // field definitions, so a season that changes the game changes one file.
 
 const TABLE = 'match_scouting'
+
+// Ticking an answer in a tick-all list, where some answers cancel the rest.
+// "Nothing" and "None" mean "and nothing else", so they clear the other ticks
+// and any other tick clears them.
+function toggleMulti(picked, opt, on) {
+  if (on) return picked.filter(x => x !== opt).join(',')
+  if (EXCLUSIVE_OPTIONS.includes(opt)) return opt
+  return [...picked.filter(x => !EXCLUSIVE_OPTIONS.includes(x)), opt].join(',')
+}
 
 export default function ScoutingForm() {
   const { username } = useUser()
@@ -483,9 +493,7 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
             const on = picked.includes(opt)
             return (
               <button key={opt} type="button"
-                onClick={() => onChange(
-                  (on ? picked.filter(x => x !== opt) : [...picked, opt]).join(',')
-                )}
+                onClick={() => onChange(toggleMulti(picked, opt, on))}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   on ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
                      : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'

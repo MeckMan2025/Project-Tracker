@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { FIELD, FIELD_IMAGE, spotsFor, zonesFor } from '../data/fieldMap'
+import {
+  ALLIANCE_ZONES, BARS, FIELD, FIELD_IMAGE, POSTS, STRUCTURES, spotsFor, zonesFor,
+} from '../data/fieldMap'
 
 // Tap the field to say where something was.
 //
@@ -46,24 +48,57 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
           />
         )}
 
-        {/* The field as drawn: the far half, the line robots line up behind,
-            and your alliance wall at the bottom. Nothing here is specific to
-            this season's game — a guessed goal in the wrong corner would be
-            worse than no goal at all. */}
+        {/* The field as drawn, traced off the field drawing: tiles, the four
+            middle structures with their bars, the gold posts and the alliance
+            zones against the walls. Enough to recognise and point at, which
+            is all this has to be. Coordinates in data/fieldMap.js. */}
         {!hasImage && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-200 via-gray-100 to-gray-50" />
             <div
-              className="absolute inset-x-0 border-b-2 border-dashed border-gray-300"
-              style={{ top: pct(FIELD.midline), height: 0 }}
+              className="absolute inset-0 bg-gray-200"
+              style={{
+                backgroundImage:
+                  'linear-gradient(to right, rgba(0,0,0,.07) 1px, transparent 1px),' +
+                  'linear-gradient(to bottom, rgba(0,0,0,.07) 1px, transparent 1px)',
+                backgroundSize: `${100 / FIELD.tiles}% ${100 / FIELD.tiles}%`,
+              }}
             />
-            <div
-              className="absolute inset-x-0 border-b border-pastel-blue-dark/40"
-              style={{ top: pct(FIELD.startLine), height: 0 }}
-            />
-            <span className="absolute top-1 left-2 text-[9px] font-medium text-gray-400">
-              Far side
-            </span>
+
+            {ALLIANCE_ZONES.map((z, i) => (
+              <div
+                key={`az${i}`}
+                className={`absolute rounded-sm ${z.alliance === 'red' ? 'bg-red-400/70' : 'bg-blue-400/70'}`}
+                style={{ left: pct(z.x), top: pct(z.y), width: pct(z.w), height: pct(z.h) }}
+              />
+            ))}
+
+            {STRUCTURES.map(st => (
+              <div
+                key={st.key}
+                className={`absolute rounded-md border-2 ${
+                  st.alliance === 'red'
+                    ? 'border-red-700/70 bg-red-200/40'
+                    : 'border-blue-700/70 bg-blue-200/40'
+                }`}
+                style={{ left: pct(st.x), top: pct(st.y), width: pct(st.w), height: pct(st.h) }}
+              />
+            ))}
+
+            {BARS.map((b, i) => (
+              <div
+                key={`bar${i}`}
+                className="absolute rounded-sm bg-yellow-200/90 border border-yellow-600/50"
+                style={{ left: pct(b.x), top: pct(b.y), width: pct(b.w), height: pct(b.h) }}
+              />
+            ))}
+
+            {POSTS.map((pt, i) => (
+              <div
+                key={`post${i}`}
+                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-400 border-2 border-yellow-700/70"
+                style={{ left: pct(pt.x), top: pct(pt.y), width: '4.5%', aspectRatio: '1' }}
+              />
+            ))}
           </>
         )}
 
@@ -77,8 +112,8 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
               aria-pressed={on}
               className={`absolute rounded-lg border-2 transition-colors flex flex-col items-center justify-end pb-1 ${
                 on
-                  ? 'border-pastel-yellow-dark bg-pastel-yellow/70 shadow-sm'
-                  : 'border-white/70 bg-white/25 hover:bg-pastel-yellow/35'
+                  ? 'border-pastel-yellow-dark bg-pastel-yellow/80 shadow-sm'
+                  : 'border-white/80 bg-white/40 hover:bg-pastel-yellow/50'
               }`}
               style={{ left: pct(z.x), top: pct(z.y), width: pct(z.w), height: pct(z.h) }}
             >
@@ -105,12 +140,12 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
               title={sp.option}
               className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 flex items-center justify-center transition-colors ${
                 on
-                  ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
-                  : 'border-white/80 bg-white/35 text-gray-500 hover:bg-pastel-yellow/40'
+                  ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-md'
+                  : 'border-white/90 bg-white/75 text-gray-600 hover:bg-pastel-yellow/60'
               }`}
-              style={{ left: pct(sp.x), top: pct(sp.y), width: '19%', aspectRatio: '1' }}
+              style={{ left: pct(sp.x), top: pct(sp.y), width: '15%', aspectRatio: '1' }}
             >
-              <span className="text-[9px] font-semibold leading-tight text-center px-0.5">
+              <span className="text-[8px] font-semibold leading-[1.05] text-center px-0.5">
                 {sp.option}
               </span>
             </button>
