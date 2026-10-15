@@ -612,15 +612,6 @@ export default function CompDayView({ onBack }) {
   }
 
   // ─── Lead View: Session editor with tabbed nav ───
-  const TABS = [
-    { id: 'setup', label: 'Scouting Setup', emoji: '🔭' },
-    { id: 'roles', label: 'Roles', emoji: '👥' },
-    { id: 'schedule', label: 'Schedule', emoji: '📅' },
-    { id: 'matches', label: 'Matches', emoji: '🏁' },
-    { id: 'rotation', label: 'Rotation', emoji: '🔄' },
-    { id: 'tasks', label: 'Tasks', emoji: '✅' },
-    { id: 'status', label: 'Team Status', emoji: '📊' },
-  ]
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -645,7 +636,7 @@ export default function CompDayView({ onBack }) {
           </div>
           <div className="flex items-center gap-2">
             {!isLive ? (
-              <button onClick={goLive} disabled={blocks.length === 0} className="px-4 py-1.5 rounded-lg bg-green-100 text-green-700 border border-green-300 text-sm font-semibold hover:bg-green-200 transition-colors disabled:opacity-40">
+              <button onClick={goLive} className="px-4 py-1.5 rounded-lg bg-green-100 text-green-700 border border-green-300 text-sm font-semibold hover:bg-green-200 transition-colors">
                 Go Live
               </button>
             ) : (
@@ -657,23 +648,6 @@ export default function CompDayView({ onBack }) {
           </div>
         </div>
 
-        {/* Tab nav */}
-        <div className="px-4 ml-14 pb-2 flex gap-1 overflow-x-auto">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setEditorTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                editorTab === tab.id
-                  ? 'bg-pastel-pink text-gray-800'
-                  : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              <span>{tab.emoji}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
@@ -687,13 +661,15 @@ export default function CompDayView({ onBack }) {
             </div>
           )}
 
-          {/* ═══ ROLES TAB ═══ */}
-          {/* The same editor that used to be hidden behind a clipboard icon
-              beside draft plans, where it was easy never to find and was not
-              offered at all once a day went live. Entering what teammates
-              will see is the first thing a lead does for a competition, so it
-              is the first tab. One component, one stored document — there is
-              no second copy of this to drift. */}
+          {/* Opening a competition day IS this editor. There was a row of
+              seven tabs above it — Roles, Schedule, Matches, Rotation, Tasks,
+              Team Status — and they are deliberately gone: everything a lead
+              sets up for a day is entered here, in one place, and the row was
+              seven ways to be somewhere else.
+
+              The blocks for those tabs are still below, each behind an
+              editorTab test that nothing sets any more, so bringing one back
+              is adding its button rather than writing it again. */}
           {editorTab === 'setup' && (
             <ScoutingDaySetup
               scheduleId={`day-comp-${activeSession.id}`}
