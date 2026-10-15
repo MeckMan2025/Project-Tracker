@@ -45,6 +45,16 @@ export async function sessionRecords(sessionId, teamNumber) {
 // the session was already there — including when another screen started it a
 // moment before we did. `profiles` is the roster as fetched just now, when we
 // had to fetch it. Throws with a readable message when the server refuses.
+const TIMING_KEYS = ['late_min', 'early_min', 'late_excused', 'early_excused']
+
+// The timing columns as a complete set: whatever was worked out, with every
+// other key present and null.
+function blankTiming(timing) {
+  return Object.fromEntries(
+    TIMING_KEYS.map(k => [k, timing?.[k] === undefined ? null : timing[k]]),
+  )
+}
+
 export async function ensureSessionForDate({ date, username, teamNumber }) {
   const scope = teamScope(teamNumber)
 
@@ -117,7 +127,14 @@ export async function ensureSessionForDate({ date, username, teamNumber }) {
       status,
       marked_by: username,
       created_at: new Date().toISOString(),
-      ...(timing || {}),
+      // Every row carries all four timing columns, blank ones included.
+      // PostgREST inserts an array as one statement, so it refuses the whole
+      // batch ("All object keys must match") if one object has a key another
+      // lacks — and only people arriving late or leaving early have timings.
+      // A missing key and an explicit null mean the same thing to the table,
+      // so filling them in costs nothing. undefined has to become null too:
+      // JSON.stringify drops undefined keys, which puts the mismatch back.
+      ...blankTiming(timing),
     }, teamNumber)
   })
 
