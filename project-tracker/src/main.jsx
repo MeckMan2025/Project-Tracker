@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import RootBoundary from './components/RootBoundary'
+import UpdateBanner from './components/UpdateBanner'
 import { UserProvider } from './contexts/UserContext'
 import { PresenceProvider } from './contexts/PresenceContext'
 import { ToastProvider } from './components/ToastProvider'
@@ -15,6 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <UserProvider>
           <PresenceProvider>
             <App />
+            <UpdateBanner />
           </PresenceProvider>
         </UserProvider>
       </ToastProvider>
