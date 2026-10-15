@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { stampTeam } from '../lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
-import { AlertCircle, ArrowLeft, Calendar, ChevronRight, ClipboardCheck, ClipboardList, Pause, Play, Plus, Shield, Trash2, Users, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Calendar, ChevronRight, ClipboardCheck, Pause, Play, Plus, Shield, Trash2, Users, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -51,7 +51,6 @@ export default function CompDayView({ onBack }) {
 
   const [sessions, setSessions] = useState([])
   const [activeSession, setActiveSession] = useState(null)  // currently open session
-  const [showSetup, setShowSetup] = useState(null)   // session whose match schedule is being edited
   const [blocks, setBlocks] = useState([])
   const [assignments, setAssignments] = useState([])
   const [members, setMembers] = useState([])
@@ -65,7 +64,10 @@ export default function CompDayView({ onBack }) {
   const [assigningBlock, setAssigningBlock] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [createStep, setCreateStep] = useState(1) // 1 = intro splash, 2 = name/details
-  const [editorTab, setEditorTab] = useState('roles')
+  // Opening a competition day lands on the setup, because entering what the
+  // day looks like is what you came to do. The role blocks are still a tab
+  // along; they were never the first question.
+  const [editorTab, setEditorTab] = useState('setup')
   const [compMatches, setCompMatches] = useState([])
   const [compTasks, setCompTasks] = useState([])
   const [blockTimes, setBlockTimes] = useState({})
@@ -182,7 +184,8 @@ export default function CompDayView({ onBack }) {
       await fetchSessions()
       // Auto-open the new session
       const updated = await restGet('comp_day_sessions?order=created_at.desc&limit=1')
-      if (updated[0]) setActiveSession(updated[0])
+      // A day just created has nothing in it, so it opens where you fill it in.
+      if (updated[0]) { setActiveSession(updated[0]); setEditorTab('setup') }
     } catch (err) { setError(err.message) }
   }
 
@@ -462,18 +465,6 @@ export default function CompDayView({ onBack }) {
                 its Match Schedule page, writing the same document, so there is
                 one editor and not two drifting copies. Keyed to the session, so
                 each competition keeps its own. */}
-            {showSetup && (
-              <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-                <ScoutingDaySetup
-                  scheduleId={`day-comp-${showSetup.id}`}
-                  dateTitle={showSetup.name || 'Competition Day'}
-                  dateSubtitle="What everyone sees on the day"
-                  initialTab="schedule"
-                  onBack={() => setShowSetup(null)}
-                />
-              </div>
-            )}
-
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
@@ -492,7 +483,7 @@ export default function CompDayView({ onBack }) {
                   {liveSessions.map(s => (
                     <button
                       key={s.id}
-                      onClick={() => { setActiveSession(s); setAssigningBlock(null) }}
+                      onClick={() => { setActiveSession(s); setAssigningBlock(null); setEditorTab('setup') }}
                       className="w-full flex items-center justify-between px-5 py-4 bg-green-50 border-2 border-green-300 rounded-xl hover:bg-green-100 transition-colors text-left"
                     >
                       <div>
@@ -514,7 +505,7 @@ export default function CompDayView({ onBack }) {
                   {draftSessions.map(s => (
                     <div key={s.id} className="flex items-center gap-2">
                       <button
-                        onClick={() => { setActiveSession(s); setAssigningBlock(null) }}
+                        onClick={() => { setActiveSession(s); setAssigningBlock(null); setEditorTab('setup') }}
                         className="flex-1 flex items-center justify-between px-5 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-left"
                       >
                         <div>
@@ -522,21 +513,6 @@ export default function CompDayView({ onBack }) {
                           <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}</p>
                         </div>
                         <ChevronRight size={18} className="text-gray-400" />
-                      </button>
-                      {/* The teams and the rota for this competition. Separate
-                          from the role blocks beside it: blocks say who is
-                          doing what job, this says which teams they are
-                          watching and in which match. */}
-                      <button
-                        onClick={() => setShowSetup(showSetup?.id === s.id ? null : s)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          showSetup?.id === s.id
-                            ? 'bg-pastel-blue text-gray-700'
-                            : 'hover:bg-pastel-blue/30 text-gray-400'
-                        }`}
-                        title="Match schedule & scouting groups"
-                      >
-                        <ClipboardList size={16} />
                       </button>
                       <button onClick={() => deleteSession(s.id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete plan">
                         <Trash2 size={16} />
@@ -637,6 +613,7 @@ export default function CompDayView({ onBack }) {
 
   // ─── Lead View: Session editor with tabbed nav ───
   const TABS = [
+    { id: 'setup', label: 'Scouting Setup', emoji: '🔭' },
     { id: 'roles', label: 'Roles', emoji: '👥' },
     { id: 'schedule', label: 'Schedule', emoji: '📅' },
     { id: 'matches', label: 'Matches', emoji: '🏁' },
@@ -711,6 +688,21 @@ export default function CompDayView({ onBack }) {
           )}
 
           {/* ═══ ROLES TAB ═══ */}
+          {/* The same editor that used to be hidden behind a clipboard icon
+              beside draft plans, where it was easy never to find and was not
+              offered at all once a day went live. Entering what teammates
+              will see is the first thing a lead does for a competition, so it
+              is the first tab. One component, one stored document — there is
+              no second copy of this to drift. */}
+          {editorTab === 'setup' && (
+            <ScoutingDaySetup
+              scheduleId={`day-comp-${activeSession.id}`}
+              dateTitle={activeSession.name || 'Competition Day'}
+              dateSubtitle="What everyone sees on the day"
+              onBack={() => setActiveSession(null)}
+            />
+          )}
+
           {editorTab === 'roles' && (
             <div className="space-y-4">
               {blocks.length === 0 ? (
