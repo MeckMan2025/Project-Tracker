@@ -3,11 +3,12 @@ import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, BookOpen } from 'lucide-react'
+import { ArrowRight, Send, Plus, X, Trash2, FolderOpen, ExternalLink, ChevronDown, ChevronUp, Pencil, Camera, Loader2, GraduationCap, BookOpen, Image as ImageIcon } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import { onlyMyTeam, stampTeam, storedTeamScope, teamScope } from '../lib/teamScope'
 import NotebookBook from './NotebookBook'
+import NotebookPhotos from './NotebookPhotos'
 import { isVoice, voiceStatusLine, VoiceTag, VoiceEntryEditor } from './VoiceEntry'
 // Loaded only when someone opens it, so the notebook doesn't carry it.
 const HelperRecorder = lazy(() => import('../helper/HelperApp').then(m => ({ default: m.Recorder })))
@@ -851,6 +852,18 @@ export default function EngineeringNotebook() {
             </>
           )}
 
+          {/* ========== PHOTO GALLERY ========== */}
+          {/* The same entries the list is showing, as pictures. filteredEntries
+              is passed in so the filter bar above filters both, and so does
+              "Save all" — see components/NotebookPhotos.jsx. */}
+          {view === 'gallery' && (
+            <NotebookPhotos
+              entries={filteredEntries}
+              projects={allDisplayProjects}
+              onBack={() => setView('projects')}
+            />
+          )}
+
           {view === 'projects' && (
             <>
               {/* Writing is the main thing here, so it gets the full width; the
@@ -875,7 +888,7 @@ export default function EngineeringNotebook() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => { setBookProject(null); setView('book') }}
                     className="h-9 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-pastel-orange/20 transition-colors text-sm font-medium text-gray-600"
@@ -889,6 +902,12 @@ export default function EngineeringNotebook() {
                     className="h-9 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-pastel-blue/20 transition-colors text-sm font-medium text-gray-600"
                   >
                     <Plus size={14} /> {isLead ? 'New Project' : 'Request Project'}
+                  </button>
+                  <button
+                    onClick={() => setView('gallery')}
+                    className="h-9 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-pastel-yellow/25 transition-colors text-sm font-medium text-gray-600"
+                  >
+                    <ImageIcon size={14} /> Photos
                   </button>
                 </div>
               </div>
