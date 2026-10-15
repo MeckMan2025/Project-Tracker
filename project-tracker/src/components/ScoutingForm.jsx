@@ -10,6 +10,7 @@ import {
 import { ALL_TEAMS, teamLabel } from '../data/teams'
 import { stampTeam, teamScope } from '../lib/teamScope'
 import ScoutingSync from './ScoutingSync'
+import FieldMap from './FieldMap'
 
 // Match scouting: one row per team per match.
 //
@@ -418,48 +419,56 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
                placeholder={f.hint}
                className="w-full border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
       ) : f.type === 'field' ? (
-        // The field, roughly. Tapping where the robot is beats reading
-        // "Left" and working out whose left is meant.
-        <div className="rounded-xl overflow-hidden border-2 border-pastel-yellow-dark/30">
-          <div className="flex h-24 bg-gradient-to-b from-gray-50 to-gray-100">
-            {f.options.map((opt, i) => (
-              <button
-                key={opt} type="button"
-                onClick={() => onChange(value === opt ? '' : opt)}
-                className={`flex-1 flex items-end justify-center pb-2 text-xs font-semibold transition-colors ${
-                  i ? 'border-l border-dashed border-gray-300' : ''
-                } ${value === opt
-                     ? 'bg-pastel-yellow text-gray-900'
-                     : 'text-gray-400 hover:bg-pastel-yellow/30'}`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-          <div className="h-1.5 bg-pastel-blue-dark/60" title="Driver station side" />
-        </div>
+        // A map of the field with the driver station drawn on it, rather than
+        // three words. Geometry in data/fieldMap.js, drawing in FieldMap.jsx.
+        <FieldMap value={value} onChange={onChange} options={f.options} />
       ) : f.type === 'percent' ? (
-        // Bars, not a 0–3. Reliability is "how much of it worked", and people
-        // say that as a proportion, not a grade out of three.
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 flex-1">
-            {[0, 20, 40, 60, 80, 100].map(p => (
+        // A proportion, to the percent. This was six bars — 0, 20, 40, 60, 80,
+        // 100 — and a scout who watched eight of nine autos work had to round
+        // it to 80 or 100. The slider drags to any number, the five quick taps
+        // underneath are there because most answers really are round, and the
+        // box takes a typed number for anyone who counted exactly.
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="range" min="0" max="100" step="1"
+              value={value === '' ? 0 : Number(value)}
+              onChange={e => onChange(e.target.value)}
+              className="flex-1 accent-pastel-yellow-dark"
+              aria-label={`${f.label} percent`}
+            />
+            <div className="flex items-center gap-1 w-20 shrink-0">
+              <input
+                type="number" min="0" max="100" inputMode="numeric"
+                value={value}
+                onChange={e => {
+                  const raw = e.target.value
+                  if (raw === '') { onChange(''); return }
+                  // Typed over the top of an existing number, a stray digit
+                  // would otherwise save as 850% and poison the average.
+                  onChange(String(Math.max(0, Math.min(100, Math.round(Number(raw))))))
+                }}
+                placeholder="—"
+                className="w-12 border-2 border-pastel-yellow-dark/30 rounded-lg px-1.5 py-1 text-sm text-right focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent"
+              />
+              <span className="text-sm font-semibold text-gray-500">%</span>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            {[0, 25, 50, 75, 100].map(p => (
               <button
                 key={p} type="button"
                 onClick={() => onChange(String(p))}
-                title={`${p}%`}
-                className={`flex-1 rounded-md transition-colors ${
-                  Number(value) >= p && value !== ''
-                    ? 'bg-pastel-yellow-dark'
-                    : 'bg-gray-100 hover:bg-pastel-yellow/40'
+                className={`flex-1 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+                  Number(value) === p && value !== ''
+                    ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900'
+                    : 'border-gray-200 bg-white text-gray-500 hover:bg-pastel-yellow/35'
                 }`}
-                style={{ height: `${14 + (p / 100) * 24}px` }}
-              />
+              >
+                {p}%
+              </button>
             ))}
           </div>
-          <span className="w-12 text-right text-sm font-semibold text-gray-600">
-            {value === '' ? '—' : `${value}%`}
-          </span>
         </div>
       ) : f.type === 'multi' ? (
         // Tick all that happened. More than one can be true in an endgame, and
