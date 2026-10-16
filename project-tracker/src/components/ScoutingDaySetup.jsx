@@ -26,6 +26,7 @@ const DEFAULT_DATA = {
     { role: 'Pit Crew', members: [] },
     { role: 'Media', members: [] },
     { role: 'Observation', members: [] },
+    { role: 'Scouting', members: [] },
   ],
   scoutGroups: [
     { id: 's1', name: 'Group 1', head: '', red1: '', red2: '', blue1: '', blue2: '' },
@@ -92,7 +93,12 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
   // Fill in any missing sections so old saved rows still render
   const withDefaults = (loaded) => ({
-    fixedRoles: loaded.fixedRoles || DEFAULT_DATA.fixedRoles.map(r => ({ ...r })),
+    // A role added to the default list after a day was saved is appended to
+    // that day, so every day shows the same set of jobs.
+    fixedRoles: (() => {
+      const have = loaded.fixedRoles || []
+      return [...have, ...DEFAULT_DATA.fixedRoles.filter(d => !have.some(r => r.role === d.role)).map(r => ({ ...r }))]
+    })(),
     // Days saved before this started with three scouting groups. Drop the
     // second and third when nobody was ever put in them; one a lead added
     // (any other id) stays, full or not.
