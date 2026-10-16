@@ -2,12 +2,11 @@ import MemberPicker from './MemberPicker'
 import { useMemberNames } from '../hooks/useMemberNames'
 import { onlyMyTeam, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
-import TeamPicker from './TeamPicker'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Check, ChevronLeft, ClipboardList, Pencil, Play, Plus, Shuffle, Square, Star, Target, Trash2, Users, Wrench } from 'lucide-react'
+import { Check, ChevronLeft, ClipboardList, Pencil, Play, Plus, Shuffle, Square, Star, Target, Trash2, Wrench } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
@@ -23,9 +22,6 @@ import { ALL_TEAMS } from '../data/teams'
 // A hard-coded roster is wrong the moment somebody joins or leaves, and it is
 // wrong quietly. Leads pick real people from the real roster instead.
 const DEFAULT_DATA = {
-  groups: [
-    { id: '1', name: 'Group 1', members: [], teams: [] },
-  ],
   fixedRoles: [
     { role: 'Drive Team', members: [] },
     { role: 'Pit Crew', members: [] },
@@ -34,8 +30,6 @@ const DEFAULT_DATA = {
   ],
   scoutGroups: [
     { id: 's1', name: 'Group 1', head: '', red1: '', red2: '', blue1: '', blue2: '' },
-    { id: 's2', name: 'Group 2', head: '', red1: '', red2: '', blue1: '', blue2: '' },
-    { id: 's3', name: 'Group 3', head: '', red1: '', red2: '', blue1: '', blue2: '' },
   ],
   standBy: '',
   matchSchedule: [
@@ -44,7 +38,6 @@ const DEFAULT_DATA = {
 }
 
 const TABS = [
-  { key: 'groups', label: 'Groups', icon: Users },
   { key: 'roles', label: 'Event Roles', icon: Wrench },
   { key: 'scouting', label: 'Scouting', icon: Target },
   { key: 'schedule', label: 'Match Schedule', icon: ClipboardList },
@@ -52,20 +45,25 @@ const TABS = [
 
 const uid = () => String(Date.now()) + Math.random().toString(36).slice(2)
 
-// Small read/edit text field
-function Slot({ label, value, onChange, isLead, tint }) {
+// One person in one position. Leads pick from the roster (the same list the
+// event pickers use, so no mentor, coach or the ETS account); a name saved
+// before this that is not on the roster still shows, so nothing vanishes.
+function Slot({ label, value, onChange, isLead, tint, options = [] }) {
   const bg = tint === 'red' ? 'bg-red-50' : tint === 'blue' ? 'bg-blue-50' : 'bg-white'
   const labelColor = tint === 'red' ? 'text-red-600' : tint === 'blue' ? 'text-blue-600' : 'text-gray-500'
+  const choices = value && !options.includes(value) ? [value, ...options] : options
   return (
     <div className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${tint ? bg : ''}`}>
       <span className={`text-xs font-semibold w-14 shrink-0 ${labelColor}`}>{label}</span>
       {isLead ? (
-        <input
+        <select
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="—"
-          className="flex-1 min-w-0 text-sm bg-transparent border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5"
-        />
+          className="flex-1 min-w-0 text-sm bg-transparent border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5 text-gray-700"
+        >
+          <option value="">—</option>
+          {choices.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
       ) : (
         <span className="flex-1 text-sm text-gray-700 truncate">{value || <span className="italic text-gray-300">—</span>}</span>
       )}
@@ -75,7 +73,7 @@ function Slot({ label, value, onChange, isLead, tint }) {
 
 // onRename, when given, lets a lead change the day's name from this screen
 // instead of going back to the list; the caller owns where the name lives.
-export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, onRename, initialTab = 'groups' }) {
+export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, onRename, initialTab = 'scouting' }) {
   const { username } = useUser()
   const { hasLeadTag, myTeamNumber} = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
@@ -102,13 +100,12 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
   // Fill in any missing sections so old saved rows still render
   const withDefaults = (loaded) => ({
-    // Days saved before this only started with one group carried two more,
-    // empty, from the old default. Drop those two when nothing was ever put
-    // in them; a group a lead added (any other id) stays, full or not.
-    groups: (loaded.groups || DEFAULT_DATA.groups.map(g => ({ ...g })))
-      .filter(g => !(['2', '3'].includes(g.id) && !(g.members || []).length && !(g.teams || []).length)),
     fixedRoles: loaded.fixedRoles || DEFAULT_DATA.fixedRoles.map(r => ({ ...r })),
-    scoutGroups: loaded.scoutGroups || DEFAULT_DATA.scoutGroups.map(s => ({ ...s })),
+    // Days saved before this started with three scouting groups. Drop the
+    // second and third when nobody was ever put in them; one a lead added
+    // (any other id) stays, full or not.
+    scoutGroups: (loaded.scoutGroups || DEFAULT_DATA.scoutGroups.map(s => ({ ...s })))
+      .filter(g => !(['s2', 's3'].includes(g.id) && !g.head && !g.red1 && !g.red2 && !g.blue1 && !g.blue2)),
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
     matchSchedule: loaded.matchSchedule || DEFAULT_DATA.matchSchedule.map(m => ({ ...m })),
   })
@@ -210,14 +207,8 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
         ...g, head: next(), red1: next(), red2: next(), blue1: next(), blue2: next(),
       }))
       const standBy = next()
-      // What is left over, shared out evenly between the working groups.
-      const left = deck.slice(Math.min(at, deck.length))
-      const groups = p.groups.map((g, i) => ({
-        ...g,
-        members: left.filter((_, k) => k % Math.max(1, p.groups.length) === i),
-      }))
       const fixedRoles = p.fixedRoles.map(r => ({ ...r, members: [next()] }))
-      return { ...p, scoutGroups, standBy, groups, fixedRoles }
+      return { ...p, scoutGroups, standBy, fixedRoles }
     })
   }
   const csv = (arr) => (arr || []).join(', ')
@@ -284,7 +275,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 onClick={shuffleEverything}
                 disabled={!roster.length}
                 title={roster.length
-                  ? 'Deal everyone out at random — scouting positions, stand-by, groups and event roles'
+                  ? 'Deal everyone out at random — scouting positions, stand-by and event roles'
                   : 'Waiting for the roster'}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800 transition-colors disabled:bg-gray-100 disabled:text-gray-400"
               >
@@ -333,49 +324,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
             </div>
           )}
 
-          {/* ---- GROUPS TAB ---- */}
-          {tab === 'groups' && (
-            <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {data.groups.map((group, i) => (
-                <div key={group.id} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100">
-                  <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                    <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-pastel-blue to-pastel-pink text-white text-xs flex items-center justify-center font-black shrink-0">{i + 1}</span>
-                    {isLead ? (
-                      <>
-                        <input value={group.name} onChange={e => update(p => { const g = [...p.groups]; g[i] = { ...g[i], name: e.target.value }; return { ...p, groups: g } })} className="flex-1 min-w-0 bg-transparent border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5" />
-                        {data.groups.length > 1 && (
-                          <button onClick={() => update(p => ({ ...p, groups: p.groups.filter(x => x.id !== group.id) }))} title="Remove this group" className="p-1 rounded hover:bg-red-50"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>
-                        )}
-                      </>
-                    ) : group.name}
-                  </h4>
-                  {isLead ? (
-                    <>
-                      <label className="text-[11px] font-semibold text-gray-400 uppercase">Members</label>
-                      <div className="mb-2"><MemberPicker forEvent value={group.members} onChange={members => update(p => { const g = [...p.groups]; g[i] = { ...g[i], members }; return { ...p, groups: g } })} /></div>
-                      <label className="text-[11px] font-semibold text-gray-400 uppercase">FTC Teams</label>
-                      <TeamPicker value={group.teams} onChange={teams => update(p => { const g = [...p.groups]; g[i] = { ...g[i], teams }; return { ...p, groups: g } })} />
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {group.members.length ? group.members.map(m => <span key={m} className="text-xs px-2 py-0.5 bg-pastel-blue/20 text-gray-600 rounded-full">{m}</span>) : <span className="text-xs italic text-gray-300">No members</span>}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {group.teams.map(t => <span key={t} className="text-xs px-1.5 py-0.5 bg-pastel-orange/30 text-gray-600 rounded font-mono">#{t}</span>)}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-            {isLead && (
-              <button onClick={() => update(p => ({ ...p, groups: [...p.groups, { id: uid(), name: `Group ${p.groups.length + 1}`, members: [], teams: [] }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group</button>
-            )}
-            </>
-          )}
-
           {/* ---- EVENT ROLES TAB ---- */}
           {tab === 'roles' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -402,7 +350,10 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 <Star size={15} className="text-pastel-orange-dark shrink-0" />
                 <span className="text-xs font-semibold text-gray-500 shrink-0">Stand By</span>
                 {isLead ? (
-                  <input value={data.standBy} onChange={e => update(p => ({ ...p, standBy: e.target.value }))} placeholder="—" className="flex-1 text-sm border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5" />
+                  <select value={data.standBy || ''} onChange={e => update(p => ({ ...p, standBy: e.target.value }))} className="flex-1 min-w-0 text-sm bg-transparent border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5 text-gray-700">
+                    <option value="">—</option>
+                    {(data.standBy && !roster.includes(data.standBy) ? [data.standBy, ...roster] : roster).map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 ) : (
                   <span className="text-sm font-medium text-gray-700">{data.standBy || <span className="italic text-gray-300">—</span>}</span>
                 )}
@@ -412,20 +363,28 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 {data.scoutGroups.map((g, i) => (
                   <div key={g.id} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100">
                     {isLead ? (
-                      <input value={g.name} onChange={e => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], name: e.target.value }; return { ...p, scoutGroups: s } })} className="w-full text-sm font-bold text-gray-700 mb-2 border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5" />
+                      <div className="flex items-center gap-1 mb-2">
+                        <input value={g.name} onChange={e => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], name: e.target.value }; return { ...p, scoutGroups: s } })} className="flex-1 min-w-0 text-sm font-bold text-gray-700 border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5" />
+                        {data.scoutGroups.length > 1 && (
+                          <button onClick={() => update(p => ({ ...p, scoutGroups: p.scoutGroups.filter(x => x.id !== g.id) }))} title="Remove this group" className="p-1 rounded hover:bg-red-50 shrink-0"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>
+                        )}
+                      </div>
                     ) : (
                       <h4 className="text-sm font-bold text-gray-700 mb-2">{g.name}</h4>
                     )}
                     <div className="space-y-1">
-                      <Slot label="Head" value={g.head} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], head: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot label="Red 1" tint="red" value={g.red1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red1: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot label="Red 2" tint="red" value={g.red2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red2: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot label="Blue 1" tint="blue" value={g.blue1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue1: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot label="Blue 2" tint="blue" value={g.blue2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue2: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={roster} label="Head" value={g.head} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], head: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={roster} label="Red 1" tint="red" value={g.red1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red1: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={roster} label="Red 2" tint="red" value={g.red2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red2: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={roster} label="Blue 1" tint="blue" value={g.blue1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue1: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={roster} label="Blue 2" tint="blue" value={g.blue2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue2: v }; return { ...p, scoutGroups: s } })} />
                     </div>
                   </div>
                 ))}
               </div>
+              {isLead && (
+                <button onClick={() => update(p => ({ ...p, scoutGroups: [...p.scoutGroups, { id: uid(), name: `Group ${p.scoutGroups.length + 1}`, head: '', red1: '', red2: '', blue1: '', blue2: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group</button>
+              )}
 
               {/* Period control (compact, leads only) */}
               {isLead && !activePeriod && (
