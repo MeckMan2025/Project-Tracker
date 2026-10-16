@@ -20,13 +20,16 @@ import { ALL_TEAMS } from '../data/teams'
 //
 // A hard-coded roster is wrong the moment somebody joins or leaves, and it is
 // wrong quietly. Leads pick real people from the real roster instead.
+// The event role whose members are the scouts; the Scouting tab draws from it.
+const SCOUTING_ROLE = 'Scouting'
+
 const DEFAULT_DATA = {
   fixedRoles: [
     { role: 'Drive Team', members: [] },
     { role: 'Pit Crew', members: [] },
     { role: 'Media', members: [] },
     { role: 'Observation', members: [] },
-    { role: 'Scouting', members: [] },
+    { role: SCOUTING_ROLE, members: [] },
   ],
   scoutGroups: [
     { id: 's1', name: 'Group 1', head: '', red1: '', red2: '', blue1: '', blue2: '' },
@@ -163,25 +166,45 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   // than inventing anyone when the roster has not loaded.
   const roster = useMemberNames({ forEvent: true })
 
-  const shuffleEverything = () => {
-    if (!roster.length) return
-    const deck = [...roster]
+  const shuffle = (list) => {
+    const deck = [...list]
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[deck[i], deck[j]] = [deck[j], deck[i]]
     }
+    return deck
+  }
+
+  // The Scouting event role is who scouts. The positions on the Scouting tab
+  // are filled from those people and nobody else, so a lead decides the pool
+  // once, in Event Roles, and the tab offers only them.
+  const scoutPool = (data?.fixedRoles || []).find(r => r.role === SCOUTING_ROLE)?.members || []
+
+  const shuffleEverything = () => {
+    if (!roster.length) return
+    // Scouting positions are dealt from the Scouting role. When nobody has been
+    // put on it yet, everyone is in the pool and the people dealt a position
+    // become the role, so the tab and the role still agree afterwards.
+    const scouts = shuffle(scoutPool.length ? scoutPool : roster)
+    const others = shuffle(roster.filter(n => !scouts.includes(n)))
     let at = 0
     // Round-robin: when there are fewer people than jobs, start the deck again
     // rather than leaving the rest of the day blank. Somebody doubling up is a
     // thing a lead can see and fix; an empty position is one they cannot.
-    const next = () => deck[at++ % deck.length]
+    const nextScout = () => scouts[at++ % scouts.length]
+    let ot = 0
+    const nextOther = () => (others.length ? others : roster)[ot++ % (others.length || roster.length)]
 
     update(p => {
+      const dealt = []
+      const take = () => { const n = nextScout(); dealt.push(n); return n }
       const scoutGroups = p.scoutGroups.map(g => ({
-        ...g, head: next(), red1: next(), red2: next(), blue1: next(), blue2: next(),
+        ...g, head: take(), red1: take(), red2: take(), blue1: take(), blue2: take(),
       }))
-      const standBy = next()
-      const fixedRoles = p.fixedRoles.map(r => ({ ...r, members: [next()] }))
+      const standBy = take()
+      const fixedRoles = p.fixedRoles.map(r => r.role === SCOUTING_ROLE
+        ? { ...r, members: scoutPool.length ? r.members : [...new Set(dealt)] }
+        : { ...r, members: [nextOther()] })
       return { ...p, scoutGroups, standBy, fixedRoles }
     })
   }
@@ -286,6 +309,11 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
           {/* ---- SCOUTING TAB ---- */}
           {tab === 'scouting' && (
             <>
+              {isLead && !scoutPool.length && (
+                <p className="text-xs text-gray-400">
+                  Positions here are picked from the people on the <button onClick={() => setTab('roles')} className="font-semibold text-pastel-blue-dark hover:underline">Scouting role</button> in Event Roles. Nobody is on it yet, so put your scouts there first, or press Randomise to deal everyone out.
+                </p>
+              )}
               {/* Stand By */}
               <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-2">
                 <Star size={15} className="text-pastel-orange-dark shrink-0" />
@@ -293,7 +321,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 {isLead ? (
                   <select value={data.standBy || ''} onChange={e => update(p => ({ ...p, standBy: e.target.value }))} className="flex-1 min-w-0 text-sm bg-transparent border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5 text-gray-700">
                     <option value="">—</option>
-                    {(data.standBy && !roster.includes(data.standBy) ? [data.standBy, ...roster] : roster).map(n => <option key={n} value={n}>{n}</option>)}
+                    {(data.standBy && !scoutPool.includes(data.standBy) ? [data.standBy, ...scoutPool] : scoutPool).map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                 ) : (
                   <span className="text-sm font-medium text-gray-700">{data.standBy || <span className="italic text-gray-300">—</span>}</span>
@@ -314,11 +342,11 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                       <h4 className="text-sm font-bold text-gray-700 mb-2">{g.name}</h4>
                     )}
                     <div className="space-y-1">
-                      <Slot options={roster} label="Head" value={g.head} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], head: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot options={roster} label="Red 1" tint="red" value={g.red1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red1: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot options={roster} label="Red 2" tint="red" value={g.red2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red2: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot options={roster} label="Blue 1" tint="blue" value={g.blue1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue1: v }; return { ...p, scoutGroups: s } })} />
-                      <Slot options={roster} label="Blue 2" tint="blue" value={g.blue2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue2: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={scoutPool} label="Head" value={g.head} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], head: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={scoutPool} label="Red 1" tint="red" value={g.red1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red1: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={scoutPool} label="Red 2" tint="red" value={g.red2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], red2: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={scoutPool} label="Blue 1" tint="blue" value={g.blue1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue1: v }; return { ...p, scoutGroups: s } })} />
+                      <Slot options={scoutPool} label="Blue 2" tint="blue" value={g.blue2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue2: v }; return { ...p, scoutGroups: s } })} />
                     </div>
                   </div>
                 ))}
