@@ -3,8 +3,10 @@ import { useMemberNames } from '../hooks/useMemberNames'
 
 // Pick teammates from the roster instead of typing names — chips plus a
 // dropdown of whoever isn't already picked.
-export default function MemberPicker({ value = [], onChange, placeholder = '+ Add member…' }) {
-  const names = useMemberNames()
+// forEvent leaves out mentors, coaches and the shared ETS account — people
+// who are at the event but never on its rota.
+export default function MemberPicker({ value = [], onChange, placeholder = '+ Add member…', forEvent = false }) {
+  const names = useMemberNames({ forEvent })
   const remaining = names.filter(n => !value.includes(n))
 
   return (

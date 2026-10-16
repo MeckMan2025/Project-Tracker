@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react'
 import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders, ensureUserToken } from '../lib/restHeaders'
+import { excludedFromAttendance } from '../lib/attendanceRoster'
 
 // The team roster, for dropdowns. One shared source so every "pick a person"
 // control agrees with RadMems instead of relying on typed names.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export function useMemberNames() {
+// forEvent: who is never put on an event rota — the mentors and coaches (they
+// run the day, they are not dealt a job on it) and the shared ETS account,
+// which is not a person. The same rule attendance uses, so the two never
+// disagree about who counts. Only the event pickers ask for this; the task
+// assignee list still shows everyone.
+export function useMemberNames({ forEvent = false } = {}) {
   const [names, setNames] = useState([])
 
   // Wait for a real token before asking.
@@ -36,6 +42,7 @@ export function useMemberNames() {
           const rows = await res.json()
           const people = (Array.isArray(rows) ? rows : [])
             .filter(r => !(r.function_tags || []).includes('Team')) // team accounts aren't people
+            .filter(r => !forEvent || !excludedFromAttendance(r))
             .map(r => r.display_name)
             .filter(Boolean)
           if (!active) return
@@ -44,7 +51,7 @@ export function useMemberNames() {
       }
     })()
     return () => { active = false }
-  }, [])
+  }, [forEvent])
 
   return names
 }

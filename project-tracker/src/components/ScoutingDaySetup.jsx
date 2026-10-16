@@ -25,8 +25,6 @@ import { ALL_TEAMS } from '../data/teams'
 const DEFAULT_DATA = {
   groups: [
     { id: '1', name: 'Group 1', members: [], teams: [] },
-    { id: '2', name: 'Group 2', members: [], teams: [] },
-    { id: '3', name: 'Group 3', members: [], teams: [] },
   ],
   fixedRoles: [
     { role: 'Drive Team', members: [] },
@@ -96,7 +94,11 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
   // Fill in any missing sections so old saved rows still render
   const withDefaults = (loaded) => ({
-    groups: loaded.groups || DEFAULT_DATA.groups.map(g => ({ ...g })),
+    // Days saved before this only started with one group carried two more,
+    // empty, from the old default. Drop those two when nothing was ever put
+    // in them; a group a lead added (any other id) stays, full or not.
+    groups: (loaded.groups || DEFAULT_DATA.groups.map(g => ({ ...g })))
+      .filter(g => !(['2', '3'].includes(g.id) && !(g.members || []).length && !(g.teams || []).length)),
     fixedRoles: loaded.fixedRoles || DEFAULT_DATA.fixedRoles.map(r => ({ ...r })),
     scoutGroups: loaded.scoutGroups || DEFAULT_DATA.scoutGroups.map(s => ({ ...s })),
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
@@ -180,7 +182,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   //
   // Only ever real people from the live roster, which is why it refuses rather
   // than inventing anyone when the roster has not loaded.
-  const roster = useMemberNames()
+  const roster = useMemberNames({ forEvent: true })
 
   const shuffleEverything = () => {
     if (!roster.length) return
@@ -306,17 +308,25 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
 
           {/* ---- GROUPS TAB ---- */}
           {tab === 'groups' && (
+            <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {data.groups.map((group, i) => (
                 <div key={group.id} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100">
                   <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                    <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-pastel-blue to-pastel-pink text-white text-xs flex items-center justify-center font-black">{i + 1}</span>
-                    {group.name}
+                    <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-pastel-blue to-pastel-pink text-white text-xs flex items-center justify-center font-black shrink-0">{i + 1}</span>
+                    {isLead ? (
+                      <>
+                        <input value={group.name} onChange={e => update(p => { const g = [...p.groups]; g[i] = { ...g[i], name: e.target.value }; return { ...p, groups: g } })} className="flex-1 min-w-0 bg-transparent border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5" />
+                        {data.groups.length > 1 && (
+                          <button onClick={() => update(p => ({ ...p, groups: p.groups.filter(x => x.id !== group.id) }))} title="Remove this group" className="p-1 rounded hover:bg-red-50"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>
+                        )}
+                      </>
+                    ) : group.name}
                   </h4>
                   {isLead ? (
                     <>
                       <label className="text-[11px] font-semibold text-gray-400 uppercase">Members</label>
-                      <div className="mb-2"><MemberPicker value={group.members} onChange={members => update(p => { const g = [...p.groups]; g[i] = { ...g[i], members }; return { ...p, groups: g } })} /></div>
+                      <div className="mb-2"><MemberPicker forEvent value={group.members} onChange={members => update(p => { const g = [...p.groups]; g[i] = { ...g[i], members }; return { ...p, groups: g } })} /></div>
                       <label className="text-[11px] font-semibold text-gray-400 uppercase">FTC Teams</label>
                       <TeamPicker value={group.teams} onChange={teams => update(p => { const g = [...p.groups]; g[i] = { ...g[i], teams }; return { ...p, groups: g } })} />
                     </>
@@ -333,6 +343,10 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 </div>
               ))}
             </div>
+            {isLead && (
+              <button onClick={() => update(p => ({ ...p, groups: [...p.groups, { id: uid(), name: `Group ${p.groups.length + 1}`, members: [], teams: [] }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group</button>
+            )}
+            </>
           )}
 
           {/* ---- EVENT ROLES TAB ---- */}
@@ -342,7 +356,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 <div key={role.role} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100">
                   <h4 className="text-sm font-bold text-gray-700 mb-2">{role.role}</h4>
                   {isLead ? (
-                    <MemberPicker value={role.members} onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return { ...p, fixedRoles: r } })} />
+                    <MemberPicker forEvent value={role.members} onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return { ...p, fixedRoles: r } })} />
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {role.members.length ? role.members.map(m => <span key={m} className="text-xs px-2 py-0.5 bg-pastel-pink/20 text-gray-600 rounded-full">{m}</span>) : <span className="text-xs italic text-gray-300">Not assigned</span>}
