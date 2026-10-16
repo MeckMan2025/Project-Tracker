@@ -11,6 +11,8 @@ import {
 import { ALL_TEAMS, teamLabel } from '../data/teams'
 import { stampTeam, teamScope } from '../lib/teamScope'
 import ScoutingSync from './ScoutingSync'
+import { useDayDoc } from '../hooks/useDayDoc'
+import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 
 // Match scouting: one row per team per match.
@@ -29,9 +31,12 @@ function toggleMulti(picked, opt, on) {
   return [...picked.filter(x => !EXCLUSIVE_OPTIONS.includes(x)), opt].join(',')
 }
 
-export default function ScoutingForm() {
+// liveDay: the Competition Day that is live right now, or null. While one is
+// live the rota comes from that day's own setup rather than the static list.
+export default function ScoutingForm({ liveDay = null }) {
   const { username } = useUser()
   const { hasLeadTag, myTeamNumber } = usePermissions()
+  const liveDoc = useDayDoc(liveDay ? `day-comp-${liveDay.id}` : null)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const headers = restHeaders()
@@ -50,7 +55,16 @@ export default function ScoutingForm() {
   // in — rather than something the form decided for you.
   //
   // "Next" is the earliest match of theirs with nothing submitted yet.
+  // On a live day: what this person is down for, and what of it is still to do.
+  const liveRota = useMemo(() => (liveDay && liveDoc) ? assignmentsFor(liveDoc, username) : null, [liveDay, liveDoc, username])
+  const liveLeft = useMemo(() => {
+    if (!liveRota) return null
+    const done = scoutedKeys(rows)
+    return liveRota.filter(a => !done.has(`${a.team}|${a.match}`))
+  }, [liveRota, rows])
+
   const nextAssignment = useMemo(() => {
+    if (liveRota) return liveLeft[0] || null
     const first = String(username || '').trim().split(' ')[0].toLowerCase()
     if (!first) return null
     const mine = MATCH_ASSIGNMENTS
@@ -58,7 +72,7 @@ export default function ScoutingForm() {
       .sort((a, b) => Number(a.match) - Number(b.match))
     const done = new Set(rows.map(r => String(r.team_number || '').trim() + '|' + String(r.match_number || '').trim()))
     return mine.find(a => !done.has(a.team + '|' + a.match)) || null
-  }, [username, rows])
+  }, [username, rows, liveRota, liveLeft])
 
   // Filled in once, while the form is still empty. A form that keeps
   // correcting what you typed is worse than one that never helped.
@@ -248,6 +262,15 @@ export default function ScoutingForm() {
         </button>
       }
     >
+      {liveDay && !showData && (
+        <div className="flex items-center gap-2 text-xs rounded-xl px-3 py-2 bg-green-50 border border-green-200 text-green-800">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+          <span className="font-semibold truncate">{liveDay.name || 'Competition Day'} is live</span>
+          <span className="ml-auto shrink-0 text-green-700">
+            {liveRota === null ? '' : liveRota.length === 0 ? 'Nothing on your rota' : liveLeft.length === 0 ? 'All of yours done' : `${liveLeft.length} of ${liveRota.length} of yours left`}
+          </span>
+        </div>
+      )}
       {saved && (
         <div className="flex items-center justify-center gap-1.5 text-sm text-green-600 font-medium">
           <Check size={15} /> Saved — team and match kept for the next one.

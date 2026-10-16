@@ -1849,7 +1849,7 @@ function App() {
       ) : activeTab === 'pit-scouting' ? (
         <PitScoutingForm />
       ) : activeTab === 'scouting' ? (
-        <ScoutingForm />
+        <ScoutingForm liveDay={liveDay} />
       ) : activeTab === 'schedule' ? (
         <ScoutingSchedule liveDay={liveDay} />
       ) : activeTab === 'team-scouting-data' ? (

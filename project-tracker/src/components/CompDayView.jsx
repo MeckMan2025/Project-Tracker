@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { stampTeam } from '../lib/teamScope'
+import { stampTeam, teamScope } from '../lib/teamScope'
+import { dayProgress } from '../lib/dayRota'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
 import { AlertCircle, ArrowLeft, Calendar, ChevronRight, ClipboardCheck, Pause, Play, Plus, Shield, Trash2, Users, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
@@ -60,6 +61,7 @@ export default function CompDayView({ onBack }) {
 
   // UI state
   const [newSessionName, setNewSessionName] = useState('')
+  const [progress, setProgress] = useState({}) // session id -> { scouted, total }
   const [newBlockName, setNewBlockName] = useState('')
   const [assigningBlock, setAssigningBlock] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -116,6 +118,25 @@ export default function CompDayView({ onBack }) {
       const all = await restGet('comp_day_sessions?order=created_at.desc&limit=20')
       setSessions(all)
 
+      // How far each day has got: of the (team, match) pairs on its match
+      // schedule, how many have a scouting row. This is what makes a paused
+      // day resumable — the rows and the schedule are the record, so hosting
+      // it again picks up exactly where it stopped.
+      try {
+        if (all.length) {
+          const ids = all.map(s => `day-comp-${s.id}`)
+          const [docs, recs] = await Promise.all([
+            restGet(`scouting_schedule?id=in.(${ids.map(encodeURIComponent).join(',')})&select=id,data`),
+            restGet(`match_scouting?${teamScope(myTeamNumber, 'owner_team')}&select=team_number,match_number`),
+          ])
+          const byId = {}
+          docs.forEach(d => { byId[d.id] = d.data })
+          const next = {}
+          all.forEach(s => { next[s.id] = dayProgress(byId[`day-comp-${s.id}`], recs) })
+          setProgress(next)
+        }
+      } catch { /* progress is a nicety; the list still works without it */ }
+
       // Load members list
       const profiles = await restGet('profiles?select=display_name,function_tags')
       setMembers(profiles.filter(p => !(p.function_tags || []).includes('Team')).map(p => p.display_name))
@@ -125,7 +146,7 @@ export default function CompDayView({ onBack }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [myTeamNumber])
 
   // Load data for a specific session
   const fetchSessionData = useCallback(async (sessionId) => {
@@ -206,6 +227,18 @@ export default function CompDayView({ onBack }) {
       setError('')
       await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { is_active: false })
       setActiveSession({ ...activeSession, is_active: false })
+      await fetchSessions()
+    } catch (err) { setError(err.message) }
+  }
+
+  // Host a paused or planned day from its card: it goes live for everyone and
+  // opens here. Any other live day is paused first; there is only ever one.
+  const hostSession = async (s) => {
+    try {
+      setError('')
+      await restPatch('comp_day_sessions', 'is_active=eq.true', { is_active: false })
+      await restPatch('comp_day_sessions', `id=eq.${s.id}`, { is_active: true })
+      setActiveSession({ ...s, is_active: true }); setAssigningBlock(null); setEditorTab('setup')
       await fetchSessions()
     } catch (err) { setError(err.message) }
   }
@@ -447,6 +480,11 @@ export default function CompDayView({ onBack }) {
   if (!activeSession) {
     const liveSessions = sessions.filter(s => s.is_active)
     const draftSessions = sessions.filter(s => !s.is_active)
+    const progressText = (s) => {
+      const p = progress[s.id]
+      if (!p || !p.total) return ''
+      return ` · ${p.scouted}/${p.total} scouted${!s.is_active && p.scouted ? ' · paused' : ''}`
+    }
 
     return (
       <div className="flex-1 flex flex-col min-w-0">
@@ -498,7 +536,7 @@ export default function CompDayView({ onBack }) {
                     >
                       <div>
                         <p className="font-semibold text-gray-800">{s.name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}{progressText(s)}</p>
                       </div>
                       <ChevronRight size={18} className="text-gray-400" />
                     </button>
@@ -510,7 +548,7 @@ export default function CompDayView({ onBack }) {
             {/* Draft plans */}
             {draftSessions.length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Your Plans</h3>
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Paused &amp; planned · host any of these again</h3>
                 <div className="space-y-2">
                   {draftSessions.map(s => (
                     <div key={s.id} className="flex items-center gap-2">
@@ -520,9 +558,12 @@ export default function CompDayView({ onBack }) {
                       >
                         <div>
                           <p className="font-semibold text-gray-800">{s.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{s.session_date} &middot; Created by {s.created_by}{progressText(s)}</p>
                         </div>
                         <ChevronRight size={18} className="text-gray-400" />
+                      </button>
+                      <button onClick={() => hostSession(s)} className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Host this day — everyone's app opens on it and scouting carries on where it stopped">
+                        <Play size={16} />
                       </button>
                       <button onClick={() => deleteSession(s.id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors" title="Delete plan">
                         <Trash2 size={16} />
@@ -650,8 +691,8 @@ export default function CompDayView({ onBack }) {
                 Go Live
               </button>
             ) : (
-              <button onClick={endSession} className="px-4 py-1.5 rounded-lg bg-red-50 text-red-500 border border-red-200 text-sm font-semibold hover:bg-red-100 transition-colors">
-                End
+              <button onClick={endSession} title="Pause this day — everyone's app goes back to normal; host it again any time to carry on" className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-red-50 text-red-500 border border-red-200 text-sm font-semibold hover:bg-red-100 transition-colors">
+                <Pause size={14} /> Pause
               </button>
             )}
             <NotificationBell />
