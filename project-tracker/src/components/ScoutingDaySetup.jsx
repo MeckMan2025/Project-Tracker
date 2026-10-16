@@ -23,12 +23,14 @@ import { ALL_TEAMS } from '../data/teams'
 // The event role whose members are the scouts; the Scouting tab draws from it.
 const SCOUTING_ROLE = 'Scouting'
 
+// Event roles that used to be offered and are not any more.
+const RETIRED_ROLES = ['Observation']
+
 const DEFAULT_DATA = {
   fixedRoles: [
     { role: 'Drive Team', members: [] },
     { role: 'Pit Crew', members: [] },
     { role: 'Media', members: [] },
-    { role: 'Observation', members: [] },
     { role: SCOUTING_ROLE, members: [] },
   ],
   scoutGroups: [
@@ -118,7 +120,8 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     // A role added to the default list after a day was saved is appended to
     // that day, so every day shows the same set of jobs.
     fixedRoles: (() => {
-      const have = loaded.fixedRoles || []
+      // Roles retired from the default list leave older days too.
+      const have = (loaded.fixedRoles || []).filter(r => !RETIRED_ROLES.includes(r.role))
       return [...have, ...DEFAULT_DATA.fixedRoles.filter(d => !have.some(r => r.role === d.role)).map(r => ({ ...r }))]
     })(),
     // Days saved before this started with three scouting groups. Drop the
