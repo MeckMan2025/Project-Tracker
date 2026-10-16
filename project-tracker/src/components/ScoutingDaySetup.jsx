@@ -95,7 +95,24 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
   // Fill in any missing sections so old saved rows still render
-  const withDefaults = (loaded) => ({
+  // One job each, across the whole day: somebody on Media (or any role other
+  // than Scouting) is not also a Head or a Red 2. Their scouting position is
+  // cleared, not the role, because the role is the deliberate choice and the
+  // position is what Randomise or an older day left behind.
+  const clearConflicts = (d) => {
+    const busy = new Set(d.fixedRoles.filter(r => r.role !== SCOUTING_ROLE).flatMap(r => r.members || []))
+    if (!busy.size) return d
+    const free = (name) => (busy.has(name) ? '' : name)
+    return {
+      ...d,
+      standBy: free(d.standBy),
+      scoutGroups: d.scoutGroups.map(g => ({
+        ...g, head: free(g.head), red1: free(g.red1), red2: free(g.red2), blue1: free(g.blue1), blue2: free(g.blue2),
+      })),
+    }
+  }
+
+  const withDefaults = (loaded) => clearConflicts({
     // A role added to the default list after a day was saved is appended to
     // that day, so every day shows the same set of jobs.
     fixedRoles: (() => {
@@ -294,7 +311,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                       value={role.members}
                       // One job each: somebody already on another role is not offered here.
                       exclude={data.fixedRoles.filter((_, k) => k !== i).flatMap(r => r.members || [])}
-                      onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return { ...p, fixedRoles: r } })}
+                      onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return clearConflicts({ ...p, fixedRoles: r }) })}
                     />
                   ) : (
                     <div className="flex flex-wrap gap-1">
