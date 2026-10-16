@@ -210,6 +210,16 @@ export default function CompDayView({ onBack }) {
     } catch (err) { setError(err.message) }
   }
 
+  const renameSession = async (name) => {
+    if (!activeSession || !name.trim()) return
+    try {
+      setError('')
+      await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { name: name.trim() })
+      setActiveSession({ ...activeSession, name: name.trim() })
+      await fetchSessions()
+    } catch (err) { setError(err.message) }
+  }
+
   const deleteSession = async (sid) => {
     try {
       setError('')
@@ -676,6 +686,7 @@ export default function CompDayView({ onBack }) {
               dateTitle={activeSession.name || 'Competition Day'}
               dateSubtitle="What everyone sees on the day"
               onBack={() => setActiveSession(null)}
+              onRename={renameSession}
             />
           )}
 

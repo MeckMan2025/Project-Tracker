@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { ChevronLeft, ClipboardList, Play, Plus, Shuffle, Square, Star, Target, Trash2, Users, Wrench } from 'lucide-react'
+import { Check, ChevronLeft, ClipboardList, Pencil, Play, Plus, Shuffle, Square, Star, Target, Trash2, Users, Wrench } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
@@ -73,13 +73,21 @@ function Slot({ label, value, onChange, isLead, tint }) {
   )
 }
 
-export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, initialTab = 'groups' }) {
+// onRename, when given, lets a lead change the day's name from this screen
+// instead of going back to the list; the caller owns where the name lives.
+export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, onRename, initialTab = 'groups' }) {
   const { username } = useUser()
   const { hasLeadTag, myTeamNumber} = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
   const isLead = hasLeadTag
   const [data, setData] = useState(null)
   const [tab, setTab] = useState(initialTab)
+  const [nameDraft, setNameDraft] = useState(null) // string while the title is being edited
+  const commitName = () => {
+    const next = (nameDraft || '').trim()
+    if (next && next !== dateTitle) onRename?.(next)
+    setNameDraft(null)
+  }
   const [activePeriod, setActivePeriod] = useState(null)
   const [periodSubmissions, setPeriodSubmissions] = useState([])
   const [showPeriodForm, setShowPeriodForm] = useState(false)
@@ -245,9 +253,28 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
               <ChevronLeft size={22} className="text-gray-500" />
             </button>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent truncate">
-                {dateTitle || 'Scouting Setup'}
-              </h1>
+              {nameDraft !== null ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    value={nameDraft}
+                    onChange={e => setNameDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') setNameDraft(null) }}
+                    onBlur={commitName}
+                    autoFocus
+                    className="text-xl font-bold text-gray-800 min-w-0 flex-1 bg-transparent border-b-2 border-pastel-blue focus:outline-none"
+                  />
+                  <button onMouseDown={e => e.preventDefault()} onClick={commitName} className="p-1 rounded hover:bg-gray-100" title="Save name"><Check size={16} className="text-green-600" /></button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent truncate">
+                    {dateTitle || 'Scouting Setup'}
+                  </h1>
+                  {isLead && onRename && (
+                    <button onClick={() => setNameDraft(dateTitle || '')} className="p-1 rounded hover:bg-gray-100 shrink-0" title="Rename"><Pencil size={14} className="text-gray-400 hover:text-pastel-blue-dark" /></button>
+                  )}
+                </div>
+              )}
               <p className="text-sm text-gray-500 truncate">{dateSubtitle || 'Groups, roles & scouting assignments'}</p>
             </div>
           </div>

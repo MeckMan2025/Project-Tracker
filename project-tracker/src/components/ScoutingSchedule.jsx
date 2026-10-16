@@ -101,6 +101,10 @@ export default function ScoutingSchedule() {
         dateTitle={openDate.title}
         dateSubtitle={fmt(openDate.date) + (openDate.time ? ` · ${openDate.time}` : '') + (openDate.location ? ` · ${openDate.location}` : '')}
         onBack={() => setOpenDate(null)}
+        onRename={(title) => {
+          persist(dates.map((d) => (d.id === openDate.id ? { ...d, title } : d)))
+          setOpenDate({ ...openDate, title })
+        }}
       />
     )
   }
