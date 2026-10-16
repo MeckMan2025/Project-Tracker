@@ -36,6 +36,7 @@ import TeamScoutingData from './components/TeamScoutingData'
 import TeamHomeView from './components/TeamHomeView'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
+import { useLiveCompDay } from './hooks/useLiveCompDay'
 import HomeView from './components/HomeView'
 import QuickChat from './components/QuickChat'
 import AllianceHubs from './components/AllianceHubs'
@@ -373,6 +374,13 @@ function App() {
   const { canEditContent, canRequestContent, canReviewRequests, canImport, canDragAnyTask, canDragOwnTask, canManageUsers, tier, isGuest, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs, myTeamNumber} = usePermissions()
 
   const SCOPE = teamScope(myTeamNumber)
+  // The Competition Day that is live, if any. When one starts, everyone is
+  // taken to its scouting screen (the Schedule tab shows it while it is live).
+  const liveDay = useLiveCompDay(SCOPE)
+  const liveDayId = liveDay?.id || null
+  useEffect(() => {
+    if (liveDayId && username) setActiveTab('schedule')
+  }, [liveDayId, username]) // eslint-disable-line react-hooks/exhaustive-deps
   // The task-load popup renders in several places, so it asks for navigation
   // by event instead of a threaded callback.
   useEffect(() => {
@@ -503,7 +511,7 @@ function App() {
   // Scouting is open to the team: scouts fill it in, and the only link to it
   // used to live inside the Competition Day block, so outside a comp-day
   // lockdown there was no way in at all. Schedule stays where it was.
-  if (!isCofounder && !effectiveIsTeam && !compDayLock) blockedTabs.push('schedule')
+  if (!isCofounder && !effectiveIsTeam && !compDayLock && !liveDay) blockedTabs.push('schedule')
   const [showPulse, setShowPulse] = useState(false)
 
   // Default sounds off for team accounts on first login
@@ -1843,7 +1851,7 @@ function App() {
       ) : activeTab === 'scouting' ? (
         <ScoutingForm />
       ) : activeTab === 'schedule' ? (
-        <ScoutingSchedule />
+        <ScoutingSchedule liveDay={liveDay} />
       ) : activeTab === 'team-scouting-data' ? (
         <TeamScoutingData />
       ) : activeTab === 'tasks' ? (

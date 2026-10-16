@@ -14,10 +14,17 @@ import ScoutingDaySetup from './ScoutingDaySetup'
 
 const EMPTY = { title: '', date: '', time: '', location: '', notes: '' }
 
-export default function ScoutingSchedule() {
-  const { hasLeadTag, myTeamNumber} = usePermissions()
+// liveDay: the Competition Day that is live right now (from useLiveCompDay),
+// or null. While one is live this screen opens on that day's setup for
+// everyone, read-only for most, so the whole team is looking at the same rota.
+export default function ScoutingSchedule({ liveDay = null }) {
+  const { hasLeadTag, isCofounder, myTeamNumber} = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
   const canManage = hasLeadTag
+  // Leads can step out to the list of dates while a day is live; everyone is
+  // put back on the live day whenever a new one starts.
+  const [awayFromLive, setAwayFromLive] = useState(false)
+  useEffect(() => { setAwayFromLive(false) }, [liveDay?.id])
 
   const [dates, setDates] = useState([])
   const [loading, setLoading] = useState(true)
@@ -93,6 +100,31 @@ export default function ScoutingSchedule() {
   }
   const isPast = (dateStr) => dateStr && new Date(dateStr + 'T23:59:59') < new Date()
 
+  // Only the Co-Founders end a live day from here. The same as End on the
+  // Competition Day screen: is_active off, and everyone's app lets go.
+  const pauseLive = async () => {
+    if (!liveDay) return
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/comp_day_sessions?id=eq.${encodeURIComponent(liveDay.id)}`, {
+        method: 'PATCH',
+        headers: restHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ is_active: false }),
+      })
+    } catch { /* the realtime check will show whether it took */ }
+  }
+
+  if (liveDay && !awayFromLive) {
+    return (
+      <ScoutingDaySetup
+        scheduleId={`day-comp-${liveDay.id}`}
+        dateTitle={liveDay.name || 'Competition Day'}
+        dateSubtitle={`Live now${liveDay.session_date ? ` · ${liveDay.session_date}` : ''}`}
+        onBack={canManage ? () => setAwayFromLive(true) : undefined}
+        onPause={isCofounder ? pauseLive : undefined}
+      />
+    )
+  }
+
   // When a date is opened, show the original scouting-setup screen for it.
   if (openDate) {
     return (
@@ -124,6 +156,15 @@ export default function ScoutingSchedule() {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto space-y-3">
+        {liveDay && (
+          <button onClick={() => setAwayFromLive(false)} className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-50 border border-green-200 rounded-xl text-sm font-semibold text-green-800 hover:bg-green-100">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+            </span>
+            {liveDay.name || 'Competition Day'} is live — back to it
+          </button>
+        )}
         {canManage && (
           <button onClick={openAdd} className="w-full flex items-center justify-center gap-2 py-3 bg-pastel-pink hover:bg-pastel-pink-dark rounded-xl font-semibold text-gray-700 transition-colors">
             <Plus size={18} /> Schedule a Date

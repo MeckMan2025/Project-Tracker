@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Check, ChevronLeft, ClipboardList, Pencil, Plus, Shuffle, Star, Target, Trash2, Wrench } from 'lucide-react'
+import { Check, ChevronLeft, ClipboardList, Pause, Pencil, Plus, Shuffle, Star, Target, Trash2, Wrench } from 'lucide-react'
 import { ALL_TEAMS } from '../data/teams'
 
 // ---- Default data (from the team's scouting spreadsheet) -------------------
@@ -76,7 +76,9 @@ function Slot({ label, value, onChange, isLead, tint, options = [] }) {
 
 // onRename, when given, lets a lead change the day's name from this screen
 // instead of going back to the list; the caller owns where the name lives.
-export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, onRename, initialTab = 'scouting' }) {
+// onPause, when given, puts a Pause button in the header: this day is live for
+// everyone and the caller knows how to end that. Only passed to the few who may.
+export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, onBack, onRename, onPause, initialTab = 'scouting' }) {
   const { username } = useUser()
   const { hasLeadTag, myTeamNumber} = usePermissions()
   const SCOPE = teamScope(myTeamNumber)
@@ -237,9 +239,11 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 ml-14 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <button onClick={onBack} className="p-1.5 -ml-1 rounded-lg hover:bg-gray-100 shrink-0" title="Back to schedule">
-              <ChevronLeft size={22} className="text-gray-500" />
-            </button>
+            {onBack && (
+              <button onClick={onBack} className="p-1.5 -ml-1 rounded-lg hover:bg-gray-100 shrink-0" title="Back to schedule">
+                <ChevronLeft size={22} className="text-gray-500" />
+              </button>
+            )}
             <div className="min-w-0">
               {nameDraft !== null ? (
                 <div className="flex items-center gap-1">
@@ -267,6 +271,15 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {onPause && (
+              <button
+                onClick={onPause}
+                title="Pause this Competition Day — everyone's app goes back to normal"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors"
+              >
+                <Pause size={15} /> Pause
+              </button>
+            )}
             {isLead && tab === 'scouting' && (
               <button
                 onClick={shuffleEverything}
