@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Check, ChevronLeft, ClipboardList, Pencil, Play, Plus, Shuffle, Square, Star, Target, Trash2, Wrench } from 'lucide-react'
+import { Check, ChevronLeft, ClipboardList, Pencil, Plus, Shuffle, Star, Target, Trash2, Wrench } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
@@ -86,17 +86,10 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     if (next && next !== dateTitle) onRename?.(next)
     setNameDraft(null)
   }
-  const [activePeriod, setActivePeriod] = useState(null)
-  const [periodSubmissions, setPeriodSubmissions] = useState([])
-  const [showPeriodForm, setShowPeriodForm] = useState(false)
-  const [periodName, setPeriodName] = useState('')
   const saveTimer = useRef(null)
-  const activePeriodRef = useRef(null)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-  useEffect(() => { activePeriodRef.current = activePeriod }, [activePeriod])
 
   // Fill in any missing sections so old saved rows still render
   const withDefaults = (loaded) => ({
@@ -109,13 +102,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
     matchSchedule: loaded.matchSchedule || DEFAULT_DATA.matchSchedule.map(m => ({ ...m })),
   })
-
-  const loadSubmissions = useCallback(async (periodId) => {
-    try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/scouting_records?scouting_period_id=eq.${periodId}&select=submitted_by`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
-      if (res.ok) { const rows = await res.json(); setPeriodSubmissions(rows.map(r => r.submitted_by)) }
-    } catch { /* ignore */ }
-  }, [supabaseUrl, supabaseKey])
 
   useEffect(() => {
     setData(null)
@@ -132,31 +118,14 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   }, [supabaseUrl, supabaseKey, scheduleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods?${SCOPE}&is_active=eq.true&select=*&limit=1`, { headers: restHeaders({ 'Content-Type': 'application/json' }) })
-        if (res.ok) { const rows = await res.json(); const p = rows?.[0] || null; setActivePeriod(p); if (p) loadSubmissions(p.id) }
-      } catch { /* ignore */ }
-    })()
-  }, [supabaseUrl, supabaseKey, loadSubmissions]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
     const channel = supabase
       .channel(`schedule-${scheduleId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, onlyMyTeam((payload) => {
         if (payload.new?.id === scheduleId && payload.new?.data) setData(withDefaults(payload.new.data))
       }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_periods' }, onlyMyTeam((payload) => {
-        if (payload.new?.is_active) { setActivePeriod(payload.new); loadSubmissions(payload.new.id) }
-        else { setActivePeriod(null); setPeriodSubmissions([]) }
-      }))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scouting_records' }, onlyMyTeam((payload) => {
-        const current = activePeriodRef.current
-        if (current && payload.new?.scouting_period_id === current.id) setPeriodSubmissions(prev => [...prev, payload.new.submitted_by])
-      }))
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [loadSubmissions, scheduleId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scheduleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const autoSave = useCallback((newData) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -213,23 +182,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   }
   const csv = (arr) => (arr || []).join(', ')
 
-  // ---- Scouting period ----
-  const startPeriod = async () => {
-    if (!periodName.trim()) return
-    const expected = data.scoutGroups.flatMap(g => [g.red1, g.red2, g.blue1, g.blue2]).filter(Boolean)
-    const period = { id: uid(), name: periodName.trim(), started_at: new Date().toISOString(), ended_at: null, is_active: true, created_by: username, expected_scouts: expected }
-    try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/scouting_periods`, { method: 'POST', headers: restHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(period) })
-      if (res.ok) { setActivePeriod(period); setPeriodSubmissions([]); setShowPeriodForm(false); setPeriodName('') }
-    } catch (err) { console.error('Failed to start period:', err) }
-  }
-  const stopPeriod = async () => {
-    if (!activePeriod) return
-    try {
-      await fetch(`${supabaseUrl}/rest/v1/scouting_periods?id=eq.${activePeriod.id}`, { method: 'PATCH', headers: restHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ is_active: false, ended_at: new Date().toISOString() }) })
-      setActivePeriod(null); setPeriodSubmissions([])
-    } catch (err) { console.error('Failed to stop period:', err) }
-  }
 
   if (!data) {
     return <div className="flex-1 flex items-center justify-center min-w-0"><p className="text-gray-400">Loading schedule…</p></div>
@@ -303,27 +255,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-4xl mx-auto space-y-4">
 
-          {/* Live period banner */}
-          {activePeriod && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                  </span>
-                  <span className="font-semibold text-green-800 text-sm">{activePeriod.name} · Live</span>
-                </div>
-                {isLead && <button onClick={stopPeriod} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700"><Square size={12} /> Stop</button>}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {(activePeriod.expected_scouts || []).map((s, i) => (
-                  <span key={`${s}-${i}`} className={`px-2 py-0.5 rounded-full text-xs font-medium ${periodSubmissions.includes(s) ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>{s}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ---- EVENT ROLES TAB ---- */}
           {tab === 'roles' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -384,24 +315,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
               </div>
               {isLead && (
                 <button onClick={() => update(p => ({ ...p, scoutGroups: [...p.scoutGroups, { id: uid(), name: `Group ${p.scoutGroups.length + 1}`, head: '', red1: '', red2: '', blue1: '', blue2: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group</button>
-              )}
-
-              {/* Period control (compact, leads only) */}
-              {isLead && !activePeriod && (
-                <div className="pt-1">
-                  {showPeriodForm ? (
-                    <div className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 space-y-2">
-                      <input value={periodName} onChange={e => setPeriodName(e.target.value)} placeholder="Period name (e.g. Quals Match 5)" className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
-                      <p className="text-xs text-gray-400">Tracks whether each scouter (Red/Blue slots above) submitted.</p>
-                      <div className="flex gap-2">
-                        <button onClick={startPeriod} disabled={!periodName.trim()} className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-green-100 hover:bg-green-200 text-green-700 disabled:opacity-50"><Play size={14} /> Start</button>
-                        <button onClick={() => { setShowPeriodForm(false); setPeriodName('') }} className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-600">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => setShowPeriodForm(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-blue hover:bg-pastel-blue-dark text-gray-700"><Play size={14} /> Start Scouting Period</button>
-                  )}
-                </div>
               )}
             </>
           )}
