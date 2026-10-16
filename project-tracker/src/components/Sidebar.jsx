@@ -203,18 +203,21 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               { tab: 'home', label: 'Home', icon: Home, color: 'text-pastel-pink-dark' },
               { tab: 'scouting', label: 'Scouting', icon: ClipboardList, color: 'text-pastel-orange-dark' },
               ...(canViewSpecialControls ? [{ tab: 'special-controls', label: 'Special Controls', icon: Gamepad2, color: 'text-pastel-pink-dark' }] : []),
-            ].map(({ tab, label, icon: Icon, color }) => (
-              <div
-                key={tab}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
-                }`}
-                onClick={() => { onTabChange(tab); onToggle() }}
-              >
-                <Icon size={16} className={color} />
-                <span className="truncate">{label}</span>
+            ].map(({ tab, label, icon: Icon, color }, i) => (
+              <div key={tab}>
+                {i > 0 && <hr className="my-2 border-gray-200" />}
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                  }`}
+                  onClick={() => { onTabChange(tab); onToggle() }}
+                >
+                  <Icon size={16} className={color} />
+                  <span className="truncate">{label}</span>
+                </div>
               </div>
             ))}
+            <hr className="my-2 border-gray-200" />
           </>) : compDayAllowedTabs ? (<>
           {/* ─── Comp Day Locked Nav ─── */}
             <div className="mb-2 px-2 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
