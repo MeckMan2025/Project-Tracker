@@ -7,7 +7,6 @@ import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, ChevronLeft, ClipboardList, Pencil, Plus, Shuffle, Star, Target, Trash2, Wrench } from 'lucide-react'
-import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
 // ---- Default data (from the team's scouting spreadsheet) -------------------
@@ -222,7 +221,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {isLead && (
+            {isLead && tab === 'scouting' && (
               <button
                 onClick={shuffleEverything}
                 disabled={!roster.length}
@@ -234,7 +233,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 <Shuffle size={15} /> Randomise
               </button>
             )}
-            <NotificationBell />
           </div>
         </div>
         {/* Tabs */}
