@@ -199,24 +199,44 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               <p className="text-[10px] text-green-700 text-center mt-0.5 truncate">{liveDay.name || 'Live now'}</p>
             </div>
             <hr className="my-2 border-gray-200" />
-            {[
-              { tab: 'home', label: 'Home', icon: Home, color: 'text-pastel-pink-dark' },
-              { tab: 'scouting', label: 'Scouting', icon: ClipboardList, color: 'text-pastel-orange-dark' },
-              ...(canViewSpecialControls ? [{ tab: 'special-controls', label: 'Special Controls', icon: Gamepad2, color: 'text-pastel-pink-dark' }] : []),
-            ].map(({ tab, label, icon: Icon, color }, i) => (
-              <div key={tab}>
-                {i > 0 && <hr className="my-2 border-gray-200" />}
+            {/* Home Tab */}
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === 'home' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+              }`}
+              onClick={() => { onTabChange('home'); onToggle() }}
+            >
+              <Home size={16} className="text-pastel-pink-dark" />
+              <span className="truncate">Home</span>
+            </div>
+
+            <hr className="my-2 border-gray-200" />
+
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                activeTab === 'scouting' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+              }`}
+              onClick={() => { onTabChange('scouting'); onToggle() }}
+            >
+              <ClipboardList size={16} className="text-pastel-orange-dark" />
+              <span className="truncate">Scouting</span>
+            </div>
+
+            {canViewSpecialControls && (
+              <>
+                <hr className="my-2 border-gray-200" />
                 <div
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                    activeTab === 'special-controls' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
                   }`}
-                  onClick={() => { onTabChange(tab); onToggle() }}
+                  onClick={() => { onTabChange('special-controls'); onToggle() }}
                 >
-                  <Icon size={16} className={color} />
-                  <span className="truncate">{label}</span>
+                  <Gamepad2 size={16} className="text-pastel-pink-dark" />
+                  <span className="truncate">Special Controls</span>
                 </div>
-              </div>
-            ))}
+              </>
+            )}
+
             <hr className="my-2 border-gray-200" />
           </>) : compDayAllowedTabs ? (<>
           {/* ─── Comp Day Locked Nav ─── */}
