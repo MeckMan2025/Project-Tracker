@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { ChevronLeft, ClipboardList, ListOrdered, Play, Plus, Shuffle, Square, Star, Target, Trash2, Users, Wrench } from 'lucide-react'
+import { ChevronLeft, ClipboardList, Play, Plus, Shuffle, Square, Star, Target, Trash2, Users, Wrench } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { ALL_TEAMS } from '../data/teams'
 
@@ -43,25 +43,12 @@ const DEFAULT_DATA = {
   matchSchedule: [
     { id: 'ms1', match: '1', red1: '', red2: '', blue1: '', blue2: '' },
   ],
-  matchPlan: [
-    { id: 'm1', group: 'A', field: 'A', matches: '' },
-    { id: 'm2', group: 'B', field: 'B', matches: '' },
-  ],
-}
-
-const groupStyle = (letter) => {
-  const L = (letter || '').toUpperCase()
-  if (L === 'A') return { dot: 'bg-blue-500', chip: 'bg-blue-50 text-blue-700', ring: 'border-blue-200' }
-  if (L === 'B') return { dot: 'bg-red-500', chip: 'bg-red-50 text-red-700', ring: 'border-red-200' }
-  if (L === 'C') return { dot: 'bg-green-500', chip: 'bg-green-50 text-green-700', ring: 'border-green-200' }
-  return { dot: 'bg-gray-400', chip: 'bg-gray-50 text-gray-600', ring: 'border-gray-200' }
 }
 
 const TABS = [
   { key: 'groups', label: 'Groups', icon: Users },
   { key: 'roles', label: 'Event Roles', icon: Wrench },
   { key: 'scouting', label: 'Scouting', icon: Target },
-  { key: 'matches', label: 'Match Plan', icon: ListOrdered },
   { key: 'schedule', label: 'Match Schedule', icon: ClipboardList },
 ]
 
@@ -113,7 +100,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     fixedRoles: loaded.fixedRoles || DEFAULT_DATA.fixedRoles.map(r => ({ ...r })),
     scoutGroups: loaded.scoutGroups || DEFAULT_DATA.scoutGroups.map(s => ({ ...s })),
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
-    matchPlan: loaded.matchPlan || DEFAULT_DATA.matchPlan.map(m => ({ ...m })),
     matchSchedule: loaded.matchSchedule || DEFAULT_DATA.matchSchedule.map(m => ({ ...m })),
   })
 
@@ -225,7 +211,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     })
   }
   const csv = (arr) => (arr || []).join(', ')
-  const parseCsv = (s) => s.split(',').map(x => x.trim()).filter(Boolean)
 
   // ---- Scouting period ----
   const startPeriod = async () => {
@@ -417,45 +402,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                     <button onClick={() => setShowPeriodForm(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-blue hover:bg-pastel-blue-dark text-gray-700"><Play size={14} /> Start Scouting Period</button>
                   )}
                 </div>
-              )}
-            </>
-          )}
-
-          {/* ---- MATCH PLAN TAB ---- */}
-          {tab === 'matches' && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {data.matchPlan.map((row, i) => {
-                  const st = groupStyle(row.group)
-                  return (
-                    <div key={row.id} className={`bg-white rounded-xl p-3.5 shadow-sm border ${st.ring}`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`w-3 h-3 rounded-sm ${st.dot} shrink-0`} />
-                        {isLead ? (
-                          <div className="flex items-center gap-1 text-sm font-bold text-gray-700">
-                            Group
-                            <input value={row.group} onChange={e => update(p => { const m = [...p.matchPlan]; m[i] = { ...m[i], group: e.target.value.toUpperCase().slice(0, 1) }; return { ...p, matchPlan: m } })} className="w-8 text-center border-b border-gray-200 focus:border-pastel-blue focus:outline-none" />
-                            — Field
-                            <input value={row.field} onChange={e => update(p => { const m = [...p.matchPlan]; m[i] = { ...m[i], field: e.target.value.toUpperCase().slice(0, 1) }; return { ...p, matchPlan: m } })} className="w-8 text-center border-b border-gray-200 focus:border-pastel-blue focus:outline-none" />
-                            <button onClick={() => update(p => ({ ...p, matchPlan: p.matchPlan.filter(x => x.id !== row.id) }))} className="ml-auto p-1 rounded hover:bg-red-50"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>
-                          </div>
-                        ) : (
-                          <h4 className="text-sm font-bold text-gray-700">Group {row.group} — Field {row.field}</h4>
-                        )}
-                      </div>
-                      {isLead ? (
-                        <input value={row.matches} onChange={e => update(p => { const m = [...p.matchPlan]; m[i] = { ...m[i], matches: e.target.value }; return { ...p, matchPlan: m } })} placeholder="Match numbers, comma separated" className="w-full text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-pastel-blue focus:border-transparent" />
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {parseCsv(row.matches).map((mn, k) => <span key={k} className={`text-xs px-2 py-0.5 rounded-full font-medium ${st.chip}`}>Match {mn}</span>)}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              {isLead && (
-                <button onClick={() => update(p => ({ ...p, matchPlan: [...p.matchPlan, { id: uid(), group: 'A', field: 'A', matches: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group Rotation</button>
               )}
             </>
           )}
