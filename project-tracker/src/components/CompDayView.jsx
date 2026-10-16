@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { stampTeam, teamScope } from '../lib/teamScope'
 import { dayProgress } from '../lib/dayRota'
+import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from '../lib/restHeaders'
 import { AlertCircle, ArrowLeft, Calendar, ChevronRight, ClipboardCheck, Pause, Play, Plus, Shield, Trash2, Users, X } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
@@ -217,6 +218,7 @@ export default function CompDayView({ onBack }) {
       await restPatch('comp_day_sessions', 'is_active=eq.true', { is_active: false })
       await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { is_active: true })
       setActiveSession({ ...activeSession, is_active: true })
+      announceLiveChange() // this app moves to the live scouting screen now
       await fetchSessions()
     } catch (err) { setError(err.message) }
   }
@@ -227,6 +229,7 @@ export default function CompDayView({ onBack }) {
       setError('')
       await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { is_active: false })
       setActiveSession({ ...activeSession, is_active: false })
+      announceLiveChange()
       await fetchSessions()
     } catch (err) { setError(err.message) }
   }
@@ -239,6 +242,7 @@ export default function CompDayView({ onBack }) {
       await restPatch('comp_day_sessions', 'is_active=eq.true', { is_active: false })
       await restPatch('comp_day_sessions', `id=eq.${s.id}`, { is_active: true })
       setActiveSession({ ...s, is_active: true }); setAssigningBlock(null); setEditorTab('setup')
+      announceLiveChange()
       await fetchSessions()
     } catch (err) { setError(err.message) }
   }
@@ -257,6 +261,7 @@ export default function CompDayView({ onBack }) {
     try {
       setError('')
       await restDelete('comp_day_sessions', `id=eq.${sid}`)
+      announceLiveChange()
       if (activeSession?.id === sid) { setActiveSession(null); setBlocks([]); setAssignments([]) }
       await fetchSessions()
     } catch (err) { setError(err.message) }

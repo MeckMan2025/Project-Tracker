@@ -6,6 +6,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { Calendar, MapPin, Clock, Plus, Pencil, Trash2, X, ChevronRight } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import ScoutingDaySetup from './ScoutingDaySetup'
+import { announceLiveChange } from '../hooks/useLiveCompDay'
 
 // Scouting Schedule = a list of scheduled scouting dates.
 // Coaches / Mentors / Leads / Co-Founders (hasLeadTag) can add, edit, and
@@ -110,6 +111,7 @@ export default function ScoutingSchedule({ liveDay = null }) {
         headers: restHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ is_active: false }),
       })
+      announceLiveChange()
     } catch { /* the realtime check will show whether it took */ }
   }
 
