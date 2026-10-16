@@ -13,6 +13,16 @@
 
 const POSITIONS = ['red1', 'red2', 'blue1', 'blue2']
 
+// The two event roles that are pools of scouts: the Scouting tab draws its
+// positions from one, the Pit tab its visits from the other.
+export const SCOUTING_ROLE = 'Scouting'
+export const PIT_ROLE = 'Pit Scouting'
+
+export const roleMembers = (doc, role) =>
+  (doc?.fixedRoles || []).find(r => r.role === role)?.members || []
+
+const POSITION_LABEL = { red1: 'Red 1', red2: 'Red 2', blue1: 'Blue 1', blue2: 'Blue 2' }
+
 const norm = (s) => String(s || '').trim().toLowerCase()
 
 export const recordKey = (team, match) => `${String(team || '').trim()}|${String(match || '').trim()}`
@@ -63,4 +73,35 @@ export function dayProgress(doc, rows) {
     if (done.has(recordKey(team, row.match))) scouted++
   }))
   return { scouted, total }
+}
+
+// Every match-scouting job on the day, for the whole team, in match order.
+export function allAssignments(doc) {
+  const groups = doc?.scoutGroups || []
+  if (!groups.length) return []
+  const out = []
+  orderedMatches(doc).forEach((row, k) => {
+    const g = groups[k % groups.length]
+    POSITIONS.forEach(pos => {
+      const team = String(row[pos] || '').trim()
+      if (team) out.push({ match: String(row.match).trim(), team, who: g[pos] || '', position: POSITION_LABEL[pos], group: g.name })
+    })
+  })
+  return out
+}
+
+// Every pit visit on the day. No match number: a pit is visited once.
+export function pitAssignments(doc) {
+  return (doc?.pitTeams || [])
+    .filter(t => String(t.team || '').trim())
+    .map(t => ({ team: String(t.team).trim(), match: null, who: t.who || '' }))
+}
+
+export function pitAssignmentsFor(doc, username) {
+  return pitAssignments(doc).filter(a => isPerson(a.who, username))
+}
+
+// The teams that have a pit scouting row.
+export function pitScoutedKeys(rows) {
+  return new Set((rows || []).map(r => String(r.team_number || '').trim()).filter(Boolean))
 }

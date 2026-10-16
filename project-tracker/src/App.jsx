@@ -36,6 +36,7 @@ import TeamScoutingData from './components/TeamScoutingData'
 import TeamHomeView from './components/TeamHomeView'
 import EngineeringNotebook from './components/EngineeringNotebook'
 import ScoutingSchedule from './components/ScoutingSchedule'
+import CompDayBoard from './components/CompDayBoard'
 import { useLiveCompDay } from './hooks/useLiveCompDay'
 import HomeView from './components/HomeView'
 import QuickChat from './components/QuickChat'
@@ -225,6 +226,10 @@ const DEFAULT_BOARDS = [
 // their own features. The tab check is skipped when one of these is open.
 const OPEN_SPECIAL_VIEWS = ['quotes', 'absence']
 
+// While a Competition Day is live the sidebar shows only these. Special
+// Controls stays for whoever already has it; nobody gains it.
+const LIVE_DAY_TABS = ['home', 'scouting', 'special-controls']
+
 const SYSTEM_TABS = [HOME_TAB, SCOUTING_TAB, BOARDS_TAB, DATA_TAB, AI_TAB, TASKS_TAB, WORKSHOPS_TAB, NOTEBOOK_TAB, ORG_TAB, SUGGESTIONS_TAB, CALENDAR_TAB, SCHEDULE_TAB, ATTENDANCE_TAB, ...LOG_TABS, USER_MGMT_TAB, SPECIAL_TAB]
 
 const mapTask = (t) => ({
@@ -379,7 +384,7 @@ function App() {
   const liveDay = useLiveCompDay(SCOPE)
   const liveDayId = liveDay?.id || null
   useEffect(() => {
-    if (liveDayId && username) setActiveTab('schedule')
+    if (liveDayId && username) setActiveTab('home')
   }, [liveDayId, username]) // eslint-disable-line react-hooks/exhaustive-deps
   // The task-load popup renders in several places, so it asks for navigation
   // by event instead of a threaded callback.
@@ -1712,7 +1717,7 @@ function App() {
       <div className="flex flex-1 min-h-0">
       {/* Sidebar */}
       <Sidebar
-        tabs={tabs}
+        tabs={liveDay ? tabs.filter(t => LIVE_DAY_TABS.includes(t.id)) : tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onAddTab={handleAddTab}
@@ -1763,7 +1768,8 @@ function App() {
         // "looks the same" means this page, not a second copy of it kept in
         // step by hand. What that team should not see (Radical's own season
         // goals) HomeView decides for itself from the team number.
-        (effectiveIsTeam && !effectiveFullAccess) ? <TeamHomeView onTabChange={setActiveTab} />
+        liveDay ? <CompDayBoard day={liveDay} onTabChange={setActiveTab} canPause={isCofounder} />
+        : (effectiveIsTeam && !effectiveFullAccess) ? <TeamHomeView onTabChange={setActiveTab} />
         : <HomeView onTabChange={setActiveTab} onOpenTask={openTaskDetail} onOpenSpecial={(v) => { setSpecialView(v); setSpecialFrom('home'); setActiveTab('special-controls') }} />
       ) : activeTab === 'sw-design' ? (
         <WorkingOnIt title="Software Design" />

@@ -6,8 +6,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Check, ChevronLeft, ClipboardList, Pause, Pencil, Plus, Shuffle, Star, Target, Trash2, Wrench } from 'lucide-react'
+import { Check, ChevronLeft, ClipboardList, Pause, Pencil, Plus, Shuffle, Star, Target, Tent, Trash2, Wrench } from 'lucide-react'
 import { ALL_TEAMS } from '../data/teams'
+import { SCOUTING_ROLE, PIT_ROLE } from '../lib/dayRota'
 
 // ---- Default data (from the team's scouting spreadsheet) -------------------
 // What a fresh day starts as.
@@ -20,9 +21,6 @@ import { ALL_TEAMS } from '../data/teams'
 //
 // A hard-coded roster is wrong the moment somebody joins or leaves, and it is
 // wrong quietly. Leads pick real people from the real roster instead.
-// The event role whose members are the scouts; the Scouting tab draws from it.
-const SCOUTING_ROLE = 'Scouting'
-
 // Event roles that used to be offered and are not any more.
 const RETIRED_ROLES = ['Observation']
 
@@ -32,7 +30,10 @@ const DEFAULT_DATA = {
     { role: 'Pit Crew', members: [] },
     { role: 'Media', members: [] },
     { role: SCOUTING_ROLE, members: [] },
+    { role: PIT_ROLE, members: [] },
   ],
+  // Teams that get a pit visit, and who makes it: { id, team, who }.
+  pitTeams: [],
   scoutGroups: [
     { id: 's1', name: 'Group 1', head: '', red1: '', red2: '', blue1: '', blue2: '' },
   ],
@@ -46,7 +47,10 @@ const TABS = [
   { key: 'roles', label: 'Event Roles', icon: Wrench },
   { key: 'scouting', label: 'Scouting', icon: Target },
   { key: 'schedule', label: 'Match Schedule', icon: ClipboardList },
+  { key: 'pit', label: 'Pit', icon: Tent },
 ]
+
+const teamNameOf = (n) => (ALL_TEAMS.find(t => String(t.number) === String(n || '').trim()) || {}).name || ''
 
 const uid = () => String(Date.now()) + Math.random().toString(36).slice(2)
 
@@ -104,15 +108,18 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   // cleared, not the role, because the role is the deliberate choice and the
   // position is what Randomise or an older day left behind.
   const clearConflicts = (d) => {
-    const busy = new Set(d.fixedRoles.filter(r => r.role !== SCOUTING_ROLE).flatMap(r => r.members || []))
-    if (!busy.size) return d
+    const busyOutside = (role) => new Set(d.fixedRoles.filter(r => r.role !== role).flatMap(r => r.members || []))
+    const busy = busyOutside(SCOUTING_ROLE)
+    const busyPit = busyOutside(PIT_ROLE)
     const free = (name) => (busy.has(name) ? '' : name)
+    const freePit = (name) => (busyPit.has(name) ? '' : name)
     return {
       ...d,
       standBy: free(d.standBy),
       scoutGroups: d.scoutGroups.map(g => ({
         ...g, head: free(g.head), red1: free(g.red1), red2: free(g.red2), blue1: free(g.blue1), blue2: free(g.blue2),
       })),
+      pitTeams: (d.pitTeams || []).map(t => ({ ...t, who: freePit(t.who) })),
     }
   }
 
@@ -131,6 +138,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       .filter(g => !(['s2', 's3'].includes(g.id) && !g.head && !g.red1 && !g.red2 && !g.blue1 && !g.blue2)),
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
     matchSchedule: loaded.matchSchedule || DEFAULT_DATA.matchSchedule.map(m => ({ ...m })),
+    pitTeams: loaded.pitTeams || [],
   })
 
   useEffect(() => {
@@ -201,6 +209,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   // are filled from those people and nobody else, so a lead decides the pool
   // once, in Event Roles, and the tab offers only them.
   const scoutPool = (data?.fixedRoles || []).find(r => r.role === SCOUTING_ROLE)?.members || []
+  const pitPool = (data?.fixedRoles || []).find(r => r.role === PIT_ROLE)?.members || []
 
   const shuffleEverything = () => {
     if (!roster.length) return
@@ -208,7 +217,8 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     // put on it yet, everyone is in the pool and the people dealt a position
     // become the role, so the tab and the role still agree afterwards.
     const scouts = shuffle(scoutPool.length ? scoutPool : roster)
-    const others = shuffle(roster.filter(n => !scouts.includes(n)))
+    const pits = shuffle(pitPool)
+    const others = shuffle(roster.filter(n => !scouts.includes(n) && !pits.includes(n)))
     let at = 0
     // Round-robin: when there are fewer people than jobs, start the deck again
     // rather than leaving the rest of the day blank. Somebody doubling up is a
@@ -226,8 +236,12 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       const standBy = take()
       const fixedRoles = p.fixedRoles.map(r => r.role === SCOUTING_ROLE
         ? { ...r, members: scoutPool.length ? r.members : [...new Set(dealt)] }
+        : r.role === PIT_ROLE ? r
         : { ...r, members: [nextOther()] })
-      return { ...p, scoutGroups, standBy, fixedRoles }
+      // Pit visits shared round the pit scouts, when there are any.
+      let pt = 0
+      const pitTeams = pits.length ? (p.pitTeams || []).map(t => ({ ...t, who: pits[pt++ % pits.length] })) : p.pitTeams
+      return { ...p, scoutGroups, standBy, fixedRoles, pitTeams }
     })
   }
   const csv = (arr) => (arr || []).join(', ')
@@ -461,6 +475,77 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 >
                   <Plus size={14} /> Add Match
                 </button>
+              )}
+            </>
+          )}
+
+          {/* ---- PIT TAB ---- */}
+          {tab === 'pit' && (
+            <>
+              <p className="text-xs text-gray-400 mb-3">
+                Which teams get a pit visit and who makes it. People are picked
+                from the Pit Scouting role in Event Roles. A pit is visited
+                once, so there is no match number.
+              </p>
+              {isLead && !pitPool.length && (
+                <p className="text-xs text-gray-400 mb-3">
+                  Nobody is on the <button onClick={() => setTab('roles')} className="font-semibold text-pastel-blue-dark hover:underline">Pit Scouting role</button> yet, so there is nobody to give a visit to.
+                </p>
+              )}
+              <div className="space-y-2">
+                {(data.pitTeams || []).map((row, i) => (
+                  <div key={row.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
+                    <div className="w-28 shrink-0 min-w-0">
+                      <label className="block text-[10px] uppercase tracking-wide text-gray-400">Team</label>
+                      <input
+                        value={row.team || ''}
+                        onChange={e => update(p => { const t = [...p.pitTeams]; t[i] = { ...t[i], team: e.target.value }; return { ...p, pitTeams: t } })}
+                        disabled={!isLead}
+                        inputMode="numeric"
+                        placeholder="—"
+                        className="w-full text-sm font-semibold border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
+                      />
+                      <span className="block text-[10px] text-gray-400 truncate">{teamNameOf(row.team)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Slot label="Who" value={row.who} isLead={isLead} options={pitPool} onChange={v => update(p => { const t = [...p.pitTeams]; t[i] = { ...t[i], who: v }; return { ...p, pitTeams: t } })} />
+                    </div>
+                    {isLead && (
+                      <button onClick={() => update(p => ({ ...p, pitTeams: p.pitTeams.filter(x => x.id !== row.id) }))} className="p-1 rounded hover:bg-red-50 shrink-0" title="Remove">
+                        <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {!(data.pitTeams || []).length && <p className="text-sm text-gray-400 italic">No pit visits yet.</p>}
+              </div>
+              {isLead && (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => update(p => ({ ...p, pitTeams: [...(p.pitTeams || []), { id: uid(), team: '', who: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Team</button>
+                  <button
+                    onClick={() => update(p => {
+                      const have = new Set((p.pitTeams || []).map(t => String(t.team || '').trim()))
+                      const fresh = []
+                      ;(p.matchSchedule || []).forEach(m => ['red1', 'red2', 'blue1', 'blue2'].forEach(k => {
+                        const t = String(m[k] || '').trim()
+                        if (t && !have.has(t)) { have.add(t); fresh.push({ id: uid(), team: t, who: '' }) }
+                      }))
+                      return { ...p, pitTeams: [...(p.pitTeams || []), ...fresh] }
+                    })}
+                    title="Every team on the match schedule that is not listed here yet"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    <ClipboardList size={14} /> Add teams from the match schedule
+                  </button>
+                  <button
+                    onClick={() => update(p => { let k = 0; return { ...p, pitTeams: (p.pitTeams || []).map(t => ({ ...t, who: pitPool[k++ % pitPool.length] })) } })}
+                    disabled={!pitPool.length || !(data.pitTeams || []).length}
+                    title={pitPool.length ? 'Deal the visits out evenly, in turn, to the pit scouts' : 'Put people on the Pit Scouting role first'}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    <Shuffle size={14} /> Share out
+                  </button>
+                </div>
               )}
             </>
           )}
