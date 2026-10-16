@@ -262,7 +262,13 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 <div key={role.role} className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100">
                   <h4 className="text-sm font-bold text-gray-700 mb-2">{role.role}</h4>
                   {isLead ? (
-                    <MemberPicker forEvent value={role.members} onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return { ...p, fixedRoles: r } })} />
+                    <MemberPicker
+                      forEvent
+                      value={role.members}
+                      // One job each: somebody already on another role is not offered here.
+                      exclude={data.fixedRoles.filter((_, k) => k !== i).flatMap(r => r.members || [])}
+                      onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return { ...p, fixedRoles: r } })}
+                    />
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {role.members.length ? role.members.map(m => <span key={m} className="text-xs px-2 py-0.5 bg-pastel-pink/20 text-gray-600 rounded-full">{m}</span>) : <span className="text-xs italic text-gray-300">Not assigned</span>}
