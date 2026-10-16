@@ -6,7 +6,10 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
 import { notifyRequestReviewers } from '../utils/requestRouting'
 
-function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock }) {
+// liveDay: the Competition Day that is live, or null. While one is live the
+// nav is three things — Home (the board), Scouting, and Special Controls for
+// whoever already has it — and nothing else, so the day is all there is.
+function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock, liveDay = null }) {
   const { logout, username, user } = useUser()
   const { canManageOwnTeam, teamFullAccess, isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
   const { addToast } = useToast()
@@ -183,8 +186,37 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
         )}
 
         <nav className="px-2 pt-1 pb-2 flex-1 overflow-y-auto">
+          {/* ─── Live Competition Day Nav ─── */}
+          {liveDay ? (<>
+            <div className="mb-2 px-2 py-2 bg-gradient-to-r from-green-50 to-emerald-100 rounded-lg border border-green-200">
+              <p className="text-xs font-bold text-green-800 text-center flex items-center justify-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Competition Day
+              </p>
+              <p className="text-[10px] text-green-700 text-center mt-0.5 truncate">{liveDay.name || 'Live now'}</p>
+            </div>
+            <hr className="my-2 border-gray-200" />
+            {[
+              { tab: 'home', label: 'Home', icon: Home, color: 'text-pastel-pink-dark' },
+              { tab: 'scouting', label: 'Scouting', icon: ClipboardList, color: 'text-pastel-orange-dark' },
+              ...(canViewSpecialControls ? [{ tab: 'special-controls', label: 'Special Controls', icon: Gamepad2, color: 'text-pastel-pink-dark' }] : []),
+            ].map(({ tab, label, icon: Icon, color }) => (
+              <div
+                key={tab}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === tab ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange(tab); onToggle() }}
+              >
+                <Icon size={16} className={color} />
+                <span className="truncate">{label}</span>
+              </div>
+            ))}
+          </>) : compDayAllowedTabs ? (<>
           {/* ─── Comp Day Locked Nav ─── */}
-          {compDayAllowedTabs ? (<>
             <div className="mb-2 px-2 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
               <p className="text-xs font-bold text-red-700 text-center">🔒 Comp Day Active</p>
               <p className="text-[10px] text-red-500 text-center mt-0.5">Screen locked to your assigned role</p>

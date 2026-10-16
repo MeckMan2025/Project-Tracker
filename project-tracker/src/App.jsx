@@ -1729,6 +1729,7 @@ function App() {
         onlineUsers={onlineUsers}
         isTeamAccount={effectiveIsTeam}
         compDayLock={compDayLock}
+        liveDay={liveDay}
       />
 
 
