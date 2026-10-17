@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
 import { SCOUTING_FIELDS, yesNo, displayValue } from '../data/scoutingFields'
 import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
+import { PIT_FIELDS } from '../data/pitFields'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -241,6 +242,78 @@ const Rated = ({ label, value, outOf }) => (
   </div>
 )
 
+// What the pit visit said about a team: the latest visit's answers, in the
+// form's own groups and words, with older visits a tap away. Shown beside the
+// match numbers because a pick list needs both — what they can do, and what
+// they actually did.
+const PIT_SKIP = new Set(['team_number', 'team_name', 'scout_name', 'visited_at'])
+function PitPanel({ visits }) {
+  const [which, setWhich] = useState(0)
+  const n = visits.length
+  const v = visits[Math.min(which, Math.max(0, n - 1))]
+  const when = (row) => {
+    const t = row.visited_at || row.created_at || ''
+    const d = new Date(t)
+    return isNaN(d) ? String(t) : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
+  const groups = []
+  PIT_FIELDS.forEach(f => {
+    if (PIT_SKIP.has(f.key)) return
+    let g = groups.find(x => x.name === f.group)
+    if (!g) { g = { name: f.group, fields: [] }; groups.push(g) }
+    g.fields.push(f)
+  })
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
+        Pit Scouting{' '}
+        <span className="font-normal text-gray-400">({n} visit{n !== 1 ? 's' : ''})</span>
+      </h3>
+      {n === 0 ? (
+        <p className="text-xs text-gray-400 py-2">Nobody has visited this team's pit yet.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2 mb-2 text-xs text-gray-500">
+            <span>By <span className="font-semibold text-gray-700">{v.scout_name || v.scout || '—'}</span> · {when(v)}</span>
+            {n > 1 && (
+              <select value={which} onChange={e => setWhich(Number(e.target.value))} className="ml-auto text-xs border rounded-lg px-2 py-1 bg-white text-gray-600">
+                {visits.map((row, i) => <option key={row.id || i} value={i}>{i === 0 ? 'Latest' : `Visit ${n - i}`} · {when(row)}</option>)}
+              </select>
+            )}
+          </div>
+          <div className="space-y-2">
+            {groups.map(g => {
+              const answered = g.fields.filter(f => v[f.key] != null && String(v[f.key]).trim() !== '')
+              if (!answered.length) return null
+              return (
+                <div key={g.name}>
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-0.5">{g.name}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                    {answered.map(f => f.type === 'photo' ? (
+                      <div key={f.key} className="sm:col-span-2">
+                        <a href={v[f.key]} target="_blank" rel="noreferrer" className="inline-block">
+                          <img src={v[f.key]} alt={`Team ${v.team_number} robot`} className="max-h-40 rounded-lg border border-gray-100" />
+                        </a>
+                      </div>
+                    ) : f.type === 'text' && String(v[f.key]).length > 40 ? (
+                      <div key={f.key} className="sm:col-span-2">
+                        <span className="text-xs text-gray-500">{f.label}</span>
+                        <p className="text-xs text-gray-700">{v[f.key]}</p>
+                      </div>
+                    ) : (
+                      <Line key={f.key} label={f.label} value={String(v[f.key])} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function ScoutingData() {
   const { username } = useUser()
   const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder, myTeamNumber } = usePermissions()
@@ -304,6 +377,38 @@ function ScoutingData() {
     if (!selectedDate) return records
     return records.filter(r => r.created_at && r.created_at.startsWith(selectedDate))
   }, [records, selectedDate])
+
+  // Pit visits, newest first, grouped by the team visited.
+  const [pitRows, setPitRows] = useState([])
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/pit_scouting?select=*&order=created_at.desc`,
+          { headers: restHeaders() }
+        )
+        if (!res.ok) return
+        const rows = await res.json()
+        if (active) setPitRows(Array.isArray(rows) ? rows : [])
+      } catch { /* the page still works without pit data */ }
+    }
+    load()
+    const channel = supabase
+      .channel('scouting-data-pit')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pit_scouting' }, load)
+      .subscribe()
+    return () => { active = false; supabase.removeChannel(channel) }
+  }, [])
+  const pitByTeam = useMemo(() => {
+    const out = {}
+    pitRows.forEach(r => {
+      const num = String(r.team_number || '').trim()
+      if (!num) return
+      ;(out[num] = out[num] || []).push(r)
+    })
+    return out
+  }, [pitRows])
 
   // Load from Supabase
   useEffect(() => {
@@ -440,8 +545,9 @@ function ScoutingData() {
       return { ...t, matches, ...stats }
     })
 
-    // Teams from the Competition Day schedules that the team list does not know.
-    dayTeams.forEach(num => {
+    // Teams from the Competition Day schedules, or with a pit visit, that the
+    // team list does not know.
+    ;[...dayTeams, ...Object.keys(pitByTeam)].forEach(num => {
       if (knownNumbers.has(num)) return
       knownNumbers.add(num)
       const matches = byNumber[num] || []
@@ -494,7 +600,7 @@ function ScoutingData() {
       .sort((a, b) => ((a.rank || 999) - (b.rank || 999)) || byScouting(a, b))
 
     return { consideredTeams: considered, otherTeams: others }
-  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams])
+  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
@@ -770,6 +876,8 @@ function ScoutingData() {
 
                 <ScoutPanel t={t} />
 
+                <PitPanel visits={pitByTeam[t.number] || []} />
+
                 {/* Responses Toggle */}
                 <button
                   onClick={() => toggleExpand(t.number)}
@@ -891,6 +999,8 @@ function ScoutingData() {
                 </div>
 
                 <ScoutPanel t={t} />
+
+                <PitPanel visits={pitByTeam[t.number] || []} />
 
                 {/* Responses Toggle */}
                 <button
