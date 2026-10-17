@@ -144,7 +144,12 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   // Everything is required, so a screen is done when all of its fields are.
+  // A screen is done when its required questions are answered. The optional
+  // ones — notes, flowers owned, RP points — may be left blank; before this
+  // they counted as missing too, so a team that owned no flowers could not be
+  // got past without inventing one.
   const filled = (f) => {
+    if (!f.required) return true
     const v = form[f.key]
     return v !== '' && v != null
   }
