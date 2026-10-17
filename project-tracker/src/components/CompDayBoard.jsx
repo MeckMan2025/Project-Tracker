@@ -8,6 +8,7 @@ import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useDayDoc } from '../hooks/useDayDoc'
 import { requestScout, SCOUT_SAVED } from '../lib/scoutHandoff'
+import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import {
   SCOUTING_ROLE, PIT_ROLE, roleMembers, allAssignments, assignmentsFor,
@@ -32,6 +33,13 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const { username } = useUser()
   const doc = useDayDoc(day ? `day-comp-${day.id}` : null)
   const { matches: scouted, pits: pitScouted } = useScouted()
+  // Who has a form open on which job, right now.
+  const who = useWhoIsScouting(day?.id)
+  const busy = useMemo(() => {
+    const m = new Map()
+    who.forEach(w => m.set(w.kind === 'pit' ? w.team : `${w.team}|${w.match}`, w.username))
+    return m
+  }, [who])
 
   const matchRows = useMemo(() => allAssignments(doc), [doc])
   const pitRows = useMemo(() => pitAssignments(doc), [doc])
@@ -94,7 +102,17 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
           </Card>
         ) : (
           <>
-            <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} />
+            <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
+            {who.length > 0 && (
+              <div className="bg-amber-50/90 backdrop-blur-sm rounded-xl shadow-sm px-4 py-2 text-xs text-amber-900 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold">Scouting right now:</span>
+                {who.map(w => (
+                  <span key={w.username}>
+                    {w.username} · {w.kind === 'pit' ? `pit ${w.team}` : `match ${w.match || '?'}, team ${w.team}`}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* The two groups side by side and the same height. items-stretch does
                 the lining up; the scroll inside each chart is what keeps them
@@ -102,12 +120,12 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
             <div className="flex flex-col md:flex-row gap-4 items-stretch">
               <div className="w-full md:flex-1 min-w-0">
                 <GroupBox title="Pit Group" icon={Tent} people={roleMembers(doc, PIT_ROLE)}
-                          rows={pitRows} done={pitScouted} showMatch={false} loaded={!!doc} onScout={scout}
+                          rows={pitRows} done={pitScouted} showMatch={false} loaded={!!doc} onScout={scout} busy={busy}
                           button={{ label: 'Pit Scouting', onClick: () => onTabChange('pit-scouting') }} />
               </div>
               <div className="w-full md:flex-1 min-w-0">
                 <GroupBox title="Match Scouting Group" icon={ClipboardList} people={roleMembers(doc, SCOUTING_ROLE)}
-                          rows={matchRows} done={scouted} loaded={!!doc} onScout={scout}
+                          rows={matchRows} done={scouted} loaded={!!doc} onScout={scout} busy={busy}
                           button={{ label: 'Match Scouting', onClick: () => onTabChange('scouting') }} />
               </div>
             </div>
@@ -127,7 +145,7 @@ const isMe = (name, username) => {
 }
 
 // A group for the day: who is in it, and every job it covers, row by row.
-function GroupBox({ title, icon, people, rows, done, showMatch = true, button, loaded, onScout }) {
+function GroupBox({ title, icon, people, rows, done, showMatch = true, button, loaded, onScout, busy }) {
   const { username } = useUser()
   return (
     <Card title={title} icon={icon} fill>
@@ -153,7 +171,7 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
         // numbers of teams, and without this the longer one dragged its card
         // down past the other and the row looked broken.
         <div className="mt-3 pt-3 border-t border-gray-100 min-h-0 overflow-y-auto max-h-64">
-          <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={onScout} />
+          <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={onScout} busy={busy} />
         </div>
       )}
       {button && (
@@ -247,21 +265,29 @@ const teamName = (num) =>
 //
 // Loading is its own state and shows as neither: an empty database for half a
 // second should not paint the whole chart red.
-function statusOf(row, done) {
+const jobKey = (row) => (row.match == null ? row.team : `${row.team}|${row.match}`)
+
+// Three states, and the row is coloured by which one it is:
+//   green   a submission exists. Done.
+//   amber   somebody has the form open on it right now. In hand.
+//   red     nobody has scouted it and nobody is on it. The one to see.
+function statusOf(row, done, busy) {
   if (done === null) return 'loading'
-  const key = row.match == null ? row.team : `${row.team}|${row.match}`
-  return done.has(key) ? 'done' : 'missing'
+  if (done.has(jobKey(row))) return 'done'
+  if (busy && busy.has(jobKey(row))) return 'now'
+  return 'missing'
 }
 
 const STATUS = {
-  loading: { row: '',          pill: 'bg-gray-100 text-gray-400',   label: '…' },
-  done:    { row: '',          pill: 'bg-green-100 text-green-700', label: 'Scouted' },
-  missing: { row: 'bg-red-50', pill: 'bg-red-100 text-red-700',     label: 'Not scouted' },
+  loading: { row: '',            pill: 'bg-gray-100 text-gray-400',    label: '…' },
+  done:    { row: '',            pill: 'bg-green-100 text-green-700',  label: 'Scouted' },
+  now:     { row: 'bg-amber-50', pill: 'bg-amber-100 text-amber-800',  label: 'Scouting now' },
+  missing: { row: 'bg-red-50',   pill: 'bg-red-100 text-red-700',      label: 'Not scouted' },
 }
 
 // A row that is not scouted yet is a thing to do, so it is a button: tap it
 // and the form opens on that job. A scouted row just sits there, green.
-function ScoutChart({ rows, done, showMatch = true, onScout }) {
+function ScoutChart({ rows, done, showMatch = true, onScout, busy }) {
   if (!rows.length) return <Empty>Nothing assigned yet.</Empty>
   return (
     <div className="overflow-x-auto -mx-1">
@@ -276,9 +302,10 @@ function ScoutChart({ rows, done, showMatch = true, onScout }) {
         </thead>
         <tbody>
           {rows.map((r, i) => {
-            const status = statusOf(r, done)
+            const status = statusOf(r, done, busy)
             const st = STATUS[status]
             const todo = status === 'missing' && !!onScout
+            const onIt = status === 'now' ? busy.get(jobKey(r)) : null
             return (
               <tr
                 key={`${r.team}-${r.match ?? 'pit'}-${i}`}
@@ -296,6 +323,7 @@ function ScoutChart({ rows, done, showMatch = true, onScout }) {
                   <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium ${st.pill}${todo ? ' underline decoration-red-300 underline-offset-2' : ''}`}>
                     {todo ? 'Scout it' : st.label}
                   </span>
+                  {onIt && <span className="block text-[10px] text-amber-700 truncate max-w-[7rem] ml-auto">{onIt}</span>}
                 </td>
               </tr>
             )
@@ -309,11 +337,12 @@ function ScoutChart({ rows, done, showMatch = true, onScout }) {
 // The biggest thing on the page, because it is the thing you are counting.
 // One square per job of yours, in match order, so the next one to worry about
 // is simply the next square along. Green once a submission exists for it.
-function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout }) {
+function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout, busy }) {
   const square = (a, done, i) => {
-    const st = statusOf(a, done)
-    const todo = st === 'missing'
+    const st = statusOf(a, done, busy)
+    const todo = st === 'missing' || st === 'now'
     const look = st === 'done' ? 'bg-green-100 text-green-700 border-green-200'
+      : st === 'now' ? 'bg-amber-100 text-amber-800 border-amber-300 cursor-pointer'
       : 'bg-white/80 text-gray-600 border-gray-200 hover:border-pastel-yellow-dark hover:bg-pastel-yellow/40 cursor-pointer'
     const what = a.match == null ? `Pit visit — team ${a.team} (${teamName(a.team)})` : `Match ${a.match} — team ${a.team} (${teamName(a.team)})`
     return (

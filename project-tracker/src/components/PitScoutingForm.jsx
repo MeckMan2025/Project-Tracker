@@ -7,6 +7,7 @@ import { uploadNotebookPhoto } from '../lib/notebookPhoto'
 import { PIT_FIELDS, PIT_GROUPS, blankPitEntry, OTHER, isOther, otherDetail, choiceOf } from '../data/pitFields'
 import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
 import ScoutingHelp, { HelpButton } from './ScoutingHelp'
+import { useAnnounceScouting } from '../hooks/useScoutingPresence'
 import { PIT_HELP, PIT_SECTION_NOTES } from '../data/scoutingHelp'
 import { ALL_TEAMS } from '../data/teams'
 import { teamScope } from '../lib/teamScope'
@@ -35,7 +36,7 @@ const nowForPicker = () => {
 
 // onDone, when given, is called after a successful save: on a live day the
 // board is where you go next.
-export default function PitScoutingForm({ onDone }) {
+export default function PitScoutingForm({ onDone, liveDay = null }) {
   const { username } = useUser()
   const { myTeamNumber } = usePermissions()
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -95,6 +96,7 @@ export default function PitScoutingForm({ onDone }) {
   // uses, so a picture goes up the same way from both and lands in the same
   // place. Taken with the camera on a phone, picked from files on a laptop.
   const [showHelp, setShowHelp] = useState(false)
+  useAnnounceScouting(liveDay?.id, form.team_number ? { kind: 'pit', team: form.team_number } : null)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState('')
   const pickPhoto = (e) => {

@@ -18,6 +18,7 @@ import { MATCH_HELP, MATCH_SECTION_NOTES } from '../data/scoutingHelp'
 import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 import RpIcon from './RpIcon'
+import { useAnnounceScouting } from '../hooks/useScoutingPresence'
 
 // Match scouting: one row per team per match.
 //
@@ -98,6 +99,9 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   // arrow away.
   const [showData, setShowData] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  // Tell the board which job this form is on, while it is on it.
+  useAnnounceScouting(liveDay?.id, (!showData && form.team_number)
+    ? { kind: 'match', team: form.team_number, match: form.match_number } : null)
   // One group per screen, the way the notebook asks one thing at a time. The
   // whole form at once is a wall, and a wall gets filled in badly at a
   // competition.
