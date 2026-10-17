@@ -19,6 +19,7 @@ import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 import RpIcon from './RpIcon'
 import { useAnnounceScouting } from '../hooks/useScoutingPresence'
+import { addDraft, listDrafts, flushDrafts, onDraftsChange, startDraftSender, sendRow, missingColumn } from '../lib/scoutDrafts'
 
 // Match scouting: one row per team per match.
 //
@@ -27,16 +28,6 @@ import { useAnnounceScouting } from '../hooks/useScoutingPresence'
 
 const TABLE = 'match_scouting'
 
-// The column a PostgREST error is about, when it is about one. Two phrasings:
-// an insert says "Could not find the 'x' column of 'match_scouting' in the
-// schema cache" (PGRST204); a select says "column match_scouting.x does not
-// exist" (42703).
-function missingColumn(text) {
-  const t = String(text || '')
-  return /Could not find the '([a-z_0-9]+)' column/i.exec(t)?.[1]
-    || /column (?:match_scouting\.)?"?([a-z_0-9]+)"? (?:of relation "match_scouting" )?does not exist/i.exec(t)?.[1]
-    || null
-}
 
 // Ticking an answer in a tick-all list, where some answers cancel the rest.
 // "Nothing" and "None" mean "and nothing else", so they clear the other ticks
@@ -136,6 +127,17 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [schemaWarning, setSchemaWarning] = useState('')
+  // Entries kept on this phone because they could not be sent yet.
+  const [drafts, setDrafts] = useState(() => listDrafts())
+  const [sendingDrafts, setSendingDrafts] = useState(false)
+  useEffect(() => {
+    startDraftSender()
+    return onDraftsChange(() => setDrafts(listDrafts()))
+  }, [])
+  const sendDraftsNow = async () => {
+    setSendingDrafts(true)
+    try { await flushDrafts() } finally { setSendingDrafts(false); setDrafts(listDrafts()) }
+  }
   const [saved, setSaved] = useState(false)
   const [editing, setEditing] = useState(false)
   const [view, setView] = useState('matches')   // matches | teams
@@ -198,27 +200,29 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
       // that nobody has added yet — drop that one answer, say so plainly, and
       // save the rest: a competition does not wait for a migration, and a
       // whole match lost over one new field is worse than one field lost.
-      const dropped = []
-      let res
-      for (let attempt = 0; attempt < 4; attempt++) {
-        res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}`, {
-          method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-          body: JSON.stringify(row),
-        })
-        if (res.ok) break
-        const text = await res.text()
-        const col = missingColumn(text)
-        if (!col || !(col in row)) throw new Error(text)
-        delete row[col]; dropped.push(col)
+      let dropped = []
+      let keptAsDraft = false
+      try {
+        const r = await sendRow(TABLE, row)
+        dropped = r.dropped
+      } catch (err) {
+        // Could not reach the database, or it refused for a reason that is
+        // not a missing column. Keep the entry on this phone and move on; it
+        // goes up by itself when the connection is back.
+        console.error('Save failed, keeping as draft:', err)
+        addDraft(TABLE, row)
+        keptAsDraft = true
       }
-      if (!res.ok) throw new Error(await res.text())
-      if (dropped.length) {
+      if (keptAsDraft) {
+        setSchemaWarning(`No connection just now, so this match is saved on this phone as a draft. It will send itself when the signal is back, or tap Send drafts at the top.`)
+      } else if (dropped.length) {
         const labels = dropped.map(k => FIELD_BY_KEY[k]?.label || k)
         setSchemaWarning(`Saved, but the database has no column for ${labels.join(', ')} yet, so that answer was not kept. A lead needs to run the matching file in supabase/ (${dropped.map(c => c === 'auto_tips' ? 'auto_tips.sql' : c.startsWith('endgame_') ? 'endgame_shot_made.sql' : 'scouting_fields_2026.sql').filter((v, i, a) => a.indexOf(v) === i).join(', ')}) in the Supabase SQL editor.`)
       }
-      setRows(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
-      announceScoutSaved()
+      if (!keptAsDraft) {
+        setRows(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
+        announceScoutSaved()
+      }
       setStep(0)
       // Team and match stay: scouting is one team after another in the same
       // match, or the same team match after match. Retyping them every time is
@@ -323,6 +327,18 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
         : `Screen ${step + 1} of ${SCOUTING_GROUPS.length} · ${group}`}
       action={
         <div className="flex items-center gap-2 shrink-0">
+          {drafts.length > 0 && (
+            <button
+              type="button"
+              onClick={sendDraftsNow}
+              disabled={sendingDrafts}
+              title="Matches saved on this phone that have not reached the database yet"
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium disabled:opacity-60"
+            >
+              {sendingDrafts ? <Loader2 size={13} className="animate-spin" /> : null}
+              {drafts.length} draft{drafts.length === 1 ? '' : 's'} · Send
+            </button>
+          )}
           <HelpButton onClick={() => setShowHelp(true)} />
           <button
             onClick={() => setShowData(v => !v)}
