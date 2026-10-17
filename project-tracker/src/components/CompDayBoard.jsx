@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
-import { ClipboardList, AlertTriangle, Pause, Tent, BookOpen } from 'lucide-react'
+import { ClipboardList, AlertTriangle, Pause, Tent, BookOpen, Maximize2, X } from 'lucide-react'
 import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
 import { ALL_TEAMS } from '../data/teams'
 import { storedTeamScope } from '../lib/teamScope'
@@ -148,8 +148,59 @@ const isMe = (name, username) => {
 // A group for the day: who is in it, and every job it covers, row by row.
 function GroupBox({ title, icon, people, rows, done, showMatch = true, button, loaded, onScout, busy }) {
   const { username } = useUser()
+  // Full screen: the whole chart, no inner scroll, for reading from across
+  // the pit or handing the phone round. Escape or the X closes it.
+  const [big, setBig] = useState(false)
+  useEffect(() => {
+    if (!big) return
+    const onKey = (e) => { if (e.key === 'Escape') setBig(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [big])
+  const expand = (
+    <button type="button" onClick={() => setBig(true)} title="Full screen" aria-label={`${title} full screen`}
+            className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+      <Maximize2 size={15} />
+    </button>
+  )
+  if (big) {
+    return (
+      <>
+        <Card title={title} icon={icon} fill action={expand}>
+          <Empty>Open full screen.</Empty>
+        </Card>
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-1.5">
+              {icon && (() => { const Icon = icon; return <Icon size={16} className="text-pastel-yellow-dark" /> })()}{title}
+            </h2>
+            <button type="button" onClick={() => setBig(false)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-gray-100"><X size={18} className="text-gray-500" /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {people.map(name => {
+                const me = isMe(name, username)
+                return <span key={name} className={`text-sm px-2.5 py-1 rounded-full ${me ? 'bg-pastel-yellow text-gray-800 font-semibold' : 'bg-gray-100 text-gray-600'}`}>{name}{me ? ' (you)' : ''}</span>
+              })}
+            </div>
+            <div className="text-sm">
+              <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={(job) => { setBig(false); onScout?.(job) }} busy={busy} big />
+            </div>
+          </div>
+          {button && (
+            <div className="p-3 border-t border-gray-100">
+              <button onClick={() => { setBig(false); button.onClick() }}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-3 rounded-xl text-sm font-semibold bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800">
+                <ClipboardList size={15} /> {button.label}
+              </button>
+            </div>
+          )}
+        </div>
+      </>
+    )
+  }
   return (
-    <Card title={title} icon={icon} fill>
+    <Card title={title} icon={icon} fill action={expand}>
       {!loaded ? <Empty>Loading…</Empty> : people.length === 0 ? <Empty>A lead will fill this in.</Empty> : (
         <div className="flex flex-wrap gap-1.5">
           {people.map(name => {
@@ -288,11 +339,11 @@ const STATUS = {
 
 // A row that is not scouted yet is a thing to do, so it is a button: tap it
 // and the form opens on that job. A scouted row just sits there, green.
-function ScoutChart({ rows, done, showMatch = true, onScout, busy }) {
+function ScoutChart({ rows, done, showMatch = true, onScout, busy, big = false }) {
   if (!rows.length) return <Empty>Nothing assigned yet.</Empty>
   return (
     <div className="overflow-x-auto -mx-1">
-      <table className="w-full text-xs">
+      <table className={`w-full ${big ? 'text-sm' : 'text-xs'}`}>
         <thead>
           <tr className="text-gray-400 text-left">
             <th className="font-medium py-1 px-1">Team</th>
