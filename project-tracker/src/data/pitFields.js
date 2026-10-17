@@ -23,7 +23,7 @@ export const PIT_FIELDS = [
   { key: 'team_number',  label: 'Team Number', hint: 'The team you are visiting', type: 'text', required: true,  group: 'Team Info' },
   { key: 'team_name',    label: 'Team Name',   hint: '',                          type: 'text', required: false, group: 'Team Info' },
   { key: 'scout_name',   label: 'Scout Name',  hint: 'Who filled this in',        type: 'text', required: true,  group: 'Team Info' },
-  { key: 'visited_at',   label: 'Time / Date', hint: 'When you visited',          type: 'text', required: false, group: 'Team Info' },
+  { key: 'visited_at',   label: 'Time / Date', hint: 'When you visited',          type: 'datetime', required: false, group: 'Team Info' },
 
   { key: 'drive_train',  label: 'Drive Train', hint: '', type: 'choice', required: false, group: 'Robot Basics',
     options: ['Mecanum', 'Tank', 'Swerve', 'Other'] },

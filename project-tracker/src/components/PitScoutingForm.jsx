@@ -121,8 +121,13 @@ export default function PitScoutingForm() {
     on ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
        : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'}`
 
-  const Field = ({ f }) => (
-    <div className="mb-4">
+  // A plain function, not a component. Defined inside the form it would be a
+  // new component type on every render, and React would throw away the input
+  // and make a fresh one on each keystroke — which on a phone means one
+  // character, then the keyboard closes. Called as a function it is just
+  // markup, and the input stays put.
+  const renderField = (f) => (
+    <div className="mb-4" key={f.key}>
       <label className="block text-sm font-semibold text-gray-700 mb-0.5">
         {f.label}{f.required && <span className="text-pastel-orange-dark"> *</span>}
       </label>
@@ -153,6 +158,10 @@ export default function PitScoutingForm() {
             </button>
           ))}
         </div>
+      ) : f.type === 'datetime' ? (
+        // The phone's own picker: a scroll wheel on iPhone, a dialog elsewhere.
+        <input type="datetime-local" value={form[f.key]} onChange={e => set(f.key, e.target.value)}
+               className={input} />
       ) : f.type === 'photo' ? (
         <input type="url" value={form[f.key]} onChange={e => set(f.key, e.target.value)}
                placeholder="Paste a link to a photo" className={input} />
@@ -201,7 +210,7 @@ export default function PitScoutingForm() {
           )}
 
           <h2 className="text-base font-bold text-gray-800 mb-3">{pages[step]}</h2>
-          {fieldsOn(pages[step]).map(f => <Field key={f.key} f={f} />)}
+          {fieldsOn(pages[step]).map(renderField)}
 
           {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
