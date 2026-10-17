@@ -105,11 +105,15 @@ export function zonesFor(options = []) {
 // and right wall (blue side, nearer the far end). Read left to right across
 // the field: left wall, top, bottom, right wall. Positions traced off the
 // manual's overhead drawing; the words saved are unchanged.
+//
+// The marks are pulled a little in from the wall so the whole tap target sits
+// on the field: a circle centred on the wall itself is half outside the map
+// and half under the edge labels, and a thumb misses it.
 export const FLOWER_SPOTS = {
-  'Left':         { x: 0.018, y: 0.667 },
-  'Centre Left':  { x: 0.334, y: 0.018 },
-  'Centre Right': { x: 0.662, y: 0.981 },
-  'Right':        { x: 0.981, y: 0.335 },
+  'Left':         { x: 0.075, y: 0.667 },
+  'Centre Left':  { x: 0.334, y: 0.080 },
+  'Centre Right': { x: 0.662, y: 0.905 },
+  'Right':        { x: 0.925, y: 0.335 },
 }
 
 export function spotsFor(options = []) {

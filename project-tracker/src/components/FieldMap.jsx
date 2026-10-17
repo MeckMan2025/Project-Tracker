@@ -159,14 +159,15 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
               onClick={() => toggle(sp.option)}
               aria-pressed={on}
               title={sp.option}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 flex items-center justify-center transition-colors ${
+              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 flex flex-col items-center justify-center transition-all ${
                 on
-                  ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-md'
-                  : 'border-white/90 bg-white/75 text-gray-600 hover:bg-pastel-yellow/60'
+                  ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-md scale-105'
+                  : 'border-white bg-white/85 text-gray-600 hover:bg-pastel-yellow/60 shadow'
               }`}
-              style={{ left: pct(sp.x), top: pct(sp.y), width: '15%', aspectRatio: '1' }}
+              style={{ left: pct(sp.x), top: pct(sp.y), width: '14%', aspectRatio: '1' }}
             >
-              <span className="text-[8px] font-semibold leading-[1.05] text-center px-0.5">
+              <span className="text-[11px] leading-none" aria-hidden="true">{on ? '🌼' : '🌸'}</span>
+              <span className="text-[7px] font-semibold leading-[1.05] text-center px-0.5">
                 {sp.option}
               </span>
             </button>
@@ -194,10 +195,15 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
         )}
 
         {/* Which way round the field is. This is the whole reason the map
-            exists: "Left" means nothing without knowing where you stand. */}
-        <div className="absolute inset-x-0 bottom-0 h-4 bg-pastel-blue-dark/70 flex items-center justify-center">
+            exists: "Left" means nothing without knowing where you stand. In
+            BIOBUZZ the alliances stand at the sides — red left, blue right —
+            and the audience is along the bottom, which is how the drawing
+            is oriented. */}
+        <div className="absolute inset-y-0 left-0 w-1.5 bg-red-500/70 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-1.5 bg-blue-500/70 pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-4 bg-gray-800/60 flex items-center justify-center pointer-events-none">
           <span className="text-[9px] font-semibold text-white tracking-wide">
-            YOUR DRIVER STATION
+            AUDIENCE · RED LEFT · BLUE RIGHT
           </span>
         </div>
       </div>
@@ -210,10 +216,10 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
                 : 'Tap each flower they finished owning. None is a fine answer.')
             : free
               ? (point
-                  ? `${startLabel(value)} side, looking out from your driver station. Tap again to move it.`
+                  ? `${startLabel(value)} third of the field, red's side on the left. Tap again to move it.`
                   : 'Tap anywhere on the field where the robot lines up.')
               : (value
-                  ? `Starting ${String(value).toLowerCase()}, looking out from your driver station.`
+                  ? `Starting ${String(value).toLowerCase()}, red's side on the left.`
                   : 'Tap the square where the robot lines up.')}
         </p>
         {free && point && (
