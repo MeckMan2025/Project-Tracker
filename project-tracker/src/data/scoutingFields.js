@@ -16,7 +16,7 @@
 // one, so a scout who genuinely did not see something should say so in
 // Comments rather than leave a silent gap in the averages.
 
-import { startLabel } from './fieldMap'
+import { startLabel, START_TILE_OPTIONS } from './fieldMap'
 
 const YES_NO = ['Yes', 'No']
 
@@ -32,12 +32,12 @@ export const SCOUTING_FIELDS = [
   // Tapped on a picture of the field rather than picked off a list: a scout
   // looking at the field should not have to translate what they can see into
   // somebody else's word for it.
-  // No options: a start is a dot anywhere on the field, stored as "x,y" in
-  // percent. Three areas made a robot that lined up on the edge of one a
-  // coin toss between two words, and the word is what everything downstream
-  // then believed. Matches scouted when the answer was Left, Middle or Right
-  // still read, as the middle of the area they meant — see data/fieldMap.js.
-  { key: 'start_position',label: 'Starting Position', hint: 'Tap the field where the robot starts', type: 'field', required: true, group: 'Match' },
+  // The options are the wall tiles a robot may legally start on (manual
+  // G304), named by the field's tile grid; the scout taps the tile. Older
+  // matches saved as a free "x,y" point or as Left/Middle/Right still read —
+  // see data/fieldMap.js.
+  { key: 'start_position',label: 'Starting Position', hint: 'Tap the wall tile the robot starts on', type: 'field', required: true, group: 'Match',
+    options: START_TILE_OPTIONS },
 
   // Shot vs made, not "did they score": a team that attempts ten and lands two
   // is a different team from one that attempts two and lands two, and the old

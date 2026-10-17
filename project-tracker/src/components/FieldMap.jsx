@@ -137,19 +137,24 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
               type="button"
               onClick={() => onChange(on ? '' : z.option)}
               aria-pressed={on}
-              className={`absolute rounded-lg border-2 transition-colors flex flex-col items-center justify-end pb-1 ${
+              className={`absolute rounded-md border-2 transition-colors flex flex-col items-center justify-end pb-0.5 ${
                 on
                   ? 'border-pastel-yellow-dark bg-pastel-yellow/80 shadow-sm'
-                  : 'border-white/80 bg-white/40 hover:bg-pastel-yellow/50'
+                  : z.alliance === 'red'
+                    ? 'border-red-300/80 bg-red-200/35 hover:bg-pastel-yellow/50'
+                    : z.alliance === 'blue'
+                      ? 'border-blue-300/80 bg-blue-200/35 hover:bg-pastel-yellow/50'
+                      : 'border-white/80 bg-white/40 hover:bg-pastel-yellow/50'
               }`}
               style={{ left: pct(z.x), top: pct(z.y), width: pct(z.w), height: pct(z.h) }}
+              title={`Tile ${z.option}`}
             >
               {/* Where the robot is, so the answer reads as a position on the
                   field rather than a highlighted rectangle. */}
               {on && (
                 <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-pastel-yellow-dark border border-gray-700/40" />
               )}
-              <span className={`text-[10px] font-semibold ${on ? 'text-gray-900' : 'text-gray-500'}`}>
+              <span className={`text-[9px] font-bold leading-none ${on ? 'text-gray-900' : 'text-gray-600'}`}>
                 {z.option}
               </span>
             </button>
@@ -227,8 +232,8 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
                   ? `${startLabel(value)} third of the field, red's side on the left. Tap again to move it.`
                   : 'Tap anywhere on the field where the robot lines up.')
               : (value
-                  ? `Starting ${String(value).toLowerCase()}, red's side on the left.`
-                  : 'Tap the square where the robot lines up.')}
+                  ? `Starts on tile ${value}, touching the wall. Red's side is the left half.`
+                  : 'Tap the wall tile the robot starts on. Robots start against the wall on their own half, outside the loading zone.')}
         </p>
         {free && point && (
           <button

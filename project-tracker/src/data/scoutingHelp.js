@@ -20,7 +20,7 @@ export const MATCH_SECTION_NOTES = {
 export const MATCH_HELP = {
   team_number: { enter: 'Team number', means: 'The robot you are watching, not your alliance. On a live day the board fills this in for you.' },
   match_number: { enter: 'Match number', means: 'The qualification or playoff match as the field display shows it.' },
-  start_position: { enter: 'A tap on the field map', means: 'Where the robot sat before the match started. Tap the exact spot. RadRank groups these by side of the field.' },
+  start_position: { enter: 'Tap a wall tile on the map', means: 'The tile the robot starts on. The rules say a robot starts touching the perimeter wall, on its own half (columns A to C for red, D to F for blue), not in the loading zone and not touching a flower. Those legal tiles are the ones you can tap, named by the field grid, like A6 or F3.' },
   auto_shot: { enter: 'Count', means: 'Every game piece the robot tried to score in auto, whether or not it went in.' },
   auto_made: { enter: 'Count', means: 'How many of those actually scored. Made can never be more than Shot.' },
   auto_leave: { enter: 'Yes / No', means: 'Did the robot move off its starting spot during auto? Just moving counts.' },

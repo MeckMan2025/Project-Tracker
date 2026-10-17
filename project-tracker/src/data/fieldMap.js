@@ -67,7 +67,38 @@ export const ALLIANCE_ZONES = [
 // by the option exactly as scoutingFields.js lists it, so the value saved is
 // unchanged — existing matches, the table, the CSV and the averages all still
 // read the same three words.
+//
+// BIOBUZZ (Competition Manual G304): a ROBOT starts fully on its own
+// ALLIANCE's half — tile columns A, B, C for red, D, E, F for blue — touching
+// the perimeter wall, not in the LOADING ZONE, and not touching a FLOWER. So
+// the legal starts are the wall tiles of your own half, minus the loading
+// zone tile. Named by the field's own tile grid (Figure 9-5): columns A–F
+// left to right, rows 1–6 from the audience wall up. Red's loading zone is
+// A5, blue's is F2; those two are left out.
+//
+// Each zone is the whole tile, so a tap anywhere on the tile the robot is
+// touching is the answer, and the saved value is the tile's name.
+const TILE = 1 / 6
+const tile = (col, row, alliance) => ({
+  x: 'ABCDEF'.indexOf(col) * TILE,
+  y: (6 - row) * TILE,
+  w: TILE, h: TILE, alliance,
+})
+export const START_TILES = {
+  // Red: top wall, left wall (A5 is the loading zone), bottom wall
+  A6: tile('A', 6, 'red'), B6: tile('B', 6, 'red'), C6: tile('C', 6, 'red'),
+  A4: tile('A', 4, 'red'), A3: tile('A', 3, 'red'), A2: tile('A', 2, 'red'),
+  A1: tile('A', 1, 'red'), B1: tile('B', 1, 'red'), C1: tile('C', 1, 'red'),
+  // Blue: top wall, right wall (F2 is the loading zone), bottom wall
+  D6: tile('D', 6, 'blue'), E6: tile('E', 6, 'blue'), F6: tile('F', 6, 'blue'),
+  F5: tile('F', 5, 'blue'), F4: tile('F', 4, 'blue'), F3: tile('F', 3, 'blue'),
+  F1: tile('F', 1, 'blue'), D1: tile('D', 1, 'blue'), E1: tile('E', 1, 'blue'),
+}
+export const START_TILE_OPTIONS = Object.keys(START_TILES)
+
 export const START_ZONES = {
+  ...START_TILES,
+  // The three words from before the tiles, kept so older matches still read.
   Left:   { x: 0.055, y: 0.730, w: 0.265, h: 0.165 },
   Middle: { x: 0.368, y: 0.730, w: 0.265, h: 0.165 },
   Right:  { x: 0.680, y: 0.730, w: 0.265, h: 0.165 },
@@ -150,7 +181,9 @@ export function pointOf(value) {
 // in gives that back, and gives the same three words as before, so matches
 // scouted under the old question count alongside the new ones.
 export function startLabel(value) {
+  const v = typeof value === 'string' ? value.trim() : ''
+  if (START_TILES[v]) return v   // a tile is already the name worth counting
   const p = pointOf(value)
-  if (!p) return typeof value === 'string' ? value.trim() : ''
+  if (!p) return v
   return p.x < 1 / 3 ? 'Left' : p.x < 2 / 3 ? 'Middle' : 'Right'
 }
