@@ -21,6 +21,14 @@ import { teamScope } from '../lib/teamScope'
 
 const TABLE = 'pit_scouting'
 
+// Now, in the form a date-time picker reads: local time, YYYY-MM-DDTHH:mm.
+// A pretty "Oct 16, 7:02 PM" string shows as an empty picker.
+const nowForPicker = () => {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 export default function PitScoutingForm() {
   const { username } = useUser()
   const { myTeamNumber } = usePermissions()
@@ -30,9 +38,7 @@ export default function PitScoutingForm() {
   const [form, setForm] = useState(() => ({
     ...blankPitEntry(),
     scout_name: username || '',
-    visited_at: new Date().toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    }),
+    visited_at: nowForPicker(),
   }))
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -103,9 +109,7 @@ export default function PitScoutingForm() {
       setForm({
         ...blankPitEntry(),
         scout_name: form.scout_name,
-        visited_at: new Date().toLocaleString('en-US', {
-          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-        }),
+        visited_at: nowForPicker(),
       })
       setSaved(true); setTimeout(() => setSaved(false), 2500)
     } catch (err) {
