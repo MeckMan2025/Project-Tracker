@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'luc
 import { SCOUTING_FIELDS, yesNo, displayValue } from '../data/scoutingFields'
 import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { PIT_FIELDS } from '../data/pitFields'
-import { SCOUT_SAVED } from '../lib/scoutHandoff'
+import { SCOUT_SAVED, announceScoutSaved } from '../lib/scoutHandoff'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -543,6 +543,7 @@ function ScoutingData() {
       )
       if (!res.ok) { console.error('Failed to delete:', res.status, await res.text()); return }
       setRecords(prev => prev.filter(r => r.id !== id))
+      announceScoutSaved()   // the board puts "Scout it" back on that job
     } catch (err) { console.error('Failed to delete:', err) }
   }
 

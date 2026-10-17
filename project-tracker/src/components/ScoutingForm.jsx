@@ -196,6 +196,7 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
     try {
       const res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}?id=eq.${id}`, { method: 'DELETE', headers })
       if (!res.ok) throw new Error(await res.text())
+      announceScoutSaved()   // the board puts "Scout it" back on that job
     } catch (err) {
       console.error('Failed to remove row:', err)
       setRows(keep)
