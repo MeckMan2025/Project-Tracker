@@ -19,13 +19,24 @@ function write(list) {
   try { localStorage.setItem(KEY, JSON.stringify(list)) } catch { /* no room: nothing to do */ }
   window.dispatchEvent(new Event(EVENT))
 }
+// Two kinds of draft:
+//   'row'  — a finished match that could not be sent; it goes up by itself.
+//   'form' — an unfinished form the scout put away to come back to; it waits
+//            for them, never sent until they resume and press Save.
 export function addDraft(table, row) {
-  const list = listDrafts().filter(d => d.row.id !== row.id)
-  list.push({ table, row, at: new Date().toISOString(), tries: 0 })
+  const list = listDrafts().filter(d => d.id !== row.id)
+  list.push({ id: row.id, kind: 'row', table, row, at: new Date().toISOString(), tries: 0 })
   write(list)
 }
+export function addFormDraft(table, form, label) {
+  const id = form._draftId || `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const list = listDrafts().filter(d => d.id !== id)
+  list.push({ id, kind: 'form', table, form: { ...form, _draftId: id }, label, at: new Date().toISOString() })
+  write(list)
+  return id
+}
 export function removeDraft(id) {
-  write(listDrafts().filter(d => d.row.id !== id))
+  write(listDrafts().filter(d => d.id !== id && d.row?.id !== id))
 }
 export function onDraftsChange(fn) {
   window.addEventListener(EVENT, fn)
@@ -71,13 +82,14 @@ export async function flushDrafts() {
   let sent = 0
   try {
     for (const d of listDrafts()) {
+      if (d.kind !== 'row') continue   // unfinished forms wait for their scout
       try {
         await sendRow(d.table, d.row)
-        removeDraft(d.row.id)
+        removeDraft(d.id)
         sent++
       } catch {
         const list = listDrafts()
-        const it = list.find(x => x.row.id === d.row.id)
+        const it = list.find(x => x.id === d.id)
         if (it) { it.tries = (it.tries || 0) + 1; it.lastError = new Date().toISOString(); write(list) }
       }
     }

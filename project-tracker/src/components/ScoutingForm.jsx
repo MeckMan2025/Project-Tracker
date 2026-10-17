@@ -19,7 +19,7 @@ import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 import RpIcon from './RpIcon'
 import { useAnnounceScouting } from '../hooks/useScoutingPresence'
-import { addDraft, listDrafts, flushDrafts, onDraftsChange, startDraftSender, sendRow, missingColumn } from '../lib/scoutDrafts'
+import { addDraft, addFormDraft, removeDraft, listDrafts, flushDrafts, onDraftsChange, startDraftSender, sendRow, missingColumn } from '../lib/scoutDrafts'
 
 // Match scouting: one row per team per match.
 //
@@ -137,6 +137,24 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const sendDraftsNow = async () => {
     setSendingDrafts(true)
     try { await flushDrafts() } finally { setSendingDrafts(false); setDrafts(listDrafts()) }
+  }
+  const [showDrafts, setShowDrafts] = useState(false)
+  // Put this form away, as it stands, and start a clean one.
+  const saveAsDraft = () => {
+    const label = `${form.team_number ? `Team ${form.team_number}` : 'No team'}${form.match_number ? ` · match ${form.match_number}` : ''}`
+    addFormDraft(TABLE, form, label)
+    setForm(blankEntry())
+    setStep(0)
+    prefilled.current = false
+    setSchemaWarning('Put away as a draft. Open Drafts at the top to come back to it.')
+  }
+  // Pick an unfinished draft back up, exactly where it was left.
+  const resumeDraft = (d) => {
+    setForm({ ...blankEntry(), ...d.form })
+    prefilled.current = true
+    removeDraft(d.id)
+    setShowDrafts(false)
+    setStep(0)
   }
   const [saved, setSaved] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -327,18 +345,16 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
         : `Screen ${step + 1} of ${SCOUTING_GROUPS.length} · ${group}`}
       action={
         <div className="flex items-center gap-2 shrink-0">
-          {drafts.length > 0 && (
-            <button
-              type="button"
-              onClick={sendDraftsNow}
-              disabled={sendingDrafts}
-              title="Matches saved on this phone that have not reached the database yet"
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium disabled:opacity-60"
-            >
-              {sendingDrafts ? <Loader2 size={13} className="animate-spin" /> : null}
-              {drafts.length} draft{drafts.length === 1 ? '' : 's'} · Send
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowDrafts(true)}
+            title="Matches put away on this phone, and ones waiting to send"
+            className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
+              drafts.length ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100' : 'border-gray-200 bg-white text-gray-500 hover:bg-pastel-blue/20'
+            }`}
+          >
+            Drafts{drafts.length ? ` (${drafts.length})` : ''}
+          </button>
           <HelpButton onClick={() => setShowHelp(true)} />
           <button
             onClick={() => setShowData(v => !v)}
@@ -351,6 +367,40 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
         </div>
       }
     >
+      {showDrafts && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={() => setShowDrafts(false)}>
+          <div className="bg-white w-full sm:max-w-md max-h-[80vh] rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col" onClick={e => e.stopPropagation()} role="dialog" aria-label="Drafts">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Drafts on this phone</h2>
+                <p className="text-[11px] text-gray-400">Unfinished matches wait for you. Finished ones that could not send go up on their own.</p>
+              </div>
+              <button type="button" onClick={() => setShowDrafts(false)} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="Close">✕</button>
+            </div>
+            <div className="overflow-y-auto p-3 space-y-2">
+              {drafts.length === 0 && <p className="text-sm text-gray-400 text-center py-6">No drafts. Use “Save as draft” under a form to put one away.</p>}
+              {drafts.map(d => (
+                <div key={d.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">
+                      {d.kind === 'form' ? (d.label || 'Unfinished match') : `Team ${d.row.team_number} · match ${d.row.match_number}`}
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      {d.kind === 'form' ? 'Unfinished' : (d.tries ? `Waiting to send · ${d.tries} tr${d.tries === 1 ? 'y' : 'ies'}` : 'Waiting to send')} · {new Date(d.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  {d.kind === 'form' ? (
+                    <button type="button" onClick={() => resumeDraft(d)} className="text-xs px-2.5 py-1.5 rounded-lg bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-900 font-medium">Resume</button>
+                  ) : (
+                    <button type="button" onClick={sendDraftsNow} disabled={sendingDrafts} className="text-xs px-2.5 py-1.5 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 font-medium disabled:opacity-60">{sendingDrafts ? 'Sending…' : 'Send now'}</button>
+                  )}
+                  <button type="button" onClick={() => { if (confirm('Delete this draft?')) removeDraft(d.id) }} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400" title="Delete draft"><Trash2 size={14} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {showHelp && (
         <ScoutingHelp title="Match scouting" fields={SCOUTING_FIELDS} help={MATCH_HELP} notes={MATCH_SECTION_NOTES}
                       currentGroup={showData ? null : group} onClose={() => setShowHelp(false)} />
@@ -421,6 +471,15 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
                 {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : 'Save match'}
               </button>
             )}
+          </div>
+
+          <div className="flex justify-center -mt-1">
+            <button type="button" onClick={saveAsDraft}
+                    disabled={!form.team_number && !form.match_number}
+                    title="Put this match away as it stands and come back to it from Drafts"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-pastel-blue/20 disabled:opacity-40">
+              Save as draft
+            </button>
           </div>
 
           {step === LAST && !ready && (
