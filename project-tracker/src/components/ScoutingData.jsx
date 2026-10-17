@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'luc
 import { SCOUTING_FIELDS, yesNo, displayValue } from '../data/scoutingFields'
 import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { PIT_FIELDS } from '../data/pitFields'
+import { SCOUT_SAVED } from '../lib/scoutHandoff'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -414,7 +415,7 @@ function ScoutingData() {
   useEffect(() => {
     // This team's scouting. owner_team, not team_number: team_number here is
     // the robot that was scouted.
-    scopeQuery(supabase
+    const load = () => scopeQuery(supabase
       .from('match_scouting')
       .select('*'), 'owner_team')
       .order('created_at', { ascending: true })
@@ -423,6 +424,17 @@ function ScoutingData() {
         if (data) setRecords(data)
       })
       .catch(err => console.error('Exception loading scouting records:', err))
+    load()
+    // Realtime below is the fast path. This is the safety net: a form on this
+    // device just saved, or the page came back to the front, so ask again.
+    // A row must never be missing here because one message went astray.
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    window.addEventListener(SCOUT_SAVED, load)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener(SCOUT_SAVED, load)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   // Realtime
