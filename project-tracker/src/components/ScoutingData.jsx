@@ -121,6 +121,19 @@ function computeScoutingStats(matches) {
       return e && e !== 'Nothing'
     }).length, n),
     cleanMatchPct: pct(matches.filter(m => !m.breakdowns || m.breakdowns === 'None').length, n),
+
+    // Ranking points, as the scout ticked them: Win, Auto, Endgame, Tie, each
+    // one point, "None" nothing. Averaged over the matches that answered.
+    rpPerMatch: (() => {
+      const v = matches.map(m => m.rp_points).filter(x => x != null && x !== '')
+      if (!v.length) return 0
+      const total = v.reduce((acc, x) => acc + String(x).split(',').map(t => t.trim()).filter(t => t && t !== 'None').length, 0)
+      return +(total / v.length).toFixed(1)
+    })(),
+    // The most they made in a single match, auto and teleop together.
+    bestMade: matches.reduce((best, m) => Math.max(best, Number(m.auto_made || 0) + Number(m.teleop_made || 0)), 0),
+    gardenAvg: avg('garden_score'),
+    parking: tally('parking'),
   }
 }
 
@@ -425,8 +438,14 @@ function ScoutingData() {
       .filter(t => consideredNumbers.includes(t.number))
       .map(t => rankOverrides[t.number] ? { ...t, rank: rankOverrides[t.number] } : t)
       .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+    // A rank somebody typed in comes first; after that, the teams we have
+    // scouted, best teleop scorers first, so the list means something before
+    // anyone has entered a ranking.
+    const byScouting = (a, b) => (b.teleAvgMade || 0) - (a.teleAvgMade || 0)
+      || (b.autoAvgMade || 0) - (a.autoAvgMade || 0)
+      || (b.scoutCount || 0) - (a.scoutCount || 0)
     const others = all.filter(t => !consideredNumbers.includes(t.number))
-      .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+      .sort((a, b) => ((a.rank || 999) - (b.rank || 999)) || byScouting(a, b))
 
     return { consideredTeams: considered, otherTeams: others }
   }, [filteredRecords, consideredList, consideredNumbers, selectedDate])
@@ -666,37 +685,40 @@ function ScoutingData() {
                       </button>
                     )}
                     <div className="text-right">
-                      <span className="text-sm font-semibold text-gray-700">{t.record}</span>
-                      <p className="text-xs text-gray-400">{t.played} matches</p>
+                      <span className="text-sm font-semibold text-gray-700">{t.scoutCount ? `${t.teleAvgMade} made` : '—'}</span>
+                      <p className="text-xs text-gray-400">{t.scoutCount} scouted</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="p-5 space-y-5">
-                {/* Competition Stats */}
+                {/* The headline numbers, straight from what the scouting form
+                    asks: ranking points ticked, pieces made in auto and teleop,
+                    and whether they do an endgame. Nothing here comes from a
+                    competition feed, because there is none. */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Competition Stats</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">At a Glance <span className="font-normal text-gray-400">(from our scouting)</span></h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.rp}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">RP/Match</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? t.rpPerMatch : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">RP / Match</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.tbp}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">TBP/Match</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? t.autoAvgMade : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Auto Made / Match</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.autoAvg}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Auto Avg</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? t.teleAvgMade : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Teleop Made / Match</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.teleopAvg}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Teleop Avg</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? `${t.endgameSuccessPct}%` : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Does an Endgame</p>
                     </div>
                   </div>
                   <div className="mt-2 text-center">
-                    <span className="text-xs text-gray-500">High Score: <span className="font-semibold text-gray-700">{t.highScore}</span></span>
+                    <span className="text-xs text-gray-500">Best match: <span className="font-semibold text-gray-700">{t.scoutCount ? `${t.bestMade} made` : '—'}</span>{t.scoutCount ? <> · Garden / match: <span className="font-semibold text-gray-700">{t.gardenAvg}</span></> : null}</span>
                   </div>
                 </div>
 
@@ -766,7 +788,7 @@ function ScoutingData() {
           {/* All Teams by Rank */}
           <div className="border-b-2 border-pastel-blue pb-2 mb-1 mt-8">
             <h2 className="text-lg font-bold text-gray-800">All Teams by Rank</h2>
-            <p className="text-xs text-gray-500">Ordered by competition ranking</p>
+            <p className="text-xs text-gray-500">Ranked teams first, then by what we've scouted</p>
           </div>
 
           {otherTeams.map(t => (
@@ -786,36 +808,39 @@ function ScoutingData() {
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-semibold text-gray-700">{t.record}</span>
-                    <p className="text-xs text-gray-400">{t.played} matches</p>
+                    <span className="text-sm font-semibold text-gray-700">{t.scoutCount ? `${t.teleAvgMade} made` : '—'}</span>
+                    <p className="text-xs text-gray-400">{t.scoutCount} scouted</p>
                   </div>
                 </div>
               </div>
 
               <div className="p-5 space-y-5">
-                {/* Competition Stats */}
+                {/* The headline numbers, straight from what the scouting form
+                    asks: ranking points ticked, pieces made in auto and teleop,
+                    and whether they do an endgame. Nothing here comes from a
+                    competition feed, because there is none. */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">Competition Stats</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">At a Glance <span className="font-normal text-gray-400">(from our scouting)</span></h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.rp}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">RP/Match</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? t.rpPerMatch : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">RP / Match</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.tbp}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">TBP/Match</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? t.autoAvgMade : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Auto Made / Match</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.autoAvg}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Auto Avg</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? t.teleAvgMade : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Teleop Made / Match</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                      <p className="text-lg font-bold text-gray-800">{t.teleopAvg}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Teleop Avg</p>
+                      <p className="text-lg font-bold text-gray-800">{t.scoutCount ? `${t.endgameSuccessPct}%` : '—'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Does an Endgame</p>
                     </div>
                   </div>
                   <div className="mt-2 text-center">
-                    <span className="text-xs text-gray-500">High Score: <span className="font-semibold text-gray-700">{t.highScore}</span></span>
+                    <span className="text-xs text-gray-500">Best match: <span className="font-semibold text-gray-700">{t.scoutCount ? `${t.bestMade} made` : '—'}</span>{t.scoutCount ? <> · Garden / match: <span className="font-semibold text-gray-700">{t.gardenAvg}</span></> : null}</span>
                   </div>
                 </div>
 
