@@ -623,7 +623,7 @@ function ScoutingData() {
               Scouting Data
             </h1>
             <p className="text-sm text-gray-500">
-              {ALL_TEAMS.length} teams &middot; {filteredRecords.length} scouting response{filteredRecords.length !== 1 ? 's' : ''}
+              {consideredTeams.length + otherTeams.length} teams &middot; {filteredRecords.length} scouting response{filteredRecords.length !== 1 ? 's' : ''}
               {selectedDate && ` on ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
             </p>
           </div>
