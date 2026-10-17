@@ -19,17 +19,34 @@ export function useLiveCompDay(scope) {
 
   useEffect(() => {
     let cancelled = false
+    // A live day must not flicker. Every flip from "a day" to "no day" and
+    // back is an activation, and an activation sends every screen to Home —
+    // which is how people kept being pulled off a half-filled scouting form.
+    // So: no identity, no verdict (the public key always sees no day); one
+    // empty answer is noted, not believed; a second in a row ends the day.
+    // A press of Pause on this device (force) is believed at once.
+    let misses = 0
     const check = async (force) => {
       if (force !== true && document.visibilityState !== 'visible') return
       try {
-        await ensureUserToken()   // the public key sees no sessions
+        const authed = await ensureUserToken()
+        if (!authed) return
         const res = await fetch(
           `${supabaseUrl}/rest/v1/comp_day_sessions?${scope}&is_active=eq.true&order=created_at.desc&limit=1&select=id,name,session_date`,
           { headers: restHeaders() }
         )
-        if (!res.ok) return
+        if (!res.ok || cancelled) return
         const rows = await res.json()
-        if (!cancelled) setLive(Array.isArray(rows) && rows[0] ? rows[0] : null)
+        const found = Array.isArray(rows) && rows[0] ? rows[0] : null
+        if (cancelled) return
+        if (found) {
+          misses = 0
+          // Same day, same object: no re-render for a poll that changed nothing.
+          setLive(prev => (prev && prev.id === found.id && prev.name === found.name && prev.session_date === found.session_date) ? prev : found)
+        } else if (force === true || ++misses >= 2) {
+          misses = 0
+          setLive(null)
+        }
       } catch { /* keep what we had; the next check corrects it */ }
     }
     check()
