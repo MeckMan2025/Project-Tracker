@@ -4,7 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, Loader2, ArrowRight, ArrowLeft, ClipboardList } from 'lucide-react'
 import { PIT_FIELDS, PIT_GROUPS, blankPitEntry } from '../data/pitFields'
-import { takeScoutRequest } from '../lib/scoutHandoff'
+import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
 import { ALL_TEAMS } from '../data/teams'
 import { teamScope } from '../lib/teamScope'
 
@@ -119,6 +119,7 @@ export default function PitScoutingForm() {
         scout_name: form.scout_name,
         visited_at: nowForPicker(),
       })
+      announceScoutSaved()
       setSaved(true); setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       console.error('Failed to save pit row:', err)

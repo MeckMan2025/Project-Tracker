@@ -12,7 +12,7 @@ import { ALL_TEAMS, teamLabel } from '../data/teams'
 import { stampTeam, teamScope } from '../lib/teamScope'
 import ScoutingSync from './ScoutingSync'
 import { useDayDoc } from '../hooks/useDayDoc'
-import { takeScoutRequest } from '../lib/scoutHandoff'
+import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
 import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 
@@ -161,6 +161,7 @@ export default function ScoutingForm({ liveDay = null }) {
       })
       if (!res.ok) throw new Error(await res.text())
       setRows(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
+      announceScoutSaved()
       setStep(0)
       // Team and match stay: scouting is one team after another in the same
       // match, or the same team match after match. Retyping them every time is

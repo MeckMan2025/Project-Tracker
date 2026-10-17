@@ -19,3 +19,8 @@ export function takeScoutRequest() {
     return JSON.parse(v)
   } catch { return null }
 }
+
+// Fired on this window when a scouting form saves, so the board turns the
+// row green straight away rather than on its next poll.
+export const SCOUT_SAVED = 'scrum-scout-saved'
+export const announceScoutSaved = () => window.dispatchEvent(new Event(SCOUT_SAVED))

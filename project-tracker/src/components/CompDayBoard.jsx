@@ -7,7 +7,7 @@ import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useDayDoc } from '../hooks/useDayDoc'
-import { requestScout } from '../lib/scoutHandoff'
+import { requestScout, SCOUT_SAVED } from '../lib/scoutHandoff'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import {
   SCOUTING_ROLE, PIT_ROLE, roleMembers, allAssignments, assignmentsFor,
@@ -198,12 +198,24 @@ function useScouted() {
     }
     load()
     const interval = setInterval(load, 60000)
+    // A form on this device just saved, or the app came back to the front:
+    // ask again now. Realtime covers everyone else's saves; the poll is the
+    // safety net under both.
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    window.addEventListener(SCOUT_SAVED, load)
+    document.addEventListener('visibilitychange', onVisible)
     const channel = supabase
       .channel('comp-day-board-scouted')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'match_scouting' }, load)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pit_scouting' }, load)
       .subscribe()
-    return () => { cancelled = true; clearInterval(interval); supabase.removeChannel(channel) }
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener(SCOUT_SAVED, load)
+      document.removeEventListener('visibilitychange', onVisible)
+      supabase.removeChannel(channel)
+    }
   }, [])
   return { matches, pits }
 }
