@@ -254,6 +254,39 @@ function ScoutingData() {
   const [deleteMode, setDeleteMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState('') // '' = all dates
 
+  // Teams on any Competition Day's match schedule or pit list. A team we are
+  // going to scout belongs on this page before the first row comes in, and
+  // the team list in data/teams.js is a shortlist, not the whole field. Named
+  // from the list when it knows them, "Team N" otherwise.
+  const [dayTeams, setDayTeams] = useState([])
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/scouting_schedule?${SCOPE}&id=like.day-*&select=id,data`,
+          { headers: restHeaders() }
+        )
+        if (!res.ok) return
+        const rows = await res.json()
+        const seen = new Map()
+        ;(Array.isArray(rows) ? rows : []).forEach(({ data }) => {
+          ;(data?.matchSchedule || []).forEach(m => ['red1', 'red2', 'blue1', 'blue2'].forEach(k => {
+            const t = String(m[k] || '').trim(); if (t) seen.set(t, true)
+          }))
+          ;(data?.pitTeams || []).forEach(p => { const t = String(p.team || '').trim(); if (t) seen.set(t, true) })
+        })
+        if (active) setDayTeams([...seen.keys()])
+      } catch { /* the page still works from the team list alone */ }
+    }
+    load()
+    const channel = supabase
+      .channel('scouting-data-day-teams')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scouting_schedule' }, load)
+      .subscribe()
+    return () => { active = false; supabase.removeChannel(channel) }
+  }, [SCOPE])
+
   // Get unique submission dates from records
   const availableDates = useMemo(() => {
     const dateSet = new Set()
@@ -407,6 +440,19 @@ function ScoutingData() {
       return { ...t, matches, ...stats }
     })
 
+    // Teams from the Competition Day schedules that the team list does not know.
+    dayTeams.forEach(num => {
+      if (knownNumbers.has(num)) return
+      knownNumbers.add(num)
+      const matches = byNumber[num] || []
+      delete byNumber[num]
+      all.push({
+        number: num, name: `Team ${num}`, rank: null, record: '-', played: 0,
+        rp: '-', tbp: '-', autoAvg: '-', teleopAvg: '-', highScore: '-',
+        matches, ...computeScoutingStats(matches),
+      })
+    })
+
     // Add custom teams (not in ALL_TEAMS) from considered list
     consideredList.forEach(c => {
       if (!knownNumbers.has(c.team_number)) {
@@ -448,7 +494,7 @@ function ScoutingData() {
       .sort((a, b) => ((a.rank || 999) - (b.rank || 999)) || byScouting(a, b))
 
     return { consideredTeams: considered, otherTeams: others }
-  }, [filteredRecords, consideredList, consideredNumbers, selectedDate])
+  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
