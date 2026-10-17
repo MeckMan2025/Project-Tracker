@@ -44,15 +44,11 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
   // comma-joined list — so nothing downstream can tell the difference between
   // a flower ticked off a list and the same flower tapped on the map.
   const picked = multi ? String(value || '').split(',').filter(Boolean) : []
-  // "None" is an answer: they owned no flowers. Different from a blank, which
-  // reads the same as a scout who never got to the question. Picking a flower
-  // clears None; picking None clears the flowers.
-  const none = multi && picked.includes('None')
+  // Blank means they owned none; there is nothing to press for that.
   const toggle = (opt) => {
     const without = picked.filter(x => x !== opt && x !== 'None')
     onChange((picked.includes(opt) ? without : [...without, opt]).join(','))
   }
-  const setNone = () => onChange(none ? '' : 'None')
 
   return (
     <div>
@@ -222,11 +218,9 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
       <div className="flex items-start justify-between gap-2 mt-1">
         <p className="text-[11px] text-gray-400">
           {multi
-            ? (none
-                ? 'They owned no flowers.'
-                : picked.length
-                  ? `Owned ${picked.length} of ${options.length}: ${picked.join(', ')}.`
-                  : 'Tap each flower they finished owning, or say they owned none.')
+            ? (picked.length
+                ? `Owned ${picked.length} of ${options.length}: ${picked.join(', ')}.`
+                : 'Tap each flower they finished owning. Leave it blank if they owned none.')
             : free
               ? (point
                   ? `${startLabel(value)} third of the field, red's side on the left. Tap again to move it.`
@@ -242,18 +236,6 @@ export default function FieldMap({ value, onChange, options = [], multi = false 
             className="text-[11px] text-gray-400 underline hover:text-gray-600 shrink-0"
           >
             Clear
-          </button>
-        )}
-        {multi && (
-          <button
-            type="button"
-            onClick={setNone}
-            aria-pressed={none}
-            className={`text-[11px] px-2.5 py-1 rounded-lg border shrink-0 transition-colors ${
-              none ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900' : 'border-gray-200 bg-white text-gray-500 hover:bg-pastel-yellow/40'
-            }`}
-          >
-            {none ? '✓ Owned none' : 'Owned none'}
           </button>
         )}
       </div>
