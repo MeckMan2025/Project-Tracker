@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
-import { ClipboardList, AlertTriangle, Pause, Tent } from 'lucide-react'
+import { ClipboardList, AlertTriangle, Pause, Tent, BookOpen } from 'lucide-react'
 import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
 import { ALL_TEAMS } from '../data/teams'
 import { storedTeamScope } from '../lib/teamScope'
@@ -113,6 +113,17 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
                 ))}
               </div>
             )}
+
+            {/* The rule book, one tap away. Scouts argue about what counted;
+                the AI manual settles it faster than finding a referee. */}
+            <button
+              type="button"
+              onClick={() => onTabChange('ai-manual')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/80 backdrop-blur-sm shadow-sm hover:bg-pastel-blue/20 transition-colors text-sm font-semibold text-gray-800"
+            >
+              <BookOpen size={16} className="text-pastel-blue-dark" /> AI Game Manual
+              <span className="font-normal text-gray-500">— ask it anything about the rules</span>
+            </button>
 
             {/* The two groups side by side and the same height. items-stretch does
                 the lining up; the scroll inside each chart is what keeps them
