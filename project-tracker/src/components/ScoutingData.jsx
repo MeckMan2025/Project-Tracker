@@ -3,7 +3,7 @@ import { startLabel } from '../data/fieldMap'
 import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
-import { SCOUTING_FIELDS, yesNo, displayValue } from '../data/scoutingFields'
+import { SCOUTING_FIELDS, yesNo, displayValue, rpOf } from '../data/scoutingFields'
 import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
 import { PIT_FIELDS } from '../data/pitFields'
 import { SCOUT_SAVED, announceScoutSaved } from '../lib/scoutHandoff'
@@ -132,7 +132,7 @@ function computeScoutingStats(matches) {
     rpPerMatch: (() => {
       const v = matches.map(m => m.rp_points).filter(x => x != null && x !== '')
       if (!v.length) return 0
-      const total = v.reduce((acc, x) => acc + String(x).split(',').map(t => t.trim()).filter(t => t && t !== 'None').length, 0)
+      const total = v.reduce((acc, x) => acc + rpOf(x), 0)
       return +(total / v.length).toFixed(1)
     })(),
     // The most they made in a single match, auto and teleop together.

@@ -87,8 +87,16 @@ export const SCOUTING_FIELDS = [
   // leave the question blank — which reads identically to a scout who never
   // got round to answering. Ticking None says it was nil, and that is a
   // different fact worth being able to tell apart.
-  { key: 'rp_points',     label: 'RP Points', hint: 'Tick each one they earned, or None', type: 'multi', required: false, group: 'Endgame',
-    options: ['Win', 'Auto', 'Endgame', 'Tie', 'None'] },
+  //
+  // Named as the BIOBUZZ results screen names them (Competition Manual
+  // Table 10-2): WIN 3 RP, TIE 1 RP, SWARM 1 RP (LEAVE + PARK points at or
+  // above the threshold), POLLINATOR 1 and 2 at 1 RP each (HIVE TIPS at or
+  // above each threshold). The icon sits on the chip so a scout can match
+  // it to the screen by eye. Older rows saying Auto or Endgame still count,
+  // as one point each.
+  { key: 'rp_points',     label: 'RP Points', hint: 'Tick each one shown on the results screen, or None', type: 'multi', required: false, group: 'Endgame',
+    options: ['Win', 'Tie', 'Swarm', 'Pollinator 1', 'Pollinator 2', 'None'],
+    icons: { 'Win': '🏆', 'Tie': '🤝', 'Swarm': '🐝', 'Pollinator 1': '🌸', 'Pollinator 2': '🌸🌸', 'None': '—' } },
 
   { key: 'robot_speed',   label: 'Robot Speed',  hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
   { key: 'driver_skill',  label: 'Driver Skill', hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
@@ -135,3 +143,8 @@ export const displayValue = (f, v) => {
 
 export const blankEntry = () =>
   Object.fromEntries(SCOUTING_FIELDS.map(f => [f.key, '']))
+
+// What each ticked ranking point is worth, for RadRank's RP per match.
+export const RP_VALUE = { 'Win': 3, 'Tie': 1, 'Swarm': 1, 'Pollinator 1': 1, 'Pollinator 2': 1, 'Auto': 1, 'Endgame': 1 }
+export const rpOf = (ticked) => String(ticked || '').split(',').map(t => t.trim())
+  .reduce((sum, t) => sum + (RP_VALUE[t] || 0), 0)

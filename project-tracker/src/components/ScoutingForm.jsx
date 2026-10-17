@@ -547,7 +547,7 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
                   on ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
                      : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'
                 }`}>
-                {on ? '✓ ' : ''}{opt}
+                {on ? '✓ ' : ''}{f.icons?.[opt] ? <span className="mr-1" aria-hidden="true">{f.icons[opt]}</span> : null}{opt}
               </button>
             )
           })}

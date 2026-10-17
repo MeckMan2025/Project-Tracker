@@ -41,7 +41,7 @@ export const MATCH_HELP = {
   garden_score: { enter: 'Count', means: 'How many pieces they scored in the garden during the endgame.' },
   parking: { enter: 'None / Partial / Full', means: 'Where the robot finished: not in the zone, partly over the line, or fully inside.' },
   flowers_owned: { enter: 'Tap on the field map, optional', means: 'Which of the four flower spots, Left to Right, their alliance held when the buzzer went.' },
-  rp_points: { enter: 'Tick all that apply, or None', means: 'The ranking points you saw them earn. Each tick is one point. None cancels the others.' },
+  rp_points: { enter: 'Tick what the results screen shows, or None', means: 'Win is 3 points, Tie 1. Swarm is the auto bonus: leave and park points over the threshold. Pollinator 1 and 2 are the hive-tip bonuses, 4 tips and 7 tips at most events. Each of those is 1 point. None cancels the others.' },
   robot_speed: { enter: '1 to 5', means: 'How quickly the robot moves around the field compared with the others in the match.' },
   driver_skill: { enter: '1 to 5', means: 'How precisely the drivers place the robot: clean lines and quick alignment score high, bumping and overshooting score low.' },
   consistency: { enter: '1 to 5', means: 'Did they do the same thing well all match, or was it good for a minute and then fell apart?' },
