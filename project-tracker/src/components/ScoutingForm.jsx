@@ -27,6 +27,17 @@ import { useAnnounceScouting } from '../hooks/useScoutingPresence'
 
 const TABLE = 'match_scouting'
 
+// The column a PostgREST error is about, when it is about one. Two phrasings:
+// an insert says "Could not find the 'x' column of 'match_scouting' in the
+// schema cache" (PGRST204); a select says "column match_scouting.x does not
+// exist" (42703).
+function missingColumn(text) {
+  const t = String(text || '')
+  return /Could not find the '([a-z_0-9]+)' column/i.exec(t)?.[1]
+    || /column (?:match_scouting\.)?"?([a-z_0-9]+)"? (?:of relation "match_scouting" )?does not exist/i.exec(t)?.[1]
+    || null
+}
+
 // Ticking an answer in a tick-all list, where some answers cancel the rest.
 // "Nothing" and "None" mean "and nothing else", so they clear the other ticks
 // and any other tick clears them.
@@ -124,6 +135,7 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const [otherTeam, setOtherTeam] = useState(() => !!handed?.team && !ALL_TEAMS.some(t => String(t.number) === String(handed.team)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [schemaWarning, setSchemaWarning] = useState('')
   const [saved, setSaved] = useState(false)
   const [editing, setEditing] = useState(false)
   const [view, setView] = useState('matches')   // matches | teams
@@ -182,12 +194,29 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
         row[f.key] = f.type === 'yesno' ? (raw === 'Yes' ? 1 : 0)
           : (f.type === 'number' || f.type === 'scale') ? Number(raw) : String(raw).trim()
       })
-      const res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify(row),
-      })
+      // Save. If the database is behind the form — a column the form writes
+      // that nobody has added yet — drop that one answer, say so plainly, and
+      // save the rest: a competition does not wait for a migration, and a
+      // whole match lost over one new field is worse than one field lost.
+      const dropped = []
+      let res
+      for (let attempt = 0; attempt < 4; attempt++) {
+        res = await fetch(`${supabaseUrl}/rest/v1/${TABLE}`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(row),
+        })
+        if (res.ok) break
+        const text = await res.text()
+        const col = missingColumn(text)
+        if (!col || !(col in row)) throw new Error(text)
+        delete row[col]; dropped.push(col)
+      }
       if (!res.ok) throw new Error(await res.text())
+      if (dropped.length) {
+        const labels = dropped.map(k => FIELD_BY_KEY[k]?.label || k)
+        setSchemaWarning(`Saved, but the database has no column for ${labels.join(', ')} yet, so that answer was not kept. A lead needs to run the matching file in supabase/ (${dropped.map(c => c === 'auto_tips' ? 'auto_tips.sql' : c.startsWith('endgame_') ? 'endgame_shot_made.sql' : 'scouting_fields_2026.sql').filter((v, i, a) => a.indexOf(v) === i).join(', ')}) in the Supabase SQL editor.`)
+      }
       setRows(prev => [{ ...row, created_at: new Date().toISOString() }, ...prev])
       announceScoutSaved()
       setStep(0)
@@ -204,9 +233,9 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
       // A missing column is not a connection problem, and saying it is sends
       // people off to check their wifi while every save on the team fails.
       // Name the column so a lead knows exactly what the database is short.
-      const m = /column (?:match_scouting\.)?"?([a-z_]+)"? (?:of relation "match_scouting" )?does not exist/i.exec(String(err?.message || ''))
-      setError(m
-        ? `Couldn't save — the database has no "${m[1]}" column yet. Your entry is still here. A lead needs to run the matching file in supabase/ (scouting_fields_2026.sql, endgame_shot_made.sql or auto_tips.sql) in the Supabase SQL editor.`
+      const col = missingColumn(String(err?.message || ''))
+      setError(col
+        ? `Couldn't save — the database has no "${col}" column yet. Your entry is still here. A lead needs to run the matching file in supabase/ (scouting_fields_2026.sql, endgame_shot_made.sql or auto_tips.sql) in the Supabase SQL editor.`
         : "Couldn't save — your entry is still here. Check your connection and try again.")
     } finally {
       setSaving(false)
@@ -322,6 +351,12 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
       {saved && (
         <div className="flex items-center justify-center gap-1.5 text-sm text-green-600 font-medium">
           <Check size={15} /> Saved — team and match kept for the next one.
+        </div>
+      )}
+      {schemaWarning && (
+        <div className="flex items-start gap-2 text-xs rounded-xl px-3 py-2 bg-amber-50 border border-amber-200 text-amber-900">
+          <span className="flex-1">{schemaWarning}</span>
+          <button type="button" onClick={() => setSchemaWarning('')} className="text-amber-700 underline shrink-0">dismiss</button>
         </div>
       )}
 
