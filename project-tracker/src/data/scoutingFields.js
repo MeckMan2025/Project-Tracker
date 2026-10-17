@@ -74,6 +74,8 @@ export const SCOUTING_FIELDS = [
   // because "Garden" against a team that scored one and a team that scored
   // six is the same tick and a different robot. Parking is where they
   // finished, which is the part worth a pick.
+  { key: 'endgame_shot',  label: 'Endgame Shot', hint: 'How many they attempted in the last 30 seconds', type: 'number', required: true, group: 'Endgame' },
+  { key: 'endgame_made',  label: 'Endgame Made', hint: 'How many of those went in', type: 'number', required: true, group: 'Endgame' },
   { key: 'garden_score',  label: 'Garden Scoring', hint: 'How many they scored in the garden', type: 'number', required: true, group: 'Endgame' },
   { key: 'parking',       label: 'Parking', hint: 'Where they finished', type: 'choice', required: true, group: 'Endgame',
     options: ['None', 'Partial', 'Full'] },

@@ -183,7 +183,7 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
       // Name the column so a lead knows exactly what the database is short.
       const m = /column (?:match_scouting\.)?"?([a-z_]+)"? (?:of relation "match_scouting" )?does not exist/i.exec(String(err?.message || ''))
       setError(m
-        ? `Couldn't save — the database has no "${m[1]}" column yet. Your entry is still here. A lead needs to run supabase/scouting_fields_2026.sql in the Supabase SQL editor.`
+        ? `Couldn't save — the database has no "${m[1]}" column yet. Your entry is still here. A lead needs to run the matching file in supabase/ (scouting_fields_2026.sql or endgame_shot_made.sql) in the Supabase SQL editor.`
         : "Couldn't save — your entry is still here. Check your connection and try again.")
     } finally {
       setSaving(false)

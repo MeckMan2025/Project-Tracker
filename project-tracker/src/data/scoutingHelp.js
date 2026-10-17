@@ -36,6 +36,8 @@ export const MATCH_HELP = {
   defense: { enter: 'None / Some / Strong', means: 'How much of the match they spent blocking or pushing the other alliance instead of scoring.' },
   defense_resistance: { enter: '0 to 100 percent', means: 'How well they kept scoring when the other alliance defended them. Not defended at all? Leave it high and say so in Comments.' },
   endgame: { enter: 'Tick all that apply', means: 'Everything they did in the endgame. Nothing cancels the others.' },
+  endgame_shot: { enter: 'Count', means: 'Every scoring attempt during the last 30 seconds, the same way as auto and teleop.' },
+  endgame_made: { enter: 'Count', means: 'How many of those scored. Made can never be more than Shot.' },
   garden_score: { enter: 'Count', means: 'How many pieces they scored in the garden during the endgame.' },
   parking: { enter: 'None / Partial / Full', means: 'Where the robot finished: not in the zone, partly over the line, or fully inside.' },
   flowers_owned: { enter: 'Tap on the field map, optional', means: 'Which of the four flower spots, Left to Right, their alliance held when the buzzer went.' },

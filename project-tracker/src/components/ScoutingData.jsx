@@ -95,6 +95,9 @@ function computeScoutingStats(matches) {
     teleAvgShot: avg('teleop_shot'),
     teleAvgMade: avg('teleop_made'),
     teleAccuracy: madeRate(avg('teleop_made'), avg('teleop_shot')),
+    endAvgShot: avg('endgame_shot'),
+    endAvgMade: avg('endgame_made'),
+    endAccuracy: madeRate(avg('endgame_made'), avg('endgame_shot')),
     autoLeavePct: yesPct('auto_leave'),
     autoParkPct: yesPct('auto_park'),
     avgTips: avg('teleop_tips'),
@@ -133,7 +136,7 @@ function computeScoutingStats(matches) {
       return +(total / v.length).toFixed(1)
     })(),
     // The most they made in a single match, auto and teleop together.
-    bestMade: matches.reduce((best, m) => Math.max(best, Number(m.auto_made || 0) + Number(m.teleop_made || 0)), 0),
+    bestMade: matches.reduce((best, m) => Math.max(best, Number(m.auto_made || 0) + Number(m.teleop_made || 0) + Number(m.endgame_made || 0)), 0),
     gardenAvg: avg('garden_score'),
     parking: tally('parking'),
   }
@@ -179,6 +182,8 @@ function ScoutPanel({ t }) {
             <Line label="Auto shot / match" value={t.autoAvgShot || '—'} />
             <Line label="Auto made / match" value={t.autoAvgMade || '—'} />
             <Line label="Auto accuracy" value={t.autoAccuracy == null ? '—' : `${t.autoAccuracy}%`} />
+            <Line label="Endgame made / match" value={t.endAvgMade || '—'} />
+            <Line label="Endgame accuracy" value={t.endAccuracy == null ? '—' : `${t.endAccuracy}%`} />
             <Line label="Leaves in auto" value={`${t.autoLeavePct}%`} />
             <Line label="Parks in auto" value={`${t.autoParkPct}%`} />
             <Line label="Seconds / cycle" value={t.avgCycleSec || '—'} />
