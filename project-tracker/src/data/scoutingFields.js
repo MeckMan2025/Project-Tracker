@@ -57,10 +57,6 @@ export const SCOUTING_FIELDS = [
   { key: 'avg_cycle_sec', label: 'Avg Cycle Time', hint: 'Rough seconds per cycle', type: 'number', required: true, group: 'Teleop' },
   { key: 'teleop_notes',  label: 'Teleop Notes', hint: 'Anything about their teleop', type: 'text', required: false, group: 'Teleop' },
 
-  { key: 'defense',       label: 'Defense', hint: 'How much they played it', type: 'choice', required: true, group: 'Defense',
-    options: ['None', 'Some', 'Strong'] },
-  { key: 'defense_resistance', label: 'Defense Resistance', hint: 'How well they handle being defended', type: 'percent', required: true, group: 'Defense' },
-
   // More than one can be true in the same endgame, so this is tick-all rather
   // than pick-one.
   { key: 'endgame',       label: 'Endgame', hint: 'Everything they did', type: 'multi', required: true, group: 'Endgame',
@@ -98,6 +94,10 @@ export const SCOUTING_FIELDS = [
     options: ['Win', 'Tie', 'Swarm', 'Pollinator 1', 'Pollinator 2', 'None'],
     // Drawn by components/RpIcon.jsx on the form; these are the text stand-ins elsewhere.
     icons: { 'Win': '🏆🏆🏆', 'Tie': '🏆', 'Swarm': '🤖', 'Pollinator 1': '⌂1', 'Pollinator 2': '⌂2', 'None': '—' } },
+
+  { key: 'defense',       label: 'Defense', hint: 'How much they played it', type: 'choice', required: true, group: 'Defense',
+    options: ['None', 'Some', 'Strong'] },
+  { key: 'defense_resistance', label: 'Defense Resistance', hint: 'How well they handle being defended', type: 'percent', required: true, group: 'Defense' },
 
   { key: 'robot_speed',   label: 'Robot Speed',  hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
   { key: 'driver_skill',  label: 'Driver Skill', hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },

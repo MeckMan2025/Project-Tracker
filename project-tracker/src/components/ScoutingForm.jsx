@@ -285,7 +285,6 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const LAST = SCOUTING_GROUPS.length - 1
   const group = SCOUTING_GROUPS[Math.min(step, LAST)]
   const groupFields = SCOUTING_FIELDS.filter(f => f.group === group)
-  const canAdvance = groupDone(group)
   const missing = groupFields.filter(f => !filled(f)).map(f => f.label)
 
   return (
@@ -358,8 +357,7 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
             {step < LAST ? (
               <button
                 onClick={() => setStep(st => st + 1)}
-                disabled={!canAdvance}
-                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-semibold bg-pastel-yellow-dark hover:brightness-95 text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-semibold bg-pastel-yellow-dark hover:brightness-95 text-gray-900 transition-all"
               >
                 Next <ChevronRight size={16} />
               </button>
@@ -374,29 +372,27 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
             )}
           </div>
 
-          {!canAdvance && (
-            <p className="text-xs text-gray-400 text-center -mt-1">
-              Still needed: {missing.join(' · ')}
+          {step === LAST && !ready && (
+            <p className="text-xs text-gray-500 text-center -mt-1">
+              Still needed before saving: {SCOUTING_FIELDS.filter(f => !filled(f)).map(f => f.label).join(' · ')}
             </p>
           )}
 
-          {/* Skipping ahead, for a scout who knows this robot does nothing in
-              auto and wants to get to the ratings. */}
+          {/* The sections, in any order. A scout fills them in as the match
+              goes — auto, then teleop, then endgame — or jumps straight to the
+              one they are ready for. Nothing is gated until Save, which wants
+              every required answer; an unfinished section shows a dot. */}
           <div className="flex flex-wrap justify-center gap-1">
             {SCOUTING_GROUPS.map((g, i) => {
               const done = groupDone(g)
-              // Only backwards, or onto a screen already finished — skipping
-              // forward past an unanswered screen is how a row ends up half
-              // filled, which is the thing we are now preventing.
-              const reachable = i <= step || done
               return (
-                <button key={g} onClick={() => reachable && setStep(i)} disabled={!reachable}
-                        className={`text-[11px] px-2 py-0.5 rounded disabled:opacity-30 transition-colors ${
-                          i === step ? 'bg-pastel-yellow-dark text-gray-900 font-semibold'
-                          : done ? 'text-gray-500 hover:bg-pastel-yellow/40'
-                          : 'text-gray-300'
+                <button key={g} onClick={() => setStep(i)}
+                        className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+                          i === step ? 'bg-pastel-yellow-dark border-pastel-yellow-dark text-gray-900 font-semibold'
+                          : done ? 'border-transparent text-gray-500 hover:bg-pastel-yellow/40'
+                          : 'border-pastel-orange-dark/40 text-gray-600 hover:bg-pastel-yellow/40'
                         }`}>
-                  {done && i !== step ? '✓ ' : ''}{g}
+                  {done ? '✓ ' : <span className="inline-block w-1.5 h-1.5 rounded-full bg-pastel-orange-dark mr-1 align-middle" />}{g}
                 </button>
               )
             })}
