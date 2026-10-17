@@ -103,16 +103,6 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
         ) : (
           <>
             <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
-            {who.length > 0 && (
-              <div className="bg-amber-50/90 backdrop-blur-sm rounded-xl shadow-sm px-4 py-2 text-xs text-amber-900 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="font-semibold">Scouting right now:</span>
-                {who.map(w => (
-                  <span key={w.username}>
-                    {w.username} · {w.kind === 'pit' ? `pit ${w.team}` : `match ${w.match || '?'}, team ${w.team}`}
-                  </span>
-                ))}
-              </div>
-            )}
 
             {/* The rule book, one tap away. Scouts argue about what counted;
                 the AI manual settles it faster than finding a referee. */}
