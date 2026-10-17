@@ -1077,9 +1077,29 @@ function UserManagement({ onViewProfile }) {
           role: tier === 'guest' ? 'guest' : 'member',
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || res.statusText)
-      if (data?.error) throw new Error(data.error)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data?.error) {
+        const why = data?.error || res.statusText || ''
+        // The server's own list of who may create logins may not know this
+        // person as a lead yet. Rather than stop, let them in the other way:
+        // whitelist the address for this team, so the new member signs up
+        // themselves with that address and lands on the right team.
+        if (canManageOwnTeam && myTeamNumber && (res.status === 401 || res.status === 403 || /only leads|not allowed|forbidden|unauthori[sz]ed/i.test(why))) {
+          const wl = await fetch(`${supabaseUrl}/rest/v1/approved_emails`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify({ email: addEmail.trim().toLowerCase(), role: tier, added_by: user.id, team_number: String(myTeamNumber) }),
+          })
+          if (!wl.ok) {
+            const t = await wl.text()
+            if (!/duplicate|23505/.test(t)) throw new Error(`Couldn't create the login (${why}) or whitelist the address (${t}).`)
+          }
+          setAddSuccess(`Couldn't create the login directly (${why}), so ${addEmail.trim().toLowerCase()} is whitelisted for Team ${myTeamNumber} instead. Have ${addName.trim()} sign up with that address and team number ${myTeamNumber}.`)
+          setAddEmail(''); setAddName(''); setAddPassword(''); setAddRoles([]); setAddTier('teammate')
+          return
+        }
+        throw new Error(why)
+      }
       // Roles, and — when a visiting team's controller is the one adding —
       // which team the new person is on. An unstamped profile reads as
       // Radical, which is the one default that must never happen by accident,

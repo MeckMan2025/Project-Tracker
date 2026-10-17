@@ -1,4 +1,5 @@
 import { useUser } from '../contexts/UserContext'
+import { isHomeTeamNumber } from '../data/team'
 
 const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
 
@@ -12,7 +13,7 @@ const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business
 // was shown the buttons and every click came back "Only leads can reset
 // passwords". The server also keeps a student lead's hands off a mentor's,
 // co-founder's or team's login; those clicks come back with a reason.
-const ACCOUNT_ADMIN_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Business Lead', 'Technical Lead',
+const ACCOUNT_ADMIN_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Team Lead', 'Project Manager', 'Business Lead', 'Technical Lead',
   'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
 
 // Same rule as canAddEvents below, but computed from a raw function_tags array
@@ -77,7 +78,13 @@ export function usePermissions() {
   // are not a Radical lead and must never be treated as one: this is a
   // separate permission, deliberately not folded into canAdminAccounts, so no
   // existing check accidentally starts letting them through.
-  const canManageOwnTeam = !!isTeamController
+  // A Project Manager (or Team Lead) on a visiting team runs that team's
+  // roster the same as its controller account does: adds people to their
+  // own team, and only their own. On Radical this changes nothing — Radical
+  // leads already have the whole of User Management.
+  const isTeamLead = !!(functionTags && ['Project Manager', 'Team Lead'].some(t => functionTags.includes(t)))
+  const onVisitingTeam = !!(teamNumber && !isHomeTeamNumber(teamNumber))
+  const canManageOwnTeam = !!isTeamController || (onVisitingTeam && isTeamLead && !isTeam)
 
   const isFullLead = isCofounder || !!(functionTags && ['Project Manager', 'Mentor', 'Coach'].some(t => functionTags.includes(t)))
   // Timeline: leads, mentors and coaches pin the notes; anyone holding a
@@ -138,6 +145,7 @@ export function usePermissions() {
     // they end up disagreeing.
     teamFullAccess: !!teamFullAccess,
     isSisterCoach,
+    isTeamLead,
     myTeamNumber: teamNumber,
     canDragAnyTask: hasLeadTag || isTeam,
     canDeleteAnyMessage: hasLeadTag,
