@@ -12,6 +12,7 @@ import { ALL_TEAMS, teamLabel } from '../data/teams'
 import { stampTeam, teamScope } from '../lib/teamScope'
 import ScoutingSync from './ScoutingSync'
 import { useDayDoc } from '../hooks/useDayDoc'
+import { takeScoutRequest } from '../lib/scoutHandoff'
 import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 
@@ -44,7 +45,11 @@ export default function ScoutingForm({ liveDay = null }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [unavailable, setUnavailable] = useState(false)
-  const [form, setForm] = useState(blankEntry())
+  // Opened from the board with a job on it: start on that team and match.
+  const [handed] = useState(() => takeScoutRequest())
+  const [form, setForm] = useState(() => handed?.team
+    ? { ...blankEntry(), team_number: String(handed.team), match_number: handed.match == null ? '' : String(handed.match) }
+    : blankEntry())
 
   // The next match this person is down to scout, and the team they watch in it.
   //
@@ -93,7 +98,7 @@ export default function ScoutingForm({ liveDay = null }) {
   const [step, setStep] = useState(0)
   // "Other team" — the list is a shortlist, not a fence, and a team that turns
   // up unlisted still has to be scoutable.
-  const [otherTeam, setOtherTeam] = useState(false)
+  const [otherTeam, setOtherTeam] = useState(() => !!handed?.team && !ALL_TEAMS.some(t => String(t.number) === String(handed.team)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)

@@ -7,6 +7,7 @@ import { storedTeamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useDayDoc } from '../hooks/useDayDoc'
+import { requestScout } from '../lib/scoutHandoff'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import {
   SCOUTING_ROLE, PIT_ROLE, roleMembers, allAssignments, assignmentsFor,
@@ -36,6 +37,12 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const pitRows = useMemo(() => pitAssignments(doc), [doc])
   const mine = useMemo(() => assignmentsFor(doc, username), [doc, username])
   const minePit = useMemo(() => pitAssignmentsFor(doc, username), [doc, username])
+
+  // Tap a job to go and do it: the right form, on that team and match.
+  const scout = (job) => {
+    requestScout({ team: job.team, match: job.match })
+    onTabChange(job.match == null ? 'pit-scouting' : 'scouting')
+  }
 
   const pause = async () => {
     if (!day) return
@@ -87,7 +94,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
           </Card>
         ) : (
           <>
-            <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} />
+            <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} />
 
             {/* The two groups side by side and the same height. items-stretch does
                 the lining up; the scroll inside each chart is what keeps them
@@ -95,12 +102,12 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
             <div className="flex flex-col md:flex-row gap-4 items-stretch">
               <div className="w-full md:flex-1 min-w-0">
                 <GroupBox title="Pit Group" icon={Tent} people={roleMembers(doc, PIT_ROLE)}
-                          rows={pitRows} done={pitScouted} showMatch={false} loaded={!!doc}
+                          rows={pitRows} done={pitScouted} showMatch={false} loaded={!!doc} onScout={scout}
                           button={{ label: 'Pit Scouting', onClick: () => onTabChange('pit-scouting') }} />
               </div>
               <div className="w-full md:flex-1 min-w-0">
                 <GroupBox title="Match Scouting Group" icon={ClipboardList} people={roleMembers(doc, SCOUTING_ROLE)}
-                          rows={matchRows} done={scouted} loaded={!!doc}
+                          rows={matchRows} done={scouted} loaded={!!doc} onScout={scout}
                           button={{ label: 'Match Scouting', onClick: () => onTabChange('scouting') }} />
               </div>
             </div>
@@ -120,7 +127,7 @@ const isMe = (name, username) => {
 }
 
 // A group for the day: who is in it, and every job it covers, row by row.
-function GroupBox({ title, icon, people, rows, done, showMatch = true, button, loaded }) {
+function GroupBox({ title, icon, people, rows, done, showMatch = true, button, loaded, onScout }) {
   const { username } = useUser()
   return (
     <Card title={title} icon={icon} fill>
@@ -146,7 +153,7 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
         // numbers of teams, and without this the longer one dragged its card
         // down past the other and the row looked broken.
         <div className="mt-3 pt-3 border-t border-gray-100 flex-1 min-h-0 overflow-y-auto max-h-64">
-          <ScoutChart rows={rows} done={done} showMatch={showMatch} />
+          <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={onScout} />
         </div>
       )}
       {button && (
@@ -224,7 +231,9 @@ const STATUS = {
   missing: { row: 'bg-red-50', pill: 'bg-red-100 text-red-700',     label: 'Not scouted' },
 }
 
-function ScoutChart({ rows, done, showMatch = true }) {
+// A row that is not scouted yet is a thing to do, so it is a button: tap it
+// and the form opens on that job. A scouted row just sits there, green.
+function ScoutChart({ rows, done, showMatch = true, onScout }) {
   if (!rows.length) return <Empty>Nothing assigned yet.</Empty>
   return (
     <div className="overflow-x-auto -mx-1">
@@ -239,9 +248,16 @@ function ScoutChart({ rows, done, showMatch = true }) {
         </thead>
         <tbody>
           {rows.map((r, i) => {
-            const st = STATUS[statusOf(r, done)]
+            const status = statusOf(r, done)
+            const st = STATUS[status]
+            const todo = status === 'missing' && !!onScout
             return (
-              <tr key={`${r.team}-${r.match ?? 'pit'}-${i}`} className={`border-t border-gray-100 ${st.row}`}>
+              <tr
+                key={`${r.team}-${r.match ?? 'pit'}-${i}`}
+                onClick={todo ? () => onScout(r) : undefined}
+                title={todo ? 'Tap to scout this' : undefined}
+                className={`border-t border-gray-100 ${st.row}${todo ? ' cursor-pointer hover:bg-red-100/70 active:bg-red-100' : ''}`}
+              >
                 <td className="py-1.5 px-1">
                   <span className="font-medium text-gray-700">{r.team}</span>
                   <span className="block text-[10px] text-gray-400 truncate max-w-[8rem]">{teamName(r.team)}</span>
@@ -249,8 +265,8 @@ function ScoutChart({ rows, done, showMatch = true }) {
                 {showMatch && <td className="py-1.5 px-1 text-gray-600">{r.match ?? '—'}</td>}
                 <td className="py-1.5 px-1 text-gray-600 truncate max-w-[7rem]">{r.who || '—'}</td>
                 <td className="py-1.5 px-1 text-right">
-                  <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium ${st.pill}`}>
-                    {st.label}
+                  <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium ${st.pill}${todo ? ' underline decoration-red-300 underline-offset-2' : ''}`}>
+                    {todo ? 'Scout it' : st.label}
                   </span>
                 </td>
               </tr>
@@ -265,20 +281,25 @@ function ScoutChart({ rows, done, showMatch = true }) {
 // The biggest thing on the page, because it is the thing you are counting.
 // One square per job of yours, in match order, so the next one to worry about
 // is simply the next square along. Green once a submission exists for it.
-function YoursToScout({ mine, minePit, scouted, pitScouted, loaded }) {
+function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout }) {
   const square = (a, done, i) => {
     const st = statusOf(a, done)
+    const todo = st === 'missing'
     const look = st === 'done' ? 'bg-green-100 text-green-700 border-green-200'
-      : 'bg-white/80 text-gray-600 border-gray-200'
+      : 'bg-white/80 text-gray-600 border-gray-200 hover:border-pastel-yellow-dark hover:bg-pastel-yellow/40 cursor-pointer'
+    const what = a.match == null ? `Pit visit — team ${a.team} (${teamName(a.team)})` : `Match ${a.match} — team ${a.team} (${teamName(a.team)})`
     return (
-      <div
+      <button
+        type="button"
         key={`${a.team}-${a.match ?? 'pit'}-${i}`}
-        title={a.match == null ? `Pit visit — team ${a.team} (${teamName(a.team)})` : `Match ${a.match} — team ${a.team} (${teamName(a.team)})`}
-        className={`w-14 h-14 rounded-lg border flex flex-col items-center justify-center leading-tight ${look}`}
+        onClick={todo ? () => onScout(a) : undefined}
+        disabled={!todo}
+        title={todo ? `${what} — tap to scout` : what}
+        className={`w-14 h-14 rounded-lg border flex flex-col items-center justify-center leading-tight transition-colors ${look}`}
       >
         <span className="text-base font-bold">{a.match ?? <Tent size={16} />}</span>
         <span className="text-[10px] opacity-70">{a.team}</span>
-      </div>
+      </button>
     )
   }
   return (

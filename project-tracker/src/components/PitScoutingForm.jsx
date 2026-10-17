@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, Loader2, ArrowRight, ArrowLeft, ClipboardList } from 'lucide-react'
 import { PIT_FIELDS, PIT_GROUPS, blankPitEntry } from '../data/pitFields'
+import { takeScoutRequest } from '../lib/scoutHandoff'
 import { ALL_TEAMS } from '../data/teams'
 import { teamScope } from '../lib/teamScope'
 
@@ -35,11 +36,18 @@ export default function PitScoutingForm() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const headers = restHeaders()
 
-  const [form, setForm] = useState(() => ({
-    ...blankPitEntry(),
-    scout_name: username || '',
-    visited_at: nowForPicker(),
-  }))
+  const [form, setForm] = useState(() => {
+    // Opened from the board with a team on it: start on that team.
+    const handed = takeScoutRequest()
+    const team = handed?.team ? String(handed.team) : ''
+    const known = team ? ALL_TEAMS.find(t => String(t.number) === team) : null
+    return {
+      ...blankPitEntry(),
+      scout_name: username || '',
+      visited_at: nowForPicker(),
+      ...(team ? { team_number: team, team_name: known ? known.name : '' } : {}),
+    }
+  })
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
