@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import { restHeaders } from '../lib/restHeaders'
+import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 
 // The Competition Day that is live right now, or null.
 //
@@ -22,6 +22,7 @@ export function useLiveCompDay(scope) {
     const check = async (force) => {
       if (force !== true && document.visibilityState !== 'visible') return
       try {
+        await ensureUserToken()   // the public key sees no sessions
         const res = await fetch(
           `${supabaseUrl}/rest/v1/comp_day_sessions?${scope}&is_active=eq.true&order=created_at.desc&limit=1&select=id,name,session_date`,
           { headers: restHeaders() }

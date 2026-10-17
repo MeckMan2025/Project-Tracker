@@ -4,7 +4,7 @@ import { ClipboardList, AlertTriangle, Pause, Tent } from 'lucide-react'
 import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
 import { ALL_TEAMS } from '../data/teams'
 import { storedTeamScope } from '../lib/teamScope'
-import { restHeaders } from '../lib/restHeaders'
+import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { supabase } from '../supabase'
 import { useDayDoc } from '../hooks/useDayDoc'
 import { requestScout, SCOUT_SAVED } from '../lib/scoutHandoff'
@@ -187,18 +187,30 @@ function useScouted() {
   const [pits, setPits] = useState(null)
   useEffect(() => {
     let cancelled = false
+    // Wait for the user's token before asking. Without one the request goes
+    // out as the public key, the tables (authenticated only) answer with an
+    // empty list rather than an error, and every row here reads "Scout it"
+    // for work that was done. An empty answer is asked again for the same
+    // reason: it is almost always a token that was not ready yet.
     const load = async () => {
-      try {
-        const [m, p] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&select=team_number,match_number`, { headers: restHeaders() }),
-          fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number`, { headers: restHeaders() }),
-        ])
-        const mr = m.ok ? await m.json() : []
-        const pr = p.ok ? await p.json() : []
-        if (cancelled) return
-        setMatches(scoutedKeys(Array.isArray(mr) ? mr : []))
-        setPits(pitScoutedKeys(Array.isArray(pr) ? pr : []))
-      } catch { if (!cancelled) { setMatches(new Set()); setPits(new Set()) } }
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+        if (attempt) await new Promise(r => setTimeout(r, 800))
+        try {
+          await ensureUserToken()
+          const [m, p] = await Promise.all([
+            fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&select=team_number,match_number`, { headers: restHeaders() }),
+            fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number`, { headers: restHeaders() }),
+          ])
+          const mr = m.ok ? await m.json() : []
+          const pr = p.ok ? await p.json() : []
+          if (cancelled) return
+          const mList = Array.isArray(mr) ? mr : []
+          const pList = Array.isArray(pr) ? pr : []
+          setMatches(scoutedKeys(mList))
+          setPits(pitScoutedKeys(pList))
+          if (mList.length || pList.length) return
+        } catch { if (!cancelled) { setMatches(new Set()); setPits(new Set()) } }
+      }
     }
     load()
     const interval = setInterval(load, 60000)
