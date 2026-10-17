@@ -6,6 +6,8 @@ import { Check, Loader2, ArrowRight, ArrowLeft, ClipboardList, Camera, X } from 
 import { uploadNotebookPhoto } from '../lib/notebookPhoto'
 import { PIT_FIELDS, PIT_GROUPS, blankPitEntry, OTHER, isOther, otherDetail, choiceOf } from '../data/pitFields'
 import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
+import ScoutingHelp, { HelpButton } from './ScoutingHelp'
+import { PIT_HELP, PIT_SECTION_NOTES } from '../data/scoutingHelp'
 import { ALL_TEAMS } from '../data/teams'
 import { teamScope } from '../lib/teamScope'
 
@@ -92,6 +94,7 @@ export default function PitScoutingForm({ onDone }) {
   // The robot photo, on its way up. The same upload the Engineering Notebook
   // uses, so a picture goes up the same way from both and lands in the same
   // place. Taken with the camera on a phone, picked from files on a laptop.
+  const [showHelp, setShowHelp] = useState(false)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState('')
   const pickPhoto = (e) => {
@@ -253,13 +256,21 @@ export default function PitScoutingForm({ onDone }) {
               {rows.length > 0 && ` · ${rows.length} pit${rows.length === 1 ? '' : 's'} done`}
             </p>
           </div>
-          <ClipboardList size={18} className="text-pastel-yellow-dark shrink-0" />
+          <div className="flex items-center gap-2 shrink-0">
+            <HelpButton onClick={() => setShowHelp(true)} />
+            <ClipboardList size={18} className="text-pastel-yellow-dark shrink-0" />
+          </div>
         </div>
         <div className="h-1 bg-gray-100">
           <div className="h-1 bg-pastel-yellow-dark transition-all"
                style={{ width: `${((step + 1) / pages.length) * 100}%` }} />
         </div>
       </header>
+
+      {showHelp && (
+        <ScoutingHelp title="Pit scouting" fields={PIT_FIELDS} help={PIT_HELP} notes={PIT_SECTION_NOTES}
+                      currentGroup={pages[step]} onClose={() => setShowHelp(false)} />
+      )}
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-xl mx-auto">

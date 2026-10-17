@@ -13,6 +13,8 @@ import { stampTeam, teamScope } from '../lib/teamScope'
 import ScoutingSync from './ScoutingSync'
 import { useDayDoc } from '../hooks/useDayDoc'
 import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
+import ScoutingHelp, { HelpButton } from './ScoutingHelp'
+import { MATCH_HELP, MATCH_SECTION_NOTES } from '../data/scoutingHelp'
 import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
 
@@ -94,6 +96,7 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   // is here to fill one in, not to read yesterday's. The saved rows are one
   // arrow away.
   const [showData, setShowData] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   // One group per screen, the way the notebook asks one thing at a time. The
   // whole form at once is a wall, and a wall gets filled in badly at a
   // competition.
@@ -267,16 +270,23 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
         ? `${rows.length} ${rows.length === 1 ? 'match scouted' : 'matches scouted'}${teams.length ? ` · ${teams.length} teams` : ''}`
         : `Screen ${step + 1} of ${SCOUTING_GROUPS.length} · ${group}`}
       action={
-        <button
-          onClick={() => setShowData(v => !v)}
-          className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-pastel-blue/20 transition-colors font-medium shrink-0"
-        >
-          {showData
-            ? <><ArrowLeft size={14} /> Scout a match</>
-            : <>{rows.length} saved <ArrowRight size={14} /></>}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <HelpButton onClick={() => setShowHelp(true)} />
+          <button
+            onClick={() => setShowData(v => !v)}
+            className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-pastel-blue/20 transition-colors font-medium shrink-0"
+          >
+            {showData
+              ? <><ArrowLeft size={14} /> Scout a match</>
+              : <>{rows.length} saved <ArrowRight size={14} /></>}
+          </button>
+        </div>
       }
     >
+      {showHelp && (
+        <ScoutingHelp title="Match scouting" fields={SCOUTING_FIELDS} help={MATCH_HELP} notes={MATCH_SECTION_NOTES}
+                      currentGroup={showData ? null : group} onClose={() => setShowHelp(false)} />
+      )}
       {liveDay && !showData && (
         <div className="flex items-center gap-2 text-xs rounded-xl px-3 py-2 bg-green-50 border border-green-200 text-green-800">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
