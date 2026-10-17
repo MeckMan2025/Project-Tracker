@@ -38,6 +38,19 @@ export const ALL_TEAMS = [
   { number: '25788', name: 'Byte Brawlers' },
   { number: '31541', name: 'Davenport West' },
   { number: '32494', name: 'Screw Ups-Washington Middle School' },
+  // Practice day (Wisconsin) — names from ftc-events.firstinspires.org.
+  { number: '4115', name: 'Highland Kilts' },
+  { number: '4116', name: 'Volta Robotics' },
+  { number: '7974', name: 'Great Scott!' },
+  { number: '8680', name: 'Kraken-Pinion' },
+  { number: '9224', name: 'Techno G.O.A.T.S.' },
+  { number: '9225', name: 'Dynamite Social Club' },
+  { number: '13201', name: 'Team Hazmat' },
+  { number: '14631', name: 'Laser Tech' },
+  { number: '16460', name: 'GEarheads' },
+  { number: '20293', name: 'Laser Bots' },
+  { number: '21180', name: 'Error 418' },
+  { number: '26691', name: 'THUNDERHeads' },
 ]
 
 export const TEAM_BY_NUMBER = Object.fromEntries(ALL_TEAMS.map(t => [t.number, t.name]))
