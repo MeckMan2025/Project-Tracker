@@ -9,7 +9,7 @@
 // type:
 //   'choice' — pick one of options
 //   'text'   — a short answer, never aggregated
-//   'photo'  — a URL to an uploaded picture
+//   'photo'  — a picture taken or picked on the phone, uploaded, stored as its URL
 //
 // Unlike match scouting, not everything is required. You get one pass at a pit
 // and the team might be mid-repair with half the robot on the bench; a sheet
@@ -64,7 +64,7 @@ export const PIT_FIELDS = [
   { key: 'alliance_why', label: 'Why?', hint: '', type: 'text', required: false, group: 'Alliance Notes' },
 
   { key: 'final_notes',  label: 'Anything else we should know?', hint: '', type: 'text', required: false, group: 'Final Notes' },
-  { key: 'photo_url',    label: 'Photo of robot', hint: 'Optional', type: 'photo', required: false, group: 'Final Notes' },
+  { key: 'photo_url',    label: 'Photo of robot', hint: 'Take one in the pit', type: 'photo', required: true, group: 'Final Notes' },
   { key: 'scout_confidence', label: 'Scout confidence in this report', hint: '', type: 'choice', required: false, group: 'Final Notes',
     options: ['High', 'Medium', 'Low'] },
 ]

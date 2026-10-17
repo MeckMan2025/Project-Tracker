@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { restHeaders } from '../lib/restHeaders'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { Check, Loader2, ArrowRight, ArrowLeft, ClipboardList } from 'lucide-react'
+import { Check, Loader2, ArrowRight, ArrowLeft, ClipboardList, Camera, X } from 'lucide-react'
+import { uploadNotebookPhoto } from '../lib/notebookPhoto'
 import { PIT_FIELDS, PIT_GROUPS, blankPitEntry } from '../data/pitFields'
 import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
 import { ALL_TEAMS } from '../data/teams'
@@ -83,6 +84,20 @@ export default function PitScoutingForm() {
 
   // Only what we will not guess at. Everything else can be blank.
   const missing = PIT_FIELDS.filter(f => f.required && !String(form[f.key] || '').trim())
+  // The robot photo, on its way up. The same upload the Engineering Notebook
+  // uses, so a picture goes up the same way from both and lands in the same
+  // place. Taken with the camera on a phone, picked from files on a laptop.
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const pickPhoto = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''   // picking the same file again after a failure still fires
+    if (!file) return
+    setPhotoBusy(true); setPhotoError('')
+    uploadNotebookPhoto(file)
+      .then(url => { set('photo_url', url); setPhotoBusy(false) })
+      .catch(err => { setPhotoBusy(false); setPhotoError(err.message) })
+  }
   const ready = missing.length === 0
 
   const already = useMemo(() => {
@@ -176,8 +191,25 @@ export default function PitScoutingForm() {
         <input type="datetime-local" value={form[f.key]} onChange={e => set(f.key, e.target.value)}
                className={input} />
       ) : f.type === 'photo' ? (
-        <input type="url" value={form[f.key]} onChange={e => set(f.key, e.target.value)}
-               placeholder="Paste a link to a photo" className={input} />
+        <div>
+          {form[f.key] ? (
+            <div className="relative inline-block">
+              <img src={form[f.key]} alt="Robot" className="max-h-48 rounded-xl object-cover border border-gray-100" />
+              <button type="button" onClick={() => set(f.key, '')} title="Retake"
+                      className="absolute -top-2 -right-2 bg-white rounded-full shadow p-0.5 text-gray-400 hover:text-red-400">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <label className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-pastel-yellow-dark/40 hover:border-pastel-yellow-dark cursor-pointer transition-colors bg-white">
+              <Camera size={18} className="text-pastel-yellow-dark" />
+              <span className="text-sm text-gray-600">{photoBusy ? 'Uploading…' : 'Take a photo of the robot'}</span>
+              {photoBusy && <Loader2 size={16} className="ml-auto animate-spin text-pastel-yellow-dark" />}
+              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={photoBusy} onChange={pickPhoto} />
+            </label>
+          )}
+          {photoError && <p className="text-xs text-red-500 mt-1.5">{photoError}</p>}
+        </div>
       ) : ['strengths', 'weaknesses', 'final_notes', 'alliance_why', 'known_problems', 'auto_what'].includes(f.key) ? (
         <textarea rows={2} value={form[f.key]} onChange={e => set(f.key, e.target.value)}
                   placeholder="Short answer" className={input} />
