@@ -172,7 +172,13 @@ export default function ScoutingForm({ liveDay = null }) {
       setSaved(true); setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       console.error('Failed to save scouting row:', err)
-      setError("Couldn't save — your entry is still here. Check your connection and try again.")
+      // A missing column is not a connection problem, and saying it is sends
+      // people off to check their wifi while every save on the team fails.
+      // Name the column so a lead knows exactly what the database is short.
+      const m = /column (?:match_scouting\.)?"?([a-z_]+)"? (?:of relation "match_scouting" )?does not exist/i.exec(String(err?.message || ''))
+      setError(m
+        ? `Couldn't save — the database has no "${m[1]}" column yet. Your entry is still here. A lead needs to run supabase/scouting_fields_2026.sql in the Supabase SQL editor.`
+        : "Couldn't save — your entry is still here. Check your connection and try again.")
     } finally {
       setSaving(false)
     }
