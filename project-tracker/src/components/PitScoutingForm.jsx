@@ -4,7 +4,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, Loader2, ArrowRight, ArrowLeft, ClipboardList, Camera, X } from 'lucide-react'
 import { uploadNotebookPhoto } from '../lib/notebookPhoto'
-import { PIT_FIELDS, PIT_GROUPS, blankPitEntry } from '../data/pitFields'
+import { PIT_FIELDS, PIT_GROUPS, blankPitEntry, OTHER, isOther, otherDetail, choiceOf } from '../data/pitFields'
 import { takeScoutRequest, announceScoutSaved } from '../lib/scoutHandoff'
 import { ALL_TEAMS } from '../data/teams'
 import { teamScope } from '../lib/teamScope'
@@ -83,7 +83,10 @@ export default function PitScoutingForm() {
   const onLast = step === pages.length - 1
 
   // Only what we will not guess at. Everything else can be blank.
-  const missing = PIT_FIELDS.filter(f => f.required && !String(form[f.key] || '').trim())
+  // Required and blank, or "Other" with nothing said about it.
+  const missing = PIT_FIELDS.filter(f =>
+    (f.required && !String(form[f.key] || '').trim()) ||
+    (f.type === 'choice' && isOther(form[f.key]) && !otherDetail(form[f.key]).trim()))
   // The robot photo, on its way up. The same upload the Engineering Notebook
   // uses, so a picture goes up the same way from both and lands in the same
   // place. Taken with the camera on a phone, picked from files on a laptop.
@@ -177,14 +180,28 @@ export default function PitScoutingForm() {
           )}
         </>
       ) : f.type === 'choice' ? (
-        <div className="flex flex-wrap gap-1.5">
-          {f.options.map(opt => (
-            <button key={opt} type="button"
-                    onClick={() => set(f.key, form[f.key] === opt ? '' : opt)}
-                    className={chip(form[f.key] === opt)}>
-              {opt}
-            </button>
-          ))}
+        <div>
+          <div className="flex flex-wrap gap-1.5">
+            {f.options.map(opt => (
+              <button key={opt} type="button"
+                      title={f.describe?.[opt] || ''}
+                      onClick={() => set(f.key, choiceOf(form[f.key]) === opt ? '' : opt)}
+                      className={chip(choiceOf(form[f.key]) === opt)}>
+                {opt}
+              </button>
+            ))}
+          </div>
+          {f.describe && choiceOf(form[f.key]) && choiceOf(form[f.key]) !== OTHER && (
+            <p className="text-[11px] text-gray-400 mt-1">{f.describe[choiceOf(form[f.key])]}</p>
+          )}
+          {isOther(form[f.key]) && (
+            <div className="mt-2">
+              <input type="text" value={otherDetail(form[f.key])}
+                     onChange={e => set(f.key, e.target.value ? `${OTHER}: ${e.target.value}` : OTHER)}
+                     placeholder="What is it? (required)" autoFocus className={input} />
+              {!otherDetail(form[f.key]).trim() && <p className="text-[11px] text-pastel-orange-dark mt-1">Say what the other is before saving.</p>}
+            </div>
+          )}
         </div>
       ) : f.type === 'datetime' ? (
         // The phone's own picker: a scroll wheel on iPhone, a dialog elsewhere.

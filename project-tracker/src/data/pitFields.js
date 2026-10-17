@@ -27,7 +27,16 @@ export const PIT_FIELDS = [
 
   { key: 'drive_train',  label: 'Drive Train', hint: '', type: 'choice', required: false, group: 'Robot Basics',
     options: ['Mecanum', 'Tank', 'Swerve', 'Other'] },
-  { key: 'main_scoring', label: 'Main Scoring Mechanism', hint: '', type: 'text', required: false, group: 'Robot Basics' },
+  { key: 'main_scoring', label: 'Main Scoring Mechanism', hint: '', type: 'choice', required: false, group: 'Robot Basics',
+    options: ['Shooter', 'Arm', 'Elevator/Lift', 'Intake + conveyor', 'Gripper/Claw', 'Other'],
+    describe: {
+      'Shooter': 'launches the game piece',
+      'Arm': 'moves the piece into the scoring area',
+      'Elevator/Lift': 'raises the piece vertically',
+      'Intake + conveyor': 'collects and feeds pieces into a scorer',
+      'Gripper/Claw': 'grabs and places pieces',
+      'Other': 'something else — say what',
+    } },
   { key: 'auto_scores',  label: 'Can they score in autonomous?', hint: '', type: 'choice', required: false, group: 'Robot Basics',
     options: ['Yes', 'No', 'Sometimes'] },
   { key: 'teleop_scores', label: 'Can they score during teleop?', hint: '', type: 'choice', required: false, group: 'Robot Basics',
@@ -81,3 +90,12 @@ export const PIT_NUMERIC_FIELDS = []
 
 export const blankPitEntry = () =>
   Object.fromEntries(PIT_FIELDS.map(f => [f.key, '']))
+
+// "Other" on a choice question is stored in the same column as
+// "Other: <what they said>", so nothing new is needed in the database and
+// the answer still reads as one thing. Picking Other without saying what is
+// not an answer, and the form will not save it.
+export const OTHER = 'Other'
+export const isOther = (v) => String(v || '').split(':')[0].trim() === OTHER
+export const otherDetail = (v) => (isOther(v) ? String(v || '').replace(/^Other:?\s*/, '') : '')
+export const choiceOf = (v) => (isOther(v) ? OTHER : String(v || ''))
