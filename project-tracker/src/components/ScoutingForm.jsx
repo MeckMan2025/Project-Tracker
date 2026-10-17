@@ -66,6 +66,19 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   // in — rather than something the form decided for you.
   //
   // "Next" is the earliest match of theirs with nothing submitted yet.
+  // The live day's match list: which teams play each match. On a live day the
+  // match is picked from this list and the team from the four in that match,
+  // so a row cannot be saved against a match the team does not play — which
+  // is a row the board can never turn green and the averages file under the
+  // wrong match.
+  const schedule = useMemo(() => {
+    const rows = (liveDay && liveDoc?.matchSchedule) || []
+    return rows
+      .filter(m => String(m.match || '').trim())
+      .map(m => ({ match: String(m.match).trim(), teams: ['red1', 'red2', 'blue1', 'blue2'].map(k => String(m[k] || '').trim()).filter(Boolean) }))
+      .sort((a, b) => Number(a.match) - Number(b.match))
+  }, [liveDay, liveDoc])
+
   // On a live day: what this person is down for, and what of it is still to do.
   const liveRota = useMemo(() => (liveDay && liveDoc) ? assignmentsFor(liveDoc, username) : null, [liveDay, liveDoc, username])
   const liveLeft = useMemo(() => {
@@ -327,7 +340,8 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
             <div className="space-y-4">
               {groupFields.map(f => (
                 <Field key={f.key} field={f} value={form[f.key]} onChange={v => set(f.key, v)}
-                       otherTeam={otherTeam} setOtherTeam={setOtherTeam} />
+                       otherTeam={otherTeam} setOtherTeam={setOtherTeam}
+                       schedule={schedule} currentMatch={form.match_number} />
               ))}
             </div>
           </section>
@@ -464,7 +478,10 @@ function Frame({ sub, action, children }) {
   )
 }
 
-function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
+function Field({ field: f, value, onChange, otherTeam, setOtherTeam, schedule = [], currentMatch = '' }) {
+  const onSchedule = schedule.length > 0
+  const thisMatch = onSchedule ? schedule.find(m => m.match === String(currentMatch || '').trim()) : null
+  const [otherMatch, setOtherMatch] = useState(false)
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700">
@@ -472,9 +489,49 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
       </label>
       {f.hint && <p className="text-[11px] text-gray-400 mb-1">{f.hint}</p>}
 
-      {f.key === 'team_number' ? (
-        <TeamPicker value={value} onChange={onChange}
-                    otherTeam={otherTeam} setOtherTeam={setOtherTeam} />
+      {f.key === 'match_number' && onSchedule && !otherMatch ? (
+        // The day's matches, as the schedule lists them. "Another match" is
+        // for a match the schedule does not have yet.
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap gap-1.5">
+            {schedule.map(m => (
+              <button key={m.match} type="button"
+                      onClick={() => onChange(String(value) === m.match ? '' : m.match)}
+                      className={`w-10 h-10 rounded-lg text-sm font-semibold border transition-colors ${
+                        String(value) === m.match
+                          ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
+                          : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'
+                      }`}>
+                {m.match}
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => setOtherMatch(true)} className="text-[11px] text-gray-400 hover:text-gray-600 underline">
+            Another match, not on the schedule
+          </button>
+        </div>
+      ) : f.key === 'match_number' && onSchedule && otherMatch ? (
+        <div className="space-y-1.5">
+          <input type="text" inputMode="numeric" value={value}
+                 onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ''))}
+                 placeholder="Match number" autoFocus
+                 className="w-28 border-2 border-pastel-yellow-dark/30 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-pastel-yellow-dark focus:border-transparent" />
+          <button type="button" onClick={() => { setOtherMatch(false); onChange('') }} className="block text-[11px] text-gray-400 hover:text-gray-600 underline">
+            ← back to the schedule
+          </button>
+        </div>
+      ) : f.key === 'team_number' ? (
+        <div className="space-y-1.5">
+          {onSchedule && !thisMatch && !otherMatch && (
+            <p className="text-[11px] text-pastel-orange-dark">Pick the match first, then the team is one of the four in it.</p>
+          )}
+          <TeamPicker value={value} onChange={onChange}
+                      otherTeam={otherTeam} setOtherTeam={setOtherTeam}
+                      only={thisMatch ? thisMatch.teams : null} matchLabel={thisMatch ? thisMatch.match : ''} />
+          {thisMatch && value && !thisMatch.teams.includes(String(value).trim()) && (
+            <p className="text-[11px] text-red-600">Team {value} is not in match {thisMatch.match} on the schedule. The board will not count this row against that match.</p>
+          )}
+        </div>
       ) : f.type === 'number' ? (
         <input type="number" inputMode="numeric" min="0" value={value}
                onChange={e => onChange(e.target.value)} placeholder="0"
@@ -603,13 +660,19 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
 // knows the number before they know where it sits alphabetically.
 //
 // Matches on number OR name, so "cyber" and "4237" both find the Cyberhawks.
-function TeamPicker({ value, onChange, otherTeam, setOtherTeam }) {
+function TeamPicker({ value, onChange, otherTeam, setOtherTeam, only = null, matchLabel = '' }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
 
-  const matches = ALL_TEAMS.filter(t => {
+  // `only`: the teams in the chosen match. Offered first and alone, so the
+  // right answer is one of four taps; a team not on our list still shows,
+  // by number, because the schedule knows it even if teams.js does not.
+  const pool = only
+    ? only.map(n => ALL_TEAMS.find(t => String(t.number) === n) || { number: n, name: `Team ${n}` })
+    : ALL_TEAMS
+  const matches = pool.filter(t => {
     const s = q.trim().toLowerCase()
-    return !s || t.number.includes(s) || t.name.toLowerCase().includes(s)
+    return !s || String(t.number).includes(s) || String(t.name).toLowerCase().includes(s)
   })
 
   if (otherTeam) {
@@ -641,7 +704,7 @@ function TeamPicker({ value, onChange, otherTeam, setOtherTeam }) {
                 : 'border-pastel-yellow-dark/40 bg-white text-gray-400'
         }`}
       >
-        <span className="truncate">{value ? teamLabel(value) : 'Pick a team…'}</span>
+        <span className="truncate">{value ? teamLabel(value) : (only ? `Pick a team in match ${matchLabel}…` : 'Pick a team…')}</span>
         <ChevronDown size={16} className="shrink-0 text-gray-400" />
       </button>
 
