@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { startLabel } from '../data/fieldMap'
-import { restHeaders } from '../lib/restHeaders'
+import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
 import { SCOUTING_FIELDS, yesNo, displayValue } from '../data/scoutingFields'
@@ -415,15 +415,30 @@ function ScoutingData() {
   useEffect(() => {
     // This team's scouting. owner_team, not team_number: team_number here is
     // the robot that was scouted.
-    const load = () => scopeQuery(supabase
-      .from('match_scouting')
-      .select('*'), 'owner_team')
-      .order('created_at', { ascending: true })
-      .then(({ data, error }) => {
-        if (error) console.error('Failed to load scouting records:', error.message)
-        if (data) setRecords(data)
-      })
-      .catch(err => console.error('Exception loading scouting records:', err))
+    //
+    // Plain fetch with the user's token, the same way the form saves and
+    // reads, not the supabase-js client: the client can sit on a stuck token
+    // refresh after a reload and return nothing, silently, which showed here
+    // as "0 scouting responses" while the rows were there all along. See
+    // supabase-hard-refresh-bug.txt. An empty answer is asked again, since an
+    // empty table is almost always a token that was not ready yet.
+    let cancelled = false
+    const load = async () => {
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+        if (attempt) await new Promise(r => setTimeout(r, 800))
+        try {
+          await ensureUserToken()
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/match_scouting?${teamScope(myTeamNumber, 'owner_team')}&select=*&order=created_at.asc`,
+            { headers: restHeaders() }
+          )
+          if (!res.ok) { console.error('Failed to load scouting records:', res.status, await res.text()); continue }
+          const data = await res.json()
+          if (cancelled) return
+          if (Array.isArray(data)) { setRecords(data); if (data.length) return }
+        } catch (err) { console.error('Exception loading scouting records:', err) }
+      }
+    }
     load()
     // Realtime below is the fast path. This is the safety net: a form on this
     // device just saved, or the page came back to the front, so ask again.
@@ -432,10 +447,11 @@ function ScoutingData() {
     window.addEventListener(SCOUT_SAVED, load)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
+      cancelled = true
       window.removeEventListener(SCOUT_SAVED, load)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [])
+  }, [myTeamNumber]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Realtime
   useEffect(() => {
@@ -454,26 +470,26 @@ function ScoutingData() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  // Load considered teams from Supabase
-  useEffect(() => {
-    scopeQuery(supabase
-      .from('considered_teams')
-      .select('*'), 'owner_team')
-      .then(({ data, error }) => {
-        if (error) console.error('Failed to load considered teams:', error.message)
-        if (data) setConsideredList(data)
-      })
-  }, [])
+  // Considered teams, read the same way for the same reason.
+  const loadConsidered = async () => {
+    try {
+      await ensureUserToken()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/considered_teams?${teamScope(myTeamNumber, 'owner_team')}&select=*`,
+        { headers: restHeaders() }
+      )
+      if (!res.ok) { console.error('Failed to load considered teams:', res.status); return }
+      const data = await res.json()
+      if (Array.isArray(data)) setConsideredList(data)
+    } catch (err) { console.error('Exception loading considered teams:', err) }
+  }
+  useEffect(() => { loadConsidered() }, [myTeamNumber]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Realtime for considered teams
   useEffect(() => {
     const channel = supabase
       .channel('considered-teams-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'considered_teams' }, () => {
-        scopeQuery(supabase.from('considered_teams').select('*'), 'owner_team').then(({ data }) => {
-          if (data) setConsideredList(data)
-        })
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'considered_teams' }, loadConsidered)
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [])
@@ -504,8 +520,7 @@ function ScoutingData() {
         return
       }
       // Refetch to get updated ranks
-      const { data } = await scopeQuery(supabase.from('considered_teams').select('*'), 'owner_team')
-      if (data) setConsideredList(data)
+      await loadConsidered()
       setAddForm({ name: '', number: '', rank: '' })
       setShowAddModal(false)
     } catch (err) {
@@ -520,12 +535,15 @@ function ScoutingData() {
   }
 
   const handleDelete = async (id) => {
-    const { error } = await supabase.from('match_scouting').delete().eq('id', id)
-    if (error) {
-      console.error('Failed to delete:', error.message)
-      return
-    }
-    setRecords(prev => prev.filter(r => r.id !== id))
+    try {
+      await ensureUserToken()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/match_scouting?id=eq.${encodeURIComponent(id)}`,
+        { method: 'DELETE', headers: restHeaders() }
+      )
+      if (!res.ok) { console.error('Failed to delete:', res.status, await res.text()); return }
+      setRecords(prev => prev.filter(r => r.id !== id))
+    } catch (err) { console.error('Failed to delete:', err) }
   }
 
   const consideredNumbers = consideredList.map(c => c.team_number)
