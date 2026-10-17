@@ -17,21 +17,40 @@ const channelName = (dayId) => `scouting-now-${dayId}`
 export function useAnnounceScouting(dayId, job) {
   const { username } = useUser()
   const channelRef = useRef(null)
+  const joinedRef = useRef(false)
+  const jobRef = useRef(job)
+  jobRef.current = job
+
+  // Send whatever the current job is. Only once the channel has joined:
+  // a track() sent before then is dropped, and nothing resends it.
+  const push = () => {
+    const ch = channelRef.current
+    if (!ch || !joinedRef.current) return
+    const j = jobRef.current
+    if (!j || !j.team) { ch.untrack(); return }
+    ch.track({ ...j, since: new Date().toISOString() })
+  }
+
   const key = `${dayId || ''}|${username || ''}`
   useEffect(() => {
     if (!dayId || !username) return
+    joinedRef.current = false
     const channel = supabase.channel(channelName(dayId), { config: { presence: { key: username } } })
     channelRef.current = channel
-    channel.subscribe()
-    return () => { channelRef.current = null; channel.untrack(); supabase.removeChannel(channel) }
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') { joinedRef.current = true; push() }
+      else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') { joinedRef.current = false }
+    })
+    return () => {
+      joinedRef.current = false
+      channelRef.current = null
+      channel.untrack()
+      supabase.removeChannel(channel)
+    }
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const jobKey = job ? `${job.kind}|${job.team || ''}|${job.match || ''}` : ''
-  useEffect(() => {
-    const ch = channelRef.current
-    if (!ch) return
-    if (!job || !job.team) { ch.untrack(); return }
-    ch.track({ ...job, since: new Date().toISOString() })
-  }, [jobKey, key]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { push() }, [jobKey, key]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 // Call from the board. Returns [{ username, kind, team, match, since }].
