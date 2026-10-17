@@ -152,19 +152,23 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
         // A fixed height, scrolling inside. The two groups cover different
         // numbers of teams, and without this the longer one dragged its card
         // down past the other and the row looked broken.
-        <div className="mt-3 pt-3 border-t border-gray-100 flex-1 min-h-0 overflow-y-auto max-h-64">
+        <div className="mt-3 pt-3 border-t border-gray-100 min-h-0 overflow-y-auto max-h-64">
           <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={onScout} />
         </div>
       )}
       {button && (
         // The way out of reading and into doing. Under the chart, because you
         // look to see what is missing and then go and fix it — in that order.
-        <button
-          onClick={button.onClick}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800"
-        >
-          <ClipboardList size={15} /> {button.label}
-        </button>
+        // Pinned to the foot of the card (mt-auto), so the two buttons sit on
+        // the same line however much each chart above them has to say.
+        <div className="mt-auto pt-3">
+          <button
+            onClick={button.onClick}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800"
+          >
+            <ClipboardList size={15} /> {button.label}
+          </button>
+        </div>
       )}
     </Card>
   )
