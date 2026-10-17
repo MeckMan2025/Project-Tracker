@@ -96,7 +96,8 @@ export const SCOUTING_FIELDS = [
   // as one point each.
   { key: 'rp_points',     label: 'RP Points', hint: 'Tick each one shown on the results screen, or None', type: 'multi', required: false, group: 'Endgame',
     options: ['Win', 'Tie', 'Swarm', 'Pollinator 1', 'Pollinator 2', 'None'],
-    icons: { 'Win': '🏆', 'Tie': '🤝', 'Swarm': '🐝', 'Pollinator 1': '🌸', 'Pollinator 2': '🌸🌸', 'None': '—' } },
+    // Drawn by components/RpIcon.jsx on the form; these are the text stand-ins elsewhere.
+    icons: { 'Win': '🏆🏆🏆', 'Tie': '🏆', 'Swarm': '🤖', 'Pollinator 1': '⌂1', 'Pollinator 2': '⌂2', 'None': '—' } },
 
   { key: 'robot_speed',   label: 'Robot Speed',  hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },
   { key: 'driver_skill',  label: 'Driver Skill', hint: '1–5', type: 'scale', required: true, min: 1, max: 5, group: 'Ratings' },

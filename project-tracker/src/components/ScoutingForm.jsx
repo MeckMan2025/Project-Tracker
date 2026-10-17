@@ -17,6 +17,7 @@ import ScoutingHelp, { HelpButton } from './ScoutingHelp'
 import { MATCH_HELP, MATCH_SECTION_NOTES } from '../data/scoutingHelp'
 import { assignmentsFor, scoutedKeys } from '../lib/dayRota'
 import FieldMap from './FieldMap'
+import RpIcon from './RpIcon'
 
 // Match scouting: one row per team per match.
 //
@@ -547,7 +548,10 @@ function Field({ field: f, value, onChange, otherTeam, setOtherTeam }) {
                   on ? 'border-pastel-yellow-dark bg-pastel-yellow text-gray-900 shadow-sm'
                      : 'border-pastel-yellow-dark/25 bg-white text-gray-500 hover:bg-pastel-yellow/35'
                 }`}>
-                {on ? '✓ ' : ''}{f.icons?.[opt] ? <span className="mr-1" aria-hidden="true">{f.icons[opt]}</span> : null}{opt}
+                {on ? '✓ ' : ''}
+                {f.key === 'rp_points'
+                  ? <span className="inline-flex items-center gap-1.5 align-middle"><RpIcon option={opt} />{opt}</span>
+                  : <>{f.icons?.[opt] ? <span className="mr-1" aria-hidden="true">{f.icons[opt]}</span> : null}{opt}</>}
               </button>
             )
           })}
