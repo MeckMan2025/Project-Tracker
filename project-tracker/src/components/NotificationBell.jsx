@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { lazyRestHeaders } from '../lib/restHeaders'
+import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { Bell, Inbox, Megaphone, HelpCircle, CheckCheck, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -12,7 +12,6 @@ import { usePermissions } from '../hooks/usePermissions'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const restHeaders = lazyRestHeaders
 
 // Shared across every mounted bell so an incoming notification only pops once.
 const poppedIds = new Set()
@@ -57,14 +56,18 @@ export default function NotificationBell() {
   // Load notifications via direct REST (bypasses JS client auth token issues)
   useEffect(() => {
     if (!user) return
+    let cancelled = false
     async function load() {
+      // Wait for the user's token: as the public key this list is empty.
+      await ensureUserToken()
       const res = await fetch(
         `${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=20`,
-        { headers: restHeaders }
+        { headers: restHeaders() }
       )
-      if (res.ok) setNotifications(await res.json())
+      if (res.ok && !cancelled) setNotifications(await res.json())
     }
     load()
+    return () => { cancelled = true }
   }, [user])
 
   // Realtime subscription
@@ -123,33 +126,49 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [open])
 
+  // Read, all read, clear: the screen changes at once and the database is
+  // told with the user's token. These used to call the lazy headers object
+  // as a function, which threw before the request left — so a notification
+  // looked read until the next load brought it back unread.
   const markAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-    fetch(`${supabaseUrl}/rest/v1/notifications?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...restHeaders(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ read: true }),
-    }).catch(() => {})
+    try {
+      await ensureUserToken()
+      const res = await fetch(`${supabaseUrl}/rest/v1/notifications?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+        body: JSON.stringify({ read: true }),
+      })
+      if (!res.ok) console.error('[Notifications] mark read failed:', res.status, await res.text())
+    } catch (err) { console.error('[Notifications] mark read failed:', err) }
   }
 
   const markAllRead = async () => {
     const unread = notifications.filter(n => !n.read)
     if (unread.length === 0) return
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}&read=eq.false`, {
-      method: 'PATCH',
-      headers: { ...restHeaders(), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ read: true }),
-    }).catch(() => {})
+    try {
+      await ensureUserToken()
+      const res = await fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}&read=eq.false`, {
+        method: 'PATCH',
+        headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+        body: JSON.stringify({ read: true }),
+      })
+      if (!res.ok) console.error('[Notifications] mark all read failed:', res.status, await res.text())
+    } catch (err) { console.error('[Notifications] mark all read failed:', err) }
   }
 
   const clearAll = async () => {
     if (notifications.length === 0) return
     setNotifications([])
-    fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}`, {
-      method: 'DELETE',
-      headers: restHeaders(),
-    }).catch(() => {})
+    try {
+      await ensureUserToken()
+      const res = await fetch(`${supabaseUrl}/rest/v1/notifications?user_id=eq.${user.id}`, {
+        method: 'DELETE',
+        headers: restHeaders(),
+      })
+      if (!res.ok) console.error('[Notifications] clear failed:', res.status, await res.text())
+    } catch (err) { console.error('[Notifications] clear failed:', err) }
   }
 
   const formatTime = (ts) => {
