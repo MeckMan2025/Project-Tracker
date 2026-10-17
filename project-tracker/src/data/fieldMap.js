@@ -16,10 +16,12 @@
 // with a pair of bars between them, gold posts out near the middle of each
 // wall, and the alliance zones against the left and right walls.
 
-// Drop the real overhead picture of the field in at this path and it becomes
-// the background, with the zones and flowers below laid on top of it. Until
-// then the field is drawn from the coordinates in this file, which is good
-// enough to point at and never fails to load at a venue with no signal.
+// The real overhead picture of the field: Figure 9-2 of the 2026-2027
+// BIOBUZZ Competition Manual (TU05), cropped to the inside of the perimeter
+// walls and squared. Red alliance area is off the left edge, blue off the
+// right, audience along the bottom. The zones and flowers below are laid on
+// top of it. If it fails to load (a venue with no signal and an empty cache)
+// the field is drawn from the coordinates in this file instead.
 export const FIELD_IMAGE = '/field/field.png'
 
 export const FIELD = {
@@ -97,16 +99,17 @@ export function zonesFor(options = []) {
 // marks standing where the flowers stand do not, because the scout is looking
 // straight at them.
 //
-// These sit on the four middle structures, read left pair then right pair.
-// That ordering is an assumption — the names suggest a row of four and the
-// field has them in two columns of two — so check it against the real field
-// and swap the coordinates here if it is the other way round. Nothing else
-// needs touching: the words saved are unchanged either way.
+// In BIOBUZZ the four FLOWERS are mounted on the perimeter walls, one per
+// wall, offset from the middle: left wall (red side, nearer the audience),
+// top wall (far side, towards red), bottom wall (audience side, towards blue)
+// and right wall (blue side, nearer the far end). Read left to right across
+// the field: left wall, top, bottom, right wall. Positions traced off the
+// manual's overhead drawing; the words saved are unchanged.
 export const FLOWER_SPOTS = {
-  'Left':         { x: 0.415, y: 0.408 },
-  'Centre Left':  { x: 0.415, y: 0.573 },
-  'Centre Right': { x: 0.595, y: 0.408 },
-  'Right':        { x: 0.595, y: 0.575 },
+  'Left':         { x: 0.018, y: 0.667 },
+  'Centre Left':  { x: 0.334, y: 0.018 },
+  'Centre Right': { x: 0.662, y: 0.981 },
+  'Right':        { x: 0.981, y: 0.335 },
 }
 
 export function spotsFor(options = []) {
