@@ -1854,9 +1854,9 @@ function App() {
       ) : activeTab === 'portfolio' ? (
         <WorkingOnIt title="Portfolio" />
       ) : activeTab === 'pit-scouting' ? (
-        <PitScoutingForm />
+        <PitScoutingForm onDone={liveDay ? () => setActiveTab('home') : undefined} />
       ) : activeTab === 'scouting' ? (
-        <ScoutingForm liveDay={liveDay} />
+        <ScoutingForm liveDay={liveDay} onDone={liveDay ? () => setActiveTab('home') : undefined} />
       ) : activeTab === 'schedule' ? (
         <ScoutingSchedule liveDay={liveDay} />
       ) : activeTab === 'team-scouting-data' ? (

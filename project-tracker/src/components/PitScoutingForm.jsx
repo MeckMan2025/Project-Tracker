@@ -31,7 +31,9 @@ const nowForPicker = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export default function PitScoutingForm() {
+// onDone, when given, is called after a successful save: on a live day the
+// board is where you go next.
+export default function PitScoutingForm({ onDone }) {
   const { username } = useUser()
   const { myTeamNumber } = usePermissions()
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -139,6 +141,7 @@ export default function PitScoutingForm() {
       })
       announceScoutSaved()
       setSaved(true); setTimeout(() => setSaved(false), 2500)
+      onDone?.()
     } catch (err) {
       console.error('Failed to save pit row:', err)
       setError("Couldn't save — your answers are still here. Check your connection and try again.")

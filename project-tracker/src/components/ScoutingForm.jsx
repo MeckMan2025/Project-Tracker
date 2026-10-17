@@ -34,7 +34,9 @@ function toggleMulti(picked, opt, on) {
 
 // liveDay: the Competition Day that is live right now, or null. While one is
 // live the rota comes from that day's own setup rather than the static list.
-export default function ScoutingForm({ liveDay = null }) {
+// onDone, when given, is called after a successful save: on a live day the
+// board is where you go next, not another blank form.
+export default function ScoutingForm({ liveDay = null, onDone }) {
   const { username } = useUser()
   const { hasLeadTag, myTeamNumber } = usePermissions()
   const liveDoc = useDayDoc(liveDay ? `day-comp-${liveDay.id}` : null)
@@ -170,6 +172,7 @@ export default function ScoutingForm({ liveDay = null }) {
       // Let the rota offer the next one now this is saved.
       prefilled.current = false
       setSaved(true); setTimeout(() => setSaved(false), 2500)
+      onDone?.()
     } catch (err) {
       console.error('Failed to save scouting row:', err)
       // A missing column is not a connection problem, and saying it is sends
