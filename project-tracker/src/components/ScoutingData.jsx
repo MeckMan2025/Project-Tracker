@@ -101,6 +101,7 @@ function computeScoutingStats(matches) {
     autoLeavePct: yesPct('auto_leave'),
     autoParkPct: yesPct('auto_park'),
     avgTips: avg('teleop_tips'),
+    avgAutoTips: avg('auto_tips'),
 
     avgCycles: avg('cycle_count'),
     avgCycleSec: avg('avg_cycle_sec'),
@@ -187,7 +188,8 @@ function ScoutPanel({ t }) {
             <Line label="Leaves in auto" value={`${t.autoLeavePct}%`} />
             <Line label="Parks in auto" value={`${t.autoParkPct}%`} />
             <Line label="Seconds / cycle" value={t.avgCycleSec || '—'} />
-            <Line label="Tips / match" value={t.avgTips || '—'} />
+            <Line label="Hive tips / match (teleop)" value={t.avgTips || '—'} />
+            <Line label="Hive tips / match (auto)" value={t.avgAutoTips || '—'} />
           </div>
 
           {/* The ratings, as bars — out of 5, except the two the form now asks
