@@ -8,14 +8,15 @@ import { ensureSessionForDate, genId, todayStr } from '../lib/attendanceSession'
 import { ArrowLeft, ClipboardCheck, Trash2, Edit3, Plus, X, UserPlus, ChevronDown, ChevronUp, Clock, ScanLine, Contact } from 'lucide-react'
 import { useAttendancePartial, presencePct, sessionDuration, recordTiming } from '../lib/attendancePartial'
 import { excludedFromAttendance } from '../lib/attendanceRoster'
-import BadgeScanInput from './BadgeScanInput'
-import BadgeKiosk from './BadgeKiosk'
-import BadgeAssign from './BadgeAssign'
 
 const REST_URL = import.meta.env.VITE_SUPABASE_URL
 const REST_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const REST_HEADERS = lazyRestHeaders
 const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
+
+// Badge scanning lives on the robotics server now (its own site, its own database).
+// The kiosk and the badge list open there; scans come back into attendance later.
+const BADGE_URL = import.meta.env.VITE_BADGE_APP_URL || 'https://1.firstpvrobotics.com'
 
 const STATUS_COLORS = {
   present: 'bg-green-100 text-green-700',
@@ -39,8 +40,6 @@ export default function AttendanceManager({ onBack }) {
   const [addingUser, setAddingUser] = useState(false)
   const { partial, setSessionDurationMin, setTiming } = useAttendancePartial()
   const [expandedRec, setExpandedRec] = useState(null)
-  // The list, the badge kiosk at the door, or linking badges to people.
-  const [mode, setMode] = useState('list')
   // Guards "Start Today's Session" against repeat taps. The ref is what the
   // handler reads (state updates are async and a fast second tap would miss it).
   const creatingRef = useRef(false)
@@ -545,22 +544,6 @@ export default function AttendanceManager({ onBack }) {
     return { present, total: sr.length }
   }
 
-  // A scan on this screen shows up straight away; scans made elsewhere arrive
-  // through the realtime channel above.
-  const handleScanned = ({ record, session }) => {
-    if (session) setSessions(prev => prev.some(s => s.id === session.id) ? prev : [session, ...prev])
-    if (record) setRecords(prev => prev.some(r => r.id === record.id)
-      ? prev.map(r => r.id === record.id ? { ...r, ...record } : r)
-      : [...prev, record])
-  }
-
-  if (mode === 'kiosk' && hasLeadTag) {
-    return <BadgeKiosk onExit={() => setMode('list')} onScanned={handleScanned} />
-  }
-  if (mode === 'badges' && hasLeadTag) {
-    return <BadgeAssign onBack={() => setMode('list')} />
-  }
-
   // Detail view for a specific session
   if (selectedSession) {
     const usersInSession = sessionRecords.map(r => r.username)
@@ -729,10 +712,6 @@ export default function AttendanceManager({ onBack }) {
               </button>
             )
           })()}
-
-          {hasLeadTag && selectedSession.session_date === todayStr() && (
-            <BadgeScanInput onScanned={handleScanned} />
-          )}
 
           <div className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
             <div className="text-sm text-gray-500">
@@ -919,21 +898,24 @@ export default function AttendanceManager({ onBack }) {
 
         {hasLeadTag && (
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setMode('kiosk')}
+            <a
+              href={`${BADGE_URL}/`}
+              target="_blank"
+              rel="noopener"
               className="px-3 py-2 rounded-xl bg-white shadow-sm hover:shadow-md transition-all text-xs font-semibold text-gray-600 flex items-center justify-center gap-1.5"
             >
-              <ScanLine size={14} /> Badge Kiosk
-            </button>
-            <button
-              onClick={() => setMode('badges')}
+              <ScanLine size={14} /> Badge Kiosk ↗
+            </a>
+            <a
+              href={`${BADGE_URL}/badges`}
+              target="_blank"
+              rel="noopener"
               className="px-3 py-2 rounded-xl bg-white shadow-sm hover:shadow-md transition-all text-xs font-semibold text-gray-600 flex items-center justify-center gap-1.5"
             >
-              <Contact size={14} /> Assign Badges
-            </button>
+              <Contact size={14} /> Assign Badges ↗
+            </a>
           </div>
         )}
-        {hasLeadTag && <BadgeScanInput onScanned={handleScanned} />}
 
         {sessions.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-8">No attendance sessions yet.</p>
