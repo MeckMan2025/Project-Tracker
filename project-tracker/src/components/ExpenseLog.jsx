@@ -75,6 +75,10 @@ export default function ExpenseLog() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [editing, setEditing] = useState(false)
+  // The row being changed, when the form is open to fix one rather than add
+  // one. Its receipt stays unless a new file is chosen.
+  const [editId, setEditId] = useState(null)
+  const [existingReceipt, setExistingReceipt] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -129,6 +133,36 @@ export default function ExpenseLog() {
 
   const canRemoveAny = rows.some(r => isLead || r.username === username)
 
+  // Open the form on an existing row. Numbers come back as strings because
+  // that is what the inputs hold; reimbursement is stored as a boolean.
+  const startEdit = (r) => {
+    setForm({
+      purchase_date: r.purchase_date || todayLocal(),
+      item: r.item || '',
+      quantity: r.quantity == null ? '1' : String(r.quantity),
+      cost: r.cost == null ? '' : String(r.cost),
+      store: r.store || '',
+      team: r.team || '',
+      team_other: r.team_other || '',
+      reimbursement: r.reimbursement ? 'Yes' : 'No',
+    })
+    setFile(null)
+    setExistingReceipt(r.receipt_url || null)
+    setEditId(r.id)
+    setError('')
+    setShowForm(true)
+    window.scrollTo(0, 0)
+  }
+
+  const closeForm = () => {
+    setShowForm(false)
+    setEditId(null)
+    setExistingReceipt(null)
+    setFile(null)
+    setForm({ ...BLANK })
+    setError('')
+  }
+
   // Cost is per item, so the line total is the product. Shown while you type
   // rather than asked for, so the two can't disagree.
   const lineTotal = (Number(form.quantity) || 0) * (Number(form.cost) || 0)
@@ -147,15 +181,43 @@ export default function ExpenseLog() {
     form.team &&
     (form.team !== 'Other' || form.team_other.trim()) &&
     form.reimbursement &&
-    (!needsReceipt || !!file)
+    (!needsReceipt || !!file || !!existingReceipt)
 
   const submit = async () => {
     if (!ready || saving) return
     setSaving(true)
     setError('')
     try {
-      let receipt_url = null
+      let receipt_url = editId ? existingReceipt : null
       if (file) receipt_url = await uploadReceipt(supabaseUrl, supabaseKey, file)
+
+      if (editId) {
+        // A fix to a row that is already there. Who logged it and whose team
+        // it belongs to don't change; total_cost is worked out by the database.
+        const patch = {
+          purchase_date: form.purchase_date,
+          item: form.item.trim(),
+          quantity: Number(form.quantity),
+          cost: Number(form.cost),
+          store: form.store.trim(),
+          team: form.team,
+          team_other: form.team === 'Other' ? form.team_other.trim() : null,
+          reimbursement: form.reimbursement === 'Yes',
+          receipt_url,
+        }
+        const res = await fetch(`${supabaseUrl}/rest/v1/expense_log?id=eq.${editId}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          body: JSON.stringify(patch),
+        })
+        if (!res.ok) throw new Error(await res.text())
+        const [written] = await res.json().catch(() => [])
+        setRows(prev => prev.map(r => r.id === editId ? (written || { ...r, ...patch, total_cost: lineTotal }) : r))
+        closeForm()
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+        return
+      }
 
       const row = {
         id: newId(),
@@ -182,9 +244,7 @@ export default function ExpenseLog() {
       const [written] = await res.json().catch(() => [])
 
       setRows(prev => [written || { ...row, total_cost: lineTotal }, ...prev])
-      setForm({ ...BLANK })
-      setFile(null)
-      setShowForm(false)
+      closeForm()
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
@@ -235,7 +295,7 @@ export default function ExpenseLog() {
               </button>
             )}
             <button
-              onClick={() => { setShowForm(v => !v); setError('') }}
+              onClick={() => { if (showForm) closeForm(); else { setShowForm(true); setError('') } }}
               className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-medium"
             >
               {showForm ? <><X size={14} /> Close</> : <><Plus size={14} /> Log an expense</>}
@@ -249,13 +309,19 @@ export default function ExpenseLog() {
 
           {saved && (
             <div className="flex items-center justify-center gap-1.5 text-sm text-green-600 font-medium">
-              <Check size={15} /> Logged.
+              <Check size={15} /> {editId === null ? 'Saved.' : 'Logged.'}
             </div>
           )}
 
           {/* ── The form ─────────────────────────────────────────────────── */}
           {showForm && (
             <div className="space-y-3">
+              {editId && (
+                <div className="flex items-center justify-between gap-2 bg-pastel-blue/20 border border-pastel-blue/40 rounded-xl px-3 py-2 text-sm text-gray-700">
+                  <span className="flex items-center gap-1.5"><Pencil size={14} /> Editing this expense</span>
+                  <button onClick={closeForm} className="text-xs text-gray-500 hover:text-gray-800 underline">Cancel</button>
+                </div>
+              )}
               <Field label="Date of Purchase" required>
                 <input
                   type="date"
@@ -356,7 +422,14 @@ export default function ExpenseLog() {
                   onChange={e => setFile(e.target.files?.[0] || null)}
                   className="text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-pastel-blue/30 file:text-gray-700 hover:file:bg-pastel-blue/50 file:cursor-pointer"
                 />
-                {needsReceipt && !file && (
+                {existingReceipt && !file && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Keeping the{' '}
+                    <a href={existingReceipt} target="_blank" rel="noopener noreferrer" className="text-pastel-blue-dark hover:underline">current receipt</a>
+                    {' '}— choose a file to replace it.
+                  </p>
+                )}
+                {needsReceipt && !file && !existingReceipt && (
                   <p className="text-xs text-pastel-pink-dark mt-2">
                     A receipt is required to be reimbursed.
                   </p>
@@ -370,7 +443,7 @@ export default function ExpenseLog() {
                 disabled={!ready || saving}
                 className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark disabled:bg-gray-100 disabled:text-gray-400 transition-colors font-medium text-gray-800"
               >
-                {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : 'Submit'}
+                {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : (editId ? 'Save changes' : 'Submit')}
               </button>
             </div>
           )}
@@ -450,7 +523,16 @@ export default function ExpenseLog() {
                             <ExternalLink size={12} /> Receipt
                           </a>
                         )}
-                        {/* Your own mistakes, and a lead can clear anyone's. */}
+                        {/* Your own mistakes, and a lead can fix or clear anyone's. */}
+                        {editing && (isLead || r.username === username) && (
+                          <button
+                            onClick={() => startEdit(r)}
+                            className="text-gray-300 hover:text-pastel-blue-dark transition-colors"
+                            title="Edit this expense"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
                         {editing && (isLead || r.username === username) && (
                           <button
                             onClick={() => remove(r.id)}
