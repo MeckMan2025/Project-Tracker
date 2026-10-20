@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { storedTeamScope } from '../lib/teamScope'
+import { stampStored } from '../lib/teamScope'
+import { ideaReviewerIds } from '../lib/cofounders'
 import { lazyHeadersWith } from '../lib/restHeaders'
 import { Lightbulb, Send } from 'lucide-react'
 import NotificationBell from './NotificationBell'
@@ -27,22 +28,21 @@ export default function WorkingOnIt({ title }) {
     try {
       await fetch(`${supabaseUrl}/rest/v1/suggestions`, {
         method: 'POST', headers,
-        body: JSON.stringify({
+        // Stamped with the team, so the reviewers can see where it came from.
+        body: JSON.stringify(stampStored({
           id: String(Date.now()) + Math.random().toString(36).slice(2),
           author: username || 'Anonymous',
           author_id: user?.id || null,
           text: `[${title}] ${text}`,
           status: 'pending',
-        }),
+        })),
       })
-      // Ping the co-founders so ideas don't sit unseen.
-      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,function_tags`, { headers })
-      if (res.ok) {
-        for (const pr of await res.json()) {
-          if (!(pr.function_tags || []).includes('Co-Founder')) continue
+      // Ping Kayden and Yukti so ideas don't sit unseen — from every team.
+      {
+        for (const id of await ideaReviewerIds(supabaseUrl, headers)) {
           const notif = {
-            id: String(Date.now()) + Math.random().toString(36).slice(2) + pr.id.slice(0, 4),
-            user_id: pr.id,
+            id: String(Date.now()) + Math.random().toString(36).slice(2) + id.slice(0, 4),
+            user_id: id,
             type: 'idea',
             title: `💡 Idea for ${title}`,
             body: `${username}: ${text}`,

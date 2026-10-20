@@ -1,7 +1,6 @@
 import { useUser } from '../contexts/UserContext'
 import { isHomeTeamNumber } from '../data/team'
-
-const PERMANENT_COFOUNDERS = ['yukti', 'kayden']
+import { PERMANENT_COFOUNDERS } from '../lib/cofounders'
 
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
   'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
@@ -102,6 +101,7 @@ export function usePermissions() {
     tier,
     isGuest,
     isCofounder,
+    isPermanentCofounder,
     hasLeadTag,
 
     // View permissions (all tiers including guest)
@@ -153,8 +153,9 @@ export function usePermissions() {
     canViewAllAttendance: hasLeadTag,
     canOverrideAttendance: hasLeadTag,
 
-    // Co-Founders only
-    canReviewSuggestions: isCofounder,
+    // Kayden and Yukti only — the app's owners, not a team's Co-Founder tag.
+    // Ideas from every team land with them.
+    canReviewSuggestions: isPermanentCofounder,
 
     // Functional roles (Outreach, Finance) don't get Special Controls; a lead
     // who also holds one of those roles keeps it.

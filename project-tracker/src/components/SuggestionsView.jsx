@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { onlyMyTeam, stampStored, storedTeamScope, teamScope } from '../lib/teamScope'
+import { onlyMyTeam, stampStored, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { Send, Trash2, Check, Clock, X } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { triggerPush } from '../utils/pushHelper'
+import { ideaReviewerIds } from '../lib/cofounders'
 import NotificationBell from './NotificationBell'
 
 const STATUS_STYLES = {
@@ -37,13 +38,13 @@ function SuggestionsView() {
     // the suggestions had never saved.
     async function load() {
       try {
-        const filter = !isReviewer && username
-          ? `&author=eq.${encodeURIComponent(username)}`
-          : ''
-        const res = await fetch(
-          `${supabaseUrl}/rest/v1/suggestions?${SCOPE}&select=*&order=created_at.desc${filter}`,
-          { headers }
-        )
+        // Reviewers read every team's ideas; everyone else sees their own.
+        const where = [
+          isReviewer ? null : SCOPE,
+          'select=*', 'order=created_at.desc',
+          !isReviewer && username ? `author=eq.${encodeURIComponent(username)}` : null,
+        ].filter(Boolean).join('&')
+        const res = await fetch(`${supabaseUrl}/rest/v1/suggestions?${where}`, { headers })
         if (!res.ok) throw new Error(await res.text() || res.statusText)
         const data = await res.json()
         setSuggestions(Array.isArray(data) ? data : [])
@@ -56,11 +57,13 @@ function SuggestionsView() {
     if (username) load()
   }, [username, isReviewer])
 
-  // Real-time subscription
+  // Real-time subscription. Reviewers hear about every team's ideas, so the
+  // own-team filter only applies to everyone else.
   useEffect(() => {
+    const mine = isReviewer ? (h => h) : onlyMyTeam
     const channel = supabase
       .channel('suggestions-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, onlyMyTeam((payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'suggestions' }, mine((payload) => {
         setSuggestions(prev => {
           if (prev.some(s => s.id === payload.new.id)) return prev
           if (isReviewer || payload.new.author === username) {
@@ -69,10 +72,10 @@ function SuggestionsView() {
           return prev
         })
       }))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'suggestions' }, onlyMyTeam((payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'suggestions' }, mine((payload) => {
         setSuggestions(prev => prev.map(s => s.id === payload.new.id ? payload.new : s))
       }))
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'suggestions' }, onlyMyTeam((payload) => {
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'suggestions' }, mine((payload) => {
         setSuggestions(prev => prev.filter(s => s.id !== payload.old.id))
       }))
       .subscribe()
@@ -80,21 +83,20 @@ function SuggestionsView() {
     return () => { supabase.removeChannel(channel) }
   }, [isReviewer, username])
 
-  // A suggestion that nobody is told about is a suggestion nobody reads. This
-  // mirrors what the "not built yet" pages already do with their idea box.
+  // A suggestion that nobody is told about is a suggestion nobody reads.
+  // Every idea, from every team, goes to Kayden and Yukti — the same two the
+  // "not built yet" idea boxes tell.
   const notifyReviewers = async (suggestion) => {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/profiles?${storedTeamScope()}&select=id,function_tags`, { headers })
-      if (!res.ok) return
-      for (const p of await res.json()) {
-        if (!(p.function_tags || []).includes('Co-Founder')) continue
-        if (p.id === user?.id) continue
+      const team = suggestion.team_number ? ` (team ${suggestion.team_number})` : ''
+      for (const id of await ideaReviewerIds(supabaseUrl, headers)) {
+        if (id === user?.id) continue
         const notif = {
-          id: String(Date.now()) + Math.random().toString(36).slice(2) + p.id.slice(0, 4),
-          user_id: p.id,
+          id: String(Date.now()) + Math.random().toString(36).slice(2) + id.slice(0, 4),
+          user_id: id,
           type: 'suggestion',
           title: '💡 New suggestion',
-          body: `${suggestion.author}: "${suggestion.text.slice(0, 90)}${suggestion.text.length > 90 ? '…' : ''}"`,
+          body: `${suggestion.author}${team}: "${suggestion.text.slice(0, 90)}${suggestion.text.length > 90 ? '…' : ''}"`,
         }
         await fetch(`${supabaseUrl}/rest/v1/notifications`, {
           method: 'POST',
@@ -136,7 +138,7 @@ function SuggestionsView() {
         .select('*')
         .eq('id', suggestion.id)
         .single()
-      notifyReviewers(suggestion)
+      notifyReviewers(verify || suggestion)
       if (verify) {
         setSuggestions(prev => prev.map(s => s.id === suggestion.id ? verify : s))
       } else {
@@ -289,7 +291,7 @@ After you've asked enough questions, write me a final polished feature suggestio
               Suggestions
             </h1>
             <p className="text-sm text-gray-500">
-              {isReviewer ? 'Review team feedback' : 'How can we make this app better?'}
+              {isReviewer ? 'Ideas from every team, all in one place' : 'How can we make this app better?'}
             </p>
           </div>
           <NotificationBell />
@@ -329,6 +331,10 @@ After you've asked enough questions, write me a final polished feature suggestio
                       <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-sm font-semibold text-pastel-pink-dark">{s.author}</span>
+                          {/* Which team it came from. Home-team ideas carry no number. */}
+                          {s.team_number && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-pastel-blue/30 text-gray-600 font-medium">Team {s.team_number}</span>
+                          )}
                           <span className="text-xs text-gray-400">{formatDate(s.created_at)}</span>
                         </div>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-3">{s.text}</p>
