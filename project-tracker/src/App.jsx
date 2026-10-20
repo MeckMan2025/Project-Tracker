@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { completionFields } from './lib/taskDone'
+import { completionFields, daysLate, latenessLabel, prettyDone } from './lib/taskDone'
 import { onlyMyTeam, scopeQuery, stampStored, storedTeamScope, teamScope } from './lib/teamScope'
 import { lazyHeadersWith, lazyRestHeaders, restHeaders } from './lib/restHeaders'
 import { notifyLeadOfCoLeadAction } from './lib/coLeadNotice'
@@ -253,6 +253,7 @@ const mapTask = (t) => ({
   skills: t.skills || [],
   priority: t.priority || 'medium',
   createdAt: t.created_at,
+  completedAt: t.completed_at,
 })
 
 // A task can sit on several boards at once, so a local change has to reach
@@ -1133,7 +1134,7 @@ function App() {
     const taskTitle = doneTask?.title || 'a task'
 
     setTasksByTab(prev => {
-      const updated = patchEveryBoard(prev, taskId, { status: 'completed' })
+      const updated = patchEveryBoard(prev, taskId, { status: 'completed', completedAt: new Date().toISOString() })
       syncCache(updated)
       return updated
     })
@@ -2246,10 +2247,20 @@ function App() {
                             {task.assignee}
                           </span>
                         ) : null}
-                        {task.dueDate && (
-                          <span className="flex items-center gap-1">
-                            <Calendar size={11} />
-                            {task.dueDate}
+                        {/* When it was finished — not when it was due. The due
+                            date is in the tooltip, and how it compared is the
+                            note beside it. Tasks done before the stamp existed
+                            have no date to show. */}
+                        {task.completedAt && (
+                          <span className="flex items-center gap-1" title={task.dueDate ? `Was due ${task.dueDate}` : undefined}>
+                            <CheckCircle size={11} className="text-green-500" />
+                            Done {prettyDone(task.completedAt)}
+                            {daysLate(task.dueDate, task.completedAt) > 0 && (
+                              <span className="text-red-400">· {latenessLabel(daysLate(task.dueDate, task.completedAt))}</span>
+                            )}
+                            {daysLate(task.dueDate, task.completedAt) < 0 && (
+                              <span className="text-green-600">· {latenessLabel(daysLate(task.dueDate, task.completedAt))}</span>
+                            )}
                           </span>
                         )}
                       </div>

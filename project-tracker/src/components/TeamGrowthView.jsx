@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { ACTIVE_SEASON, seasonOf } from '../data/season'
 import { SIGNALS, SIGNAL_BY_KEY, signalsOf, answersFor } from '../data/notebookSignals'
 import { teamScope } from '../lib/teamScope'
+import { daysLate, latenessLabel, doneDay, prettyDone } from '../lib/taskDone'
 import { X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 
 // Team Growth reads the engineering notebook and nothing else. Every number on
@@ -46,6 +47,7 @@ const SECTIONS = [
   { key: 'teamwork',   emoji: '👥', label: 'Teamwork',           blurb: 'who worked together, and why it helped' },
   { key: 'initiative', emoji: '🚀', label: 'Initiative',         blurb: 'work people started on their own' },
   { key: 'next',       emoji: '➡️', label: "What's Next",        blurb: 'what people said they\'d pick up' },
+  { key: 'deadlines',  emoji: '⏱️', label: 'Deadlines',          blurb: 'tasks finished before, on, or after their due date' },
 ]
 
 const prettyDate = (d) => {
@@ -87,6 +89,8 @@ export default function TeamGrowthView() {
 
   const [entries, setEntries] = useState([])
   const [projects, setProjects] = useState([])
+  // Finished tasks, for the Deadlines page.
+  const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
@@ -136,12 +140,18 @@ export default function TeamGrowthView() {
         if (!signedIn) throw new Error('Not signed in. Sign in again and reload.')
         const headers = restHeaders()
         const scope = teamScope(myTeamNumber)
-        const [all, pRes] = await Promise.all([
+        const [all, pRes, doneRows] = await Promise.all([
           fetchAllRows(`${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${scope}&order=meeting_date.desc,id.desc`, headers),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=id,name&${scope}`, { headers }),
+          // Tasks keep their owner in owner_team, not team_number. A failure
+          // here must not take the notebook pages down with it, so it
+          // answers with nothing rather than throwing.
+          fetchAllRows(`${supabaseUrl}/rest/v1/tasks?select=id,title,assignee,assignees,due_date,completed_at,status&${teamScope(myTeamNumber, 'owner_team')}&status=in.(completed,done)&order=id.desc`, headers)
+            .catch(() => []),
         ])
         if (!alive) return
         setEntries(all)
+        setTasks(Array.isArray(doneRows) ? doneRows : [])
         setLoadedAt(new Date())
         setError('')
         if (pRes.ok) {
@@ -192,6 +202,41 @@ export default function TeamGrowthView() {
     if (to) out = out.filter(e => (e.meeting_date || '') <= to)
     return out
   }, [visible, season, member, project, from, to])
+
+  // Finished tasks, with the day they were due set against the day they were
+  // done. The person and date filters apply; the season doesn't, because a
+  // task has no season of its own and the finish stamp is newer than this
+  // season anyway. Tasks finished before the stamp existed have no answer and
+  // are left out rather than guessed at.
+  const timed = useMemo(() => {
+    let out = tasks.filter(t => t.completed_at)
+    if (member) out = out.filter(t => t.assignee === member || (t.assignees || []).includes(member))
+    if (from) out = out.filter(t => (doneDay(t.completed_at) || '') >= from)
+    if (to) out = out.filter(t => (doneDay(t.completed_at) || '') <= to)
+    return out
+      .map(t => ({ ...t, late: daysLate(t.due_date, t.completed_at) }))
+      .filter(t => t.late != null)
+      .sort((a, b) => b.late - a.late || String(b.completed_at).localeCompare(String(a.completed_at)))
+  }, [tasks, member, from, to])
+
+  const deadlines = useMemo(() => {
+    const early = timed.filter(t => t.late < 0)
+    const onDay = timed.filter(t => t.late === 0)
+    const late = timed.filter(t => t.late > 0)
+    const avg = timed.length ? timed.reduce((s, t) => s + t.late, 0) / timed.length : null
+    const people = {}
+    timed.forEach(t => {
+      const who = t.assignee && !t.assignee.startsWith('__') ? t.assignee : 'Unassigned'
+      const p = (people[who] = people[who] || { who, n: 0, late: 0, early: 0, onDay: 0 })
+      p.n++
+      if (t.late > 0) p.late++
+      else if (t.late < 0) p.early++
+      else p.onDay++
+    })
+    const onTime = timed.length ? Math.round(((early.length + onDay.length) / timed.length) * 100) : 0
+    return { early, onDay, late, avg, onTime,
+      people: Object.values(people).sort((a, b) => b.n - a.n || a.who.localeCompare(b.who)) }
+  }, [timed])
 
   const seasons = useMemo(() => {
     const set = new Set([ACTIVE_SEASON])
@@ -444,7 +489,7 @@ export default function TeamGrowthView() {
           {/* Only on the pages that actually depend on signals. Engagement has
               been asked on every entry for far longer, so it has real history
               and must not be apologised for. */}
-          {noSignalsYet && sec.key !== 'engagement' && (
+          {noSignalsYet && sec.key !== 'engagement' && sec.key !== 'deadlines' && (
             <div className="bg-pastel-blue/15 border border-pastel-blue/40 rounded-xl p-3 text-center">
               <p className="text-sm text-gray-700 font-medium">
                 Nothing to chart yet — and that's expected.
@@ -669,6 +714,76 @@ export default function TeamGrowthView() {
                 <p className="text-sm text-gray-400">Nothing written down yet.</p>
               )}
             </Card>
+          )}
+
+          {/* ── Deadlines ────────────────────────────────────────────────── */}
+          {sec.key === 'deadlines' && (
+            timed.length === 0 ? (
+              <Card title="Before or after the due date">
+                <p className="text-sm text-gray-400">
+                  No finished tasks with both a due date and a finish date match these filters yet.
+                  Every task marked done from now on is stamped with the day it was finished.
+                </p>
+              </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Stat label="Finished early" value={deadlines.early.length} emoji="🏃" tint="#e9f7ef" />
+                  <Stat label="Finished on the day" value={deadlines.onDay.length} emoji="🎯" tint="#eaf1fb" />
+                  <Stat label="Finished late" value={deadlines.late.length} emoji="⏰" tint="#fdecec" />
+                  <Stat label={deadlines.avg > 0 ? 'Average days late' : 'Average days early'}
+                        value={deadlines.avg == null ? '—' : Math.abs(deadlines.avg).toFixed(1)} emoji="📏" />
+                </div>
+
+                <Card title="Before or after the due date"
+                      sub={`${timed.length} finished ${timed.length === 1 ? 'task' : 'tasks'} with a due date · ${deadlines.onTime}% done by the due date. Tasks finished before finish dates were recorded aren't counted.`}>
+                  <Breakdown color="#4d7fd6" onPick={() => {}}
+                             rows={[['Early', deadlines.early.length], ['On the day', deadlines.onDay.length], ['Late', deadlines.late.length]]} />
+                </Card>
+
+                <Card title="By person" sub="How much of each person's finished work was done by the due date.">
+                  <div className="space-y-1.5">
+                    {deadlines.people.map(p => (
+                      <div key={p.who} className="flex items-center gap-3">
+                        <span className="w-24 shrink-0 text-xs text-gray-600 truncate">{p.who}</span>
+                        <div className="flex-1 h-5 rounded-full overflow-hidden flex bg-gray-100"
+                             title={`${p.early} early · ${p.onDay} on the day · ${p.late} late`}>
+                          {p.early > 0 && <div style={{ width: `${(p.early / p.n) * 100}%`, background: '#4caf82' }} />}
+                          {p.onDay > 0 && <div style={{ width: `${(p.onDay / p.n) * 100}%`, background: '#4d7fd6' }} />}
+                          {p.late > 0 && <div style={{ width: `${(p.late / p.n) * 100}%`, background: '#e5688a' }} />}
+                        </div>
+                        <span className="w-10 shrink-0 text-right text-xs font-semibold text-gray-600">
+                          {Math.round(((p.early + p.onDay) / p.n) * 100)}%
+                        </span>
+                        <span className="w-14 shrink-0 text-right text-[11px] text-gray-400">
+                          {p.n} {p.n === 1 ? 'task' : 'tasks'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-2">green early · blue on the day · pink late</p>
+                </Card>
+
+                {!graphsOnly && (
+                  <Card title="Every finished task" sub="Latest ones first, then on the day, then early.">
+                    <div className="space-y-1.5">
+                      {timed.slice(0, 80).map(t => (
+                        <p key={t.id} className="text-sm text-gray-600">
+                          <span className={`text-xs font-semibold ${t.late > 0 ? 'text-red-400' : t.late < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                            {latenessLabel(t.late)}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {' · due '}{prettyDate(t.due_date)}{' · done '}{prettyDone(t.completed_at)}
+                            {t.assignee && !t.assignee.startsWith('__') ? ` · ${t.assignee}` : ''}{' — '}
+                          </span>
+                          {t.title}
+                        </p>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+              </>
+            )
           )}
         </>
       )}
