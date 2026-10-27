@@ -1,13 +1,14 @@
 import { useState, useRef } from 'react'
 import { restHeaders } from '../lib/restHeaders'
-import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History, ChevronLeft, ChevronRight, ChevronDown, Sun, Moon } from 'lucide-react'
 import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
 import { RUNDOWN_SEASONS, RUNDOWN_KEYS, LATEST_RUNDOWN } from '../data/rundown'
 import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
 
-// Gold comb lines on nothing, for the dark page. Flat-top cells on the same
+// Amber comb lines on nothing, laid over the honey. Flat-top cells on the same
 // 3r x sqrt(3)r tile as the light one.
-const DARK_COMB = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='52' viewBox='0 0 90 51.96'%3E%3Cg fill='none' stroke='%23f59e0b' stroke-opacity='0.22' stroke-width='1.2'%3E%3Cpolygon points='30,25.98 15,51.96 -15,51.96 -30,25.98 -15,0 15,0'/%3E%3Cpolygon points='120,25.98 105,51.96 75,51.96 60,25.98 75,0 105,0'/%3E%3Cpolygon points='75,51.96 60,77.94 30,77.94 15,51.96 30,25.98 60,25.98'/%3E%3Cpolygon points='75,0 60,25.98 30,25.98 15,0 30,-25.98 60,-25.98'/%3E%3C/g%3E%3C/svg%3E\")"
+const HIVE_COMB = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='52' viewBox='0 0 90 51.96'%3E%3Cg fill='none' stroke='%23f59e0b' stroke-opacity='0.22' stroke-width='1.2'%3E%3Cpolygon points='30,25.98 15,51.96 -15,51.96 -30,25.98 -15,0 15,0'/%3E%3Cpolygon points='120,25.98 105,51.96 75,51.96 60,25.98 75,0 105,0'/%3E%3Cpolygon points='75,51.96 60,77.94 30,77.94 15,51.96 30,25.98 60,25.98'/%3E%3Cpolygon points='75,0 60,25.98 30,25.98 15,0 30,-25.98 60,-25.98'/%3E%3C/g%3E%3C/svg%3E\")"
+const HIVE_COMB_LIGHT = HIVE_COMB.replace('%23f59e0b', '%23b45309').replace("stroke-opacity='0.22'", "stroke-opacity='0.26'")
 
 // Each season's page is dressed for its game. 2025-26 keeps the team pastels;
 // BIOBUZZ (2026-27) is honey and comb, the same comb the Home page sits on.
@@ -32,15 +33,18 @@ const THEMES = {
     strong: 'text-pastel-blue-dark',
     emoji: '',
     header: 'bg-white/80',
+    arrow: 'text-gray-600',
   },
   biobuzz: {
-    // Night hive: near-black honey with gold comb lines, the BIOBUZZ logo's
-    // black-and-yellow rather than last year's white and pastel.
-    dark: true,
+    // Night hive: near-black honey with gold comb lines, vines and flowers,
+    // the BIOBUZZ logo's black-and-yellow rather than last year's pastels.
+    hive: true,
     bg: 'text-amber-50',
-    bgStyle: { backgroundImage: `${DARK_COMB}, linear-gradient(180deg, #17110a 0%, #221806 50%, #17110a 100%)`, backgroundAttachment: 'fixed' },
+    bgStyle: { backgroundImage: `${HIVE_COMB}, linear-gradient(180deg, #17110a 0%, #221806 50%, #17110a 100%)`, backgroundAttachment: 'fixed' },
     header: 'bg-[#17110a]/85 border-b border-amber-500/30',
-    panel: 'bg-black/40 backdrop-blur-md rounded-3xl border border-amber-500/30 shadow-2xl p-6 w-full max-w-4xl mx-auto space-y-6',
+    arrow: 'text-amber-200',
+    heroSub: 'text-amber-100/90',
+    panel: 'relative z-10 bg-black/40 backdrop-blur-md rounded-3xl border border-amber-500/30 shadow-2xl p-6 w-full max-w-4xl mx-auto space-y-6',
     title: 'from-yellow-300 via-amber-400 to-orange-400',
     pill: 'from-amber-500 to-yellow-400',
     frame: 'from-amber-500/50 via-yellow-400/40 to-amber-500/50',
@@ -56,30 +60,73 @@ const THEMES = {
     strong: 'text-yellow-300',
     emoji: '🐝',
   },
+  'biobuzz-light': {
+    // Golden hive: the same page in daylight — honey and cream, amber comb
+    // lines, gold headings. The sun/moon in the header flips between the two.
+    hive: true,
+    light: true,
+    bg: 'text-[#3b2a0a]',
+    bgStyle: { backgroundImage: `${HIVE_COMB_LIGHT}, linear-gradient(180deg, #fff3cc 0%, #fbe09a 50%, #f6cd6a 100%)`, backgroundAttachment: 'fixed' },
+    header: 'bg-[#fff6dc]/85 border-b border-amber-400/40',
+    arrow: 'text-amber-800',
+    heroSub: 'text-[#3b2a0a]',
+    panel: 'relative z-10 bg-[#fffaf0]/75 backdrop-blur-md rounded-3xl border border-amber-400/50 shadow-xl p-6 w-full max-w-4xl mx-auto space-y-6',
+    title: 'from-amber-700 via-orange-500 to-amber-600',
+    pill: 'from-amber-500 to-yellow-400',
+    frame: 'from-amber-400/60 via-yellow-300/60 to-amber-400/60',
+    heroFade: 'from-[#fff3cc] via-[#fff3cc]/40',
+    box1: 'border-amber-500 bg-amber-200/40',
+    box2: 'border-yellow-500 bg-yellow-200/40',
+    box3: 'border-orange-400 bg-orange-200/40',
+    song: 'border-yellow-500 from-yellow-200/50 to-amber-200/40',
+    songBtn: 'bg-amber-500', songIcon: 'text-amber-700', songHover: 'hover:bg-amber-200',
+    form: 'border-amber-500 from-amber-200/40 to-yellow-100/40', formRing: 'focus:ring-amber-400/60', formLink: 'text-amber-800',
+    orb: 'from-amber-400 via-yellow-300 to-orange-400',
+    quoteMark: 'text-amber-500/50',
+    strong: 'text-amber-800',
+    emoji: '🐝',
+  },
 }
 
 // What stands in for a photo that isn't there yet, per theme.
 const PASTEL_TILE = ['from-pastel-pink/30', 'to-pastel-blue/30']
 const HONEY_TILE = ['from-amber-200/70', 'to-yellow-100/70']
 
-// The dark page flips the greys the shared sections use. One sheet instead of
-// a theme key on every paragraph.
-const DARK_CSS = `
-  .hive-dark .text-gray-800, .hive-dark .text-gray-700 { color: #fdf3dc }
-  .hive-dark .text-gray-600, .hive-dark .text-gray-500 { color: #e3cfa6 }
-  .hive-dark .text-gray-400 { color: #c9ae7a }
-  .hive-dark .bg-white\\/60, .hive-dark .bg-white\\/70, .hive-dark .bg-white\\/80 { background-color: rgba(0,0,0,.42) }
-  .hive-dark .bg-white\\/85 { background-color: rgba(12,8,2,.78) }
-  .hive-dark .border-amber-200 { border-color: rgba(245,158,11,.45) }
-  .hive-dark .border-gray-200 { border-color: rgba(245,158,11,.4) }
-  .hive-dark input { background-color: rgba(0,0,0,.35); color: #fdf3dc }
-  .hive-dark input::placeholder { color: #a8905f }
-  .hive-dark .bg-gray-300 { background-color: rgba(245,158,11,.35) }
-  .hive-dark .bg-amber-100\\/60, .hive-dark .bg-yellow-100\\/60, .hive-dark .bg-orange-100\\/60 { background-color: rgba(245,158,11,.18) }
-  .hive-dark .text-amber-700 { color: #fbbf24 } .hive-dark .text-yellow-700 { color: #fde047 } .hive-dark .text-orange-700 { color: #fb923c }
-  .hive-dark .bg-amber-200\\/70 { background-color: rgba(245,158,11,.22) }
-  .hive-dark .bg-amber-100 { background-color: #3a2a0c }
-  .hive-dark .bg-green-50 { background-color: rgba(34,197,94,.12) }
+// The hive page tints the greys the shared sections use toward brown, and
+// the white glass toward cream. One sheet instead of a theme key on every
+// paragraph.
+const HIVE_CSS_LIGHT = `
+  .hive .text-gray-800, .hive .text-gray-700 { color: #3b2a0a }
+  .hive .text-gray-600, .hive .text-gray-500 { color: #7c5a14 }
+  .hive .text-gray-400 { color: #9a7a3a }
+  .hive .bg-white\\/60, .hive .bg-white\\/70, .hive .bg-white\\/80 { background-color: rgba(255,250,240,.72) }
+  .hive .bg-white\\/85 { background-color: rgba(255,250,240,.88) }
+  .hive .border-amber-200 { border-color: rgba(217,119,6,.45) }
+  .hive .border-gray-200 { border-color: rgba(217,119,6,.4) }
+  .hive input { background-color: rgba(255,255,255,.6); color: #3b2a0a }
+  .hive input::placeholder { color: #a08455 }
+  .hive .bg-gray-300 { background-color: rgba(217,119,6,.3) }
+  .hive .bg-amber-100\\/60, .hive .bg-yellow-100\\/60, .hive .bg-orange-100\\/60 { background-color: rgba(245,158,11,.22) }
+  .hive .bg-amber-200\\/70 { background-color: rgba(217,119,6,.35) }
+  .hive .text-amber-500 { color: #b45309 } .hive .hover\\:text-amber-400:hover { color: #92400e }
+`
+const HIVE_CSS = `
+  .hive .text-gray-800, .hive .text-gray-700 { color: #fdf3dc }
+  .hive .text-gray-600, .hive .text-gray-500 { color: #e3cfa6 }
+  .hive .text-gray-400 { color: #c9ae7a }
+  .hive .bg-white\\/60, .hive .bg-white\\/70, .hive .bg-white\\/80 { background-color: rgba(0,0,0,.42) }
+  .hive .bg-white\\/85 { background-color: rgba(12,8,2,.78) }
+  .hive .border-amber-200 { border-color: rgba(245,158,11,.45) }
+  .hive .border-amber-300\\/50 { border-color: rgba(245,158,11,.35) }
+  .hive .border-gray-200 { border-color: rgba(245,158,11,.4) }
+  .hive input { background-color: rgba(0,0,0,.35); color: #fdf3dc }
+  .hive input::placeholder { color: #a8905f }
+  .hive .bg-gray-300 { background-color: rgba(245,158,11,.35) }
+  .hive .bg-amber-100\\/60, .hive .bg-yellow-100\\/60, .hive .bg-orange-100\\/60 { background-color: rgba(245,158,11,.18) }
+  .hive .text-amber-700 { color: #fbbf24 } .hive .text-yellow-700 { color: #fde047 } .hive .text-orange-700 { color: #fb923c }
+  .hive .bg-amber-200\\/70 { background-color: rgba(245,158,11,.22) }
+  .hive .bg-amber-100 { background-color: #3a2a0c }
+  .hive .bg-green-50 { background-color: rgba(34,197,94,.12) }
 `
 
 // A flat-top honeycomb cell, the shape every BIOBUZZ photo frame takes.
@@ -369,7 +416,9 @@ function CombPair({ lead, colead, emoji, flip, size = 124 }) {
   const cell = (v) => ({ position: 'absolute', top: v.top, ...x(v.x) })
   return (
     <div className="relative flex-shrink-0 -mt-8 md:-my-8" style={{ width: w + dx, height: h + dy + h * 0.5 }}>
-      <div className="bg-amber-200/70" style={{ ...HEX, ...cell({ top: h, x: 0 }), width: w, height: h }} />
+      <div className="bg-amber-200/70 flex items-center justify-center" style={{ ...HEX, ...cell({ top: h, x: 0 }), width: w, height: h }}>
+        <svg viewBox="0 0 40 40" width={w * 0.42} height={h * 0.42} aria-hidden="true"><Leaf x={12} y={30} a={-30} s={0.7} /><Leaf x={28} y={30} a={30} s={0.7} /><Bloom x={20} y={18} r={11} c={1} /></svg>
+      </div>
       <HexPhoto src={lead.photo} alt={lead.name} position={lead.photoPosition} emoji={emoji} size={size}
         style={cell({ top: 0, x: 0 })} />
       <HexPhoto src={colead.photo} alt={colead.name} position={colead.photoPosition} emoji={emoji} size={size} ring="bg-yellow-300"
@@ -390,11 +439,13 @@ function HiveLeaders({ page, t }) {
     </h3>
   )
   return (
-    <section className="w-full max-w-5xl mx-auto my-8 space-y-6">
+    <section className="relative z-10 w-full max-w-5xl mx-auto my-8 space-y-6">
       <Heading>{t.emoji} Meet Our Leaders {t.emoji}</Heading>
 
       {managers && (
-        <div className="max-w-2xl mx-auto !mt-16 bg-white/80 backdrop-blur-sm rounded-3xl border border-amber-200 shadow-lg p-5 md:p-6">
+        <div className="relative max-w-2xl mx-auto !mt-16 bg-white/80 backdrop-blur-sm rounded-3xl border border-amber-200 shadow-lg p-5 md:p-6">
+          <Sprig className="absolute -bottom-5 -left-4 w-20 h-20" flip />
+          <Sprig className="absolute -top-3 -right-4 w-16 h-16" />
           <div className="flex items-end justify-center gap-6 md:gap-10 -mt-12 md:-mt-14 mb-3">
             {managers.people.map((p) => (
               <div key={p.name} className="text-center">
@@ -467,6 +518,174 @@ function HiveLeaders({ page, t }) {
       )}
     </section>
   )
+}
+
+// What's inside, as two honey panels: what Radical runs on, and what a team
+// that signs in with its own number gets.
+function InsideTheApp({ inside, t }) {
+  const Tile = ([emoji, title, desc]) => (
+    <div key={title} className="bg-white/70 rounded-xl p-2.5 border border-amber-300/50">
+      <p className="text-xs font-bold text-gray-800">{emoji} {title}</p>
+      <p className="text-[11px] text-gray-600 leading-snug mt-0.5">{desc}</p>
+    </div>
+  )
+  return (
+    <div className="space-y-4">
+      <div className={`relative border-l-4 rounded-r-xl p-4 space-y-3 ${t.box2}`}>
+        <Sprig className="absolute -top-5 -right-3 w-16 h-16" />
+        <h3 className="font-bold text-gray-800 text-sm">What's Inside the App</h3>
+        <p className="text-xs text-gray-600 leading-relaxed">Everything Team 7196 runs on, all in one place.</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">{inside.ours.map(Tile)}</div>
+      </div>
+      <div className={`relative border-l-4 rounded-r-xl p-4 space-y-3 ${t.box1}`}>
+        <Sprig className="absolute -bottom-4 -right-3 w-14 h-14" flip />
+        <h3 className="font-bold text-gray-800 text-sm">What a Team Account Gets</h3>
+        <p className="text-xs text-gray-600 leading-relaxed">{inside.team.intro}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">{inside.team.tabs.map(Tile)}</div>
+        {inside.team.note && <p className="text-xs text-gray-700 leading-relaxed italic">{inside.team.note}</p>}
+      </div>
+    </div>
+  )
+}
+
+// What ETS is for, and why to put it on your phone: two columns of short
+// points, each with a tile.
+function GoalsSection({ goals, t }) {
+  const Col = ({ title, items, box }) => (
+    <div className={`relative border-l-4 rounded-r-xl p-4 space-y-2 ${box}`}>
+      <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
+      {items.map(([emoji, head, body]) => (
+        <div key={head} className="flex gap-2.5 bg-white/70 rounded-xl p-2.5 border border-amber-300/50">
+          <span className="text-xl leading-none mt-0.5">{emoji}</span>
+          <div>
+            <p className="text-xs font-bold text-gray-800">{head}</p>
+            <p className="text-[11px] text-gray-600 leading-snug mt-0.5">{body}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+  return (
+    <div className="relative">
+      <Sprig className="absolute -top-6 -left-5 w-16 h-16 z-10" flip />
+      <h3 className={`text-base font-extrabold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent mb-3`}>
+        {t.emoji} What Everything That's Scrum Is For {t.emoji}
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Col title="Our goals this season" items={goals.goals} box={t.box2} />
+        <Col title="Why put it on your phone" items={goals.why} box={t.box1} />
+      </div>
+    </div>
+  )
+}
+
+// ---- bees: a few flying across the page, wings going ----
+function Bee({ size = 34 }) {
+  return (
+    <svg viewBox="0 0 48 40" width={size} height={size * 40 / 48} aria-hidden="true">
+      <g className="bee-wing" style={{ transformOrigin: '22px 14px' }}>
+        <ellipse cx="18" cy="11" rx="9" ry="6" fill="#dff3ff" fillOpacity=".85" stroke="#9cc8e8" strokeWidth=".8" />
+        <ellipse cx="30" cy="10" rx="8" ry="5.5" fill="#dff3ff" fillOpacity=".85" stroke="#9cc8e8" strokeWidth=".8" />
+      </g>
+      <ellipse cx="24" cy="24" rx="15" ry="10" fill="#F6C445" />
+      <path d="M15 15.5 q-2 8.5 0 17 M22 14 q-2.5 10 0 20 M29 14 q-2.5 10 0 20" stroke="#1f1a0a" strokeWidth="3.2" strokeLinecap="round" fill="none" />
+      <circle cx="39" cy="22" r="6" fill="#1f1a0a" />
+      <circle cx="41" cy="20.5" r="1.3" fill="#fff" />
+      <path d="M40 16 l3 -5 M43 17 l4 -3" stroke="#1f1a0a" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M9 24 l-5 1" stroke="#1f1a0a" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+// Each bee gets its own path across the viewport, speed and start, so they
+// never line up. Fixed to the viewport so they drift over whatever you're
+// reading. Off for anyone who asked their device for less motion.
+const BEE_FLIGHTS = [
+  { top: '14%', dur: 38, delay: 0,   size: 34, rev: false },
+  { top: '42%', dur: 46, delay: -18, size: 28, rev: true },
+  { top: '68%', dur: 52, delay: -7,  size: 30, rev: false },
+  { top: '28%', dur: 60, delay: -33, size: 22, rev: true },
+]
+function Bees() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+      {BEE_FLIGHTS.map((b, i) => (
+        <div key={i} className="absolute left-0" style={{ top: b.top, animation: `bee-cross ${b.dur}s linear ${b.delay}s infinite`, animationDirection: b.rev ? 'reverse' : 'normal' }}>
+          <div style={{ animation: `bee-bob ${2.2 + i * 0.5}s ease-in-out infinite`, transform: b.rev ? 'scaleX(-1)' : undefined }}>
+            <Bee size={b.size} />
+          </div>
+        </div>
+      ))}
+      <style>{`
+        @keyframes bee-cross {
+          0%   { transform: translate(-8vw, 0) rotate(-6deg) }
+          20%  { transform: translate(18vw, -9vh) rotate(8deg) }
+          40%  { transform: translate(42vw, 6vh) rotate(-10deg) }
+          60%  { transform: translate(62vw, -7vh) rotate(6deg) }
+          80%  { transform: translate(86vw, 5vh) rotate(-8deg) }
+          100% { transform: translate(108vw, -3vh) rotate(4deg) }
+        }
+        @keyframes bee-bob { 0%,100% { translate: 0 0 } 50% { translate: 0 -9px } }
+        @keyframes bee-flap { 0%,100% { transform: scaleY(1) } 50% { transform: scaleY(.35) } }
+        .bee-wing { animation: bee-flap .12s ease-in-out infinite }
+        @media (prefers-reduced-motion: reduce) { .bee-wing, [style*="bee-cross"], [style*="bee-bob"] { animation: none !important } }
+      `}</style>
+    </div>
+  )
+}
+
+// ---- nature: vines down the sides, flower sprigs on corners ----
+// Petals carry the team colours, the heart is always honey.
+const PETALS = ['#FFB3C6', '#8FC9E8', '#FFC27A']
+function Bloom({ x, y, r = 7, c = 0 }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      {[0, 72, 144, 216, 288].map((a) => (
+        <ellipse key={a} cx="0" cy={-r * 0.55} rx={r * 0.36} ry={r * 0.5} fill={PETALS[c % 3]} transform={`rotate(${a})`} />
+      ))}
+      <circle r={r * 0.3} fill="#F6C445" stroke="#E0A92E" strokeWidth="0.6" />
+    </g>
+  )
+}
+function Leaf({ x, y, a = 0, s = 1 }) {
+  return <ellipse cx={x} cy={y} rx={9 * s} ry={4 * s} fill="#7fae4e" transform={`rotate(${a} ${x} ${y})`} />
+}
+// A sprig: a curling stem with leaves and three blooms. Sits on a corner.
+function Sprig({ className = '', flip = false }) {
+  return (
+    <svg viewBox="0 0 80 80" className={`${className} pointer-events-none`} style={flip ? { transform: 'scaleX(-1)' } : undefined} aria-hidden="true">
+      <path d="M8 74 C 20 60, 18 40, 36 30 S 62 24, 70 8" fill="none" stroke="#6f9a3f" strokeWidth="2.2" strokeLinecap="round" />
+      <Leaf x={22} y={52} a={-40} /><Leaf x={38} y={34} a={20} /><Leaf x={56} y={24} a={-30} s={0.8} />
+      <Bloom x={30} y={44} c={0} /><Bloom x={50} y={28} r={6} c={1} /><Bloom x={70} y={9} r={6.5} c={2} />
+    </svg>
+  )
+}
+// A vine tile that repeats down the page edge: a wavy stem with leaves and a
+// bloom every so often. Used as a repeat-y background so it costs nothing.
+const VINE_TILE = (() => {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='90' height='300' viewBox='0 0 90 300'>
+    <path d='M45 0 C 20 50, 70 100, 45 150 S 20 250, 45 300' fill='none' stroke='#6f9a3f' stroke-width='2.4' stroke-linecap='round'/>
+    <g fill='#7fae4e'>
+      <ellipse cx='30' cy='40' rx='11' ry='5' transform='rotate(-35 30 40)'/>
+      <ellipse cx='60' cy='95' rx='11' ry='5' transform='rotate(30 60 95)'/>
+      <ellipse cx='32' cy='170' rx='11' ry='5' transform='rotate(-25 32 170)'/>
+      <ellipse cx='58' cy='235' rx='11' ry='5' transform='rotate(35 58 235)'/>
+      <ellipse cx='36' cy='280' rx='9' ry='4' transform='rotate(-40 36 280)'/>
+    </g>
+    <g transform='translate(58 130)'>
+      <ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#FFB3C6'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#FFB3C6' transform='rotate(72)'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#FFB3C6' transform='rotate(144)'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#FFB3C6' transform='rotate(216)'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#FFB3C6' transform='rotate(288)'/><circle r='2.2' fill='#F6C445'/>
+    </g>
+    <g transform='translate(30 215)'>
+      <ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#8FC9E8'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#8FC9E8' transform='rotate(72)'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#8FC9E8' transform='rotate(144)'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#8FC9E8' transform='rotate(216)'/><ellipse cx='0' cy='-4' rx='2.6' ry='3.6' fill='#8FC9E8' transform='rotate(288)'/><circle r='2.2' fill='#F6C445'/>
+    </g>
+  </svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg.replace(/\s+/g, ' '))}")`
+})()
+function Vines() {
+  const strip = (side) => (
+    <div className={`hidden lg:block absolute top-0 bottom-0 ${side} w-[90px] pointer-events-none opacity-80`}
+      style={{ backgroundImage: VINE_TILE, backgroundRepeat: 'repeat-y', backgroundPosition: 'top center', transform: side === 'right-2' ? 'scaleX(-1)' : undefined }} />
+  )
+  return <>{strip('left-2')}{strip('right-2')}</>
 }
 
 // The story of the app as slides: one idea per screen, arrows either side,
@@ -639,7 +858,11 @@ function TeamInfoPage({ onBack, initialSeason }) {
     || LATEST_RUNDOWN)
   const page = RUNDOWN_SEASONS[season]
   const isLatest = season === LATEST_RUNDOWN
-  const t = THEMES[page.theme] || THEMES.pastel
+  // Night or day for the hive. Remembered on this device.
+  const [mode, setMode] = useState(() => { try { return localStorage.getItem('rundown-mode') || 'dark' } catch { return 'dark' } })
+  const toggleMode = () => { const m = mode === 'dark' ? 'light' : 'dark'; setMode(m); try { localStorage.setItem('rundown-mode', m) } catch {} }
+  const themeKey = page.theme === 'biobuzz' && mode === 'light' ? 'biobuzz-light' : page.theme
+  const t = THEMES[themeKey] || THEMES.pastel
   const hex = page.theme === 'biobuzz'
   // The department structure (leads with co-leads) gets the full-width hive
   // layout; the older one-card-per-leader list stays inside the white card.
@@ -651,7 +874,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
         <header className={`${t.header} backdrop-blur-sm shadow-sm sticky top-0 z-10`}>
           <div className="px-4 py-3 flex items-center gap-3">
             <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/60 transition-colors">
-              <ArrowLeft size={20} className={t.dark ? 'text-amber-200' : 'text-gray-600'} />
+              <ArrowLeft size={20} className={t.arrow} />
             </button>
             <h1 className={`text-xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
               The Radical Rundown
@@ -691,7 +914,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
             onClick={() => (showPast ? setShowPast(false) : onBack())}
             className="p-2 rounded-xl hover:bg-white/60 transition-colors"
           >
-            <ArrowLeft size={20} className={t.dark ? 'text-amber-200' : 'text-gray-600'} />
+            <ArrowLeft size={20} className={t.arrow} />
           </button>
           <div>
             <h1 className={`text-xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
@@ -699,18 +922,26 @@ function TeamInfoPage({ onBack, initialSeason }) {
             </h1>
             {(showPast || !isLatest) && <p className="text-xs text-gray-400 -mt-0.5">Looking back at the {page.label} season</p>}
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {t.hive && (
+              <button onClick={toggleMode} aria-label={mode === 'dark' ? 'Switch to light' : 'Switch to dark'} title={mode === 'dark' ? 'Light mode' : 'Dark mode'}
+                className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-colors ${mode === 'dark' ? 'bg-amber-400 text-[#17110a] hover:bg-yellow-300' : 'bg-[#2a1d08] text-amber-300 hover:bg-[#3a2a0c]'}`}>
+                {mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            )}
             <SeasonSwitch season={season} onChange={setSeason} t={t} />
           </div>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 pb-8">
-        {t.dark && <style>{DARK_CSS}</style>}
+        {t.hive && <style>{t.light ? HIVE_CSS_LIGHT : HIVE_CSS}</style>}
         {hive ? (
-          <div className={t.dark ? 'hive-dark' : ''}>
+          <div className={t.hive ? 'hive relative' : ''}>
+            {t.hive && <Vines />}
+            {t.hive && <Bees />}
             {/* Full-bleed team photo, fading into the dark */}
-            <div className="relative -mx-4 -mt-4 mb-6 h-72 md:h-[440px] overflow-hidden">
+            <div className="relative z-10 -mx-4 -mt-4 mb-6 h-72 md:h-[440px] overflow-hidden">
               <img src={page.hero || '/team-hero.jpg'} alt="Team 7196" className="w-full h-full object-cover"
                 style={{ objectPosition: page.heroPosition || 'center 35%' }} />
               <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
@@ -718,13 +949,15 @@ function TeamInfoPage({ onBack, initialSeason }) {
                 <h2 className={`text-3xl md:text-5xl font-extrabold bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow`}>
                   About Team 7196
                 </h2>
-                <p className="text-amber-100/90 text-xs md:text-sm font-semibold mt-1">
+                <p className={`${t.heroSub} text-xs md:text-sm font-semibold mt-1`}>
                   Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
                 </p>
               </div>
             </div>
 
             <div className={t.panel}>
+              <Sprig className="absolute -top-6 -left-5 w-24 h-24 z-10" flip />
+              <Sprig className="absolute -bottom-6 -right-5 w-20 h-20 z-10" />
           <div className={`border-l-4 rounded-r-xl p-4 ${t.box1}`}>
             <h3 className="font-bold text-gray-800 text-sm mb-2">Who We Are</h3>
             <p className="text-gray-700 text-sm leading-relaxed">
@@ -753,6 +986,9 @@ function TeamInfoPage({ onBack, initialSeason }) {
             <div className={t.panel}>
               {page.storySlides && <StorySlides slides={page.storySlides} t={t} />}
 
+              {page.goals && <GoalsSection goals={page.goals} t={t} />}
+
+              {page.inside ? <InsideTheApp inside={page.inside} t={t} /> : (
           <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box2}`}>
             <h3 className="font-bold text-gray-800 text-sm">What's Inside the App</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -776,6 +1012,8 @@ function TeamInfoPage({ onBack, initialSeason }) {
             </div>
           </div>
 
+
+              )}
 
           <InterestForm t={t} />
 

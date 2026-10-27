@@ -119,6 +119,55 @@ export const RUNDOWN_SEASONS = {
         },
       },
     ],
+    // What's actually in the app this year, and what a visiting team gets.
+    // Mirrors the sidebar (App.jsx SYSTEM_TABS) and data/teamTabs.js.
+    inside: {
+      ours: [
+        ['🔍', 'Scouting', 'Match and pit scouting forms with alliance positions, drafts, a scouting schedule, and data that leads verify'],
+        ['📋', 'Boards', 'Scrum boards for build, programming and business — make a task, drag it along as it gets done'],
+        ['✅', 'Tasks', 'Everything assigned to you in one list, with due dates and the mentor on it'],
+        ['📓', 'Engineering Notebook', 'One question at a time after each meeting, read back as a real notebook, by date or by topic'],
+        ['📅', 'Calendar', 'Meetings, competitions and deadlines, plus Competition Day roles for the whole team'],
+        ['🙋', 'Attendance', 'Sessions taken by a lead, and a way to say you will be gone before you are'],
+        ['📊', 'Data', 'Team Pulse and Team Growth, read straight from the notebook — every number traces back to an entry'],
+        ['🏗️', 'Org Chart', 'The team from the cofounders down to every member, with roles'],
+        ['🧾', 'Logs', 'Outreach, expenses with the receipt attached, and a mentor log that fills itself in'],
+        ['🧠', 'AI Manual', 'Ask the game manual a question and get the rule, not a guess'],
+        ['💡', 'Workshops', 'Skill-building sessions, planned and signed up for in the app'],
+        ['📥', 'Suggestions', 'Ideas and bug reports, straight to Kayden and Yukti'],
+        ['🛡️', 'User Management', 'Accounts, roles and coaches, run by the people who run the team'],
+      ],
+      team: {
+        intro: 'Any FTC team can sign in with its team number. Nothing of ours shows up on their side, and nothing of theirs on ours.',
+        tabs: [
+          ['🏠', 'Home', 'Your team, and anything new'],
+          ['📋', 'Boards', 'Your own scrum boards — only your team can see them'],
+          ['📅', 'Calendar', 'Meetings, competitions and deadlines'],
+          ['🛡️', 'User Management', 'Your coach adds your members and mentors'],
+          ['📥', 'Suggestions', 'Tell us what would make it better. We read them'],
+          ['👤', 'Profile & Settings', 'Your details, theme, notifications'],
+        ],
+        note: 'A sister team gets the whole app. Prime Suspects (38350) runs the notebook, attendance, scouting, Data, the org chart and the logs, every page scoped to their own team.',
+      },
+    },
+
+    // What the app is for, and why to put it on your phone
+    goals: {
+      // The ETS season goals, as written
+      goals: [
+        ['🤝', 'Onboard at least 5 teams', 'By the end of the season, onboard at least 5 other FTC teams to ETS, collect feedback from each team, and use that feedback to improve the platform.'],
+        ['🔁', 'Feedback every month, 5 improvement cycles', 'Collect structured feedback from ETS users at least once per month, and complete at least 5 documented improvement cycles by the end of the season based on the highest-impact needs identified by our partner teams.'],
+        ['🧭', 'A repeatable way to decide', 'By the end of the season, use ETS to create and publish a repeatable operating plan for evaluating feature ideas and deciding whether they are approved, piloted, revised or rejected — a system that makes consistent decisions about how the app evolves.'],
+      ],
+      why: [
+        ['📱', 'It lives on your phone', 'Add it to your home screen in two taps — no app store, no download size, always the latest version.'],
+        ['🔔', 'You know what to do next', 'Your tasks, your sessions and what is due are on Home the moment you open it.'],
+        ['🏟️', 'Scout from the stands', 'The match form, your alliance position and the schedule are right there during a competition.'],
+        ['📓', 'The notebook in your pocket', 'Write today\'s entry on the bus home, one question at a time.'],
+        ['🆓', 'Free, and ours', 'No subscription, no ads, no one else\'s data model. Just the team.'],
+      ],
+    },
+
     // The story of the app, one idea per slide
     storySlides: [
       { emoji: '🧩', title: 'Where it started',
