@@ -335,34 +335,40 @@ function HiveLeaders({ page, t }) {
       )}
 
       {departments && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-4 pt-10">
-          {departments.map((d) => (
-            <div key={d.name} className={`relative rounded-3xl border-2 ${d.accent} bg-white/80 backdrop-blur-sm shadow-lg p-4 pt-0`}>
-              {/* lead cell with the co-lead cell tucked into its corner */}
-              <div className="relative h-32 -mt-12 mb-2">
-                <HexPhoto src={d.lead.photo} alt={d.lead.name} position={d.lead.photoPosition} emoji={d.emoji} size={128}
-                  className="absolute left-1/2" style={{ transform: 'translateX(-62%)' }} />
-                <HexPhoto src={d.colead.photo} alt={d.colead.name} position={d.colead.photoPosition} emoji={d.emoji} size={96} ring="bg-yellow-300"
-                  className="absolute left-1/2 top-10" style={{ transform: 'translateX(12%)' }} />
-              </div>
-              <div className={`rounded-2xl ${d.tint} px-3 py-2 text-center mb-3`}>
-                <p className={`font-extrabold text-sm ${d.color}`}>{d.emoji} {d.name}</p>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.lead.name}</p>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.lead.role}</p>
-                  <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.lead.bio}</p>
+        <div className="space-y-6 pt-4">
+          {departments.map((d, i) => {
+            const flip = i % 2 === 1
+            return (
+              <div key={d.name}
+                className={`md:w-[82%] ${flip ? 'md:ml-auto' : 'md:mr-auto'} rounded-3xl border-2 ${d.accent} bg-white/80 backdrop-blur-sm shadow-lg p-4 md:p-5
+                  flex flex-col ${flip ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-4 md:gap-6`}>
+                {/* the two photos, one above the other, overlapping a little */}
+                <div className="flex flex-col items-center flex-shrink-0 -mt-10 md:-my-8">
+                  <HexPhoto src={d.lead.photo} alt={d.lead.name} position={d.lead.photoPosition} emoji={d.emoji} size={140} />
+                  <HexPhoto src={d.colead.photo} alt={d.colead.name} position={d.colead.photoPosition} emoji={d.emoji} size={104} ring="bg-yellow-300"
+                    className="-mt-5" />
                 </div>
-                <div className={`border-t-2 border-dashed ${d.accent} opacity-60`} />
-                <div>
-                  <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.colead.name}</p>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.colead.role}</p>
-                  <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.colead.bio}</p>
+                <div className={`flex-1 min-w-0 w-full ${flip ? 'md:text-right' : ''}`}>
+                  <span className={`inline-block rounded-full ${d.tint} px-3 py-1 mb-2`}>
+                    <span className={`font-extrabold text-sm ${d.color}`}>{d.emoji} {d.name}</span>
+                  </span>
+                  <div className="space-y-3">
+                    <div>
+                      <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.lead.name}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.lead.role}</p>
+                      <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.lead.bio}</p>
+                    </div>
+                    <div className={`border-t-2 border-dashed ${d.accent} opacity-60`} />
+                    <div>
+                      <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.colead.name}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.colead.role}</p>
+                      <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.colead.bio}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
