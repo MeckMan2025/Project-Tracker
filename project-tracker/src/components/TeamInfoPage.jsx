@@ -1,9 +1,13 @@
 import { useState, useRef } from 'react'
 import { restHeaders } from '../lib/restHeaders'
-import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
 import { RUNDOWN_SEASONS, RUNDOWN_KEYS, LATEST_RUNDOWN } from '../data/rundown'
 import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
+
+// Gold comb lines on nothing, for the dark page. Flat-top cells on the same
+// 3r x sqrt(3)r tile as the light one.
+const DARK_COMB = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='52' viewBox='0 0 90 51.96'%3E%3Cg fill='none' stroke='%23f59e0b' stroke-opacity='0.22' stroke-width='1.2'%3E%3Cpolygon points='30,25.98 15,51.96 -15,51.96 -30,25.98 -15,0 15,0'/%3E%3Cpolygon points='120,25.98 105,51.96 75,51.96 60,25.98 75,0 105,0'/%3E%3Cpolygon points='75,51.96 60,77.94 30,77.94 15,51.96 30,25.98 60,25.98'/%3E%3Cpolygon points='75,0 60,25.98 30,25.98 15,0 30,-25.98 60,-25.98'/%3E%3C/g%3E%3C/svg%3E\")"
 
 // Each season's page is dressed for its game. 2025-26 keeps the team pastels;
 // BIOBUZZ (2026-27) is honey and comb, the same comb the Home page sits on.
@@ -27,23 +31,29 @@ const THEMES = {
     quoteMark: 'text-pastel-pink/40',
     strong: 'text-pastel-blue-dark',
     emoji: '',
+    header: 'bg-white/80',
   },
   biobuzz: {
-    bg: '',
-    bgStyle: { backgroundImage: `${HONEYCOMB_CELLS}, ${HONEY_WASH}`, backgroundAttachment: 'fixed' },
-    title: 'from-amber-700 via-yellow-500 to-amber-600',
+    // Night hive: near-black honey with gold comb lines, the BIOBUZZ logo's
+    // black-and-yellow rather than last year's white and pastel.
+    dark: true,
+    bg: 'text-amber-50',
+    bgStyle: { backgroundImage: `${DARK_COMB}, linear-gradient(180deg, #17110a 0%, #221806 50%, #17110a 100%)`, backgroundAttachment: 'fixed' },
+    header: 'bg-[#17110a]/85 border-b border-amber-500/30',
+    panel: 'bg-black/40 backdrop-blur-md rounded-3xl border border-amber-500/30 shadow-2xl p-6 w-full max-w-4xl mx-auto space-y-6',
+    title: 'from-yellow-300 via-amber-400 to-orange-400',
     pill: 'from-amber-500 to-yellow-400',
-    frame: 'from-amber-300/50 via-yellow-200/60 to-amber-300/50',
-    heroFade: 'from-amber-50/95 via-amber-50/40',
-    box1: 'border-amber-400 bg-amber-100/50',
-    box2: 'border-yellow-400 bg-yellow-100/50',
-    box3: 'border-orange-300 bg-orange-100/50',
-    song: 'border-yellow-400 from-yellow-100/70 to-amber-100/50',
-    songBtn: 'bg-amber-500', songIcon: 'text-amber-600', songHover: 'hover:bg-yellow-200',
-    form: 'border-amber-400 from-amber-100/60 to-yellow-50/60', formRing: 'focus:ring-amber-300/60', formLink: 'text-amber-700',
-    orb: 'from-amber-400 via-yellow-300 to-orange-300',
+    frame: 'from-amber-500/50 via-yellow-400/40 to-amber-500/50',
+    heroFade: 'from-[#17110a] via-[#17110a]/40',
+    box1: 'border-amber-400 bg-amber-500/10',
+    box2: 'border-yellow-400 bg-yellow-500/10',
+    box3: 'border-orange-400 bg-orange-500/10',
+    song: 'border-yellow-400 from-amber-500/15 to-yellow-500/10',
+    songBtn: 'bg-amber-500', songIcon: 'text-amber-400', songHover: 'hover:bg-amber-500/30',
+    form: 'border-amber-400 from-amber-500/15 to-yellow-500/5', formRing: 'focus:ring-amber-400/60', formLink: 'text-amber-300',
+    orb: 'from-amber-400 via-yellow-300 to-orange-400',
     quoteMark: 'text-amber-400/50',
-    strong: 'text-amber-700',
+    strong: 'text-yellow-300',
     emoji: '🐝',
   },
 }
@@ -51,6 +61,26 @@ const THEMES = {
 // What stands in for a photo that isn't there yet, per theme.
 const PASTEL_TILE = ['from-pastel-pink/30', 'to-pastel-blue/30']
 const HONEY_TILE = ['from-amber-200/70', 'to-yellow-100/70']
+
+// The dark page flips the greys the shared sections use. One sheet instead of
+// a theme key on every paragraph.
+const DARK_CSS = `
+  .hive-dark .text-gray-800, .hive-dark .text-gray-700 { color: #fdf3dc }
+  .hive-dark .text-gray-600, .hive-dark .text-gray-500 { color: #e3cfa6 }
+  .hive-dark .text-gray-400 { color: #c9ae7a }
+  .hive-dark .bg-white\\/60, .hive-dark .bg-white\\/70, .hive-dark .bg-white\\/80 { background-color: rgba(0,0,0,.42) }
+  .hive-dark .bg-white\\/85 { background-color: rgba(12,8,2,.78) }
+  .hive-dark .border-amber-200 { border-color: rgba(245,158,11,.45) }
+  .hive-dark .border-gray-200 { border-color: rgba(245,158,11,.4) }
+  .hive-dark input { background-color: rgba(0,0,0,.35); color: #fdf3dc }
+  .hive-dark input::placeholder { color: #a8905f }
+  .hive-dark .bg-gray-300 { background-color: rgba(245,158,11,.35) }
+  .hive-dark .bg-amber-100\\/60, .hive-dark .bg-yellow-100\\/60, .hive-dark .bg-orange-100\\/60 { background-color: rgba(245,158,11,.18) }
+  .hive-dark .text-amber-700 { color: #fbbf24 } .hive-dark .text-yellow-700 { color: #fde047 } .hive-dark .text-orange-700 { color: #fb923c }
+  .hive-dark .bg-amber-200\\/70 { background-color: rgba(245,158,11,.22) }
+  .hive-dark .bg-amber-100 { background-color: #3a2a0c }
+  .hive-dark .bg-green-50 { background-color: rgba(34,197,94,.12) }
+`
 
 // A flat-top honeycomb cell, the shape every BIOBUZZ photo frame takes.
 const HEX = { clipPath: 'polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%)' }
@@ -299,6 +329,55 @@ function HexPhoto({ src, alt, position, emoji, size = 128, ring = 'bg-amber-400'
   )
 }
 
+// A bio that opens on a tap: the first sentence shows, the rest unfolds
+// underneath with a smooth slide, and the chevron turns.
+function Expandable({ text, align = 'left', className = '' }) {
+  const [open, setOpen] = useState(false)
+  // Teaser = whole sentences until there's at least a line's worth, so a
+  // "SNAP!" opener doesn't stand alone.
+  const parts = text.trim().split(/(?<=[.!?])\s+/)
+  let teaser = ''
+  let k = 0
+  while (k < parts.length && teaser.length < 70) { teaser += (teaser ? ' ' : '') + parts[k]; k++ }
+  const rest = parts.slice(k).join(' ')
+  if (!rest) return <p className={`text-xs text-gray-700 leading-relaxed ${className}`}>{text}</p>
+  return (
+    <div className={className}>
+      <p className="text-xs text-gray-700 leading-relaxed">{teaser}</p>
+      <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
+        <div className="overflow-hidden">
+          <p className="text-xs text-gray-700 leading-relaxed pt-1">{rest}</p>
+        </div>
+      </div>
+      <button onClick={() => setOpen(!open)}
+        className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-amber-500 hover:text-amber-400 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+        {open ? 'Less' : 'Read more'}
+        <ChevronDown size={13} className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+      </button>
+    </div>
+  )
+}
+
+// Lead and co-lead as two cells of one comb: same size, the co-lead nested
+// against the lead the way honeycomb cells sit (three quarters of a cell
+// across, half a cell down), with an empty cell closing the cluster.
+function CombPair({ lead, colead, emoji, flip, size = 124 }) {
+  const w = size, h = size
+  const dx = Math.round(w * 0.76), dy = Math.round(h * 0.5)
+  // flip mirrors the cluster so the photos face the text on right-hand bands
+  const x = (v) => (flip ? { right: v } : { left: v })
+  const cell = (v) => ({ position: 'absolute', top: v.top, ...x(v.x) })
+  return (
+    <div className="relative flex-shrink-0 -mt-8 md:-my-8" style={{ width: w + dx, height: h + dy + h * 0.5 }}>
+      <div className="bg-amber-200/70" style={{ ...HEX, ...cell({ top: h, x: 0 }), width: w, height: h }} />
+      <HexPhoto src={lead.photo} alt={lead.name} position={lead.photoPosition} emoji={emoji} size={size}
+        style={cell({ top: 0, x: 0 })} />
+      <HexPhoto src={colead.photo} alt={colead.name} position={colead.photoPosition} emoji={emoji} size={size} ring="bg-yellow-300"
+        style={cell({ top: dy, x: dx })} />
+    </div>
+  )
+}
+
 // The leaders as a hive: wider than the page's white card, so the cells sit
 // out on the comb. Project managers in the middle, then one cell per
 // department with the lead's photo and the co-lead's tucked into its corner,
@@ -329,7 +408,7 @@ function HiveLeaders({ page, t }) {
               {managers.emoji} {managers.role}
             </span>
             {managers.tagline && <p className="text-[11px] font-semibold text-gray-500 mt-1.5">{managers.tagline}</p>}
-            <p className="text-xs text-gray-700 leading-relaxed mt-3 max-w-lg mx-auto">{managers.bio}</p>
+            <Expandable text={managers.bio} className="mt-3 max-w-lg mx-auto" />
           </div>
         </div>
       )}
@@ -342,12 +421,7 @@ function HiveLeaders({ page, t }) {
               <div key={d.name}
                 className={`md:w-[82%] ${flip ? 'md:ml-auto' : 'md:mr-auto'} rounded-3xl border-2 ${d.accent} bg-white/80 backdrop-blur-sm shadow-lg p-4 md:p-5
                   flex flex-col ${flip ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-4 md:gap-6`}>
-                {/* the two photos, one above the other, overlapping a little */}
-                <div className="flex flex-col items-center flex-shrink-0 -mt-10 md:-my-8">
-                  <HexPhoto src={d.lead.photo} alt={d.lead.name} position={d.lead.photoPosition} emoji={d.emoji} size={140} />
-                  <HexPhoto src={d.colead.photo} alt={d.colead.name} position={d.colead.photoPosition} emoji={d.emoji} size={104} ring="bg-yellow-300"
-                    className="-mt-5" />
-                </div>
+                <CombPair lead={d.lead} colead={d.colead} emoji={d.emoji} flip={flip} />
                 <div className={`flex-1 min-w-0 w-full ${flip ? 'md:text-right' : ''}`}>
                   <span className={`inline-block rounded-full ${d.tint} px-3 py-1 mb-2`}>
                     <span className={`font-extrabold text-sm ${d.color}`}>{d.emoji} {d.name}</span>
@@ -356,13 +430,13 @@ function HiveLeaders({ page, t }) {
                     <div>
                       <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.lead.name}</p>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.lead.role}</p>
-                      <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.lead.bio}</p>
+                      <Expandable text={d.lead.bio} align={flip ? 'right' : 'left'} className="mt-1" />
                     </div>
                     <div className={`border-t-2 border-dashed ${d.accent} opacity-60`} />
                     <div>
                       <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.colead.name}</p>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.colead.role}</p>
-                      <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.colead.bio}</p>
+                      <Expandable text={d.colead.bio} align={flip ? 'right' : 'left'} className="mt-1" />
                     </div>
                   </div>
                 </div>
@@ -574,10 +648,10 @@ function TeamInfoPage({ onBack, initialSeason }) {
   if (holding) {
     return (
       <div className={`min-h-screen flex flex-col ${t.bg}`} style={t.bgStyle}>
-        <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+        <header className={`${t.header} backdrop-blur-sm shadow-sm sticky top-0 z-10`}>
           <div className="px-4 py-3 flex items-center gap-3">
             <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/60 transition-colors">
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeft size={20} className={t.dark ? 'text-amber-200' : 'text-gray-600'} />
             </button>
             <h1 className={`text-xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
               The Radical Rundown
@@ -611,13 +685,13 @@ function TeamInfoPage({ onBack, initialSeason }) {
 
   return (
     <div className={`min-h-screen flex flex-col ${t.bg}`} style={t.bgStyle}>
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+      <header className={`${t.header} backdrop-blur-sm shadow-sm sticky top-0 z-10`}>
         <div className="px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => (showPast ? setShowPast(false) : onBack())}
             className="p-2 rounded-xl hover:bg-white/60 transition-colors"
           >
-            <ArrowLeft size={20} className="text-gray-600" />
+            <ArrowLeft size={20} className={t.dark ? 'text-amber-200' : 'text-gray-600'} />
           </button>
           <div>
             <h1 className={`text-xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
@@ -632,28 +706,25 @@ function TeamInfoPage({ onBack, initialSeason }) {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 pb-8">
+        {t.dark && <style>{DARK_CSS}</style>}
         {hive ? (
-          <>
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
-          {/* Hero competition photo */}
-          <div className="relative -mx-6 -mt-6 mb-2 overflow-hidden rounded-t-2xl">
-            <img
-              src={page.hero || '/team-hero.jpg'}
-              alt="Team 7196"
-              className="w-full h-80 md:h-64 object-cover"
-              style={{ objectPosition: page.heroPosition || 'center 35%' }}
-            />
-            <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
-            <div className="absolute bottom-3 left-0 right-0 text-center">
-              <h2 className={`text-2xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow-sm`}>
-                About Team 7196
-              </h2>
-              <p className="text-gray-600 text-xs font-medium">
-                Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
-              </p>
+          <div className={t.dark ? 'hive-dark' : ''}>
+            {/* Full-bleed team photo, fading into the dark */}
+            <div className="relative -mx-4 -mt-4 mb-6 h-72 md:h-[440px] overflow-hidden">
+              <img src={page.hero || '/team-hero.jpg'} alt="Team 7196" className="w-full h-full object-cover"
+                style={{ objectPosition: page.heroPosition || 'center 35%' }} />
+              <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
+              <div className="absolute bottom-5 left-0 right-0 text-center px-4">
+                <h2 className={`text-3xl md:text-5xl font-extrabold bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow`}>
+                  About Team 7196
+                </h2>
+                <p className="text-amber-100/90 text-xs md:text-sm font-semibold mt-1">
+                  Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
+                </p>
+              </div>
             </div>
-          </div>
 
+            <div className={t.panel}>
           <div className={`border-l-4 rounded-r-xl p-4 ${t.box1}`}>
             <h3 className="font-bold text-gray-800 text-sm mb-2">Who We Are</h3>
             <p className="text-gray-700 text-sm leading-relaxed">
@@ -679,7 +750,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
 
             <HiveLeaders page={page} t={t} />
 
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
+            <div className={t.panel}>
               {page.storySlides && <StorySlides slides={page.storySlides} t={t} />}
 
           <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box2}`}>
@@ -779,7 +850,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
             </div>
           </div>
             </div>
-          </>
+          </div>
         ) : (
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
           {/* Hero competition photo */}

@@ -14,6 +14,8 @@ const CHANGELOG = [
       '\u{1F4F8} The 2025\u201326 Iowa Championship team photo is the picture at the top of this year\u2019s page, and every leader and co-lead has their photo on their card',
       '\u{1F3E0} The leaders are laid out as a hive. Kayden and Yukti in the middle as project managers and cofounders, then one cell per department with the lead\u2019s photo and the co-lead\u2019s tucked into its corner \u2014 and the whole thing sits out on the honeycomb, wider than the page, rather than inside the white card',
       '\u{1F4D6} The story of Everything That\u2019s Scrum is told as slides: where it started, the first prototype, building the app, scouting first, then everything else, two teams on one app, and what it stands for. Arrows either side, dots underneath, swipe on a phone',
+      '\u{1F319} This year\u2019s page is a night hive, not a white card: near-black honey with gold comb lines, the team photo full width across the top fading into the dark, wide dark-glass panels with amber edges, and gold headings. It no longer looks like last year\u2019s page with a different background',
+      '\u{1F41D} Each department is a band pushed to alternate sides, lead and co-lead photos as two cells of one comb, and every bio opens on a tap \u2014 the first line shows, Read more unfolds the rest',
       '\u{1F517} The Rundown has a link of its own: ?rundown on the end of the address opens it straight away, no sign-in screen first, and ?rundown=2025-2026 opens that season\u2019s page',
     ],
   },
