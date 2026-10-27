@@ -505,7 +505,11 @@ function App() {
   const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings()
   const [loadError, setLoadError] = useState(null)
   // A rejected email link goes straight to Sign In, where the reason is shown.
-  const [landingChoice, setLandingChoice] = useState(authLinkError ? 'login' : null)
+  // ?rundown on the address opens The Radical Rundown straight away, so the
+  // page can be linked to (judges, parents, the other team) without a sign-in
+  // screen in front of it. ?rundown=2025-2026 opens that season's page.
+  const rundownLink = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('rundown')
+  const [landingChoice, setLandingChoice] = useState(authLinkError ? 'login' : rundownLink ? 'team-info' : null)
   const [viewingProfileId, setViewingProfileId] = useState(null)
   const [profileReturnTab, setProfileReturnTab] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -1655,7 +1659,7 @@ function App() {
       return <LoginScreen sessionExpired={sessionExpired} onBack={() => setLandingChoice(null)} />
     }
     if (landingChoice === 'team-info') {
-      return <TeamInfoPage onBack={() => setLandingChoice(null)} />
+      return <TeamInfoPage onBack={() => setLandingChoice(null)} initialSeason={rundownLink ? new URLSearchParams(window.location.search).get('rundown') : null} />
     }
     return (
       <LandingScreen

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History } from 'lucide-react'
 import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
+import { RUNDOWN_SEASONS, RUNDOWN_KEYS, LATEST_RUNDOWN } from '../data/rundown'
 
 function ThemeSongPlayer() {
   const [playing, setPlaying] = useState(false)
@@ -133,6 +134,106 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
   )
 }
 
+// A photo that falls back to an emoji tile when the file isn't there yet
+function Photo({ src, alt, position, emoji, className }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      style={position ? { objectPosition: position } : undefined}
+      className={className}
+      onError={(e) => {
+        e.target.style.display = 'none'
+        e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/30', 'to-pastel-blue/30')
+        e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
+      }}
+    />
+  )
+}
+
+// Two people, one role, one bio — the project managers share a card.
+function PairCard({ role, emoji, color, people, bio }) {
+  return (
+    <div className="shadow-md rounded-2xl overflow-hidden bg-white/70 backdrop-blur-sm">
+      <div className="flex h-56 md:h-64">
+        {people.map((p) => (
+          <div key={p.name} className="relative flex-1 overflow-hidden">
+            <Photo src={p.photo} alt={p.name} position={p.photoPosition} emoji={emoji} className="w-full h-full object-cover" />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/55 to-transparent px-3 pt-8 pb-2">
+              <p className="text-white font-bold text-sm drop-shadow">{p.name}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="p-4">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-sm">{emoji}</span>
+          <h4 className="font-bold text-gray-800 text-sm">{role}</h4>
+        </div>
+        <h4 className={`font-bold text-base mb-1.5 ${color}`}>{people.map((p) => p.name).join(' and ')}</h4>
+        <p className="text-xs text-gray-700 leading-relaxed">{bio}</p>
+      </div>
+    </div>
+  )
+}
+
+// A department: the lead gets the big card, the co-lead sits underneath in a
+// compact one, so a lead-plus-co-lead pair reads as one group rather than two
+// unrelated people.
+function DepartmentCard({ dept }) {
+  const { name, emoji, color, accent, tint, lead, colead } = dept
+  return (
+    <div className={`border-l-4 ${accent} rounded-r-2xl ${tint} p-3 space-y-3`}>
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-base">{emoji}</span>
+        <h4 className={`font-bold text-sm ${color}`}>{name}</h4>
+      </div>
+      <LeaderCard
+        name={lead.name}
+        role={lead.role}
+        emoji={emoji}
+        color={color}
+        photo={lead.photo}
+        photoPosition={lead.photoPosition}
+        bio={lead.bio}
+      />
+      <div className="flex gap-3 items-start bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
+        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow">
+          <Photo src={colead.photo} alt={colead.name} position={colead.photoPosition} emoji={emoji} className="w-full h-full object-cover" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{colead.role}</p>
+          <h4 className={`font-bold text-base ${color}`}>{colead.name}</h4>
+          <p className="text-xs text-gray-700 leading-relaxed mt-1">{colead.bio}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Shift between seasons. The newest is the default; older ones stay exactly
+// as they were written.
+function SeasonSwitch({ season, onChange }) {
+  if (RUNDOWN_KEYS.length < 2) return null
+  return (
+    <div className="flex items-center gap-1 bg-white/70 rounded-full p-1 shadow-sm">
+      {RUNDOWN_KEYS.map((k) => (
+        <button
+          key={k}
+          onClick={() => onChange(k)}
+          className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+            k === season
+              ? 'bg-gradient-to-r from-pastel-blue-dark to-pastel-pink-dark text-white shadow-sm'
+              : 'text-gray-600 hover:bg-white'
+          }`}
+        >
+          {RUNDOWN_SEASONS[k].label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function InterestForm() {
   const [teamName, setTeamName] = useState('')
   const [contactName, setContactName] = useState('')
@@ -226,12 +327,20 @@ function InterestForm() {
   )
 }
 
-function TeamInfoPage({ onBack }) {
+function TeamInfoPage({ onBack, initialSeason }) {
   // Before kickoff there's no season to write about yet, so visitors get a
   // holding page rather than last year's page pretending to be this year's.
   // Everything that's already written stays one tap away.
   const [showPast, setShowPast] = useState(false)
   const holding = !SEASON_STARTED && !showPast
+  // Which season's page is showing. Before kickoff "look at past seasons"
+  // opens the one before the active season; otherwise the newest written.
+  const [season, setSeason] = useState(() =>
+    (initialSeason && RUNDOWN_SEASONS[initialSeason] && initialSeason)
+    || (!SEASON_STARTED && RUNDOWN_KEYS.find((k) => k < ACTIVE_SEASON))
+    || LATEST_RUNDOWN)
+  const page = RUNDOWN_SEASONS[season]
+  const isLatest = season === LATEST_RUNDOWN
 
   if (holding) {
     return (
@@ -285,7 +394,10 @@ function TeamInfoPage({ onBack }) {
             <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               The Radical Rundown
             </h1>
-            {showPast && <p className="text-xs text-gray-400 -mt-0.5">Looking back at past seasons</p>}
+            {(showPast || !isLatest) && <p className="text-xs text-gray-400 -mt-0.5">Looking back at the {page.label} season</p>}
+          </div>
+          <div className="ml-auto">
+            <SeasonSwitch season={season} onChange={setSeason} />
           </div>
         </div>
       </header>
@@ -327,12 +439,9 @@ function TeamInfoPage({ onBack }) {
                 className="w-full h-full object-cover"
               />
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed">
-              Last season, we won the <span className="font-semibold">Control Award</span> and were chosen as an alliance partner. This year, Everything That's Radical is mainly composed of members that are new to FTC, and the team is ecstatic to learn STEM-based skills with FIRST!
-            </p>
-            <p className="text-gray-700 text-sm leading-relaxed mt-4">
-              Each student grows from the experiences within the FIRST Tech Challenge program, no matter if it is designing and building a robot, putting together a portfolio and presentation, or through outreach. Every student on our team is also able to take advantage of the many Applied Science Classes that Pleasant Valley High School provides, and many of our team members have taken one or more of these classes.
-            </p>
+            {page.story.map((text, i) => (
+              <p key={i} className={`text-gray-700 text-sm leading-relaxed ${i ? 'mt-4' : ''}`}>{text}</p>
+            ))}
           </div>
 
           {/* Meet Our Leaders */}
@@ -341,35 +450,11 @@ function TeamInfoPage({ onBack }) {
               Meet Our Leaders
             </h3>
 
-            <LeaderCard
-              name="Harshita"
-              role="Project Manager"
-              emoji="🚀"
-              color="text-pastel-orange-dark"
-              photo="/leaders/harshita.jpg"
-              photoPosition="center"
-              bio="Somebody has to keep all the moving parts aligned — and that's me. I connect our business and technical teams, coordinate responsibilities, and make sure our progress doesn't stall. When deadlines approach or chaos starts creeping in, I focus on keeping us organized, calm, and moving forward together."
-            />
+            {page.managers && <PairCard {...page.managers} />}
 
-            <LeaderCard
-              name="Lily"
-              role="Business Lead"
-              emoji="💼"
-              color="text-pastel-pink-dark"
-              photo="/leaders/lily.jpg"
-              bio="Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons."
-              reverse
-            />
+            {page.departments && page.departments.map((d) => <DepartmentCard key={d.name} dept={d} />)}
 
-            <LeaderCard
-              name="Nick"
-              role="Technical Lead"
-              emoji="🔧"
-              color="text-pastel-blue-dark"
-              photo="/leaders/nick.jpg"
-              photoPosition="center 30%"
-              bio="SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and programming to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it."
-            />
+            {page.leaders && page.leaders.map((l) => <LeaderCard key={l.name} {...l} />)}
           </div>
 
           {/* Co-Founders */}
@@ -377,27 +462,7 @@ function TeamInfoPage({ onBack }) {
             <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
               The Founders
             </h3>
-
-            <LeaderCard
-              name="Kayden"
-              role="Cofounder"
-              emoji="🧠"
-              color="text-pastel-pink-dark"
-              photo="/leaders/kayden.jpg"
-              photoPosition="center 40%"
-              bio={`If you see someone awake at 1:47 a.m. asking Claude to "just fix one more thing," that's probably me. Claude is an AI coding assistant by Anthropic — and my go-to partner for building this app. I led the development of our platform, turning our team's organization challenges into a structured, working system. Beyond building the app myself, I also get teammates involved by helping them create their own small projects within it — because the best way to learn is by doing. The real technical challenge wasn't just building features — it was convincing Claude to properly interpret my late-night grammar mistakes. Somehow, between caffeine and debugging, we built something that actually works.`}
-            />
-
-            <LeaderCard
-              name="Yukti"
-              role="Cofounder"
-              emoji="🚀"
-              color="text-pastel-blue-dark"
-              photo="/leaders/yukti.jpg"
-              photoPosition="50% 0%"
-              bio="Every system starts with a prototype — and I built the first one. Creating the original version of our team app is what made this whole idea feel real and exciting. Seeing the first prototype come to life showed us that we could actually solve our organization challenges, and that momentum pushed us to keep improving it into what it is today."
-              reverse
-            />
+            {page.founders.map((f) => <LeaderCard key={f.name} {...f} />)}
           </div>
 
           <p className="text-gray-700 text-sm leading-relaxed">
