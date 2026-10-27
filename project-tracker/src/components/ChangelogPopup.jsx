@@ -12,6 +12,8 @@ const CHANGELOG = [
       '\u{1F5D3}\uFE0F Last season\u2019s page is kept, not overwritten. A switch in the header shifts between 2025\u201326 and 2026\u201327, and every season from here on stays readable the way it was written',
       '\u{1F41D} The 2026\u201327 page is dressed for BIOBUZZ: honeycomb behind it, honey and amber in place of the pastels, hexagon photo frames, and a season chip on the hero photo. 2025\u201326 keeps its pastels \u2014 each season\u2019s page wears its own game',
       '\u{1F4F8} The 2025\u201326 Iowa Championship team photo is the picture at the top of this year\u2019s page, and every leader and co-lead has their photo on their card',
+      '\u{1F3E0} The leaders are laid out as a hive. Kayden and Yukti in the middle as project managers and cofounders, then one cell per department with the lead\u2019s photo and the co-lead\u2019s tucked into its corner \u2014 and the whole thing sits out on the honeycomb, wider than the page, rather than inside the white card',
+      '\u{1F4D6} The story of Everything That\u2019s Scrum is told as slides: where it started, the first prototype, building the app, scouting first, then everything else, two teams on one app, and what it stands for. Arrows either side, dots underneath, swipe on a phone',
       '\u{1F517} The Rundown has a link of its own: ?rundown on the end of the address opens it straight away, no sign-in screen first, and ?rundown=2025-2026 opens that season\u2019s page',
     ],
   },

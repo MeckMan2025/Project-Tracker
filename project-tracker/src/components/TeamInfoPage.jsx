@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { restHeaders } from '../lib/restHeaders'
-import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
 import { RUNDOWN_SEASONS, RUNDOWN_KEYS, LATEST_RUNDOWN } from '../data/rundown'
 import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
@@ -287,6 +287,171 @@ function SeasonSwitch({ season, onChange, t }) {
   )
 }
 
+// A photo cut as a honeycomb cell with a honey ring round it. The ring is the
+// outer hex showing through the padding.
+function HexPhoto({ src, alt, position, emoji, size = 128, ring = 'bg-amber-400', className = '', style }) {
+  return (
+    <div className={`${ring} ${className}`} style={{ ...HEX, width: size, height: size, padding: Math.max(3, size / 32), ...style }}>
+      <div className="w-full h-full overflow-hidden bg-amber-100" style={HEX}>
+        <Photo src={src} alt={alt} position={position} emoji={emoji} className="w-full h-full object-cover" tile={HONEY_TILE} />
+      </div>
+    </div>
+  )
+}
+
+// The leaders as a hive: wider than the page's white card, so the cells sit
+// out on the comb. Project managers in the middle, then one cell per
+// department with the lead's photo and the co-lead's tucked into its corner,
+// then the founders.
+function HiveLeaders({ page, t }) {
+  const { managers, departments, founders } = page
+  const Heading = ({ children }) => (
+    <h3 className={`text-xl font-extrabold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow-sm`}>
+      {children}
+    </h3>
+  )
+  return (
+    <section className="w-full max-w-5xl mx-auto my-8 space-y-6">
+      <Heading>{t.emoji} Meet Our Leaders {t.emoji}</Heading>
+
+      {managers && (
+        <div className="max-w-2xl mx-auto !mt-16 bg-white/80 backdrop-blur-sm rounded-3xl border border-amber-200 shadow-lg p-5 md:p-6">
+          <div className="flex items-end justify-center gap-6 md:gap-10 -mt-12 md:-mt-14 mb-3">
+            {managers.people.map((p) => (
+              <div key={p.name} className="text-center">
+                <HexPhoto src={p.photo} alt={p.name} position={p.photoPosition} emoji={managers.emoji} size={132} />
+                <p className={`mt-2 font-extrabold text-base ${managers.color}`}>{p.name}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center">
+            <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold text-white bg-gradient-to-r ${t.pill}`}>
+              {managers.emoji} {managers.role}
+            </span>
+            {managers.tagline && <p className="text-[11px] font-semibold text-gray-500 mt-1.5">{managers.tagline}</p>}
+            <p className="text-xs text-gray-700 leading-relaxed mt-3 max-w-lg mx-auto">{managers.bio}</p>
+          </div>
+        </div>
+      )}
+
+      {departments && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-4 pt-10">
+          {departments.map((d) => (
+            <div key={d.name} className={`relative rounded-3xl border-2 ${d.accent} bg-white/80 backdrop-blur-sm shadow-lg p-4 pt-0`}>
+              {/* lead cell with the co-lead cell tucked into its corner */}
+              <div className="relative h-32 -mt-12 mb-2">
+                <HexPhoto src={d.lead.photo} alt={d.lead.name} position={d.lead.photoPosition} emoji={d.emoji} size={128}
+                  className="absolute left-1/2" style={{ transform: 'translateX(-62%)' }} />
+                <HexPhoto src={d.colead.photo} alt={d.colead.name} position={d.colead.photoPosition} emoji={d.emoji} size={84} ring="bg-yellow-300"
+                  className="absolute left-1/2 top-12" style={{ transform: 'translateX(18%)' }} />
+              </div>
+              <div className={`rounded-2xl ${d.tint} px-3 py-2 text-center mb-3`}>
+                <p className={`font-extrabold text-sm ${d.color}`}>{d.emoji} {d.name}</p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.lead.name}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.lead.role}</p>
+                  <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.lead.bio}</p>
+                </div>
+                <div className={`border-t-2 border-dashed ${d.accent} opacity-60`} />
+                <div>
+                  <p className={`font-extrabold text-base leading-tight ${d.color}`}>{d.colead.name}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{d.colead.role}</p>
+                  <p className="text-xs text-gray-700 leading-relaxed mt-1">{d.colead.bio}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {founders && (
+        <>
+          <Heading>The Founders</Heading>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-4 max-w-4xl mx-auto">
+            {founders.map((f) => (
+              <div key={f.name} className="bg-white/80 backdrop-blur-sm rounded-3xl border border-amber-200 shadow-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <HexPhoto src={f.photo} alt={f.name} position={f.photoPosition} emoji={f.emoji} size={88} ring="bg-orange-300" />
+                  <div>
+                    <p className={`font-extrabold text-lg leading-tight ${f.color}`}>{f.name}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{f.emoji} {f.role}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed">{f.bio}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+// The story of the app as slides: one idea per screen, arrows either side,
+// dots underneath, swipe on a phone.
+function StorySlides({ slides, t }) {
+  const [i, setI] = useState(0)
+  const [dir, setDir] = useState(1)
+  const touchX = useRef(null)
+  const n = slides.length
+  const go = (k, d) => { setDir(d); setI((k + n) % n) }
+  const next = () => go(i + 1, 1)
+  const prev = () => go(i - 1, -1)
+  const slide = slides[i]
+  return (
+    <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-r ${t.frame} p-[1px]`}>
+      <div className="rounded-2xl bg-white/85 backdrop-blur-sm p-5">
+        <h3 className={`text-base font-extrabold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
+          The Story of Everything That's Scrum
+        </h3>
+        <p className="text-[11px] text-center text-gray-400 mt-0.5 mb-3">tap the arrows, or swipe</p>
+
+        <div
+          className="relative flex items-stretch gap-2"
+          onTouchStart={(e) => { touchX.current = e.touches[0].clientX }}
+          onTouchEnd={(e) => {
+            if (touchX.current == null) return
+            const dx = e.changedTouches[0].clientX - touchX.current
+            touchX.current = null
+            if (dx < -40) next(); else if (dx > 40) prev()
+          }}
+        >
+          <button onClick={prev} aria-label="Previous"
+            className={`self-center w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-white shadow bg-gradient-to-r ${t.pill} hover:opacity-90`}>
+            <ChevronLeft size={18} />
+          </button>
+
+          <div key={i} className="flex-1 min-h-[180px] flex flex-col items-center justify-center text-center px-1"
+            style={{ animation: `slide-in-${dir > 0 ? 'r' : 'l'} .25s ease-out` }}>
+            <div className="text-4xl mb-2">{slide.emoji}</div>
+            <p className={`font-extrabold text-sm mb-1.5 ${t.strong}`}>{slide.title}</p>
+            <p className="text-xs text-gray-700 leading-relaxed max-w-md">{slide.text}</p>
+          </div>
+
+          <button onClick={next} aria-label="Next"
+            className={`self-center w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-white shadow bg-gradient-to-r ${t.pill} hover:opacity-90`}>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 mt-3">
+          {slides.map((_, k) => (
+            <button key={k} onClick={() => go(k, k > i ? 1 : -1)} aria-label={`Slide ${k + 1}`}
+              className={`h-2 rounded-full transition-all ${k === i ? `w-6 bg-gradient-to-r ${t.pill}` : 'w-2 bg-gray-300 hover:bg-gray-400'}`} />
+          ))}
+        </div>
+        <p className="text-[11px] text-center text-gray-400 mt-1">{i + 1} of {n}</p>
+      </div>
+      <style>{`
+        @keyframes slide-in-r { from { opacity: 0; transform: translateX(18px) } to { opacity: 1; transform: none } }
+        @keyframes slide-in-l { from { opacity: 0; transform: translateX(-18px) } to { opacity: 1; transform: none } }
+      `}</style>
+    </div>
+  )
+}
+
 function InterestForm({ t }) {
   const [teamName, setTeamName] = useState('')
   const [contactName, setContactName] = useState('')
@@ -396,6 +561,9 @@ function TeamInfoPage({ onBack, initialSeason }) {
   const isLatest = season === LATEST_RUNDOWN
   const t = THEMES[page.theme] || THEMES.pastel
   const hex = page.theme === 'biobuzz'
+  // The department structure (leads with co-leads) gets the full-width hive
+  // layout; the older one-card-per-leader list stays inside the white card.
+  const hive = !!page.departments
 
   if (holding) {
     return (
@@ -458,6 +626,155 @@ function TeamInfoPage({ onBack, initialSeason }) {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 pb-8">
+        {hive ? (
+          <>
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
+          {/* Hero competition photo */}
+          <div className="relative -mx-6 -mt-6 mb-2 overflow-hidden rounded-t-2xl">
+            <img
+              src={page.hero || '/team-hero.jpg'}
+              alt="Team 7196"
+              className="w-full h-80 md:h-64 object-cover"
+              style={{ objectPosition: page.heroPosition || 'center 35%' }}
+            />
+            <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
+            <div className="absolute bottom-3 left-0 right-0 text-center">
+              <h2 className={`text-2xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow-sm`}>
+                About Team 7196
+              </h2>
+              <p className="text-gray-600 text-xs font-medium">
+                Everything That's Radical — Pleasant Valley High School, Bettendorf, Iowa
+              </p>
+            </div>
+          </div>
+
+          <div className={`border-l-4 rounded-r-xl p-4 ${t.box1}`}>
+            <h3 className="font-bold text-gray-800 text-sm mb-2">Who We Are</h3>
+            <p className="text-gray-700 text-sm leading-relaxed">
+              We are <span className="font-semibold">Everything That's Radical</span>, FTC Team 7196, based out of Pleasant Valley High School in Bettendorf, Iowa. Established in 2013, our team has grown through seasons of innovation, competition, and continuous improvement.
+            </p>
+          </div>
+
+          {/* Selfie photo floated with text */}
+          <div className="relative">
+            <div className={`float-right ml-4 mb-2 w-28 h-28 overflow-hidden flex-shrink-0 ${hex ? 'bg-amber-300' : 'rounded-full border-4 border-white shadow-lg'}`} style={hex ? HEX : undefined}>
+              <img
+                src="/team-selfie.png"
+                alt="Team 7196 group selfie"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {page.story.map((text, i) => (
+              <p key={i} className={`text-gray-700 text-sm leading-relaxed ${i ? 'mt-4' : ''}`}>{text}</p>
+            ))}
+          </div>
+
+            </div>
+
+            <HiveLeaders page={page} t={t} />
+
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
+              {page.storySlides && <StorySlides slides={page.storySlides} t={t} />}
+
+          <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box2}`}>
+            <h3 className="font-bold text-gray-800 text-sm">What's Inside the App</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ['🔍', 'Scouting Forms', 'Submit and track match scouting data with assigned alliance positions'],
+                ['📅', 'Scouting Schedule', 'Organized scouting groups and rotation assignments for competitions'],
+                ['📊', 'Scouting Data', 'View, analyze, and verify collected scouting submissions'],
+                ['📋', 'Task Boards', 'Kanban-style boards for managing build, programming, and business tasks'],
+                ['✅', 'To-Do Lists', 'Personal and team task tracking with assignments and priorities'],
+                ['📓', 'Engineering Notebook', 'Document build progress, decisions, and meeting notes with photo uploads'],
+                ['🏗️', 'Org Chart', 'Visual team hierarchy from Co-Founders down to members'],
+                ['📆', 'Calendar', 'Shared team calendar for meetings, competitions, and deadlines'],
+                ['📥', 'Suggestions', 'Submit ideas and feedback for the team or the app'],
+                ['💡', 'Workshop Ideas', 'Plan and organize team workshops and skill-building sessions'],
+              ].map(([emoji, title, desc]) => (
+                <div key={title} className="bg-white/60 rounded-lg p-2">
+                  <p className="text-xs font-semibold text-gray-800">{emoji} {title}</p>
+                  <p className="text-xs text-gray-500 leading-snug">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+
+          <InterestForm t={t} />
+
+          <ThemeSongPlayer t={t} />
+
+          <div className={`border-l-4 rounded-r-xl p-4 ${t.box3}`}>
+            <p className="text-gray-700 text-sm leading-relaxed italic">
+              Everything That's Scrum represents our commitment to growth — evolving from informal coordination to intentional, professional-level team management. By strengthening our internal systems, we strengthen our performance on the field.
+            </p>
+          </div>
+
+
+          {/* Phone Install Tutorial */}
+          <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box1}`}>
+            <h3 className="font-bold text-gray-800 text-sm">How to Add the App to Your Phone</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Follow these steps to install Everything That's Scrum on your home screen — no app store needed!
+            </p>
+            <div className="rounded-xl overflow-hidden shadow-sm">
+              <img
+                src="/phone-tutorial.png"
+                alt="Step-by-step tutorial for adding the app to your phone home screen"
+                className="w-full object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Coach Quote on AI */}
+          <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-r ${t.frame} p-[1px]`}>
+            <div className="rounded-2xl bg-white/80 backdrop-blur-sm p-5">
+              <h3 className={`text-sm font-bold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent mb-4`}>
+                What Our Coach Thinks of AI
+              </h3>
+              <div className="flex flex-col sm:flex-row items-center gap-5">
+                {/* Coach photo placeholder */}
+                <div className={`w-28 h-28 overflow-hidden flex-shrink-0 ${hex ? 'bg-amber-300' : 'rounded-xl border-2 border-white shadow-lg bg-gradient-to-br from-pastel-blue/30 to-pastel-pink/30'}`} style={hex ? HEX : undefined}>
+                  <img
+                    src="/leaders/coach.jpg"
+                    alt="Our Coach"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none'
+                      e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-4xl">🧑‍🏫</span></div>'
+                    }}
+                  />
+                </div>
+                {/* Quote */}
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className={`absolute -top-3 -left-2 text-4xl ${t.quoteMark} font-serif leading-none`}>&ldquo;</span>
+                    <p className="text-gray-700 text-sm leading-relaxed italic pl-4">
+                      It's not leaving — it's here to stay, so we might as well use it to our advantage. We need to learn how to work with it and let it help us, but not to cheat — just to help.
+                    </p>
+                    <span className={`text-4xl ${t.quoteMark} font-serif leading-none`}>&rdquo;</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`relative mt-4 rounded-2xl overflow-hidden bg-gradient-to-r ${t.frame} p-[1px]`}>
+            <div className="rounded-2xl bg-white/80 backdrop-blur-sm px-5 py-4 flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.orb} flex items-center justify-center flex-shrink-0 shadow-md`}>
+                <Sparkles size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-700">Crafted with a little help from AI</p>
+                <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
+                  This page was written and designed collaboratively with Claude, an AI assistant by Anthropic, guided by the ideas and input of our students — because even robots need a hand sometimes.
+                </p>
+              </div>
+            </div>
+          </div>
+            </div>
+          </>
+        ) : (
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-2xl mx-auto space-y-6">
           {/* Hero competition photo */}
           <div className="relative -mx-6 -mt-6 mb-2 overflow-hidden rounded-t-2xl">
@@ -631,6 +948,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

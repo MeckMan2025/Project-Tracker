@@ -77,6 +77,7 @@ export const RUNDOWN_SEASONS = {
     // with a co-lead beside them.
     managers: {
       role: 'Project Managers', emoji: '🐝', color: 'text-amber-700',
+      tagline: "Cofounders of Everything That's Scrum",
       people: [
         { name: 'Kayden', photo: '/leaders/kayden-2026.jpg', photoPosition: 'center 30%' },
         { name: 'Yukti', photo: '/leaders/yukti-2026.jpg', photoPosition: 'center 35%' },
@@ -118,10 +119,25 @@ export const RUNDOWN_SEASONS = {
         },
       },
     ],
-    founders: [
-      { ...KAYDEN, color: 'text-amber-700', photo: '/leaders/kayden-2026.jpg', photoPosition: 'center 30%' },
-      { ...YUKTI, color: 'text-orange-700', photo: '/leaders/yukti-2026.jpg', photoPosition: 'center 35%' },
+    // The story of the app, one idea per slide
+    storySlides: [
+      { emoji: '🧩', title: 'Where it started',
+        text: "Building a successful robot takes more than technical skill — it takes organization, accountability, and strong systems behind the scenes. As responsibilities spread across build, programming, business and scouting, scattered tools and informal communication were limiting our efficiency and clarity. Our biggest challenge had a name: disorganization." },
+      { emoji: '🧪', title: 'The first prototype',
+        text: "Every system starts with a prototype, and Yukti built the first one. Seeing that original version of a team app come to life showed us we could actually solve our organization problem — and that momentum is what pushed us to keep going." },
+      { emoji: '🛠️', title: 'Building Everything That\'s Scrum',
+        text: "Kayden led the development of the platform, with Claude, an AI coding assistant by Anthropic, as a late-night build partner. The name reflects our team identity and our commitment to structured, agile collaboration, inspired by professional engineering workflows." },
+      { emoji: '🔍', title: 'Scouting first',
+        text: "Our first focus was scouting. The app assigns alliance positions (Red 1, Blue 2…), defines scouting groups, tracks submissions during active scouting periods, and makes the data reliable and verifiable — so competition decisions rest on something solid." },
+      { emoji: '📋', title: 'Then everything else',
+        text: "Task boards, attendance, the engineering notebook, the org chart, a shared calendar, logs and suggestions all moved in. Instead of adapting to generic tools, we built a system tailored to how Team 7196 actually works." },
+      { emoji: '🐝', title: 'Two teams, one app',
+        text: "This year we started a second team, 38350 Prime Suspects, and they run the whole app too — their own boards, notebook, attendance and scouting, scoped to their team. Mentoring them is part of how we grow." },
+      { emoji: '🌱', title: 'What it stands for',
+        text: "Everything That's Scrum is our commitment to growth: from informal coordination to intentional, professional-level team management. By strengthening our internal systems, we strengthen our performance on the field." },
     ],
+    // No separate founders section this year: the project managers are the
+    // cofounders, and the card says so.
   },
 }
 
