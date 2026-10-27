@@ -342,8 +342,8 @@ function HiveLeaders({ page, t }) {
               <div className="relative h-32 -mt-12 mb-2">
                 <HexPhoto src={d.lead.photo} alt={d.lead.name} position={d.lead.photoPosition} emoji={d.emoji} size={128}
                   className="absolute left-1/2" style={{ transform: 'translateX(-62%)' }} />
-                <HexPhoto src={d.colead.photo} alt={d.colead.name} position={d.colead.photoPosition} emoji={d.emoji} size={84} ring="bg-yellow-300"
-                  className="absolute left-1/2 top-12" style={{ transform: 'translateX(18%)' }} />
+                <HexPhoto src={d.colead.photo} alt={d.colead.name} position={d.colead.photoPosition} emoji={d.emoji} size={96} ring="bg-yellow-300"
+                  className="absolute left-1/2 top-10" style={{ transform: 'translateX(12%)' }} />
               </div>
               <div className={`rounded-2xl ${d.tint} px-3 py-2 text-center mb-3`}>
                 <p className={`font-extrabold text-sm ${d.color}`}>{d.emoji} {d.name}</p>

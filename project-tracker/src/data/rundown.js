@@ -92,7 +92,7 @@ export const RUNDOWN_SEASONS = {
           bio: "Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons.",
         },
         colead: {
-          name: 'Varsha', role: 'Business Co-lead', photo: '/leaders/varsha.jpg', photoPosition: 'center 25%',
+          name: 'Varsha', role: 'Business Co-lead', photo: '/leaders/varsha.jpg', photoPosition: 'center',
           bio: "It can be hard for Lily to do everything by herself, and that's why I'm here! I help support Lily by working alongside her in handling outreach and sponsorships, ensuring that business runs smoothly. Two heads work better than one, and with the two of us managing connections and working together, we will have a successful season!",
         },
       },
@@ -103,7 +103,7 @@ export const RUNDOWN_SEASONS = {
           bio: "SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and hardware to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it.",
         },
         colead: {
-          name: 'Braden', role: 'Technical / Hardware Co-lead', photo: '/leaders/braden.jpg', photoPosition: 'center 35%',
+          name: 'Braden', role: 'Technical / Hardware Co-lead', photo: '/leaders/braden.jpg', photoPosition: 'center',
           bio: 'I work and lead alongside James on any technical and hardware work and projects to make our robot the most efficient and successful it can be. I make the robot ready to work for our competitions, and I fix and clean it before and after matches. I also talk to judges in the pit and play a major role in that.',
         },
       },
@@ -114,7 +114,7 @@ export const RUNDOWN_SEASONS = {
           bio: 'Behind every working robot there is code to make it work, and this is what I enjoy doing! I learned to code from our mentor, Mr. Seamer, and I also learned how to work along with my team to make the robot move and shoot.',
         },
         colead: {
-          name: 'Saumyaa', role: 'Programming Co-lead', photo: '/leaders/saumyaa.jpg', photoPosition: 'center 30%',
+          name: 'Saumyaa', role: 'Programming Co-lead', photo: '/leaders/saumyaa.jpg', photoPosition: 'center',
           bio: 'I work along with Pragnya on any programming and code-related materials that are used to make the robot function, actually move and shoot, and meet our goals for our upcoming competitions. Last year I was also part of the Drive Team and spent lots of time learning and executing strategies on the field itself.',
         },
       },
