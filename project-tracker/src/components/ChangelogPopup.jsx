@@ -11,6 +11,7 @@ const CHANGELOG = [
       '\u{1F4D6} The Radical Rundown is written for 2026\u201327: the Sustain Award, starting Prime Suspects, and this year\u2019s leaders \u2014 Kayden and Yukti as project managers, then each department as a lead with a co-lead: Lily and Varsha (Business), James and Braden (Technical / Hardware), Pragnya and Saumyaa (Programming)',
       '\u{1F5D3}\uFE0F Last season\u2019s page is kept, not overwritten. A switch in the header shifts between 2025\u201326 and 2026\u201327, and every season from here on stays readable the way it was written',
       '\u{1F41D} The 2026\u201327 page is dressed for BIOBUZZ: honeycomb behind it, honey and amber in place of the pastels, hexagon photo frames, and a season chip on the hero photo. 2025\u201326 keeps its pastels \u2014 each season\u2019s page wears its own game',
+      '\u{1F4F8} The 2025\u201326 Iowa Championship team photo is the picture at the top of this year\u2019s page, and every leader and co-lead has their photo on their card',
       '\u{1F517} The Rundown has a link of its own: ?rundown on the end of the address opens it straight away, no sign-in screen first, and ?rundown=2025-2026 opens that season\u2019s page',
     ],
   },

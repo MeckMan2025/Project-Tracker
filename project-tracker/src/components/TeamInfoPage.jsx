@@ -462,10 +462,10 @@ function TeamInfoPage({ onBack, initialSeason }) {
           {/* Hero competition photo */}
           <div className="relative -mx-6 -mt-6 mb-2 overflow-hidden rounded-t-2xl">
             <img
-              src="/team-hero.jpg"
+              src={page.hero || '/team-hero.jpg'}
               alt="Team 7196"
               className="w-full h-80 md:h-64 object-cover"
-              style={{ objectPosition: 'center 35%' }}
+              style={{ objectPosition: page.heroPosition || 'center 35%' }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
             {page.game && (
