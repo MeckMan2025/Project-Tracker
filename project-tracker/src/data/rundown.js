@@ -99,7 +99,7 @@ export const RUNDOWN_SEASONS = {
       {
         name: 'Technical / Hardware', emoji: '🔧', color: 'text-yellow-700', accent: 'border-yellow-400', tint: 'bg-yellow-100/60',
         lead: {
-          name: 'James', role: 'Technical / Hardware Lead', photo: '/leaders/james.jpg', photoPosition: 'center 30%',
+          name: 'James', role: 'Technical / Hardware Lead', photo: '/leaders/james.jpg', photoPosition: 'center',
           bio: "SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and hardware to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it.",
         },
         colead: {
