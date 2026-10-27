@@ -3,8 +3,60 @@ import { restHeaders } from '../lib/restHeaders'
 import { ArrowLeft, Play, Pause, Music, Sparkles, Send, CheckCircle, Clock, History } from 'lucide-react'
 import { SEASON_STARTED, ACTIVE_SEASON, seasonStartLabel } from '../data/season'
 import { RUNDOWN_SEASONS, RUNDOWN_KEYS, LATEST_RUNDOWN } from '../data/rundown'
+import { HONEYCOMB_CELLS, HONEY_WASH } from './HomeView'
 
-function ThemeSongPlayer() {
+// Each season's page is dressed for its game. 2025-26 keeps the team pastels;
+// BIOBUZZ (2026-27) is honey and comb, the same comb the Home page sits on.
+// Everything that colours the page comes from here, so a season picks a look
+// with one word in data/rundown.js.
+const THEMES = {
+  pastel: {
+    bg: 'bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30',
+    bgStyle: undefined,
+    title: 'from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark',
+    pill: 'from-pastel-blue-dark to-pastel-pink-dark',
+    frame: 'from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20',
+    heroFade: 'from-white/95 via-white/40',
+    box1: 'border-pastel-orange bg-pastel-orange/10',
+    box2: 'border-pastel-pink bg-pastel-pink/10',
+    box3: 'border-pastel-blue bg-pastel-blue/10',
+    song: 'border-pastel-pink from-pastel-pink/15 to-pastel-orange/10',
+    songBtn: 'bg-pastel-pink-dark', songIcon: 'text-pastel-pink-dark', songHover: 'hover:bg-pastel-pink',
+    form: 'border-pastel-blue from-pastel-blue/10 to-pastel-pink/5', formRing: 'focus:ring-pastel-blue/50', formLink: 'text-pastel-blue-dark',
+    orb: 'from-pastel-blue via-pastel-pink to-pastel-orange',
+    quoteMark: 'text-pastel-pink/40',
+    strong: 'text-pastel-blue-dark',
+    emoji: '',
+  },
+  biobuzz: {
+    bg: '',
+    bgStyle: { backgroundImage: `${HONEYCOMB_CELLS}, ${HONEY_WASH}`, backgroundAttachment: 'fixed' },
+    title: 'from-amber-700 via-yellow-500 to-amber-600',
+    pill: 'from-amber-500 to-yellow-400',
+    frame: 'from-amber-300/50 via-yellow-200/60 to-amber-300/50',
+    heroFade: 'from-amber-50/95 via-amber-50/40',
+    box1: 'border-amber-400 bg-amber-100/50',
+    box2: 'border-yellow-400 bg-yellow-100/50',
+    box3: 'border-orange-300 bg-orange-100/50',
+    song: 'border-yellow-400 from-yellow-100/70 to-amber-100/50',
+    songBtn: 'bg-amber-500', songIcon: 'text-amber-600', songHover: 'hover:bg-yellow-200',
+    form: 'border-amber-400 from-amber-100/60 to-yellow-50/60', formRing: 'focus:ring-amber-300/60', formLink: 'text-amber-700',
+    orb: 'from-amber-400 via-yellow-300 to-orange-300',
+    quoteMark: 'text-amber-400/50',
+    strong: 'text-amber-700',
+    emoji: '🐝',
+  },
+}
+
+// What stands in for a photo that isn't there yet, per theme.
+const PASTEL_TILE = ['from-pastel-pink/30', 'to-pastel-blue/30']
+const HONEY_TILE = ['from-amber-200/70', 'to-yellow-100/70']
+
+// A flat-top honeycomb cell, the shape every BIOBUZZ photo frame takes.
+const HEX = { clipPath: 'polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%)' }
+
+
+function ThemeSongPlayer({ t }) {
   const [playing, setPlaying] = useState(false)
   const audioRef = useRef(null)
 
@@ -23,21 +75,21 @@ function ThemeSongPlayer() {
   }
 
   return (
-    <div className="border-l-4 border-pastel-pink rounded-r-xl bg-gradient-to-r from-pastel-pink/15 to-pastel-orange/10 p-4">
+    <div className={`border-l-4 rounded-r-xl bg-gradient-to-r p-4 ${t.song}`}>
       <div className="flex items-center gap-3">
         <button
           onClick={toggle}
           className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md transition-all ${
             playing
-              ? 'bg-pastel-pink-dark text-white scale-105'
-              : 'bg-white text-pastel-pink-dark hover:bg-pastel-pink hover:text-gray-700'
+              ? `${t.songBtn} text-white scale-105`
+              : `bg-white ${t.songIcon} ${t.songHover} hover:text-gray-700`
           }`}
         >
           {playing ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-1.5">
-            <Music size={14} className="text-pastel-pink-dark" />
+            <Music size={14} className={t.songIcon} />
             <h3 className="font-bold text-gray-800 text-sm">Our Team's Theme Song</h3>
           </div>
           <p className="text-xs text-gray-500 mt-0.5">Made with AI — listen to the Radical Robotics anthem!</p>
@@ -48,7 +100,7 @@ function ThemeSongPlayer() {
           {[...Array(12)].map((_, i) => (
             <div
               key={i}
-              className="w-1 bg-pastel-pink-dark rounded-full animate-pulse"
+              className={`w-1 ${t.songBtn} rounded-full animate-pulse`}
               style={{
                 height: `${8 + Math.random() * 12}px`,
                 animationDelay: `${i * 0.1}s`,
@@ -62,7 +114,7 @@ function ThemeSongPlayer() {
   )
 }
 
-function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilter, bio, reverse }) {
+function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilter, bio, reverse, tile = PASTEL_TILE }) {
   const imgStyle = { ...(photoPosition && { objectPosition: photoPosition }), ...(photoFilter && { filter: photoFilter }) }
   return (
     <div className="shadow-md rounded-2xl overflow-hidden md:overflow-visible">
@@ -76,7 +128,7 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = 'none'
-              e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/30', 'to-pastel-blue/30')
+              e.target.parentElement.classList.add('bg-gradient-to-br', ...tile)
               e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
             }}
           />
@@ -102,7 +154,7 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
               className="w-full h-full object-cover"
               onError={(e) => {
                 e.target.style.display = 'none'
-                e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/30', 'to-pastel-blue/30')
+                e.target.parentElement.classList.add('bg-gradient-to-br', ...tile)
                 e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
               }}
             />
@@ -135,7 +187,7 @@ function LeaderCard({ name, role, emoji, color, photo, photoPosition, photoFilte
 }
 
 // A photo that falls back to an emoji tile when the file isn't there yet
-function Photo({ src, alt, position, emoji, className }) {
+function Photo({ src, alt, position, emoji, className, tile = PASTEL_TILE }) {
   return (
     <img
       src={src}
@@ -144,7 +196,7 @@ function Photo({ src, alt, position, emoji, className }) {
       className={className}
       onError={(e) => {
         e.target.style.display = 'none'
-        e.target.parentElement.classList.add('bg-gradient-to-br', 'from-pastel-pink/30', 'to-pastel-blue/30')
+        e.target.parentElement.classList.add('bg-gradient-to-br', ...tile)
         e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">${emoji}</span></div>`
       }}
     />
@@ -152,13 +204,13 @@ function Photo({ src, alt, position, emoji, className }) {
 }
 
 // Two people, one role, one bio — the project managers share a card.
-function PairCard({ role, emoji, color, people, bio }) {
+function PairCard({ role, emoji, color, people, bio, hex }) {
   return (
-    <div className="shadow-md rounded-2xl overflow-hidden bg-white/70 backdrop-blur-sm">
+    <div className={`shadow-md rounded-2xl overflow-hidden bg-white/70 backdrop-blur-sm ${hex ? 'border border-amber-200' : ''}`}>
       <div className="flex h-56 md:h-64">
         {people.map((p) => (
           <div key={p.name} className="relative flex-1 overflow-hidden">
-            <Photo src={p.photo} alt={p.name} position={p.photoPosition} emoji={emoji} className="w-full h-full object-cover" />
+            <Photo src={p.photo} alt={p.name} position={p.photoPosition} emoji={emoji} className="w-full h-full object-cover" tile={hex ? HONEY_TILE : PASTEL_TILE} />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/55 to-transparent px-3 pt-8 pb-2">
               <p className="text-white font-bold text-sm drop-shadow">{p.name}</p>
             </div>
@@ -180,7 +232,7 @@ function PairCard({ role, emoji, color, people, bio }) {
 // A department: the lead gets the big card, the co-lead sits underneath in a
 // compact one, so a lead-plus-co-lead pair reads as one group rather than two
 // unrelated people.
-function DepartmentCard({ dept }) {
+function DepartmentCard({ dept, hex }) {
   const { name, emoji, color, accent, tint, lead, colead } = dept
   return (
     <div className={`border-l-4 ${accent} rounded-r-2xl ${tint} p-3 space-y-3`}>
@@ -196,10 +248,11 @@ function DepartmentCard({ dept }) {
         photo={lead.photo}
         photoPosition={lead.photoPosition}
         bio={lead.bio}
+        tile={hex ? HONEY_TILE : PASTEL_TILE}
       />
       <div className="flex gap-3 items-start bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
-        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow">
-          <Photo src={colead.photo} alt={colead.name} position={colead.photoPosition} emoji={emoji} className="w-full h-full object-cover" />
+        <div className={`w-16 h-16 overflow-hidden flex-shrink-0 ${hex ? 'bg-amber-300' : 'rounded-full border-2 border-white shadow'}`} style={hex ? HEX : undefined}>
+          <Photo src={colead.photo} alt={colead.name} position={colead.photoPosition} emoji={emoji} className="w-full h-full object-cover" tile={hex ? HONEY_TILE : PASTEL_TILE} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{colead.role}</p>
@@ -213,7 +266,7 @@ function DepartmentCard({ dept }) {
 
 // Shift between seasons. The newest is the default; older ones stay exactly
 // as they were written.
-function SeasonSwitch({ season, onChange }) {
+function SeasonSwitch({ season, onChange, t }) {
   if (RUNDOWN_KEYS.length < 2) return null
   return (
     <div className="flex items-center gap-1 bg-white/70 rounded-full p-1 shadow-sm">
@@ -223,7 +276,7 @@ function SeasonSwitch({ season, onChange }) {
           onClick={() => onChange(k)}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
             k === season
-              ? 'bg-gradient-to-r from-pastel-blue-dark to-pastel-pink-dark text-white shadow-sm'
+              ? `bg-gradient-to-r ${t.pill} text-white shadow-sm`
               : 'text-gray-600 hover:bg-white'
           }`}
         >
@@ -234,7 +287,7 @@ function SeasonSwitch({ season, onChange }) {
   )
 }
 
-function InterestForm() {
+function InterestForm({ t }) {
   const [teamName, setTeamName] = useState('')
   const [contactName, setContactName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -282,7 +335,7 @@ function InterestForm() {
         <p className="text-xs text-gray-500">Our co-founders will see your submission.</p>
         <button
           onClick={() => setSubmitted(false)}
-          className="text-xs text-pastel-blue-dark underline mt-1"
+          className={`text-xs ${t.formLink} underline mt-1`}
         >
           Submit another team
         </button>
@@ -291,7 +344,7 @@ function InterestForm() {
   }
 
   return (
-    <div className="border-l-4 border-pastel-blue rounded-r-xl bg-gradient-to-r from-pastel-blue/10 to-pastel-pink/5 p-4 space-y-3">
+    <div className={`border-l-4 rounded-r-xl bg-gradient-to-r p-4 space-y-3 ${t.form}`}>
       <h3 className="font-bold text-gray-800 text-sm">Interested in Using This App for Your Team?</h3>
       <p className="text-xs text-gray-600 leading-relaxed">
         If your FTC team would like to use Everything That's Scrum, let us know! Drop your team name and your name below.
@@ -303,7 +356,7 @@ function InterestForm() {
           onChange={(e) => setTeamName(e.target.value)}
           placeholder="Team name (e.g. Team 12345 — Cool Bots)"
           maxLength={100}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-pastel-blue/50"
+          className={`w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 ${t.formRing}`}
         />
         <input
           type="text"
@@ -311,13 +364,13 @@ function InterestForm() {
           onChange={(e) => setContactName(e.target.value)}
           placeholder="Your name"
           maxLength={80}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-pastel-blue/50"
+          className={`w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 ${t.formRing}`}
         />
         {error && <p className="text-xs text-red-500">{error}</p>}
         <button
           type="submit"
           disabled={submitting || !teamName.trim() || !contactName.trim()}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pastel-blue-dark to-pastel-pink-dark text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r ${t.pill} text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
         >
           <Send size={14} />
           {submitting ? 'Submitting...' : "I'm Interested!"}
@@ -341,16 +394,18 @@ function TeamInfoPage({ onBack, initialSeason }) {
     || LATEST_RUNDOWN)
   const page = RUNDOWN_SEASONS[season]
   const isLatest = season === LATEST_RUNDOWN
+  const t = THEMES[page.theme] || THEMES.pastel
+  const hex = page.theme === 'biobuzz'
 
   if (holding) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col">
+      <div className={`min-h-screen flex flex-col ${t.bg}`} style={t.bgStyle}>
         <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
           <div className="px-4 py-3 flex items-center gap-3">
             <button onClick={onBack} className="p-2 rounded-xl hover:bg-white/60 transition-colors">
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+            <h1 className={`text-xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
               The Radical Rundown
             </h1>
           </div>
@@ -370,7 +425,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
             </div>
             <button
               onClick={() => setShowPast(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-pastel-pink hover:bg-pastel-pink-dark transition-colors font-semibold text-gray-700"
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r ${t.pill} transition-opacity hover:opacity-90 font-semibold text-white`}
             >
               <History size={17} /> Look at past seasons
             </button>
@@ -381,7 +436,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pastel-blue/30 via-pastel-pink/20 to-pastel-orange/30 flex flex-col">
+    <div className={`min-h-screen flex flex-col ${t.bg}`} style={t.bgStyle}>
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center gap-3">
           <button
@@ -391,13 +446,13 @@ function TeamInfoPage({ onBack, initialSeason }) {
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              The Radical Rundown
+            <h1 className={`text-xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
+              The Radical Rundown {t.emoji}
             </h1>
             {(showPast || !isLatest) && <p className="text-xs text-gray-400 -mt-0.5">Looking back at the {page.label} season</p>}
           </div>
           <div className="ml-auto">
-            <SeasonSwitch season={season} onChange={setSeason} />
+            <SeasonSwitch season={season} onChange={setSeason} t={t} />
           </div>
         </div>
       </header>
@@ -412,9 +467,14 @@ function TeamInfoPage({ onBack, initialSeason }) {
               className="w-full h-80 md:h-64 object-cover"
               style={{ objectPosition: 'center 35%' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/40 to-transparent" />
+            <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
+            {page.game && (
+              <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-bold text-white shadow bg-gradient-to-r ${t.pill}`}>
+                {page.label} · {page.game}
+              </span>
+            )}
             <div className="absolute bottom-3 left-0 right-0 text-center">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent drop-shadow-sm">
+              <h2 className={`text-2xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow-sm`}>
                 About Team 7196
               </h2>
               <p className="text-gray-600 text-xs font-medium">
@@ -423,7 +483,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
             </div>
           </div>
 
-          <div className="border-l-4 border-pastel-orange rounded-r-xl bg-pastel-orange/10 p-4">
+          <div className={`border-l-4 rounded-r-xl p-4 ${t.box1}`}>
             <h3 className="font-bold text-gray-800 text-sm mb-2">Who We Are</h3>
             <p className="text-gray-700 text-sm leading-relaxed">
               We are <span className="font-semibold">Everything That's Radical</span>, FTC Team 7196, based out of Pleasant Valley High School in Bettendorf, Iowa. Established in 2013, our team has grown through seasons of innovation, competition, and continuous improvement.
@@ -432,7 +492,7 @@ function TeamInfoPage({ onBack, initialSeason }) {
 
           {/* Selfie photo floated with text */}
           <div className="relative">
-            <div className="float-right ml-4 mb-2 w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg flex-shrink-0">
+            <div className={`float-right ml-4 mb-2 w-28 h-28 overflow-hidden flex-shrink-0 ${hex ? 'bg-amber-300' : 'rounded-full border-4 border-white shadow-lg'}`} style={hex ? HEX : undefined}>
               <img
                 src="/team-selfie.png"
                 alt="Team 7196 group selfie"
@@ -446,20 +506,20 @@ function TeamInfoPage({ onBack, initialSeason }) {
 
           {/* Meet Our Leaders */}
           <div className="space-y-5 max-w-lg mx-auto">
-            <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Meet Our Leaders
+            <h3 className={`text-lg font-bold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
+              {t.emoji} Meet Our Leaders {t.emoji}
             </h3>
 
-            {page.managers && <PairCard {...page.managers} />}
+            {page.managers && <PairCard {...page.managers} hex={hex} />}
 
-            {page.departments && page.departments.map((d) => <DepartmentCard key={d.name} dept={d} />)}
+            {page.departments && page.departments.map((d) => <DepartmentCard key={d.name} dept={d} hex={hex} />)}
 
             {page.leaders && page.leaders.map((l) => <LeaderCard key={l.name} {...l} />)}
           </div>
 
           {/* Co-Founders */}
           <div className="space-y-5 max-w-lg mx-auto">
-            <h3 className="text-lg font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
+            <h3 className={`text-lg font-bold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>
               The Founders
             </h3>
             {page.founders.map((f) => <LeaderCard key={f.name} {...f} />)}
@@ -470,10 +530,10 @@ function TeamInfoPage({ onBack, initialSeason }) {
           </p>
 
           <p className="text-gray-700 text-sm leading-relaxed">
-            In response, we built <span className="font-semibold text-pastel-blue-dark">Everything That's Scrum</span>, our custom team management platform. The name reflects both our team identity and our commitment to structured, agile collaboration. Inspired by professional engineering workflows, the app centralizes everything our team needs to function effectively — scouting assignments, task boards, attendance tracking, organizational structure, communication tools, and performance data.
+            In response, we built <span className={`font-semibold ${t.strong}`}>Everything That's Scrum</span>, our custom team management platform. The name reflects both our team identity and our commitment to structured, agile collaboration. Inspired by professional engineering workflows, the app centralizes everything our team needs to function effectively — scouting assignments, task boards, attendance tracking, organizational structure, communication tools, and performance data.
           </p>
 
-          <div className="border-l-4 border-pastel-pink rounded-r-xl bg-pastel-pink/10 p-4 space-y-3">
+          <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box2}`}>
             <h3 className="font-bold text-gray-800 text-sm">What's Inside the App</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
@@ -504,18 +564,18 @@ function TeamInfoPage({ onBack, initialSeason }) {
             Beyond scouting, the app brings clarity to leadership roles, creates visibility in task management, and reinforces responsibility across both business and technical teams. Instead of adapting to generic tools, we built a system tailored specifically to Team 7196's workflow.
           </p>
 
-          <InterestForm />
+          <InterestForm t={t} />
 
-          <ThemeSongPlayer />
+          <ThemeSongPlayer t={t} />
 
-          <div className="border-l-4 border-pastel-blue rounded-r-xl bg-pastel-blue/10 p-4">
+          <div className={`border-l-4 rounded-r-xl p-4 ${t.box3}`}>
             <p className="text-gray-700 text-sm leading-relaxed italic">
               Everything That's Scrum represents our commitment to growth — evolving from informal coordination to intentional, professional-level team management. By strengthening our internal systems, we strengthen our performance on the field.
             </p>
           </div>
 
           {/* Phone Install Tutorial */}
-          <div className="border-l-4 border-pastel-orange rounded-r-xl bg-pastel-orange/10 p-4 space-y-3">
+          <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box1}`}>
             <h3 className="font-bold text-gray-800 text-sm">How to Add the App to Your Phone</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
               Follow these steps to install Everything That's Scrum on your home screen — no app store needed!
@@ -530,14 +590,14 @@ function TeamInfoPage({ onBack, initialSeason }) {
           </div>
 
           {/* Coach Quote on AI */}
-          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20 p-[1px]">
+          <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-r ${t.frame} p-[1px]`}>
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm p-5">
-              <h3 className="text-sm font-bold text-center bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent mb-4">
+              <h3 className={`text-sm font-bold text-center bg-gradient-to-r ${t.title} bg-clip-text text-transparent mb-4`}>
                 What Our Coach Thinks of AI
               </h3>
               <div className="flex flex-col sm:flex-row items-center gap-5">
                 {/* Coach photo placeholder */}
-                <div className="w-28 h-28 rounded-xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 bg-gradient-to-br from-pastel-blue/30 to-pastel-pink/30">
+                <div className={`w-28 h-28 overflow-hidden flex-shrink-0 ${hex ? 'bg-amber-300' : 'rounded-xl border-2 border-white shadow-lg bg-gradient-to-br from-pastel-blue/30 to-pastel-pink/30'}`} style={hex ? HEX : undefined}>
                   <img
                     src="/leaders/coach.jpg"
                     alt="Our Coach"
@@ -551,20 +611,20 @@ function TeamInfoPage({ onBack, initialSeason }) {
                 {/* Quote */}
                 <div className="flex-1">
                   <div className="relative">
-                    <span className="absolute -top-3 -left-2 text-4xl text-pastel-pink/40 font-serif leading-none">&ldquo;</span>
+                    <span className={`absolute -top-3 -left-2 text-4xl ${t.quoteMark} font-serif leading-none`}>&ldquo;</span>
                     <p className="text-gray-700 text-sm leading-relaxed italic pl-4">
                       It's not leaving — it's here to stay, so we might as well use it to our advantage. We need to learn how to work with it and let it help us, but not to cheat — just to help.
                     </p>
-                    <span className="text-4xl text-pastel-pink/40 font-serif leading-none">&rdquo;</span>
+                    <span className={`text-4xl ${t.quoteMark} font-serif leading-none`}>&rdquo;</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="relative mt-4 rounded-2xl overflow-hidden bg-gradient-to-r from-pastel-blue/20 via-pastel-pink/20 to-pastel-orange/20 p-[1px]">
+          <div className={`relative mt-4 rounded-2xl overflow-hidden bg-gradient-to-r ${t.frame} p-[1px]`}>
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm px-5 py-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-blue via-pastel-pink to-pastel-orange flex items-center justify-center flex-shrink-0 shadow-md">
+              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.orb} flex items-center justify-center flex-shrink-0 shadow-md`}>
                 <Sparkles size={18} className="text-white" />
               </div>
               <div className="flex-1 min-w-0">

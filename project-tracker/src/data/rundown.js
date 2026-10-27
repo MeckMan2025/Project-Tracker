@@ -33,6 +33,8 @@ const YUKTI = {
 export const RUNDOWN_SEASONS = {
   '2025-2026': {
     label: '2025–26',
+    game: 'DECODE',
+    theme: 'pastel',
     // Paragraphs beside the team selfie
     story: [
       'Last season, we won the Control Award and were chosen as an alliance partner. This year, Everything That\'s Radical is mainly composed of members that are new to FTC, and the team is ecstatic to learn STEM-based skills with FIRST!',
@@ -61,6 +63,8 @@ export const RUNDOWN_SEASONS = {
 
   '2026-2027': {
     label: '2026–27',
+    game: 'BIOBUZZ',
+    theme: 'biobuzz',
     story: [
       'Last season, we won the Sustain Award, and we were chosen as an alliance partner for the playoff match. This year, Everything That\'s Radical is composed of ongoing members and people who are new to FTC, and we are very ecstatic to learn STEM-based skills with FIRST!',
       'This year we started a whole new FTC team, 38350 Prime Suspects. We have been mentoring and teaching them all the skills they need to be successful in FTC competitions and how to lead a successful team.',
@@ -69,7 +73,7 @@ export const RUNDOWN_SEASONS = {
     // Two project managers share one card, then each department is a lead
     // with a co-lead beside them.
     managers: {
-      role: 'Project Managers', emoji: '🚀', color: 'text-pastel-orange-dark',
+      role: 'Project Managers', emoji: '🐝', color: 'text-amber-700',
       people: [
         { name: 'Kayden', photo: '/leaders/kayden.jpg', photoPosition: 'center 40%' },
         { name: 'Yukti', photo: '/leaders/yukti.jpg', photoPosition: '50% 0%' },
@@ -78,7 +82,7 @@ export const RUNDOWN_SEASONS = {
     },
     departments: [
       {
-        name: 'Business', emoji: '💼', color: 'text-pastel-pink-dark', accent: 'border-pastel-pink', tint: 'bg-pastel-pink/10',
+        name: 'Business', emoji: '🍯', color: 'text-amber-700', accent: 'border-amber-400', tint: 'bg-amber-100/60',
         lead: {
           name: 'Lily', role: 'Business Lead', photo: '/leaders/lily.jpg',
           bio: "Behind every working robot is a working plan — and that's where I come in. I handle outreach, sponsorships, and presentations, and I make sure our team communicates as well as it competes. While the robot team fine-tunes mechanisms, I'm building connections and making sure we have the resources and strategy to succeed. Organization might not score points directly — but it wins seasons.",
@@ -89,7 +93,7 @@ export const RUNDOWN_SEASONS = {
         },
       },
       {
-        name: 'Technical / Hardware', emoji: '🔧', color: 'text-pastel-blue-dark', accent: 'border-pastel-blue', tint: 'bg-pastel-blue/10',
+        name: 'Technical / Hardware', emoji: '🔧', color: 'text-yellow-700', accent: 'border-yellow-400', tint: 'bg-yellow-100/60',
         lead: {
           name: 'James', role: 'Technical / Hardware Lead', photo: '/leaders/james.jpg',
           bio: "SNAP! …did you hear that? Don't worry — I probably already fixed it. I oversee build, CAD, and hardware to make sure our robot performs the way we designed it to. My job is turning ideas into something precise, reliable, and competition-ready. If it spins, lifts, drives, or occasionally makes a questionable noise — I'm on it.",
@@ -100,7 +104,7 @@ export const RUNDOWN_SEASONS = {
         },
       },
       {
-        name: 'Programming', emoji: '💻', color: 'text-pastel-orange-dark', accent: 'border-pastel-orange', tint: 'bg-pastel-orange/10',
+        name: 'Programming', emoji: '💻', color: 'text-orange-700', accent: 'border-orange-300', tint: 'bg-orange-100/60',
         lead: {
           name: 'Pragnya', role: 'Programming Lead', photo: '/leaders/pragnya.jpg',
           bio: 'Behind every working robot there is code to make it work, and this is what I enjoy doing! I learned to code from our mentor, Mr. Seamer, and I also learned how to work along with my team to make the robot move and shoot.',
@@ -111,7 +115,7 @@ export const RUNDOWN_SEASONS = {
         },
       },
     ],
-    founders: [KAYDEN, YUKTI],
+    founders: [{ ...KAYDEN, color: 'text-amber-700' }, { ...YUKTI, color: 'text-orange-700' }],
   },
 }
 
