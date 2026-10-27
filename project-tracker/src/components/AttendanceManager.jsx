@@ -15,8 +15,9 @@ const REST_HEADERS = lazyRestHeaders
 const REST_JSON = lazyHeadersWith({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' })
 
 // Badge scanning lives on the robotics server now (its own site, its own database).
-// The kiosk and the badge list open there; scans come back into attendance later.
-const BADGE_URL = import.meta.env.VITE_BADGE_APP_URL || 'https://1.firstpvrobotics.com'
+// The kiosk (sign in, then Start the meeting) and the badge list open there. Scans come
+// back into attendance through its read-only data key (GET /api/scans/since).
+const BADGE_URL = import.meta.env.VITE_BADGE_APP_URL || 'https://attendance.firstpvrobotics.com'
 
 const STATUS_COLORS = {
   present: 'bg-green-100 text-green-700',
