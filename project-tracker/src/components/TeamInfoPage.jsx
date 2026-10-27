@@ -468,11 +468,6 @@ function TeamInfoPage({ onBack, initialSeason }) {
               style={{ objectPosition: page.heroPosition || 'center 35%' }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
-            {page.game && (
-              <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-bold text-white shadow bg-gradient-to-r ${t.pill}`}>
-                {page.label} · {page.game}
-              </span>
-            )}
             <div className="absolute bottom-3 left-0 right-0 text-center">
               <h2 className={`text-2xl font-bold bg-gradient-to-r ${t.title} bg-clip-text text-transparent drop-shadow-sm`}>
                 About Team 7196
