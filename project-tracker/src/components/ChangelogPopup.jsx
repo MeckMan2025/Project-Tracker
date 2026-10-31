@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 173,
+    date: '2026-10-31',
+    items: [
+      '\u{1F4CA} Team Growth has an Averages card on the Overview: entries per meeting, entries per person, the share of entries marked Very engaged, and every signal as a total, per meeting, per person and share of entries \u2014 so forty learning moments over five meetings reads differently from forty over fifty',
+    ],
+  },
+  {
     id: 172,
     date: '2026-10-27',
     items: [

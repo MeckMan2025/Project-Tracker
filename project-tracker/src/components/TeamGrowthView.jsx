@@ -258,6 +258,26 @@ export default function TeamGrowthView() {
     return Math.round(scored.reduce((a, b) => a + b, 0) / scored.length)
   }, [rows])
 
+  // The same numbers as rates: per meeting, per person, and the share of
+  // entries. A total of 40 learning moments means something different over
+  // five meetings than over fifty, so the averages sit next to the totals.
+  const averages = useMemo(() => {
+    const meetings = new Set(rows.map(e => e.meeting_date).filter(Boolean)).size
+    const people = new Set(rows.map(e => e.username).filter(Boolean)).size
+    const rate = (n, d) => (d ? Math.round((n / d) * 10) / 10 : null)
+    const pct = (n) => (rows.length ? Math.round((n / rows.length) * 100) : null)
+    const lines = SIGNALS.map(s => {
+      const n = withSignal(s.key).length
+      return { key: s.key, emoji: s.emoji, label: s.metric, total: n, perMeeting: rate(n, meetings), perPerson: rate(n, people), share: pct(n) }
+    })
+    const rated = rows.filter(e => ENGAGEMENT_SCORE[e.engagement] != null)
+    const very = rated.filter(e => e.engagement === 'Very').length
+    return { meetings, people,
+      entriesPerMeeting: rate(rows.length, meetings), entriesPerPerson: rate(rows.length, people),
+      veryShare: rated.length ? Math.round((very / rated.length) * 100) : null,
+      lines }
+  }, [rows])
+
   // Counts by meeting date, one row per signal. The chart and the drill-down
   // both read this, so a bar and the entries behind it can never disagree.
   const byDate = useMemo(() => {
@@ -517,6 +537,39 @@ export default function TeamGrowthView() {
                         onClick={() => openDrill(s.metric, withSignal(s.key))} />
                 ))}
               </div>
+
+              <Card title="Averages"
+                    sub={`Across ${averages.meetings} ${averages.meetings === 1 ? 'meeting' : 'meetings'} and ${averages.people} ${averages.people === 1 ? 'person' : 'people'} with entries. Per meeting and per person are the totals above spread over those.`}>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <Stat label="Entries per meeting" value={averages.entriesPerMeeting ?? '—'} />
+                  <Stat label="Entries per person" value={averages.entriesPerPerson ?? '—'} />
+                  <Stat label="Very engaged" value={averages.veryShare == null ? '—' : `${averages.veryShare}%`} />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-[11px] text-gray-400 uppercase tracking-wide">
+                        <th className="py-1 pr-2 font-semibold">Signal</th>
+                        <th className="py-1 px-2 font-semibold text-right">Total</th>
+                        <th className="py-1 px-2 font-semibold text-right">Per meeting</th>
+                        <th className="py-1 px-2 font-semibold text-right">Per person</th>
+                        <th className="py-1 pl-2 font-semibold text-right">Share of entries</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {averages.lines.map(l => (
+                        <tr key={l.key} className="border-t border-gray-100">
+                          <td className="py-1.5 pr-2 text-gray-700">{l.emoji} {l.label}</td>
+                          <td className="py-1.5 px-2 text-right font-semibold text-gray-800 tabular-nums">{l.total}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-gray-700">{l.perMeeting ?? '—'}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-gray-700">{l.perPerson ?? '—'}</td>
+                          <td className="py-1.5 pl-2 text-right tabular-nums text-gray-700">{l.share == null ? '—' : `${l.share}%`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
 
               <Card title="What we've been doing"
                     sub="Entries per meeting carrying each signal, and average engagement (dashed, right axis). Tap a name to show or hide it, or a point to read that day.">
