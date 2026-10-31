@@ -55,8 +55,10 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const [unavailable, setUnavailable] = useState(false)
   // Opened from the board with a job on it: start on that team and match.
   const [handed] = useState(() => takeScoutRequest())
-  const [form, setForm] = useState(() => handed?.team
-    ? { ...blankEntry(), team_number: String(handed.team), match_number: handed.match == null ? '' : String(handed.match) }
+  // A job can arrive with a match and a position but no team yet: the form
+  // opens on that match and the scout types the team they can see.
+  const [form, setForm] = useState(() => (handed?.team || handed?.match)
+    ? { ...blankEntry(), team_number: handed.team ? String(handed.team) : '', match_number: handed.match == null ? '' : String(handed.match) }
     : blankEntry())
 
   // The next match this person is down to scout, and the team they watch in it.

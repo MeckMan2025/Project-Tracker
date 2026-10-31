@@ -12,7 +12,7 @@ import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { ModeBar, ModePanel, useDefaultMode } from './CompDayModes'
 import {
-  SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor,
+  SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys,
 } from '../lib/dayRota'
 
@@ -51,7 +51,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
 
   // Tap a job to go and do it: the right form, on that team and match.
   const scout = (job) => {
-    requestScout({ team: job.team, match: job.match })
+    requestScout({ team: job.team || '', match: job.match, position: job.positionLabel || job.position || '' })
     onTabChange(job.match == null ? 'pit-scouting' : 'scouting')
   }
 
@@ -274,7 +274,7 @@ function useScouted() {
         try {
           await ensureUserToken()
           const [m, p] = await Promise.all([
-            fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&select=team_number,match_number`, { headers: restHeaders() }),
+            fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&select=team_number,match_number,scout`, { headers: restHeaders() }),
             fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number`, { headers: restHeaders() }),
           ])
           const mr = m.ok ? await m.json() : []
@@ -323,7 +323,8 @@ const teamName = (num) =>
 //
 // Loading is its own state and shows as neither: an empty database for half a
 // second should not paint the whole chart red.
-const jobKey = (row) => (row.match == null ? row.team : `${row.team}|${row.match}`)
+// A job with no team yet is matched by who was down for it and the match.
+const jobKey = (row) => (row.match == null ? row.team : row.team ? `${row.team}|${row.match}` : scoutKey(row.who, row.match))
 
 // Three states, and the row is coloured by which one it is:
 //   green   a submission exists. Done.
@@ -372,8 +373,8 @@ function ScoutChart({ rows, done, showMatch = true, onScout, busy, big = false }
                 className={`border-t border-gray-100 ${st.row}${todo ? ' cursor-pointer hover:bg-red-100/70 active:bg-red-100' : ''}`}
               >
                 <td className="py-1.5 px-1">
-                  <span className="font-medium text-gray-700">{r.team}</span>
-                  <span className="block text-[10px] text-gray-400 truncate max-w-[8rem]">{teamName(r.team)}</span>
+                  <span className="font-medium text-gray-700">{r.team || r.positionLabel || r.position || '—'}</span>
+                  <span className="block text-[10px] text-gray-400 truncate max-w-[8rem]">{r.team ? teamName(r.team) : 'team TBD'}</span>
                 </td>
                 {showMatch && <td className="py-1.5 px-1 text-gray-600">{r.match ?? '—'}</td>}
                 <td className="py-1.5 px-1 text-gray-600 truncate max-w-[7rem]">{r.who || '—'}</td>
@@ -402,7 +403,7 @@ function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout, bus
     const look = st === 'done' ? 'bg-green-100 text-green-700 border-green-200'
       : st === 'now' ? 'bg-amber-100 text-amber-800 border-amber-300 cursor-pointer'
       : 'bg-white/80 text-gray-600 border-gray-200 hover:border-pastel-yellow-dark hover:bg-pastel-yellow/40 cursor-pointer'
-    const what = a.match == null ? `Pit visit — team ${a.team} (${teamName(a.team)})` : `Match ${a.match} — team ${a.team} (${teamName(a.team)})`
+    const what = a.match == null ? `Pit visit — team ${a.team} (${teamName(a.team)})` : a.team ? `Match ${a.match} — team ${a.team} (${teamName(a.team)})` : `Match ${a.match} — ${a.positionLabel || a.position}, team not on the schedule yet`
     return (
       <button
         type="button"
@@ -413,7 +414,7 @@ function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout, bus
         className={`w-14 h-14 rounded-lg border flex flex-col items-center justify-center leading-tight transition-colors ${look}`}
       >
         <span className="text-base font-bold">{a.match ?? <Tent size={16} />}</span>
-        <span className="text-[10px] opacity-70">{a.team}</span>
+        <span className="text-[10px] opacity-70">{a.team || a.positionLabel || a.position}</span>
       </button>
     )
   }

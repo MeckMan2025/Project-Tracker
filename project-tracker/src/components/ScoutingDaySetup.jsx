@@ -468,16 +468,39 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 })}
               </div>
               {isLead && (
-                <button
-                  onClick={() => update(p => {
-                    const last = p.matchSchedule[p.matchSchedule.length - 1]
-                    const next = last && /^\d+$/.test(String(last.match)) ? String(Number(last.match) + 1) : ''
-                    return { ...p, matchSchedule: [...p.matchSchedule, { id: uid(), match: next, red1: '', red2: '', blue1: '', blue2: '' }] }
-                  })}
-                  className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"
-                >
-                  <Plus size={14} /> Add Match
-                </button>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => update(p => {
+                      const last = p.matchSchedule[p.matchSchedule.length - 1]
+                      const next = last && /^\d+$/.test(String(last.match)) ? String(Number(last.match) + 1) : ''
+                      return { ...p, matchSchedule: [...p.matchSchedule, { id: uid(), match: next, red1: '', red2: '', blue1: '', blue2: '' }] }
+                    })}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"
+                  >
+                    <Plus size={14} /> Add Match
+                  </button>
+                  {/* No team numbers yet? The count is enough: scouts still know
+                      they are Red 1 in match 7 and fill the team in on the day. */}
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <span>or set up</span>
+                    <input id="matchCount" type="number" min="1" max="200" defaultValue={Math.max(data.matchSchedule.length, 1)} className="w-16 px-2 py-1.5 rounded-lg border border-gray-200 text-sm text-center" />
+                    <button
+                      onClick={() => {
+                        const n = Number(document.getElementById('matchCount')?.value || 0)
+                        if (!n) return
+                        update(p => {
+                          const have = new Set(p.matchSchedule.map(m => String(m.match || '').trim()))
+                          const fresh = []
+                          for (let k = 1; k <= n; k++) if (!have.has(String(k))) fresh.push({ id: uid(), match: String(k), red1: '', red2: '', blue1: '', blue2: '' })
+                          return { ...p, matchSchedule: [...p.matchSchedule, ...fresh].sort((a, b) => Number(a.match) - Number(b.match)) }
+                        })
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    >
+                      matches, teams later
+                    </button>
+                  </label>
+                </div>
               )}
             </>
           )}

@@ -27,10 +27,19 @@ const norm = (s) => String(s || '').trim().toLowerCase()
 
 export const recordKey = (team, match) => `${String(team || '').trim()}|${String(match || '').trim()}`
 
-// The (team, match) pairs that have a scouting row.
+// The (team, match) pairs that have a scouting row — and, for a job whose
+// team was never written on the schedule, (scout, match): the only proof is
+// that the person down for Red 1 in match 5 saved a row for match 5.
+export const scoutKey = (who, match) => `@${norm(who)}|${String(match || '').trim()}`
 export function scoutedKeys(rows) {
-  return new Set((rows || []).map(r => recordKey(r.team_number, r.match_number)))
+  const out = new Set()
+  ;(rows || []).forEach(r => {
+    out.add(recordKey(r.team_number, r.match_number))
+    if (r.scout) out.add(scoutKey(r.scout, r.match_number))
+  })
+  return out
 }
+export const POSITION_LABELS = { red1: 'Red 1', red2: 'Red 2', blue1: 'Blue 1', blue2: 'Blue 2' }
 
 function orderedMatches(doc) {
   return [...(doc?.matchSchedule || [])]
@@ -52,11 +61,13 @@ export function assignmentsFor(doc, username) {
   const groups = doc?.scoutGroups || []
   if (!groups.length) return []
   const out = []
+  // A match with no team numbers yet is still a match to scout: you know you
+  // are Red 1 even before anyone knows who Red 1 is.
   orderedMatches(doc).forEach((row, k) => {
     const g = groups[k % groups.length]
     POSITIONS.forEach(pos => {
       const team = String(row[pos] || '').trim()
-      if (team && isPerson(g[pos], username)) out.push({ match: String(row.match).trim(), team, position: pos, group: g.name })
+      if (isPerson(g[pos], username)) out.push({ match: String(row.match).trim(), team, position: pos, positionLabel: POSITION_LABEL[pos], who: g[pos] || '', group: g.name })
     })
   })
   return out
@@ -84,7 +95,7 @@ export function allAssignments(doc) {
     const g = groups[k % groups.length]
     POSITIONS.forEach(pos => {
       const team = String(row[pos] || '').trim()
-      if (team) out.push({ match: String(row.match).trim(), team, who: g[pos] || '', position: POSITION_LABEL[pos], group: g.name })
+      if (team || g[pos]) out.push({ match: String(row.match).trim(), team, who: g[pos] || '', position: POSITION_LABEL[pos], positionLabel: POSITION_LABEL[pos], group: g.name })
     })
   })
   return out

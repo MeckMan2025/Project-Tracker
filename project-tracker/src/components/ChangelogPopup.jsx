@@ -9,6 +9,7 @@ const CHANGELOG = [
     date: '2026-10-31',
     items: [
       '\u{1F3C1} Competition Day has four modes: Scout, Media, Pit and Drive. The tabs across the top are the roles you hold on the day \u2014 two roles, two tabs, each named after the role \u2014 and the current block\u2019s role is where you land. No role on the day shows every mode',
+      '\u{1F522} A match schedule with numbers but no teams still works. Type how many matches there are and the day is set up; every scout sees Match 7 \u00b7 Red 1 on their board, the form opens on that match, and they type the team they can see. It turns green once they save a row for that match',
       '\u{1F527} Pit Crew can scout too. Someone on Pit Crew is still offered for the Scouting role and the other way round, and holding both no longer clears their scouting position',
       '\u{1F3D5}\uFE0F Pit scouting is done by the scouts. There is no separate Pit Scouting role any more: the Pit tab lists each person on the Scouting role with two team boxes to fill in, Fill from the match schedule hands out every team about two each, and the board\u2019s Pit group is the scouts',
       '\u{1F512} Competition Days belong to one team. The editor listed every team\u2019s days and offered every team\u2019s roster for roles, so a draft made by a Prime Suspects member showed up in Radical\u2019s setup. Each team now sees, hosts, pauses and assigns only its own',
