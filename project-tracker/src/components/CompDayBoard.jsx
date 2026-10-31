@@ -12,7 +12,7 @@ import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { ModeBar, ModePanel, useDefaultMode } from './CompDayModes'
 import {
-  SCOUTING_ROLE, PIT_ROLE, roleMembers, allAssignments, assignmentsFor,
+  SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys,
 } from '../lib/dayRota'
 
@@ -125,7 +125,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
                 even when one group covers far more teams than the other. */}
             <div className="flex flex-col md:flex-row gap-4 items-stretch">
               <div className="w-full md:flex-1 min-w-0">
-                <GroupBox title="Pit Group" icon={Tent} people={roleMembers(doc, PIT_ROLE)}
+                <GroupBox title="Pit Scouting" icon={Tent} people={roleMembers(doc, SCOUTING_ROLE)}
                           rows={pitRows} done={pitScouted} showMatch={false} loaded={!!doc} onScout={scout} busy={busy}
                           button={{ label: 'Pit Scouting', onClick: () => onTabChange('pit-scouting') }} />
               </div>

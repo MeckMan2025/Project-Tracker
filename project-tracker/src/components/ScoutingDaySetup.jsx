@@ -22,7 +22,7 @@ import { SCOUTING_ROLE, PIT_ROLE } from '../lib/dayRota'
 // A hard-coded roster is wrong the moment somebody joins or leaves, and it is
 // wrong quietly. Leads pick real people from the real roster instead.
 // Event roles that used to be offered and are not any more.
-const RETIRED_ROLES = ['Observation']
+const RETIRED_ROLES = ['Observation', PIT_ROLE]
 
 const DEFAULT_DATA = {
   fixedRoles: [
@@ -30,7 +30,6 @@ const DEFAULT_DATA = {
     { role: 'Pit Crew', members: [] },
     { role: 'Media', members: [] },
     { role: SCOUTING_ROLE, members: [] },
-    { role: PIT_ROLE, members: [] },
   ],
   // Teams that get a pit visit, and who makes it: { id, team, who }.
   pitTeams: [],
@@ -110,7 +109,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   const clearConflicts = (d) => {
     const busyOutside = (role) => new Set(d.fixedRoles.filter(r => r.role !== role).flatMap(r => r.members || []))
     const busy = busyOutside(SCOUTING_ROLE)
-    const busyPit = busyOutside(PIT_ROLE)
+    const busyPit = busy   // pits are done by the scouts, so the same people are busy
     const free = (name) => (busy.has(name) ? '' : name)
     const freePit = (name) => (busyPit.has(name) ? '' : name)
     return {
@@ -209,7 +208,8 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   // are filled from those people and nobody else, so a lead decides the pool
   // once, in Event Roles, and the tab offers only them.
   const scoutPool = (data?.fixedRoles || []).find(r => r.role === SCOUTING_ROLE)?.members || []
-  const pitPool = (data?.fixedRoles || []).find(r => r.role === PIT_ROLE)?.members || []
+  // The same people do the pits: one Scouting role, both jobs.
+  const pitPool = scoutPool
 
   const shuffleEverything = () => {
     if (!roster.length) return
@@ -217,7 +217,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     // put on it yet, everyone is in the pool and the people dealt a position
     // become the role, so the tab and the role still agree afterwards.
     const scouts = shuffle(scoutPool.length ? scoutPool : roster)
-    const pits = shuffle(pitPool)
+    const pits = scouts
     const others = shuffle(roster.filter(n => !scouts.includes(n) && !pits.includes(n)))
     let at = 0
     // Round-robin: when there are fewer people than jobs, start the deck again
@@ -236,7 +236,6 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       const standBy = take()
       const fixedRoles = p.fixedRoles.map(r => r.role === SCOUTING_ROLE
         ? { ...r, members: scoutPool.length ? r.members : [...new Set(dealt)] }
-        : r.role === PIT_ROLE ? r
         : { ...r, members: [nextOther()] })
       // Pit visits shared round the pit scouts, when there are any.
       let pt = 0
@@ -483,67 +482,109 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
           {tab === 'pit' && (
             <>
               <p className="text-xs text-gray-400 mb-3">
-                Which teams get a pit visit and who makes it. People are picked
-                from the Pit Scouting role in Event Roles. A pit is visited
-                once, so there is no match number.
+                Each scout visits two pits. Type the team numbers next to each
+                person; the people are the same ones scouting matches. A pit is
+                visited once, so there is no match number.
               </p>
               {isLead && !pitPool.length && (
                 <p className="text-xs text-gray-400 mb-3">
-                  Nobody is on the <button onClick={() => setTab('roles')} className="font-semibold text-pastel-blue-dark hover:underline">Pit Scouting role</button> yet, so there is nobody to give a visit to.
+                  Nobody is on the <button onClick={() => setTab('roles')} className="font-semibold text-pastel-blue-dark hover:underline">Scouting role</button> yet, so there is nobody to give a pit to.
                 </p>
               )}
               <div className="space-y-2">
-                {(data.pitTeams || []).map((row, i) => (
-                  <div key={row.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
-                    <div className="w-28 shrink-0 min-w-0">
-                      <label className="block text-[10px] uppercase tracking-wide text-gray-400">Team</label>
-                      <input
-                        value={row.team || ''}
-                        onChange={e => update(p => { const t = [...p.pitTeams]; t[i] = { ...t[i], team: e.target.value }; return { ...p, pitTeams: t } })}
-                        disabled={!isLead}
-                        inputMode="numeric"
-                        placeholder="—"
-                        className="w-full text-sm font-semibold border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
-                      />
-                      <span className="block text-[10px] text-gray-400 truncate">{teamNameOf(row.team)}</span>
+                {pitPool.map(person => {
+                  const mine = (data.pitTeams || []).filter(t => t.who === person)
+                  // Two slots to fill, plus any extra a lead added.
+                  const slots = Math.max(2, mine.length)
+                  return (
+                    <div key={person} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3 flex-wrap">
+                      <div className="w-36 shrink-0 min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wide text-gray-400">Scout</span>
+                        <span className="block text-sm font-semibold text-gray-800 truncate">{person}</span>
+                      </div>
+                      {Array.from({ length: slots }).map((_, k) => {
+                        const row = mine[k]
+                        return (
+                          <div key={row ? row.id : `new-${k}`} className="w-28 shrink-0 min-w-0">
+                            <label className="block text-[10px] uppercase tracking-wide text-gray-400">Team {k + 1}</label>
+                            <input
+                              value={row ? (row.team || '') : ''}
+                              onChange={e => update(p => {
+                                const t = [...(p.pitTeams || [])]
+                                if (row) { const i = t.findIndex(x => x.id === row.id); t[i] = { ...t[i], team: e.target.value } }
+                                else t.push({ id: uid(), team: e.target.value, who: person })
+                                return { ...p, pitTeams: t }
+                              })}
+                              disabled={!isLead}
+                              inputMode="numeric"
+                              placeholder="—"
+                              className="w-full text-sm font-semibold border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
+                            />
+                            <span className="block text-[10px] text-gray-400 truncate">{row ? teamNameOf(row.team) : ''}</span>
+                          </div>
+                        )
+                      })}
+                      {isLead && (
+                        <div className="flex items-center gap-1 ml-auto">
+                          <button onClick={() => update(p => ({ ...p, pitTeams: [...(p.pitTeams || []), { id: uid(), team: '', who: person }] }))} className="p-1 rounded hover:bg-gray-100" title="One more pit for this scout"><Plus size={14} className="text-gray-400" /></button>
+                          {mine.length > 0 && <button onClick={() => update(p => ({ ...p, pitTeams: (p.pitTeams || []).filter(x => x.who !== person) }))} className="p-1 rounded hover:bg-red-50" title="Clear this scout's pits"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <Slot label="Who" value={row.who} isLead={isLead} options={pitPool} onChange={v => update(p => { const t = [...p.pitTeams]; t[i] = { ...t[i], who: v }; return { ...p, pitTeams: t } })} />
+                  )
+                })}
+                {(() => {
+                  const loose = (data.pitTeams || []).filter(t => !pitPool.includes(t.who) && String(t.team || '').trim())
+                  return loose.length ? (
+                    <div className="bg-white rounded-xl p-3 shadow-sm border border-amber-100">
+                      <p className="text-xs text-amber-700 font-semibold mb-2">Not given to anyone yet</p>
+                      <div className="space-y-2">
+                        {loose.map(row => (
+                          <div key={row.id} className="flex items-center gap-3">
+                            <span className="w-28 text-sm font-semibold text-gray-800">{row.team} <span className="block text-[10px] text-gray-400 font-normal truncate">{teamNameOf(row.team)}</span></span>
+                            <div className="flex-1 min-w-0"><Slot label="Who" value={row.who} isLead={isLead} options={pitPool} onChange={v => update(p => { const t = [...p.pitTeams]; const i = t.findIndex(x => x.id === row.id); t[i] = { ...t[i], who: v }; return { ...p, pitTeams: t } })} /></div>
+                            {isLead && <button onClick={() => update(p => ({ ...p, pitTeams: p.pitTeams.filter(x => x.id !== row.id) }))} className="p-1 rounded hover:bg-red-50 shrink-0" title="Remove"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    {isLead && (
-                      <button onClick={() => update(p => ({ ...p, pitTeams: p.pitTeams.filter(x => x.id !== row.id) }))} className="p-1 rounded hover:bg-red-50 shrink-0" title="Remove">
-                        <Trash2 size={14} className="text-gray-300 hover:text-red-400" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {!(data.pitTeams || []).length && <p className="text-sm text-gray-400 italic">No pit visits yet.</p>}
+                  ) : null
+                })()}
+                {!pitPool.length && !(data.pitTeams || []).length && <p className="text-sm text-gray-400 italic">No pit visits yet.</p>}
               </div>
               {isLead && (
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => update(p => ({ ...p, pitTeams: [...(p.pitTeams || []), { id: uid(), team: '', who: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Team</button>
                   <button
                     onClick={() => update(p => {
-                      const have = new Set((p.pitTeams || []).map(t => String(t.team || '').trim()))
+                      // Every team on the match schedule not already listed, dealt
+                      // two per scout in turn.
+                      const have = new Set((p.pitTeams || []).map(t => String(t.team || '').trim()).filter(Boolean))
                       const fresh = []
                       ;(p.matchSchedule || []).forEach(m => ['red1', 'red2', 'blue1', 'blue2'].forEach(k => {
                         const t = String(m[k] || '').trim()
-                        if (t && !have.has(t)) { have.add(t); fresh.push({ id: uid(), team: t, who: '' }) }
+                        if (t && !have.has(t)) { have.add(t); fresh.push(t) }
                       }))
-                      return { ...p, pitTeams: [...(p.pitTeams || []), ...fresh] }
+                      const kept = (p.pitTeams || []).filter(t => String(t.team || '').trim())
+                      const load = {}; kept.forEach(t => { if (t.who) load[t.who] = (load[t.who] || 0) + 1 })
+                      const rows = fresh.map(team => {
+                        const who = pitPool.length ? pitPool.slice().sort((a, b) => (load[a] || 0) - (load[b] || 0))[0] : ''
+                        if (who) load[who] = (load[who] || 0) + 1
+                        return { id: uid(), team, who }
+                      })
+                      return { ...p, pitTeams: [...kept, ...rows] }
                     })}
-                    title="Every team on the match schedule that is not listed here yet"
+                    title="Every team on the match schedule that is not listed yet, shared out so each scout has about two"
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700"
                   >
-                    <ClipboardList size={14} /> Add teams from the match schedule
+                    <ClipboardList size={14} /> Fill from the match schedule
                   </button>
                   <button
-                    onClick={() => update(p => { let k = 0; return { ...p, pitTeams: (p.pitTeams || []).map(t => ({ ...t, who: pitPool[k++ % pitPool.length] })) } })}
-                    disabled={!pitPool.length || !(data.pitTeams || []).length}
-                    title={pitPool.length ? 'Deal the visits out evenly, in turn, to the pit scouts' : 'Put people on the Pit Scouting role first'}
+                    onClick={() => update(p => { let k = 0; const rows = (p.pitTeams || []).filter(t => String(t.team || '').trim()); return { ...p, pitTeams: rows.map(t => ({ ...t, who: pitPool[k++ % pitPool.length] })) } })}
+                    disabled={!pitPool.length || !(data.pitTeams || []).some(t => String(t.team || '').trim())}
+                    title={pitPool.length ? 'Deal the pits out evenly, in turn, to the scouts' : 'Put people on the Scouting role first'}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800 disabled:bg-gray-100 disabled:text-gray-400"
                   >
-                    <Shuffle size={14} /> Share out
+                    <Shuffle size={14} /> Share out evenly
                   </button>
                 </div>
               )}
