@@ -10,6 +10,7 @@ import { useDayDoc } from '../hooks/useDayDoc'
 import { requestScout, SCOUT_SAVED } from '../lib/scoutHandoff'
 import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
+import { ModeBar, ModePanel, useDefaultMode } from './CompDayModes'
 import {
   SCOUTING_ROLE, PIT_ROLE, roleMembers, allAssignments, assignmentsFor,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys,
@@ -32,6 +33,8 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const { username } = useUser()
   const doc = useDayDoc(day ? `day-comp-${day.id}` : null)
+  // Scout, Media, Pit or Drive: your role picks the first one, you pick after.
+  const [mode, setMode] = useDefaultMode(day)
   const { matches: scouted, pits: pitScouted } = useScouted()
   // Who has a form open on which job, right now.
   const who = useWhoIsScouting(day?.id)
@@ -73,7 +76,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
               Competition Day{username ? `, ${username}` : ''}! <span title="Competition">🏁</span>
             </h1>
             <p className="text-sm text-gray-500 truncate">
-              {day?.name ? `${day.name} · ` : ''}What's happening, where to go, and what's next.
+              {day?.name ? `${day.name} · ` : ''}{mode === 'drive' ? 'Our next match, who we are with and against.' : mode === 'pit' ? 'Is the robot ready, and what needs fixing.' : mode === 'media' ? 'The shot list, and the photos going up.' : "What's happening, where to go, and what's next."}
             </p>
           </div>
           {canPause && day && (
@@ -102,6 +105,8 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
           </Card>
         ) : (
           <>
+            <ModeBar mode={mode} onChange={setMode} />
+            {mode !== 'scout' ? <ModePanel mode={mode} day={day} doc={doc} /> : (<>
             <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
 
             {/* The rule book, one tap away. Scouts argue about what counted;
@@ -130,6 +135,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
                           button={{ label: 'Match Scouting', onClick: () => onTabChange('scouting') }} />
               </div>
             </div>
+            </>)}
           </>
         )}
       </main>
