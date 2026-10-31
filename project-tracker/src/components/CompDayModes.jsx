@@ -145,6 +145,10 @@ function useDayNotes(sessionId) {
 
 // ── Our matches, from the day's schedule ───────────────────────────────────
 const SLOTS = [['red1', 'Red 1', 'red'], ['red2', 'Red 2', 'red'], ['blue1', 'Blue 1', 'blue'], ['blue2', 'Blue 2', 'blue']]
+// Our matches. When our number sits in a slot, that match is ours and we
+// know the colour, partners and opponents. When no match is marked yet, the
+// whole schedule is shown the way the scouts see it — every match by number,
+// slot not set — so Drive is never blank on a day the scouts can work.
 function ourMatches(doc, team) {
   const rows = [...(doc?.matchSchedule || [])].filter(m => String(m.match || '').trim())
     .sort((a, b) => Number(a.match) - Number(b.match))
@@ -157,7 +161,11 @@ function ourMatches(doc, team) {
     const opponents = SLOTS.filter(([, , c]) => c !== color).map(([k]) => String(m[k] || '').trim()).filter(Boolean)
     out.push({ match: String(m.match).trim(), position: label, color, partner, opponents, time: m.time || m.start || '' })
   })
-  return out
+  if (out.length) return out
+  return rows.map(m => ({
+    match: String(m.match).trim(), position: 'slot not set', color: 'none', untagged: true,
+    partner: [], opponents: SLOTS.map(([k]) => String(m[k] || '').trim()).filter(Boolean), time: m.time || m.start || '',
+  }))
 }
 
 // What scouting says about a team, boiled down to a line.
@@ -253,36 +261,17 @@ function DriveMode({ day, doc }) {
   const comingSoon = () => { setSoon(true); setTimeout(() => setSoon(false), 2200) }
 
   if (!doc) return <Card title="Drive Team" icon={Gamepad2}><Empty>Loading the day…</Empty></Card>
-  if (!matches.length) {
-    const all = [...(doc?.matchSchedule || [])].filter(m => String(m.match || '').trim()).sort((a, b) => Number(a.match) - Number(b.match))
-    return (
-      <div className="space-y-4">
-        <Card title="Drive Team" icon={Gamepad2}>
-          <Empty>
-            {all.length
-              ? `The day has ${all.length} match${all.length === 1 ? '' : 'es'} but none is marked as ours yet. A lead picks "We are Red 1 / Blue 2…" on each of our matches under Competition Day → Matches, and this page fills in.`
-              : 'No matches in this day\'s schedule yet. A lead sets them up under Competition Day → Matches.'}
-          </Empty>
-        </Card>
-        {all.length > 0 && (
-          <Card title={`Day schedule · ${all.length} match${all.length === 1 ? '' : 'es'}`} icon={CalendarDays}>
-            <div className="flex flex-wrap gap-1.5">
-              {all.map(m => <span key={m.id || m.match} className="px-2 py-1 rounded-md bg-white/70 text-xs font-semibold text-gray-600">M{m.match}</span>)}
-            </div>
-          </Card>
-        )}
-      </div>
-    )
-  }
+  if (!matches.length) return <Card title="Drive Team" icon={Gamepad2}><Empty>No matches in this day's schedule yet. A lead sets them up under Competition Day → Matches.</Empty></Card>
   return (
     <div className="space-y-4">
       {next ? (
-        <section className={`rounded-xl shadow-sm p-4 text-white ${next.color === 'red' ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
+        <section className={`rounded-xl shadow-sm p-4 text-white ${next.color === 'red' ? 'bg-gradient-to-br from-red-500 to-rose-600' : next.color === 'blue' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-slate-500 to-slate-700'}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-wide opacity-80">Up next</p>
-              <h2 className="text-2xl font-extrabold leading-tight">Match {next.match} · {next.position}</h2>
+              <h2 className="text-2xl font-extrabold leading-tight">Match {next.match}{next.untagged ? '' : ` · ${next.position}`}</h2>
               {next.time && <p className="text-sm opacity-90">{next.time}</p>}
+              {next.untagged && <p className="text-xs opacity-80 mt-0.5">Our slot isn't set for this match. A lead picks "We are Red 1 / Blue 2…" under Competition Day → Matches.</p>}
             </div>
             <button type="button" onClick={() => add({ kind: 'played', match: next.match, author: username })}
               className="shrink-0 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-sm font-semibold">
@@ -290,6 +279,12 @@ function DriveMode({ day, doc }) {
             </button>
           </div>
           {soon && <p className="mt-2 text-xs bg-white/20 rounded-lg px-2 py-1 inline-block">💬 Messaging other teams is coming soon.</p>}
+          {next.untagged ? (
+            <div className="mt-3">
+              <p className="text-xs uppercase tracking-wide opacity-80 mb-1">In this match</p>
+              <div className="space-y-1">{next.opponents.map(t => <TeamLine key={t} team={t} s={summaries[t]} onMessage={comingSoon} />)}{!next.opponents.length && <p className="text-xs opacity-80">No team numbers typed yet.</p>}</div>
+            </div>
+          ) : (
           <div className="grid sm:grid-cols-2 gap-3 mt-3">
             <div>
               <p className="text-xs uppercase tracking-wide opacity-80 mb-1">With us</p>
@@ -300,6 +295,7 @@ function DriveMode({ day, doc }) {
               <div className="space-y-1">{next.opponents.map(t => <TeamLine key={t} team={t} s={summaries[t]} onMessage={comingSoon} />)}</div>
             </div>
           </div>
+          )}
         </section>
       ) : (
         <Card title="Drive Team" icon={Gamepad2}><Empty>Every match on the schedule is marked played. Nice work.</Empty></Card>
@@ -343,10 +339,10 @@ function DriveMode({ day, doc }) {
             const done = played.has(m.match), isNext = next && m.match === next.match
             return (
               <div key={m.match} className={`flex items-start gap-2 text-sm rounded-lg px-2 py-1.5 ${isNext ? 'bg-pastel-yellow/40 ring-1 ring-pastel-yellow-dark/40' : done ? 'opacity-50' : ''}`}>
-                <span className={`px-2 py-0.5 rounded-md text-white text-xs font-bold shrink-0 ${m.color === 'red' ? 'bg-red-500' : 'bg-blue-500'}`}>M{m.match}</span>
+                <span className={`px-2 py-0.5 rounded-md text-white text-xs font-bold shrink-0 ${m.color === 'red' ? 'bg-red-500' : m.color === 'blue' ? 'bg-blue-500' : 'bg-slate-400'}`}>M{m.match}</span>
                 <div className="min-w-0 flex-1">
                   <span className="text-gray-700 font-semibold">{m.position}</span>{m.time ? <span className="text-gray-400"> · {m.time}</span> : null}
-                  <span className="block text-xs text-gray-500">with {m.partner.join(', ') || '—'} · vs {m.opponents.join(', ') || '—'}</span>
+                  <span className="block text-xs text-gray-500">{m.untagged ? (m.opponents.length ? 'teams: '+m.opponents.join(', ') : 'no team numbers yet') : `with ${m.partner.join(', ') || '—'} · vs ${m.opponents.join(', ') || '—'}`}</span>
                   {!done && (m.partner.length + m.opponents.length) > 0 && (
                     <span className="block text-[11px] text-gray-400">
                       {[...m.partner, ...m.opponents].map(t => summaries[t] ? `${t}: ${summaries[t].teleop ?? '–'} teleop` : `${t}: not scouted`).join(' · ')}
