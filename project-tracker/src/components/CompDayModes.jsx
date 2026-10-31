@@ -252,7 +252,27 @@ function DriveMode({ day, doc }) {
   const comingSoon = () => { setSoon(true); setTimeout(() => setSoon(false), 2200) }
 
   if (!doc) return <Card title="Drive Team" icon={Gamepad2}><Empty>Loading the day…</Empty></Card>
-  if (!matches.length) return <Card title="Drive Team" icon={Gamepad2}><Empty>No matches for team {team} in this day's schedule yet. A lead adds them under Competition Day → Matches.</Empty></Card>
+  if (!matches.length) {
+    const all = [...(doc?.matchSchedule || [])].filter(m => String(m.match || '').trim()).sort((a, b) => Number(a.match) - Number(b.match))
+    return (
+      <div className="space-y-4">
+        <Card title="Drive Team" icon={Gamepad2}>
+          <Empty>
+            {all.length
+              ? `The day has ${all.length} match${all.length === 1 ? '' : 'es'} but none is marked as ours yet. A lead picks "We are Red 1 / Blue 2…" on each of our matches under Competition Day → Matches, and this page fills in.`
+              : 'No matches in this day\'s schedule yet. A lead sets them up under Competition Day → Matches.'}
+          </Empty>
+        </Card>
+        {all.length > 0 && (
+          <Card title={`Day schedule · ${all.length} match${all.length === 1 ? '' : 'es'}`} icon={CalendarDays}>
+            <div className="flex flex-wrap gap-1.5">
+              {all.map(m => <span key={m.id || m.match} className="px-2 py-1 rounded-md bg-white/70 text-xs font-semibold text-gray-600">M{m.match}</span>)}
+            </div>
+          </Card>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="space-y-4">
       {next ? (
