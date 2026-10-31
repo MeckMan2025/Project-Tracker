@@ -248,7 +248,11 @@ function DriveMode({ day, doc }) {
   const { notes, add } = useDayNotes(day?.id)
   const matches = useMemo(() => ourMatches(doc, team), [doc, team])
   const played = useMemo(() => new Set(notes.filter(n => n.kind === 'played').map(n => n.match)), [notes])
-  const next = matches.find(m => !played.has(m.match)) || null
+  const upNext = matches.find(m => !played.has(m.match)) || null
+  // Tap a match on the schedule and the card, the stats and the chat are
+  // about that match; otherwise they follow the next one to play.
+  const [picked, setPicked] = useState(null)
+  const next = (picked && matches.find(m => m.match === picked)) || upNext
   const teams = useMemo(() => [...new Set(matches.flatMap(m => [...m.partner, ...m.opponents]))], [matches])
   const summaries = useTeamSummaries(teams, daySince(day))
   const [checks, setChecks] = useState({})
@@ -268,17 +272,20 @@ function DriveMode({ day, doc }) {
         <section className={`rounded-xl shadow-sm p-4 text-white ${next.color === 'red' ? 'bg-gradient-to-br from-red-500 to-rose-600' : next.color === 'blue' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-slate-500 to-slate-700'}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-wide opacity-80">Up next</p>
+              <p className="text-xs uppercase tracking-wide opacity-80">{next === upNext ? 'Up next' : played.has(next.match) ? 'Played' : 'Looking at'}{next !== upNext && upNext ? <button type="button" onClick={() => setPicked(null)} className="ml-2 underline opacity-90">back to next</button> : null}</p>
               <h2 className="text-2xl font-extrabold leading-tight">Match {next.match}{next.untagged ? '' : ` · ${next.position}`}</h2>
               {next.time && <p className="text-sm opacity-90">{next.time}</p>}
               {next.untagged && <p className="text-xs opacity-80 mt-0.5">Our slot isn't set for this match. A lead picks "We are Red 1 / Blue 2…" under Competition Day → Matches.</p>}
             </div>
-            <button type="button" onClick={() => add({ kind: 'played', match: next.match, author: username })}
-              className="shrink-0 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-sm font-semibold">
-              <Flag size={14} className="inline mr-1" />Mark played
-            </button>
+            {!played.has(next.match) && (
+              <button type="button" onClick={() => add({ kind: 'played', match: next.match, author: username })}
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-sm font-semibold">
+                <Flag size={14} className="inline mr-1" />Mark played
+              </button>
+            )}
           </div>
           {soon && <p className="mt-2 text-xs bg-white/20 rounded-lg px-2 py-1 inline-block">💬 Messaging other teams is coming soon.</p>}
+          <p className="text-[11px] opacity-75 mt-2">Tap a team for its stats so far.</p>
           {next.untagged ? (
             <div className="mt-3">
               <p className="text-xs uppercase tracking-wide opacity-80 mb-1">In this match</p>
@@ -317,11 +324,11 @@ function DriveMode({ day, doc }) {
             </ul>
             <p className="text-[11px] text-gray-400 mt-2">Resets for each match. Only on this phone.</p>
           </Card>
-          <Card title="Strategy notes" icon={Gamepad2}>
+          <Card title={`Match ${next.match} chat`} icon={MessageCircle}>
             <div className="space-y-1.5 mb-2 max-h-40 overflow-y-auto">
               {driveNotes.length ? driveNotes.map(n => (
-                <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}</div>
-              )) : <Empty>Nothing yet. Strategy lead, drive coach, scouts: say what matters for this match.</Empty>}
+                <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
+              )) : <Empty>Nothing yet. Drive team, strategy lead, scouts: say what matters for this match.</Empty>}
             </div>
             <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: next.match, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
               <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`A note for match ${next.match}…`}
@@ -333,12 +340,13 @@ function DriveMode({ day, doc }) {
       )}
 
       <Card title={`Our schedule · ${matches.length} match${matches.length === 1 ? '' : 'es'}`} icon={CalendarDays}
-            action={played.size ? <span className="text-xs text-gray-400">{played.size} played</span> : null}>
+            action={<span className="text-xs text-gray-400">{played.size ? `${played.size} played · ` : ''}tap a match for its stats and chat</span>}>
         <div className="space-y-1.5">
           {matches.map(m => {
             const done = played.has(m.match), isNext = next && m.match === next.match
             return (
-              <div key={m.match} className={`flex items-start gap-2 text-sm rounded-lg px-2 py-1.5 ${isNext ? 'bg-pastel-yellow/40 ring-1 ring-pastel-yellow-dark/40' : done ? 'opacity-50' : ''}`}>
+              <button type="button" key={m.match} onClick={() => setPicked(m.match === upNext?.match ? null : m.match)} title="Open this match: stats and chat"
+                className={`w-full text-left flex items-start gap-2 text-sm rounded-lg px-2 py-1.5 hover:bg-white/80 ${isNext ? 'bg-pastel-yellow/40 ring-1 ring-pastel-yellow-dark/40' : done ? 'opacity-50' : ''}`}>
                 <span className={`px-2 py-0.5 rounded-md text-white text-xs font-bold shrink-0 ${m.color === 'red' ? 'bg-red-500' : m.color === 'blue' ? 'bg-blue-500' : 'bg-slate-400'}`}>M{m.match}</span>
                 <div className="min-w-0 flex-1">
                   <span className="text-gray-700 font-semibold">{m.position}</span>{m.time ? <span className="text-gray-400"> · {m.time}</span> : null}
@@ -349,8 +357,8 @@ function DriveMode({ day, doc }) {
                     </span>
                   )}
                 </div>
-                {done ? <CheckCircle2 size={16} className="text-green-500 shrink-0 mt-0.5" /> : isNext ? <span className="text-[11px] font-bold text-pastel-yellow-dark shrink-0">next</span> : null}
-              </div>
+                {done ? <CheckCircle2 size={16} className="text-green-500 shrink-0 mt-0.5" /> : isNext ? <span className="text-[11px] font-bold text-pastel-yellow-dark shrink-0">{next === upNext ? 'next' : 'open'}</span> : null}
+              </button>
             )
           })}
         </div>
