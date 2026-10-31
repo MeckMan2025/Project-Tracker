@@ -23,6 +23,10 @@ import { SCOUTING_ROLE, PIT_ROLE } from '../lib/dayRota'
 // wrong quietly. Leads pick real people from the real roster instead.
 // Event roles that used to be offered and are not any more.
 const RETIRED_ROLES = ['Observation', PIT_ROLE]
+// Roles a person may hold as well as Scouting. Pit crew scout between
+// repairs, so they are offered on both and neither clears the other.
+const DOUBLES_WITH_SCOUTING = ['Pit Crew']
+const canShare = (a, b) => (a === SCOUTING_ROLE && DOUBLES_WITH_SCOUTING.includes(b)) || (b === SCOUTING_ROLE && DOUBLES_WITH_SCOUTING.includes(a))
 
 const DEFAULT_DATA = {
   fixedRoles: [
@@ -107,7 +111,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   // cleared, not the role, because the role is the deliberate choice and the
   // position is what Randomise or an older day left behind.
   const clearConflicts = (d) => {
-    const busyOutside = (role) => new Set(d.fixedRoles.filter(r => r.role !== role).flatMap(r => r.members || []))
+    const busyOutside = (role) => new Set(d.fixedRoles.filter(r => r.role !== role && !canShare(r.role, role)).flatMap(r => r.members || []))
     const busy = busyOutside(SCOUTING_ROLE)
     const busyPit = busy   // pits are done by the scouts, so the same people are busy
     const free = (name) => (busy.has(name) ? '' : name)
@@ -339,7 +343,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                       forEvent
                       value={role.members}
                       // One job each: somebody already on another role is not offered here.
-                      exclude={data.fixedRoles.filter((_, k) => k !== i).flatMap(r => r.members || [])}
+                      exclude={data.fixedRoles.filter((r, k) => k !== i && !canShare(r.role, role.role)).flatMap(r => r.members || [])}
                       onChange={members => update(p => { const r = [...p.fixedRoles]; r[i] = { ...r[i], members }; return clearConflicts({ ...p, fixedRoles: r }) })}
                     />
                   ) : (
