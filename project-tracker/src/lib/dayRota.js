@@ -116,3 +116,13 @@ export function pitAssignmentsFor(doc, username) {
 export function pitScoutedKeys(rows) {
   return new Set((rows || []).map(r => String(r.team_number || '').trim()).filter(Boolean))
 }
+
+// Rows written before this day was created belong to an earlier event and
+// must not turn this day's jobs green. The day's creation time is the line;
+// an older day without one falls back to the start of its date.
+export const daySince = (day) => {
+  if (!day) return null
+  if (day.created_at) return day.created_at
+  if (day.session_date) return `${day.session_date}T00:00:00`
+  return null
+}

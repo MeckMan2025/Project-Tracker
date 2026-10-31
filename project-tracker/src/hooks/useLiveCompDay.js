@@ -32,7 +32,7 @@ export function useLiveCompDay(scope) {
         const authed = await ensureUserToken()
         if (!authed) return
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/comp_day_sessions?${scope}&is_active=eq.true&order=created_at.desc&limit=1&select=id,name,session_date`,
+          `${supabaseUrl}/rest/v1/comp_day_sessions?${scope}&is_active=eq.true&order=created_at.desc&limit=1&select=id,name,session_date,created_at`,
           { headers: restHeaders() }
         )
         if (!res.ok || cancelled) return
@@ -42,7 +42,7 @@ export function useLiveCompDay(scope) {
         if (found) {
           misses = 0
           // Same day, same object: no re-render for a poll that changed nothing.
-          setLive(prev => (prev && prev.id === found.id && prev.name === found.name && prev.session_date === found.session_date) ? prev : found)
+          setLive(prev => (prev && prev.id === found.id && prev.name === found.name && prev.session_date === found.session_date && prev.created_at === found.created_at) ? prev : found)
         } else if (force === true || ++misses >= 2) {
           misses = 0
           setLive(null)

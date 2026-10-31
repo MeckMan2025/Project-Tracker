@@ -9,6 +9,7 @@ const CHANGELOG = [
     date: '2026-10-31',
     items: [
       '\u{1F3C1} Competition Day has four modes: Scout, Media, Pit and Drive. The tabs across the top are the roles you hold on the day \u2014 two roles, two tabs, each named after the role \u2014 and the current block\u2019s role is where you land. One role, no tabs, just your mode. Leads see all four',
+      '\u{1F9F9} A new Competition Day starts clean. Scouting rows from an earlier event no longer turn this day\u2019s jobs green: only rows written since the day was created count, on the board and in Drive\u2019s team summaries',
       '\u{1F6A9} Each match on the schedule has a \u201cWe are\u201d picker \u2014 Red 1, Red 2, Blue 1, Blue 2 or not playing. It puts our number in that slot, so Drive and Pit know which matches are ours even before any other team is typed. Drive says so when none is marked yet',
       '\u{1F3AE} Drive mode has the whole schedule: every one of our matches with position, partners and opponents, the next one highlighted, played ones ticked, and a line of what scouting says about each team so far. Tap a team on the next-match card to see every match our scouts wrote up for them, with comments. A Message button sits beside each team \u2014 coming soon',
       '\u{1F522} A match schedule with numbers but no teams still works. Type how many matches there are and the day is set up; every scout sees Match 7 \u00b7 Red 1 on their board, the form opens on that match, and they type the team they can see. It turns green once they save a row for that match',

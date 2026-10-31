@@ -12,7 +12,7 @@ import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { ModeBar, ModePanel, useDefaultMode } from './CompDayModes'
 import {
-  SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey,
+  SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey, daySince,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys,
 } from '../lib/dayRota'
 
@@ -35,7 +35,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const doc = useDayDoc(day ? `day-comp-${day.id}` : null)
   // Scout, Media, Pit or Drive: your role picks the first one, you pick after.
   const { mode, setMode, tabs: modeTabs } = useDefaultMode(day)
-  const { matches: scouted, pits: pitScouted } = useScouted()
+  const { matches: scouted, pits: pitScouted } = useScouted(daySince(day))
   // Who has a form open on which job, right now.
   const who = useWhoIsScouting(day?.id)
   const busy = useMemo(() => {
@@ -258,7 +258,7 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
 // and match so a team scouted in match 3 does not mark match 5 done; pit
 // rows by team alone, since a pit is visited once. Kept current: a saved
 // form anywhere on the team turns its row green here within a moment.
-function useScouted() {
+function useScouted(since) {
   const [matches, setMatches] = useState(null)   // null = still loading
   const [pits, setPits] = useState(null)
   useEffect(() => {
@@ -274,8 +274,8 @@ function useScouted() {
         try {
           await ensureUserToken()
           const [m, p] = await Promise.all([
-            fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&select=team_number,match_number,scout`, { headers: restHeaders() }),
-            fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number`, { headers: restHeaders() }),
+            fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&select=team_number,match_number,scout`, { headers: restHeaders() }),
+            fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}`, { headers: restHeaders() }),
           ])
           const mr = m.ok ? await m.json() : []
           const pr = p.ok ? await p.json() : []
@@ -308,7 +308,7 @@ function useScouted() {
       document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [since])
   return { matches, pits }
 }
 

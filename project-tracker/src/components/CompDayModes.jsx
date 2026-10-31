@@ -7,6 +7,7 @@ import { storedTeamScope, stampStored } from '../lib/teamScope'
 import { uploadImageFile } from '../lib/photos'
 import { HOME_TEAM_NUMBER } from '../data/team'
 import PitChecklist from './PitChecklist'
+import { daySince } from '../lib/dayRota'
 
 // The four ways to spend a Competition Day. The board shows one at a time:
 //
@@ -160,7 +161,7 @@ function ourMatches(doc, team) {
 }
 
 // What scouting says about a team, boiled down to a line.
-function useTeamSummaries(teams) {
+function useTeamSummaries(teams, since) {
   const key = teams.slice().sort().join(',')
   const [rows, setRows] = useState([])
   useEffect(() => {
@@ -170,12 +171,12 @@ function useTeamSummaries(teams) {
       try {
         await ensureUserToken()
         const list = key.split(',').map(t => `"${t}"`).join(',')
-        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&team_number=in.(${list})&select=team_number,match_number,scout,auto_made,teleop_made,endgame_made,endgame,defense,breakdowns,driver_skill,parking,penalties,comments,created_at&order=created_at.desc`, { headers: restHeaders() })
+        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&team_number=in.(${list})&select=team_number,match_number,scout,auto_made,teleop_made,endgame_made,endgame,defense,breakdowns,driver_skill,parking,penalties,comments,created_at&order=created_at.desc`, { headers: restHeaders() })
         if (on && res.ok) setRows(await res.json())
       } catch { /* leave empty */ }
     })()
     return () => { on = false }
-  }, [key])
+  }, [key, since])
   return useMemo(() => {
     const by = {}
     rows.forEach(r => { (by[r.team_number] = by[r.team_number] || []).push(r) })
@@ -241,7 +242,7 @@ function DriveMode({ day, doc }) {
   const played = useMemo(() => new Set(notes.filter(n => n.kind === 'played').map(n => n.match)), [notes])
   const next = matches.find(m => !played.has(m.match)) || null
   const teams = useMemo(() => [...new Set(matches.flatMap(m => [...m.partner, ...m.opponents]))], [matches])
-  const summaries = useTeamSummaries(teams)
+  const summaries = useTeamSummaries(teams, daySince(day))
   const [checks, setChecks] = useState({})
   const [note, setNote] = useState('')
   useEffect(() => { try { setChecks(JSON.parse(localStorage.getItem(`drive-check-${day?.id}-${next?.match}`) || '{}')) } catch { setChecks({}) } }, [day?.id, next?.match])
