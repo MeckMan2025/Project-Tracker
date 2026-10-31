@@ -28,18 +28,23 @@ export const MODES = [
   { id: 'drive', label: 'Drive', icon: Gamepad2, tint: 'bg-purple-500' },
 ]
 const ROLE_MODE = { scouting: 'scout', 'pit-crew': 'pit', 'drive-team': 'drive', spirit: 'media', strategy: 'drive', safety: 'pit' }
+const ROLE_LABEL = { scouting: 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team': 'Drive Team', spirit: 'Spirit', strategy: 'Strategy', safety: 'Safety' }
 const MODE_LS = 'comp-day-mode'
 
-export function ModeBar({ mode, onChange }) {
+// One tab per role you hold today, named after the role. Two roles, two
+// tabs. No role on this day, every mode.
+export function ModeBar({ mode, onChange, tabs }) {
+  const shown = tabs && tabs.length ? tabs : MODES.map(m => ({ ...m }))
+  if (shown.length < 2) return null
   return (
-    <div className="grid grid-cols-4 gap-1.5 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-1.5">
-      {MODES.map(({ id, label, icon: Icon, tint }) => {
+    <div className={`grid gap-1.5 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-1.5`} style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
+      {shown.map(({ id, label, icon: Icon, tint }) => {
         const on = mode === id
         return (
           <button key={id} type="button" onClick={() => onChange(id)}
             className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
               on ? `${tint} text-white shadow` : 'text-gray-600 hover:bg-gray-100'}`}>
-            <Icon size={16} /> {label}
+            <Icon size={16} /> <span className="truncate">{label}</span>
           </button>
         )
       })}
@@ -55,6 +60,7 @@ export function useDefaultMode(day) {
     try { return localStorage.getItem(MODE_LS) || null } catch { return null }
   })
   const [fromRole, setFromRole] = useState(null)
+  const [roles, setRoles] = useState([])      // every role you hold on this day, any block
   useEffect(() => {
     if (!day?.id || !username) return
     let on = true
@@ -72,14 +78,23 @@ export function useDefaultMode(day) {
         const active = (blocks || []).find(b => b.is_active)
         const pick = (active && assigns.find(a => a.block_id === active.id)) || assigns[0]
         if (pick && ROLE_MODE[pick.role]) setFromRole(ROLE_MODE[pick.role])
+        setRoles([...new Set(assigns.map(a => a.role).filter(r => ROLE_MODE[r]))])
       } catch { /* fall back to the last-used mode */ }
     })()
     return () => { on = false }
   }, [day?.id, username])
   const setMode = (m) => { setModeState(m); try { localStorage.setItem(MODE_LS, m) } catch { /* ignore */ } }
-  // A role only sets the mode until you choose one yourself.
-  const chosen = mode || fromRole || 'scout'
-  return [chosen, setMode]
+  // The tabs: one per mode your roles reach, named after the role(s).
+  const tabs = useMemo(() => {
+    if (!roles.length) return null
+    return MODES.filter(m => roles.some(r => ROLE_MODE[r] === m.id))
+      .map(m => ({ ...m, label: roles.filter(r => ROLE_MODE[r] === m.id).map(r => ROLE_LABEL[r]).join(' / ') }))
+  }, [roles])
+  // A role only sets the mode until you choose one yourself; a saved choice
+  // that isn't one of your tabs today falls back to your role.
+  const allowed = tabs ? tabs.map(t => t.id) : MODES.map(m => m.id)
+  const chosen = (mode && allowed.includes(mode)) ? mode : (fromRole || allowed[0] || 'scout')
+  return { mode: chosen, setMode, tabs }
 }
 
 // ── Shared notes for the day ───────────────────────────────────────────────

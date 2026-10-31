@@ -8,7 +8,8 @@ const CHANGELOG = [
     id: 174,
     date: '2026-10-31',
     items: [
-      '\u{1F3C1} Competition Day has four modes across the top of the board: Scout, Media, Pit and Drive. Your role for the current block picks where you land; anyone can switch',
+      '\u{1F3C1} Competition Day has four modes: Scout, Media, Pit and Drive. The tabs across the top are the roles you hold on the day \u2014 two roles, two tabs, each named after the role \u2014 and the current block\u2019s role is where you land. No role on the day shows every mode',
+      '\u{1F512} Competition Days belong to one team. The editor listed every team\u2019s days and offered every team\u2019s roster for roles, so a draft made by a Prime Suspects member showed up in Radical\u2019s setup. Each team now sees, hosts, pauses and assigns only its own',
       '\u{1F3AE} Drive: our next match in alliance colour with partners and opponents, each with what scouting says about them (auto, teleop, endgame, driver, defense, breakdowns), a pre-match checklist that resets per match, shared strategy notes, Mark played, and what comes after',
       '\u{1F527} Pit: robot status \u2014 Ready, Being fixed, Down \u2014 that everyone sees, an issue log anyone can add to and tick off, and the pit checklist',
       '\u{1F4F8} Media: a camera button that uploads straight to the season gallery tagged with the day, a shared shot list to tick off, and today\u2019s photos as they come in',

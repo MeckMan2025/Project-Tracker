@@ -34,7 +34,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const { username } = useUser()
   const doc = useDayDoc(day ? `day-comp-${day.id}` : null)
   // Scout, Media, Pit or Drive: your role picks the first one, you pick after.
-  const [mode, setMode] = useDefaultMode(day)
+  const { mode, setMode, tabs: modeTabs } = useDefaultMode(day)
   const { matches: scouted, pits: pitScouted } = useScouted()
   // Who has a form open on which job, right now.
   const who = useWhoIsScouting(day?.id)
@@ -105,7 +105,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
           </Card>
         ) : (
           <>
-            <ModeBar mode={mode} onChange={setMode} />
+            <ModeBar mode={mode} onChange={setMode} tabs={modeTabs} />
             {mode !== 'scout' ? <ModePanel mode={mode} day={day} doc={doc} /> : (<>
             <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
 

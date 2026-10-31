@@ -116,7 +116,8 @@ export default function CompDayView({ onBack }) {
   const fetchSessions = useCallback(async () => {
     try {
       setError('')
-      const all = await restGet('comp_day_sessions?order=created_at.desc&limit=20')
+      // Only this team's days. Another team's drafts are theirs alone.
+      const all = await restGet(`comp_day_sessions?${teamScope(myTeamNumber)}&order=created_at.desc&limit=20`)
       setSessions(all)
 
       // How far each day has got: of the (team, match) pairs on its match
@@ -139,7 +140,7 @@ export default function CompDayView({ onBack }) {
       } catch { /* progress is a nicety; the list still works without it */ }
 
       // Load members list
-      const profiles = await restGet('profiles?select=display_name,function_tags')
+      const profiles = await restGet(`profiles?${teamScope(myTeamNumber)}&select=display_name,function_tags`)
       setMembers(profiles.filter(p => !(p.function_tags || []).includes('Team')).map(p => p.display_name))
     } catch (err) {
       console.error('CompDay fetch error:', err)
@@ -157,7 +158,7 @@ export default function CompDayView({ onBack }) {
       const [blks, assigns, scoutRecs] = await Promise.all([
         restGet(`comp_day_blocks?session_id=eq.${sessionId}&order=order_index.asc`),
         restGet(`comp_day_assignments?session_id=eq.${sessionId}&select=*`),
-        restGet(`scouting_records?submitted_at=gte.${today}T00:00:00&select=submitted_by,submitted_at`),
+        restGet(`scouting_records?${teamScope(myTeamNumber, 'owner_team')}&submitted_at=gte.${today}T00:00:00&select=submitted_by,submitted_at`),
       ])
       setBlocks(blks)
       setAssignments(assigns)
@@ -197,15 +198,15 @@ export default function CompDayView({ onBack }) {
     try {
       setError('')
       const id = 'comp_' + Date.now()
-      await restPost('comp_day_sessions', {
+      await restPost('comp_day_sessions', stampTeam({
         id, name: newSessionName.trim(),
         session_date: new Date().toISOString().split('T')[0],
         is_active: false, created_by: username,
-      })
+      }, myTeamNumber))
       setNewSessionName('')
       await fetchSessions()
       // Auto-open the new session
-      const updated = await restGet('comp_day_sessions?order=created_at.desc&limit=1')
+      const updated = await restGet(`comp_day_sessions?${teamScope(myTeamNumber)}&order=created_at.desc&limit=1`)
       // A day just created has nothing in it, so it opens where you fill it in.
       if (updated[0]) { setActiveSession(updated[0]); setEditorTab('setup') }
     } catch (err) { setError(err.message) }
@@ -215,7 +216,7 @@ export default function CompDayView({ onBack }) {
     if (!activeSession) return
     try {
       setError('')
-      await restPatch('comp_day_sessions', 'is_active=eq.true', { is_active: false })
+      await restPatch('comp_day_sessions', `${teamScope(myTeamNumber)}&is_active=eq.true`, { is_active: false })
       await restPatch('comp_day_sessions', `id=eq.${activeSession.id}`, { is_active: true })
       setActiveSession({ ...activeSession, is_active: true })
       announceLiveChange() // this app moves to the live scouting screen now
@@ -239,7 +240,7 @@ export default function CompDayView({ onBack }) {
   const hostSession = async (s) => {
     try {
       setError('')
-      await restPatch('comp_day_sessions', 'is_active=eq.true', { is_active: false })
+      await restPatch('comp_day_sessions', `${teamScope(myTeamNumber)}&is_active=eq.true`, { is_active: false })
       await restPatch('comp_day_sessions', `id=eq.${s.id}`, { is_active: true })
       setActiveSession({ ...s, is_active: true }); setAssigningBlock(null); setEditorTab('setup')
       announceLiveChange()
@@ -271,10 +272,10 @@ export default function CompDayView({ onBack }) {
     if (!newBlockName.trim() || !activeSession) return
     try {
       setError('')
-      await restPost('comp_day_blocks', {
+      await restPost('comp_day_blocks', stampTeam({
         id: 'block_' + Date.now(), session_id: activeSession.id,
         name: newBlockName.trim(), order_index: blocks.length, is_active: false,
-      })
+      }, myTeamNumber))
       setNewBlockName('')
       await fetchSessionData(activeSession.id)
     } catch (err) { setError(err.message) }
@@ -298,10 +299,10 @@ export default function CompDayView({ onBack }) {
     try {
       await restDelete('comp_day_assignments', `block_id=eq.${blockId}&username=eq.${encodeURIComponent(memberName)}`)
       if (role) {
-        await restPost('comp_day_assignments', {
+        await restPost('comp_day_assignments', stampTeam({
           id: 'assign_' + Date.now() + Math.random().toString(36).slice(2),
           block_id: blockId, session_id: activeSession.id, username: memberName, role,
-        })
+        }, myTeamNumber))
       }
       await fetchSessionData(activeSession.id)
     } catch (err) { setError(err.message) }
