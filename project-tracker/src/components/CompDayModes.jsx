@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Wrench, Gamepad2, Camera, Search, CheckCircle2, AlertTriangle, Plus, Upload, Flag, Trash2 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { storedTeamScope, stampStored } from '../lib/teamScope'
 import { uploadImageFile } from '../lib/photos'
@@ -32,9 +33,10 @@ const ROLE_LABEL = { scouting: 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team':
 const MODE_LS = 'comp-day-mode'
 
 // One tab per role you hold today, named after the role. Two roles, two
-// tabs. No role on this day, every mode.
+// tabs. One role, no bar at all. Leads see every mode, with their own role
+// (if any) as the one they land on.
 export function ModeBar({ mode, onChange, tabs }) {
-  const shown = tabs && tabs.length ? tabs : MODES.map(m => ({ ...m }))
+  const shown = tabs || []
   if (shown.length < 2) return null
   return (
     <div className={`grid gap-1.5 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-1.5`} style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
@@ -56,6 +58,8 @@ export function ModeBar({ mode, onChange, tabs }) {
 // block, else the one you used last, else Scout.
 export function useDefaultMode(day) {
   const { username } = useUser()
+  const { hasLeadTag, isCofounder } = usePermissions()
+  const seesAll = !!(hasLeadTag || isCofounder)
   const [mode, setModeState] = useState(() => {
     try { return localStorage.getItem(MODE_LS) || null } catch { return null }
   })
@@ -86,14 +90,17 @@ export function useDefaultMode(day) {
   const setMode = (m) => { setModeState(m); try { localStorage.setItem(MODE_LS, m) } catch { /* ignore */ } }
   // The tabs: one per mode your roles reach, named after the role(s).
   const tabs = useMemo(() => {
-    if (!roles.length) return null
+    // Leads get every mode; a role of theirs names its tab.
+    if (seesAll) return MODES.map(m => { const rs = roles.filter(r => ROLE_MODE[r] === m.id); return { ...m, label: rs.length ? rs.map(r => ROLE_LABEL[r]).join(' / ') : m.label } })
+    // Everyone else gets only the modes their roles reach. No role: Scout.
+    if (!roles.length) return [MODES[0]]
     return MODES.filter(m => roles.some(r => ROLE_MODE[r] === m.id))
       .map(m => ({ ...m, label: roles.filter(r => ROLE_MODE[r] === m.id).map(r => ROLE_LABEL[r]).join(' / ') }))
-  }, [roles])
+  }, [roles, seesAll])
   // A role only sets the mode until you choose one yourself; a saved choice
   // that isn't one of your tabs today falls back to your role.
-  const allowed = tabs ? tabs.map(t => t.id) : MODES.map(m => m.id)
-  const chosen = (mode && allowed.includes(mode)) ? mode : (fromRole || allowed[0] || 'scout')
+  const allowed = tabs.map(t => t.id)
+  const chosen = (mode && allowed.includes(mode)) ? mode : (fromRole && allowed.includes(fromRole) ? fromRole : allowed[0] || 'scout')
   return { mode: chosen, setMode, tabs }
 }
 
