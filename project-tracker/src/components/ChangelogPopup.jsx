@@ -9,6 +9,7 @@ const CHANGELOG = [
     date: '2026-10-31',
     items: [
       '\u{1F3C1} Competition Day has four modes: Scout, Media, Pit and Drive. The tabs across the top are the roles you hold on the day \u2014 two roles, two tabs, each named after the role \u2014 and the current block\u2019s role is where you land. One role, no tabs, just your mode. Leads see all four',
+      '\u{1F3AE} Drive mode has the whole schedule: every one of our matches with position, partners and opponents, the next one highlighted, played ones ticked, and a line of what scouting says about each team so far. Tap a team on the next-match card to see every match our scouts wrote up for them, with comments. A Message button sits beside each team \u2014 coming soon',
       '\u{1F522} A match schedule with numbers but no teams still works. Type how many matches there are and the day is set up; every scout sees Match 7 \u00b7 Red 1 on their board, the form opens on that match, and they type the team they can see. It turns green once they save a row for that match',
       '\u{1F527} Pit Crew can scout too. Someone on Pit Crew is still offered for the Scouting role and the other way round, and holding both no longer clears their scouting position',
       '\u{1F3D5}\uFE0F Pit scouting is done by the scouts. There is no separate Pit Scouting role any more: the Pit tab lists each person on the Scouting role with two team boxes to fill in, Fill from the match schedule hands out every team about two each, and the board\u2019s Pit group is the scouts',

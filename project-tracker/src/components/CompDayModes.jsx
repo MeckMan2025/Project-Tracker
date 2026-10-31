@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Wrench, Gamepad2, Camera, Search, CheckCircle2, AlertTriangle, Plus, Upload, Flag, Trash2 } from 'lucide-react'
+import { Wrench, Gamepad2, Camera, Search, CheckCircle2, AlertTriangle, Plus, Upload, Flag, Trash2, MessageCircle, ChevronDown, CalendarDays } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { restHeaders, ensureUserToken } from '../lib/restHeaders'
@@ -170,7 +170,7 @@ function useTeamSummaries(teams) {
       try {
         await ensureUserToken()
         const list = key.split(',').map(t => `"${t}"`).join(',')
-        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&team_number=in.(${list})&select=team_number,auto_made,teleop_made,endgame_made,endgame,defense,breakdowns,driver_skill,parking,penalties`, { headers: restHeaders() })
+        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}&team_number=in.(${list})&select=team_number,match_number,scout,auto_made,teleop_made,endgame_made,endgame,defense,breakdowns,driver_skill,parking,penalties,comments,created_at&order=created_at.desc`, { headers: restHeaders() })
         if (on && res.ok) setRows(await res.json())
       } catch { /* leave empty */ }
     })()
@@ -184,24 +184,52 @@ function useTeamSummaries(teams) {
     Object.entries(by).forEach(([t, xs]) => {
       const broke = xs.filter(x => x.breakdowns && !/^(none|no|n\/a)?$/i.test(String(x.breakdowns).trim())).length
       const defense = xs.filter(x => x.defense && !/^(none|no)$/i.test(String(x.defense).trim())).length
-      out[t] = { n: xs.length, auto: avg(xs, 'auto_made'), teleop: avg(xs, 'teleop_made'), endgame: avg(xs, 'endgame_made'), driver: avg(xs, 'driver_skill'), broke, defense, penalties: avg(xs, 'penalties') }
+      out[t] = { n: xs.length, auto: avg(xs, 'auto_made'), teleop: avg(xs, 'teleop_made'), endgame: avg(xs, 'endgame_made'), driver: avg(xs, 'driver_skill'), broke, defense, penalties: avg(xs, 'penalties'), rows: xs }
     })
     return out
   }, [rows])
 }
 
-const TeamLine = ({ team, s, ours }) => (
-  <div className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${ours ? 'bg-white/70' : 'bg-white/40'}`}>
-    <span className="font-bold text-gray-800 w-14">{team}</span>
-    {s ? (
-      <span className="text-xs text-gray-600 truncate">
-        auto {s.auto ?? '–'} · teleop {s.teleop ?? '–'} · endgame {s.endgame ?? '–'}
-        {s.driver != null ? ` · driver ${s.driver}/5` : ''}{s.defense ? ` · plays defense` : ''}{s.broke ? ` · broke down ${s.broke}×` : ''}
-        <span className="text-gray-400"> · {s.n} scouted</span>
-      </span>
-    ) : <span className="text-xs text-gray-400">not scouted yet</span>}
-  </div>
-)
+// One team: the summary line, and underneath (tap it) every match our scouts
+// have written up for them, newest first. Fills in through the day.
+function TeamLine({ team, s, ours, onMessage }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={`rounded-lg text-sm ${ours ? 'bg-white/70' : 'bg-white/40'} text-gray-800`}>
+      <div className="flex items-center gap-2 px-2.5 py-1.5">
+        <button type="button" onClick={() => s && setOpen(!open)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+          <span className="font-bold w-14 shrink-0">{team}</span>
+          {s ? (
+            <span className="text-xs text-gray-600 truncate">
+              auto {s.auto ?? '–'} · teleop {s.teleop ?? '–'} · endgame {s.endgame ?? '–'}
+              {s.driver != null ? ` · driver ${s.driver}/5` : ''}{s.defense ? ` · plays defense` : ''}{s.broke ? ` · broke down ${s.broke}×` : ''}
+              <span className="text-gray-400"> · {s.n} scouted</span>
+            </span>
+          ) : <span className="text-xs text-gray-400">not scouted yet</span>}
+          {s && <ChevronDown size={14} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />}
+        </button>
+        <button type="button" onClick={onMessage} title="Messaging other teams is coming soon"
+                className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold text-gray-400 bg-white/60 border border-dashed border-gray-300 cursor-not-allowed">
+          <MessageCircle size={12} /> Message <span className="opacity-70">· soon</span>
+        </button>
+      </div>
+      {open && s && (
+        <div className="border-t border-white/60 px-2.5 py-1.5 space-y-1">
+          {s.rows.map((r, i) => (
+            <div key={i} className="text-xs text-gray-600">
+              <span className="font-semibold text-gray-700">M{r.match_number || '?'}</span>
+              {' · '}auto {r.auto_made ?? '–'} · teleop {r.teleop_made ?? '–'} · endgame {r.endgame_made ?? '–'}{r.endgame ? ` (${r.endgame})` : ''}
+              {r.defense && !/^(none|no)$/i.test(String(r.defense)) ? ` · defense: ${r.defense}` : ''}
+              {r.breakdowns && !/^(none|no|n\/a)?$/i.test(String(r.breakdowns).trim()) ? ` · broke: ${r.breakdowns}` : ''}
+              {r.comments ? <span className="block text-gray-500 italic">“{r.comments}”</span> : null}
+              {r.scout ? <span className="text-gray-400"> — {r.scout}</span> : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Drive Team ──────────────────────────────────────────────────────────────
 const DRIVE_CHECK = ['Battery swapped and charged', 'Phone charged, app open', 'Controllers paired', 'Bumpers the right color', 'Code deployed, right OpMode', 'Preload in']
@@ -212,7 +240,6 @@ function DriveMode({ day, doc }) {
   const matches = useMemo(() => ourMatches(doc, team), [doc, team])
   const played = useMemo(() => new Set(notes.filter(n => n.kind === 'played').map(n => n.match)), [notes])
   const next = matches.find(m => !played.has(m.match)) || null
-  const after = next ? matches.filter(m => Number(m.match) > Number(next.match)).slice(0, 3) : []
   const teams = useMemo(() => [...new Set(matches.flatMap(m => [...m.partner, ...m.opponents]))], [matches])
   const summaries = useTeamSummaries(teams)
   const [checks, setChecks] = useState({})
@@ -221,6 +248,8 @@ function DriveMode({ day, doc }) {
   const toggle = (i) => { const c = { ...checks, [i]: !checks[i] }; setChecks(c); try { localStorage.setItem(`drive-check-${day?.id}-${next?.match}`, JSON.stringify(c)) } catch { /* ignore */ } }
   const driveNotes = notes.filter(n => n.kind === 'drive' && (!next || n.match === next.match))
   const ready = DRIVE_CHECK.every((_, i) => checks[i])
+  const [soon, setSoon] = useState(false)
+  const comingSoon = () => { setSoon(true); setTimeout(() => setSoon(false), 2200) }
 
   if (!doc) return <Card title="Drive Team" icon={Gamepad2}><Empty>Loading the day…</Empty></Card>
   if (!matches.length) return <Card title="Drive Team" icon={Gamepad2}><Empty>No matches for team {team} in this day's schedule yet. A lead adds them under Competition Day → Matches.</Empty></Card>
@@ -239,14 +268,15 @@ function DriveMode({ day, doc }) {
               <Flag size={14} className="inline mr-1" />Mark played
             </button>
           </div>
+          {soon && <p className="mt-2 text-xs bg-white/20 rounded-lg px-2 py-1 inline-block">💬 Messaging other teams is coming soon.</p>}
           <div className="grid sm:grid-cols-2 gap-3 mt-3">
             <div>
               <p className="text-xs uppercase tracking-wide opacity-80 mb-1">With us</p>
-              <div className="space-y-1">{next.partner.map(t => <TeamLine key={t} team={t} s={summaries[t]} ours />)}{!next.partner.length && <p className="text-xs opacity-80">No partner listed.</p>}</div>
+              <div className="space-y-1">{next.partner.map(t => <TeamLine key={t} team={t} s={summaries[t]} ours onMessage={comingSoon} />)}{!next.partner.length && <p className="text-xs opacity-80">No partner listed.</p>}</div>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide opacity-80 mb-1">Against</p>
-              <div className="space-y-1">{next.opponents.map(t => <TeamLine key={t} team={t} s={summaries[t]} />)}</div>
+              <div className="space-y-1">{next.opponents.map(t => <TeamLine key={t} team={t} s={summaries[t]} onMessage={comingSoon} />)}</div>
             </div>
           </div>
         </section>
@@ -285,19 +315,29 @@ function DriveMode({ day, doc }) {
         </div>
       )}
 
-      {after.length > 0 && (
-        <Card title="After that" icon={Flag}>
-          <div className="space-y-1.5">
-            {after.map(m => (
-              <div key={m.match} className="flex items-center gap-2 text-sm">
-                <span className={`px-2 py-0.5 rounded-md text-white text-xs font-bold ${m.color === 'red' ? 'bg-red-500' : 'bg-blue-500'}`}>M{m.match}</span>
-                <span className="text-gray-700">{m.position}</span>
-                <span className="text-gray-400">with {m.partner.join(', ') || '—'} · vs {m.opponents.join(', ')}</span>
+      <Card title={`Our schedule · ${matches.length} match${matches.length === 1 ? '' : 'es'}`} icon={CalendarDays}
+            action={played.size ? <span className="text-xs text-gray-400">{played.size} played</span> : null}>
+        <div className="space-y-1.5">
+          {matches.map(m => {
+            const done = played.has(m.match), isNext = next && m.match === next.match
+            return (
+              <div key={m.match} className={`flex items-start gap-2 text-sm rounded-lg px-2 py-1.5 ${isNext ? 'bg-pastel-yellow/40 ring-1 ring-pastel-yellow-dark/40' : done ? 'opacity-50' : ''}`}>
+                <span className={`px-2 py-0.5 rounded-md text-white text-xs font-bold shrink-0 ${m.color === 'red' ? 'bg-red-500' : 'bg-blue-500'}`}>M{m.match}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="text-gray-700 font-semibold">{m.position}</span>{m.time ? <span className="text-gray-400"> · {m.time}</span> : null}
+                  <span className="block text-xs text-gray-500">with {m.partner.join(', ') || '—'} · vs {m.opponents.join(', ') || '—'}</span>
+                  {!done && (m.partner.length + m.opponents.length) > 0 && (
+                    <span className="block text-[11px] text-gray-400">
+                      {[...m.partner, ...m.opponents].map(t => summaries[t] ? `${t}: ${summaries[t].teleop ?? '–'} teleop` : `${t}: not scouted`).join(' · ')}
+                    </span>
+                  )}
+                </div>
+                {done ? <CheckCircle2 size={16} className="text-green-500 shrink-0 mt-0.5" /> : isNext ? <span className="text-[11px] font-bold text-pastel-yellow-dark shrink-0">next</span> : null}
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+            )
+          })}
+        </div>
+      </Card>
       {played.size > 0 && <p className="text-xs text-gray-400 text-center">{played.size} of {matches.length} matches played</p>}
     </div>
   )
