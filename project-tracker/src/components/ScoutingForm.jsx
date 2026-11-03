@@ -143,12 +143,16 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
   const [showDrafts, setShowDrafts] = useState(false)
   // Put this form away, as it stands, and start a clean one.
   const saveAsDraft = () => {
+    if (!form.team_number && !form.match_number) {
+      setSchemaWarning('Put in the team or match number first, then tap Draft form.')
+      return
+    }
     const label = `${form.team_number ? `Team ${form.team_number}` : 'No team'}${form.match_number ? ` · match ${form.match_number}` : ''}`
     addFormDraft(TABLE, form, label)
     setForm(blankEntry())
     setStep(0)
     prefilled.current = false
-    setSchemaWarning('Put away as a draft. Open Drafts at the top to come back to it.')
+    setSchemaWarning('Saved on this phone as a draft. Open Drafts at the top to finish or send it.')
   }
   // Pick an unfinished draft back up, exactly where it was left.
   const resumeDraft = (d) => {
@@ -347,15 +351,26 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
         : `Screen ${step + 1} of ${SCOUTING_GROUPS.length} · ${group}`}
       action={
         <div className="flex items-center gap-2 shrink-0">
+          {!showData && (
+            <button
+              type="button"
+              onClick={saveAsDraft}
+              title="Save this form on this phone as it stands. Works with no Wi-Fi."
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 font-semibold"
+            >
+              Draft form
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowDrafts(true)}
             title="Matches put away on this phone, and ones waiting to send"
+            aria-label="Open drafts"
             className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
               drafts.length ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100' : 'border-gray-200 bg-white text-gray-500 hover:bg-pastel-blue/20'
             }`}
           >
-            Drafts{drafts.length ? ` (${drafts.length})` : ''}
+            {drafts.length ? `Drafts (${drafts.length})` : 'Drafts'}
           </button>
           <HelpButton onClick={() => setShowHelp(true)} />
           <button
@@ -380,7 +395,7 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
               <button type="button" onClick={() => setShowDrafts(false)} className="p-1.5 rounded-lg hover:bg-gray-100" aria-label="Close">✕</button>
             </div>
             <div className="overflow-y-auto p-3 space-y-2">
-              {drafts.length === 0 && <p className="text-sm text-gray-400 text-center py-6">No drafts. Use “Save as draft” under a form to put one away.</p>}
+              {drafts.length === 0 && <p className="text-sm text-gray-400 text-center py-6">No drafts. Tap “Draft form” to save one on this phone.</p>}
               {drafts.map(d => (
                 <div key={d.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 flex items-center gap-2">
                   <div className="flex-1 min-w-0">
@@ -477,10 +492,9 @@ export default function ScoutingForm({ liveDay = null, onDone }) {
 
           <div className="flex justify-center -mt-1">
             <button type="button" onClick={saveAsDraft}
-                    disabled={!form.team_number && !form.match_number}
                     title="Put this match away as it stands and come back to it from Drafts"
                     className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-pastel-blue/20 disabled:opacity-40">
-              Save as draft
+              Draft form
             </button>
           </div>
 

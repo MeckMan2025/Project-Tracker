@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 175,
+    date: '2026-11-03',
+    items: [
+      '\u{1F4DD} Match scouting has a Draft form button at the top, beside Drafts. One tap saves the form on this phone as it stands \u2014 no Wi-Fi needed \u2014 and Drafts opens the list to finish or send it',
+    ],
+  },
+  {
     id: 174,
     date: '2026-10-31',
     items: [
