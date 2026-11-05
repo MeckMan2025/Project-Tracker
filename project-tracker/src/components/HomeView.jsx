@@ -3,7 +3,7 @@ import { storedTeamScope, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3, FolderKanban, LineChart } from 'lucide-react'
+import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -497,12 +497,13 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, gu
             ] : []),
             // A tab of its own rather than a Special Controls page, so this one
             // switches tabs instead of opening a special view.
+            // A visiting team has the same four as our leads: Attendance and
+            // the Decision Matrix are tabs of theirs, not Special Controls pages.
             ...(visiting ? [
-              { tab: 'boards', label: 'Boards', icon: FolderKanban, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
-              { tab: 'team-growth', label: 'Team Growth', icon: LineChart, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
-            ] : [
-              { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
-            ]),
+              { tab: 'attendance',    label: 'Attendance',      icon: ClipboardCheck, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
+              { tab: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
+            ] : []),
+            { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
             // Not for guests — the notebook is teammate-only, and a tile that
             // lands on "access restricted" is worse than no tile.
             ...(isGuest ? [] : [

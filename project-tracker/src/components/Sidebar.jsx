@@ -476,8 +476,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
             </>
           )}
 
-          {/* A visiting team's own notebook, and Data: Team Growth is theirs
-              now, the other Data pages are coming. Every row behind both is
+          {/* A visiting team's own notebook, and Data: Team Growth and
+              Attendance are theirs now, RadRank is coming. Every row behind both is
               scoped to their team. */}
           {isTeamAccount && !teamFullAccess && (
             <>
@@ -506,7 +506,16 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                   <ChevronRight size={14} className={activeTab === 'team-growth' ? 'rotate-90' : ''} />
                   <span className="truncate">Team Growth</span>
                 </div>
-                {['RadRank', 'Attendance'].map(name => (
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                    activeTab === 'attendance' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                  }`}
+                  onClick={() => { onTabChange('attendance'); onToggle() }}
+                >
+                  <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
+                  <span className="truncate">Attendance</span>
+                </div>
+                {['RadRank'].map(name => (
                   <div key={name} className="px-3 py-1.5 rounded-lg text-sm text-gray-400 cursor-default" title="Coming soon">
                     <div className="flex items-center gap-2">
                       <ChevronRight size={14} />

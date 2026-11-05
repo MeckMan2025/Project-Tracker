@@ -8,6 +8,8 @@ const CHANGELOG = [
     id: 176,
     date: '2026-11-05',
     items: [
+      '\u{1F64B} Team accounts have Attendance, the Decision Matrix and the AI Manual too, with the same four Home tiles as our leads. Every row is kept to their own team',
+      '\u{1F4C1} Business, Technical and Programming are ordinary boards now: rename or delete them like any other. Only Main is fixed',
       '\u{1F3E0} A team account\u2019s Home looks like ours now \u2014 This Week, shortcut tiles, My Tasks and notebook photos \u2014 filled only from their own team. A notebook-page guide on it explains each feature: tap one to see how it works and open it',
       '\u{1F4C1} Team accounts start with no preset boards. Add Folder makes as many as they need',
       '\u{1F4D3} Team accounts have the Engineering Notebook and Logs (Outreach, Expenses, Mentor): their own, every row kept to their team and never shared. Data has Team Growth, read only from their own notebook and tasks; RadRank and Attendance are coming soon',

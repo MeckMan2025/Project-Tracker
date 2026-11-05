@@ -45,6 +45,27 @@ export const TEAM_TABS = [
     description: 'What your own notebook and tasks say about how your team is growing, as charts. Only your team\'s entries count.',
   },
   {
+    id: 'attendance',
+    name: 'Attendance',
+    icon: 'ClipboardCheck',
+    how: ['Your coach or a lead starts a session at each meeting and marks who came.', 'Anyone can say ahead of time that they will miss a meeting, and see their own record.'],
+    description: 'Who came to each meeting, kept for your team only.',
+  },
+  {
+    id: 'design-matrix',
+    name: 'Decision Matrix',
+    icon: 'Grid3x3',
+    description: 'Score the options for a design choice against what matters, so the team decides together.',
+    how: ['Make a matrix: the options, and what you are judging them on.', 'Ask teammates to rate it — they get a notice — and the best-scoring option rises to the top.'],
+  },
+  {
+    id: 'ai-manual',
+    name: 'AI Manual',
+    icon: 'Bot',
+    description: 'Ask the game manual a question and get the rule, not a guess.',
+    how: ['Type a question about the game rules.', 'The answer quotes the part of the manual it comes from.'],
+  },
+  {
     // One entry in the guide, three pages behind it.
     id: 'logs-outreach',
     how: ['Outreach: log each event, who went and how many people you reached.', 'Expenses: log a purchase with its receipt. Mentor: fills itself in from notebook entries that say a mentor helped.'],

@@ -213,11 +213,11 @@ const SPECIAL_TAB = { id: 'special-controls', name: 'Special Controls', type: 's
 // ever filed on it, so it has no row in `boards` and can't be removed.
 const MAIN_BOARD = { id: 'main', name: 'Main', permanent: true, readOnly: true }
 
+// Main is the only fixed board. Business, Technical and Programming used to be
+// fixed too and came back whenever they were deleted; now every board is a
+// folder somebody added, kept or removed like any other.
 const DEFAULT_BOARDS = [
   MAIN_BOARD,
-  { id: 'business', name: 'Business', permanent: true },
-  { id: 'technical', name: 'Technical', permanent: true },
-  { id: 'programming', name: 'Programming', permanent: true },
 ]
 
 // Special Controls is a lead page, but a few things reached through it are for
@@ -1053,7 +1053,7 @@ function App() {
         delete updated[newId]
         return updated
       })
-      setActiveTab(effectiveIsTeam ? 'home' : 'business')
+      setActiveTab(effectiveIsTeam ? 'home' : 'main')
       addToast('Failed to create board. Please try again.', 'error')
     }
   }
@@ -1069,9 +1069,8 @@ function App() {
     // Default boards come back empty on the next load — the app re-seeds them —
     // so deleting one really means clearing it. Say that, rather than letting
     // someone discover it.
-    const warning = board?.permanent
-      ? `"${board.name}" is one of the three default boards. Deleting it removes its ${count} `
-        + `task${count === 1 ? '' : 's'}, and the board itself will come back empty. Continue?`
+    const warning = board?.readOnly
+      ? `"${board.name}" can't be deleted.`
       : `Delete "${board?.name || 'this board'}"${count ? ` and its ${count} task${count === 1 ? '' : 's'}` : ''}? This cannot be undone.`
     if (!window.confirm(warning)) return
 
@@ -1106,7 +1105,7 @@ function App() {
       return updated
     })
     if (activeTab === tabId) {
-      setActiveTab('business')
+      setActiveTab('main')
     }
   }
 
