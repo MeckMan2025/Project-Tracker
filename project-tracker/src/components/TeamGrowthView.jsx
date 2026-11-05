@@ -47,7 +47,7 @@ const SECTIONS = [
   { key: 'teamwork',   emoji: '👥', label: 'Teamwork',           blurb: 'who worked together, and why it helped' },
   { key: 'initiative', emoji: '🚀', label: 'Initiative',         blurb: 'work people started on their own' },
   { key: 'next',       emoji: '➡️', label: "What's Next",        blurb: 'what people said they\'d pick up' },
-  { key: 'deadlines',  emoji: '⏱️', label: 'Deadlines',          blurb: 'tasks finished before, on, or after their due date' },
+  { key: 'deadlines',  emoji: '⏱️', label: 'Deadlines',          blurb: 'tasks done by their due date, and the ones that were not' },
 ]
 
 const prettyDate = (d) => {
@@ -91,6 +91,7 @@ export default function TeamGrowthView() {
   const [projects, setProjects] = useState([])
   // Finished tasks, for the Deadlines page.
   const [tasks, setTasks] = useState([])
+  const [overdue, setOverdue] = useState([]) // open tasks past their due date
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
@@ -140,7 +141,8 @@ export default function TeamGrowthView() {
         if (!signedIn) throw new Error('Not signed in. Sign in again and reload.')
         const headers = restHeaders()
         const scope = teamScope(myTeamNumber)
-        const [all, pRes, doneRows] = await Promise.all([
+        const today = doneDay(new Date().toISOString())
+        const [all, pRes, doneRows, lateRows] = await Promise.all([
           fetchAllRows(`${supabaseUrl}/rest/v1/notebook_entries?select=${COLS}&${scope}&order=meeting_date.desc,id.desc`, headers),
           fetch(`${supabaseUrl}/rest/v1/notebook_projects?select=id,name&${scope}`, { headers }),
           // Tasks keep their owner in owner_team, not team_number. A failure
@@ -148,10 +150,15 @@ export default function TeamGrowthView() {
           // answers with nothing rather than throwing.
           fetchAllRows(`${supabaseUrl}/rest/v1/tasks?select=id,title,assignee,assignees,due_date,completed_at,status&${teamScope(myTeamNumber, 'owner_team')}&status=in.(completed,done)&order=id.desc`, headers)
             .catch(() => []),
+          // Still open and already past due: these were not done by the due
+          // date either, so they count against on time.
+          fetchAllRows(`${supabaseUrl}/rest/v1/tasks?select=id,title,assignee,assignees,due_date,status&${teamScope(myTeamNumber, 'owner_team')}&status=not.in.(completed,done)&due_date=lt.${today}&due_date=neq.&order=due_date.asc`, headers)
+            .catch(() => []),
         ])
         if (!alive) return
         setEntries(all)
         setTasks(Array.isArray(doneRows) ? doneRows : [])
+        setOverdue(Array.isArray(lateRows) ? lateRows : [])
         setLoadedAt(new Date())
         setError('')
         if (pRes.ok) {
@@ -218,6 +225,18 @@ export default function TeamGrowthView() {
       .filter(t => t.late != null)
       .sort((a, b) => b.late - a.late || String(b.completed_at).localeCompare(String(a.completed_at)))
   }, [tasks, member, from, to])
+
+  // Open tasks past due, under the same person and date filters (by due date,
+  // since they have no finish date), with how many days overdue they are.
+  const stillOpen = useMemo(() => {
+    let out = overdue.filter(t => String(t.due_date || '').slice(0, 10))
+    if (member) out = out.filter(t => t.assignee === member || (t.assignees || []).includes(member))
+    if (from) out = out.filter(t => String(t.due_date).slice(0, 10) >= from)
+    if (to) out = out.filter(t => String(t.due_date).slice(0, 10) <= to)
+    return out.map(t => ({ ...t, late: daysLate(t.due_date, new Date().toISOString()) }))
+      .filter(t => t.late != null && t.late > 0)
+      .sort((a, b) => b.late - a.late)
+  }, [overdue, member, from, to])
 
   const deadlines = useMemo(() => {
     const early = timed.filter(t => t.late < 0)
@@ -770,6 +789,55 @@ export default function TeamGrowthView() {
           )}
 
           {/* ── Deadlines ────────────────────────────────────────────────── */}
+          {sec.key === 'deadlines' && (() => {
+            // The headline: done by the due date, against everything that
+            // wasn't — finished late, or still open with the date gone by.
+            const onTimeN = deadlines.early.length + deadlines.onDay.length
+            const notN = deadlines.late.length + stillOpen.length
+            const total = onTimeN + notN
+            const pct = (n) => (total ? Math.round((n / total) * 100) : 0)
+            return (
+              <Card title="Done by the due date, or not"
+                    sub={total ? `${total} ${total === 1 ? 'task' : 'tasks'} with a due date that has come and gone` : 'Nothing with a past due date matches these filters yet.'}>
+                {total > 0 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl p-3" style={{ background: '#e9f7ef' }}>
+                        <p className="text-2xl font-bold text-green-700">{onTimeN} <span className="text-sm font-semibold">· {pct(onTimeN)}%</span></p>
+                        <p className="text-xs font-semibold text-green-800">✅ Done on or before the due date</p>
+                        <p className="text-[11px] text-green-700/80">{deadlines.early.length} early · {deadlines.onDay.length} on the day</p>
+                      </div>
+                      <div className="rounded-xl p-3" style={{ background: '#fdecec' }}>
+                        <p className="text-2xl font-bold text-red-500">{notN} <span className="text-sm font-semibold">· {pct(notN)}%</span></p>
+                        <p className="text-xs font-semibold text-red-600">⏰ Not done by the due date</p>
+                        <p className="text-[11px] text-red-500/80">{deadlines.late.length} finished late · {stillOpen.length} still open</p>
+                      </div>
+                    </div>
+                    <div className="h-3 rounded-full overflow-hidden flex bg-gray-100 mt-3" title={`${onTimeN} on time · ${notN} not`}>
+                      {onTimeN > 0 && <div style={{ width: `${pct(onTimeN)}%`, background: '#4caf82' }} />}
+                      {notN > 0 && <div style={{ width: `${100 - pct(onTimeN)}%`, background: '#e5688a' }} />}
+                    </div>
+                    {!graphsOnly && stillOpen.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <p className="text-xs font-semibold text-gray-500">Still open, past due</p>
+                        {stillOpen.slice(0, 40).map(t => (
+                          <p key={t.id} className="text-sm text-gray-600">
+                            <span className="text-xs font-semibold text-red-400">{t.late} day{t.late === 1 ? '' : 's'} overdue</span>
+                            <span className="text-gray-400 text-xs">
+                              {' · due '}{prettyDate(t.due_date)}
+                              {t.assignee && !t.assignee.startsWith('__') ? ` · ${t.assignee}` : ''}{' — '}
+                            </span>
+                            {t.title}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+            )
+          })()}
+
           {sec.key === 'deadlines' && (
             timed.length === 0 ? (
               <Card title="Before or after the due date">

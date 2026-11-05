@@ -119,6 +119,42 @@ export const RUNDOWN_SEASONS = {
         },
       },
     ],
+    // The ETS pitch at the very top of the page, for a team deciding whether
+    // to sign up. `now` is what a team account gets today (data/teamTabs.js);
+    // `later` is what Radical runs on that a team account does not have yet —
+    // possible, not promised.
+    pitch: {
+      kicker: 'For FTC teams',
+      headline: 'Everything That\'s Scrum',
+      sub: 'The team app we built to run Team 7196 — free for any FTC team, signed in with your team number.',
+      points: [
+        ['🆓', 'Free', 'No subscription, no ads'],
+        ['🔒', 'Yours alone', 'Nothing of yours shows up for anyone else'],
+        ['📱', 'On every phone', 'Add it to the home screen, no app store'],
+        ['🛠️', 'Built by students', 'An FTC team that uses it every meeting'],
+      ],
+      now: [
+        ['🏠', 'Home', 'Your team at a glance, and anything new'],
+        ['📋', 'Scrum Boards', 'Boards for build, programming and business. Make a task and drag it along as it gets done'],
+        ['📅', 'Calendar', 'Meetings, competitions and deadlines in one shared place'],
+        ['🛡️', 'User Management', 'Your coach adds members and mentors and decides who can do what'],
+        ['📥', 'Suggestions', 'Tell us what would make it better. We read every one'],
+        ['👤', 'Profile & Settings', 'Your details, light or dark theme, notifications'],
+      ],
+      later: [
+        ['🔍', 'Scouting', 'Match and pit forms with alliance positions, offline drafts, a scouting schedule and verified data'],
+        ['🏁', 'Competition Day', 'Scout, Pit, Media and Drive modes, with roles handed out for every block of the day'],
+        ['📓', 'Engineering Notebook', 'One question at a time after each meeting, read back as a real notebook'],
+        ['🙋', 'Attendance', 'Sessions taken by a lead, and a way to say you will be gone before you are'],
+        ['📊', 'Data', 'Team Pulse and Team Growth, read straight from the notebook'],
+        ['✅', 'Tasks', 'Everything assigned to you in one list, with due dates'],
+        ['🏗️', 'Org Chart', 'Your team from the leads down to every member'],
+        ['🧾', 'Logs', 'Outreach, expenses with receipts, and a mentor log'],
+        ['🧠', 'AI Manual', 'Ask the game manual a question and get the rule, not a guess'],
+      ],
+      laterNote: 'These are what Radical runs on today. They are on the way for team accounts, a few at a time, and your suggestions decide which comes first.',
+    },
+
     // What's actually in the app this year, and what a visiting team gets.
     // Mirrors the sidebar (App.jsx SYSTEM_TABS) and data/teamTabs.js.
     inside: {

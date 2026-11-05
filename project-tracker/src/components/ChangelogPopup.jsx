@@ -5,6 +5,14 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 176,
+    date: '2026-11-05',
+    items: [
+      '\u23F1\uFE0F Team Growth \u2192 Deadlines opens on a new card: tasks done on or before their due date against the ones that were not \u2014 finished late, or still open with the date gone by \u2014 with the count and percent of each and a list of what is overdue',
+      '\u{1F4E3} The Radical Rundown starts with Everything That\u2019s Scrum: what a team gets the day it signs in, and what Radical runs on that may come to team accounts later',
+    ],
+  },
+  {
     id: 175,
     date: '2026-11-03',
     items: [

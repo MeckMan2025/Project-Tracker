@@ -751,6 +751,63 @@ function StorySlides({ slides, t }) {
   )
 }
 
+// The pitch for Everything That's Scrum, first thing on the page: what a team
+// gets the day it signs in, then what Radical has that may come to them.
+function EtsPitch({ pitch, t, onSignIn }) {
+  const Tile = ([emoji, title, desc], dim) => (
+    <div key={title} className={`rounded-xl p-3 border ${dim ? 'bg-white/40 border-dashed border-amber-300/50' : 'bg-white/70 border-amber-300/50'}`}>
+      <p className="text-sm font-bold text-gray-800">{emoji} {title}</p>
+      <p className="text-xs text-gray-600 leading-snug mt-0.5">{desc}</p>
+    </div>
+  )
+  const toForm = () => document.getElementById('ets-interest')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  return (
+    <section className={`${t.panel || 'relative z-10 bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-6 w-full max-w-4xl mx-auto space-y-6'} mb-6`}>
+      <div className="text-center space-y-2">
+        <span className={`inline-block text-[11px] font-bold uppercase tracking-widest text-white px-3 py-1 rounded-full bg-gradient-to-r ${t.pill}`}>{pitch.kicker}</span>
+        <h2 className={`text-3xl md:text-5xl font-extrabold bg-gradient-to-r ${t.title} bg-clip-text text-transparent`}>{pitch.headline}</h2>
+        <p className="text-sm md:text-base text-gray-700 max-w-xl mx-auto leading-relaxed">{pitch.sub}</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {pitch.points.map(([emoji, title, desc]) => (
+          <div key={title} className="text-center rounded-xl p-3 bg-white/60 border border-amber-300/50">
+            <div className="text-2xl">{emoji}</div>
+            <p className="text-sm font-bold text-gray-800 mt-1">{title}</p>
+            <p className="text-[11px] text-gray-600 leading-snug">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box1}`}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="font-bold text-gray-800 text-base">✅ What you get today</h3>
+          <span className="text-[11px] font-semibold text-gray-600">the day you sign in</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">{pitch.now.map((x) => Tile(x, false))}</div>
+      </div>
+
+      <div className={`border-l-4 rounded-r-xl p-4 space-y-3 ${t.box2}`}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="font-bold text-gray-800 text-base">🔭 What you may see later</h3>
+          <span className="text-[11px] font-semibold text-gray-600">what Radical has now</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">{pitch.later.map((x) => Tile(x, true))}</div>
+        {pitch.laterNote && <p className="text-xs text-gray-700 leading-relaxed italic">{pitch.laterNote}</p>}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 justify-center">
+        <button onClick={toForm} className={`px-5 py-2.5 rounded-xl bg-gradient-to-r ${t.pill} text-white text-sm font-semibold shadow-sm hover:shadow-md transition-all`}>
+          I'm interested
+        </button>
+        <button onClick={onSignIn} className="px-5 py-2.5 rounded-xl border border-amber-300/70 bg-white/60 text-gray-800 text-sm font-semibold hover:bg-white/80 transition-colors">
+          Sign in with your team number
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function InterestForm({ t }) {
   const [teamName, setTeamName] = useState('')
   const [contactName, setContactName] = useState('')
@@ -808,7 +865,7 @@ function InterestForm({ t }) {
   }
 
   return (
-    <div className={`border-l-4 rounded-r-xl bg-gradient-to-r p-4 space-y-3 ${t.form}`}>
+    <div id="ets-interest" className={`border-l-4 rounded-r-xl bg-gradient-to-r p-4 space-y-3 ${t.form}`}>
       <h3 className="font-bold text-gray-800 text-sm">Interested in Using This App for Your Team?</h3>
       <p className="text-xs text-gray-600 leading-relaxed">
         If your FTC team would like to use Everything That's Scrum, let us know! Drop your team name and your name below.
@@ -940,8 +997,9 @@ function TeamInfoPage({ onBack, initialSeason }) {
           <div className={t.hive ? 'hive relative' : ''}>
             {t.hive && <Vines />}
             {t.hive && <Bees />}
+            {page.pitch && isLatest && <EtsPitch pitch={page.pitch} t={t} onSignIn={onBack} />}
             {/* Full-bleed team photo, fading into the dark */}
-            <div className="relative z-10 -mx-4 -mt-4 mb-6 h-72 md:h-[440px] overflow-hidden">
+            <div className={`relative z-10 -mx-4 ${page.pitch && isLatest ? '' : '-mt-4'} mb-6 h-72 md:h-[440px] overflow-hidden`}>
               <img src={page.hero || '/team-hero.jpg'} alt="Team 7196" className="w-full h-full object-cover"
                 style={{ objectPosition: page.heroPosition || 'center 35%' }} />
               <div className={`absolute inset-0 bg-gradient-to-t ${t.heroFade} to-transparent`} />
