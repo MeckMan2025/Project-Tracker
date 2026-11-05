@@ -6,6 +6,8 @@ import { supabase } from '../supabase'
 
 function InterestedTeams({ onBack, canDelete }) {
   const [submissions, setSubmissions] = useState([])
+  // The starter survey a team fills in on its first sign-in (TeamHomeView).
+  const [surveys, setSurveys] = useState([])
   const [loading, setLoading] = useState(true)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -20,6 +22,8 @@ function InterestedTeams({ onBack, canDelete }) {
           { headers }
         )
         if (res.ok) setSubmissions(await res.json())
+        const sRes = await fetch(`${supabaseUrl}/rest/v1/team_survey_responses?select=*&order=submitted_at.desc`, { headers })
+        if (sRes.ok) setSurveys(await sRes.json())
       } catch (err) {
         console.error('Failed to load interested teams:', err)
       } finally {
@@ -110,6 +114,53 @@ function InterestedTeams({ onBack, canDelete }) {
                     <Trash2 size={15} />
                   </button>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 pt-4">
+          <span className="text-lg">📝</span>
+          <h2 className="text-lg font-bold text-gray-800">Starter Survey</h2>
+          <span className="ml-auto text-sm text-gray-400">{surveys.length} response{surveys.length !== 1 ? 's' : ''}</span>
+        </div>
+        <p className="text-xs text-gray-500 -mt-2">What teams answered the first time they signed in.</p>
+        {!loading && surveys.length > 0 && (() => {
+          const counts = {}
+          surveys.forEach(r => { if (r.usage_frequency) counts[r.usage_frequency] = (counts[r.usage_frequency] || 0) + 1 })
+          const rows = Object.entries(counts).sort((a, b) => b[1] - a[1])
+          return rows.length > 0 && (
+            <div className="bg-white/80 rounded-xl shadow-sm p-4 space-y-1.5">
+              <p className="text-xs font-semibold text-gray-500">How often they'd use it</p>
+              {rows.map(([label, n]) => (
+                <div key={label} className="flex items-center gap-2 text-xs">
+                  <span className="w-36 shrink-0 text-gray-600">{label}</span>
+                  <div className="flex-1 h-3 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-full bg-pastel-pink-dark" style={{ width: `${(n / surveys.length) * 100}%` }} />
+                  </div>
+                  <span className="w-6 text-right font-semibold text-gray-600">{n}</span>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
+        {loading ? null : surveys.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-6">No survey answers yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {surveys.map((r, i) => (
+              <div key={r.id || i} className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-gray-800 text-sm">
+                    {r.team_number ? `Team ${r.team_number}` : 'Radical'}
+                    {r.team_name ? <span className="font-normal text-gray-500"> · {r.team_name}</span> : null}
+                  </p>
+                  <span className="text-[11px] text-gray-400 shrink-0">
+                    {r.submitted_at ? new Date(r.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                  </span>
+                </div>
+                {r.usage_frequency && <p className="text-xs text-gray-600 mt-1"><span className="text-gray-400">Would use it:</span> {r.usage_frequency}</p>}
+                {r.feature_request && <p className="text-xs text-gray-600 mt-1"><span className="text-gray-400">Wishes for:</span> {r.feature_request}</p>}
               </div>
             ))}
           </div>

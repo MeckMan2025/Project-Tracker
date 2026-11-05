@@ -8,6 +8,8 @@ const CHANGELOG = [
     id: 176,
     date: '2026-11-05',
     items: [
+      '\u{1F4DD} Interested Teams now shows the starter survey too: each team\u2019s answers from its first sign-in, and a count of how often teams say they\u2019d use the app',
+      '\u{1F6AB} The Getting Started popup on a team\u2019s Home has a Don\u2019t show again link. It is saved on the account, so it stays gone on every device',
       '\u23F1\uFE0F Team Growth \u2192 Deadlines opens on a new card: tasks done on or before their due date against the ones that were not \u2014 finished late, or still open with the date gone by \u2014 with the count and percent of each and a list of what is overdue',
       '\u{1F4E3} The Radical Rundown starts with Everything That\u2019s Scrum: what a team gets the day it signs in, and what Radical runs on that may come to team accounts later',
     ],

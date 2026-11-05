@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { restHeaders } from '../lib/restHeaders'
 import { FolderKanban, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight,
   Home, Calendar, Shield, Lightbulb, User, Settings, Megaphone } from 'lucide-react'
@@ -46,7 +46,7 @@ const USAGE_OPTIONS = [
 ]
 
 function TeamHomeView({ onTabChange }) {
-  const { username, teamNumber } = useUser()
+  const { user, username, teamNumber } = useUser()
   // The profile is stored as "Team <number> - <name>", so the name is whatever
   // follows the dash. Blank when it does not parse, rather than showing the
   // raw display name back at them.
@@ -55,7 +55,25 @@ function TeamHomeView({ onTabChange }) {
     : ''
   const storageKey = `team-welcome-seen-${teamNumber || 'default'}`
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => localStorage.getItem(storageKey) === 'true')
-  const [showPopup, setShowPopup] = useState(true)
+  // "Don't show again" is kept twice: on this device, so the popup never
+  // flashes up, and on the account (profiles.notification_prefs), so it stays
+  // gone on every other phone and laptop the team signs in on.
+  const hiddenKey = `team-welcome-hidden-${teamNumber || 'default'}`
+  const [showPopup, setShowPopup] = useState(() => { try { return localStorage.getItem(hiddenKey) !== 'true' } catch { return true } })
+  useEffect(() => {
+    if (!user?.id || !showPopup) return
+    let alive = true
+    fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=notification_prefs`, { headers: restHeaders() })
+      .then(r => (r.ok ? r.json() : []))
+      .then(rows => {
+        if (alive && rows?.[0]?.notification_prefs?.hide_team_welcome) {
+          try { localStorage.setItem(hiddenKey, 'true') } catch {}
+          setShowPopup(false)
+        }
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [user?.id]) // eslint-disable-line
   const [slide, setSlide] = useState(0)
 
   // Survey state
@@ -102,6 +120,25 @@ function TeamHomeView({ onTabChange }) {
     setSurveySubmitted(true)
     setSubmitting(false)
     markSeen()
+  }
+
+  const neverShowAgain = async () => {
+    try { localStorage.setItem(hiddenKey, 'true') } catch {}
+    markSeen()
+    setShowPopup(false)
+    if (!user?.id) return
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}`
+      const rows = await fetch(`${url}&select=notification_prefs`, { headers: restHeaders() }).then(r => (r.ok ? r.json() : []))
+      const prefs = { ...(rows?.[0]?.notification_prefs || {}), hide_team_welcome: true }
+      await fetch(url, {
+        method: 'PATCH',
+        headers: { ...restHeaders(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ notification_prefs: prefs }),
+      })
+    } catch (err) {
+      console.error('Could not save "don\'t show again":', err)
+    }
   }
 
   const handleSkipSurvey = () => {
@@ -359,6 +396,11 @@ function TeamHomeView({ onTabChange }) {
                     <ChevronRight size={20} className="text-gray-500" />
                   </button>
                 )}
+              </div>
+              <div className="px-5 pb-4 -mt-1 text-center">
+                <button onClick={neverShowAgain} className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2">
+                  Don't show again
+                </button>
               </div>
             </div>
           </div>
