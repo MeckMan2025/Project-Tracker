@@ -34,6 +34,12 @@ export const TEAM_TABS = [
     description: 'Your team\'s own notebook. Write up each meeting one question at a time and read it back as a real notebook. Nobody outside your team can see it.',
   },
   {
+    id: 'team-growth',
+    name: 'Team Growth',
+    icon: 'LineChart',
+    description: 'What your own notebook and tasks say about how your team is growing, as charts. Only your team\'s entries count.',
+  },
+  {
     // One entry in the guide, three pages behind it.
     id: 'logs-outreach',
     also: ['logs-expenses', 'logs-mentor'],

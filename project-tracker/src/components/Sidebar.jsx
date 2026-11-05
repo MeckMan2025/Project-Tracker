@@ -476,8 +476,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
             </>
           )}
 
-          {/* A visiting team's own notebook, and Data, which for them will be
-              Team Growth only. Every row behind both is scoped to their team. */}
+          {/* A visiting team's own notebook, and Data: Team Growth is theirs
+              now, the other Data pages are coming. Every row behind both is
+              scoped to their team. */}
           {isTeamAccount && !teamFullAccess && (
             <>
               <div
@@ -494,12 +495,25 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <span className="truncate flex-1">Data</span>
                 <ChevronRight size={14} className="rotate-90" />
               </div>
-              <div className="ml-4 mt-1 px-3 py-1.5 rounded-lg text-sm text-gray-400 cursor-default" title="Coming soon">
-                <div className="flex items-center gap-2">
-                  <ChevronRight size={14} />
+              <div className="ml-4 mt-1 space-y-1">
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                    activeTab === 'team-growth' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                  }`}
+                  onClick={() => { onTabChange('team-growth'); onToggle() }}
+                >
+                  <ChevronRight size={14} className={activeTab === 'team-growth' ? 'rotate-90' : ''} />
                   <span className="truncate">Team Growth</span>
                 </div>
-                <p className="ml-6 text-[11px] italic text-gray-400">Coming soon</p>
+                {['RadRank', 'Attendance'].map(name => (
+                  <div key={name} className="px-3 py-1.5 rounded-lg text-sm text-gray-400 cursor-default" title="Coming soon">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight size={14} />
+                      <span className="truncate">{name}</span>
+                    </div>
+                    <p className="ml-6 text-[11px] italic text-gray-400">Coming soon</p>
+                  </div>
+                ))}
               </div>
               <hr className="my-2 border-gray-200" />
             </>
