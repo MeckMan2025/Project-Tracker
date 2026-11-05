@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { restHeaders } from '../lib/restHeaders'
-import { ScrollText, Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction } from 'lucide-react'
+import { ScrollText, Plus, FolderKanban, Trash2, Menu, X, ClipboardList, ChevronRight, LineChart, MoreVertical, Settings, User, LogOut, Bell, GitBranch, HelpCircle, ClipboardEdit, Play, Pause, Calendar, Shield, Home, Gamepad2, MessageCircle, GraduationCap, Lightbulb, Megaphone, Briefcase, Wallet, TrendingUp, History, Receipt, PenTool, Globe, Sparkles, Ruler, Hammer, Wrench, Zap, FlaskConical, Code, Cable, Bug as BugIcon, UserCog, LayoutGrid, Scale, Construction, BookOpen } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from './ToastProvider'
@@ -476,6 +476,35 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
             </>
           )}
 
+          {/* A visiting team's own notebook, and Data, which for them will be
+              Team Growth only. Every row behind both is scoped to their team. */}
+          {isTeamAccount && !teamFullAccess && (
+            <>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'notebook' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('notebook'); onToggle() }}
+              >
+                <BookOpen size={16} className="text-pastel-orange-dark" />
+                <span className="truncate flex-1">Engineering Notebook</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600">
+                <LineChart size={16} className="text-pastel-blue-dark" />
+                <span className="truncate flex-1">Data</span>
+                <ChevronRight size={14} className="rotate-90" />
+              </div>
+              <div className="ml-4 mt-1 px-3 py-1.5 rounded-lg text-sm text-gray-400 cursor-default" title="Coming soon">
+                <div className="flex items-center gap-2">
+                  <ChevronRight size={14} />
+                  <span className="truncate">Team Growth</span>
+                </div>
+                <p className="ml-6 text-[11px] italic text-gray-400">Coming soon</p>
+              </div>
+              <hr className="my-2 border-gray-200" />
+            </>
+          )}
+
           {/* Scouting. Its only link used to be inside the Competition Day
               block, which meant it did not exist on an ordinary day — and a
               form nobody can reach does not get filled in. */}
@@ -499,10 +528,9 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
           {/* The Engineering Notebook is reached from Home and from the
               gallery, not from here.
 
-              Logs is ours — a visiting team has no outreach, expenses or
-              mentor log here, and the access rule already refuses it, so the
-              link was one that could only ever bounce. */}
-          {!isGuest && (!isTeamAccount || teamFullAccess) && (
+              Logs is open to visiting teams too: their own outreach, expenses
+              and mentor log, every row scoped to their team. */}
+          {!isGuest && (
             <>
               {/* Logs holds three, so it opens rather than being one page —
                   the same as Data. Open it by the arrow; it also opens itself

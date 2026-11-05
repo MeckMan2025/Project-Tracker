@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { restHeaders } from '../lib/restHeaders'
 import { FolderKanban, Smartphone, X, Send, CheckCircle, ChevronLeft, ChevronRight,
-  Home, Calendar, Shield, Lightbulb, User, Settings, Megaphone } from 'lucide-react'
+  Home, Calendar, Shield, Lightbulb, User, Settings, Megaphone, BookOpen, ScrollText } from 'lucide-react'
 import { TEAM_TABS } from '../data/teamTabs'
 
 // The icon each tab is drawn with. Keyed by the name the shared list uses, so
 // a new tab names its icon there and this needs no edit.
 const TAB_ICONS = {
-  Home, FolderKanban, Calendar, Shield, Lightbulb, User, Settings,
+  Home, FolderKanban, Calendar, Shield, Lightbulb, User, Settings, BookOpen, ScrollText,
 }
 import { useUser } from '../contexts/UserContext'
 import { stampTeam } from '../lib/teamScope'

@@ -28,6 +28,20 @@ export const TEAM_TABS = [
     description: 'Meetings, competitions and deadlines.',
   },
   {
+    id: 'notebook',
+    name: 'Engineering Notebook',
+    icon: 'BookOpen',
+    description: 'Your team\'s own notebook. Write up each meeting one question at a time and read it back as a real notebook. Nobody outside your team can see it.',
+  },
+  {
+    // One entry in the guide, three pages behind it.
+    id: 'logs-outreach',
+    also: ['logs-expenses', 'logs-mentor'],
+    name: 'Logs',
+    icon: 'ScrollText',
+    description: 'Your outreach, your expenses and your mentor log. Only your team sees them.',
+  },
+  {
     id: 'user-management',
     name: 'User Management',
     icon: 'Shield',
@@ -53,4 +67,4 @@ export const TEAM_TABS = [
   },
 ]
 
-export const TEAM_TAB_IDS = TEAM_TABS.map(t => t.id)
+export const TEAM_TAB_IDS = TEAM_TABS.flatMap(t => [t.id, ...(t.also || [])])

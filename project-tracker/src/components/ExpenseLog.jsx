@@ -54,12 +54,15 @@ const money = (n) =>
     : ''
 
 export default function ExpenseLog() {
-  const { username } = useUser()
+  const { username, isTeam } = useUser()
   // Marking a row as copied into the spreadsheet is finance's job, so it is
   // whoever already deals with the money: a Finance role, the Business Lead,
   // or a full lead. Everyone else sees the state without being able to change
   // it, which is the point — you need to know whether it has been done.
-  const { canOrganizeNotebook: isLead, canViewFinanceTabs: canMarkSheet, myTeamNumber } = usePermissions()
+  const { canOrganizeNotebook: isLead, canViewFinanceTabs: canMarkSheet, myTeamNumber, teamFullAccess } = usePermissions()
+  // The spreadsheet tick is Radical's finance process. A visiting team has no
+  // sheet of ours to copy into, so they don't see it at all.
+  const showSheet = !(isTeam && !teamFullAccess)
   // One rule for whose rows these are — see lib/teamScope.js.
   const SCOPE = teamScope(myTeamNumber)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -493,7 +496,7 @@ export default function ExpenseLog() {
                         {/* Whether this row has been carried into the finance
                             spreadsheet. Readable by everyone, changeable by
                             the people who keep the sheet. */}
-                        <button
+                        {showSheet && <button
                           type="button"
                           onClick={() => toggleSheet(r)}
                           disabled={!canMarkSheet}
@@ -507,7 +510,7 @@ export default function ExpenseLog() {
                           } ${canMarkSheet ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}`}
                         >
                           {r.in_spreadsheet ? '✓ Sheet' : 'Not in sheet'}
-                        </button>
+                        </button>}
                         {r.reimbursement && (
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-pastel-orange/40 text-gray-700">
                             Reimburse
