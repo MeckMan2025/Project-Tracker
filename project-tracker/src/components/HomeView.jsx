@@ -3,7 +3,7 @@ import { storedTeamScope, teamScope } from '../lib/teamScope'
 import { restHeaders } from '../lib/restHeaders'
 import { fetchMyTasks } from '../lib/taskTeams'
 import { SEASON_GOALS } from '../lib/seasonGoals'
-import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3 } from 'lucide-react'
+import { BookOpen, Calendar, ArrowRight, Camera, Lightbulb, Send, Trash2, Check, X, Plus, ChevronLeft, ChevronRight, Target, Bot, ClipboardCheck, Grid3x3, FolderKanban, LineChart } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
@@ -67,7 +67,10 @@ function Flower({ i = 0, size = 18 }) {
   )
 }
 
-function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
+// `visiting` is a team account's Home: the same page Prime Suspects sees, read
+// from their own rows only (every query here is scoped to their team), minus
+// what only Radical can open. `guide` is drawn under the shortcut tiles.
+function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, guide = null }) {
   const { username, user, functionTags } = useUser()
   const { isGuest, hasLeadTag, myTeamNumber } = usePermissions()
 
@@ -488,13 +491,18 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             two pages used during a meeting. */}
         {(() => {
           const tiles = [
-            ...(hasLeadTag ? [
+            ...(hasLeadTag && !visiting ? [
               { view: 'attendance',    label: 'Attendance',    icon: ClipboardCheck, ring: 'border-pastel-yellow',   tint: 'bg-pastel-yellow/20',   text: 'text-pastel-yellow-dark' },
               { view: 'design-matrix', label: 'Decision Matrix', icon: Grid3x3,        ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
             ] : []),
             // A tab of its own rather than a Special Controls page, so this one
             // switches tabs instead of opening a special view.
-            { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
+            ...(visiting ? [
+              { tab: 'boards', label: 'Boards', icon: FolderKanban, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
+              { tab: 'team-growth', label: 'Team Growth', icon: LineChart, ring: 'border-pastel-orange', tint: 'bg-pastel-orange/20', text: 'text-pastel-orange-dark' },
+            ] : [
+              { tab: 'ai-manual', label: 'AI Manual', icon: Bot, ring: 'border-pastel-yellow', tint: 'bg-pastel-yellow/20', text: 'text-pastel-yellow-dark' },
+            ]),
             // Not for guests — the notebook is teammate-only, and a tile that
             // lands on "access restricted" is worse than no tile.
             ...(isGuest ? [] : [
@@ -519,6 +527,8 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
             </div>
           )
         })()}
+
+        {guide}
 
         {/* My Tasks and the season's goals, side by side — or My Tasks alone,
             full width, on a team that doesn't share our goals. */}
@@ -581,7 +591,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
                       </span>
                     )}
                     <button
-                      onClick={() => onOpenTask?.(task.board_id, task.id)}
+                      onClick={() => (onOpenTask ? onOpenTask(task.board_id, task.id) : onTabChange?.(task.board_id))}
                       className="shrink-0 flex items-center gap-0.5 text-sm font-semibold text-pastel-yellow-dark hover:underline"
                     >
                       View <ArrowRight size={13} />
@@ -651,7 +661,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         {/* Season Timeline (top of the Home Page) */}
 
         {/* Comp Day Banner */}
-        {compDayActive && (
+        {compDayActive && !visiting && (
           <button
             onClick={() => onTabChange('comp-day')}
             className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow text-left"
@@ -669,7 +679,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         )}
 
         {/* Comp Day Role Preview */}
-        {!compDayActive && compDayPreview && !isGuest && (
+        {!compDayActive && compDayPreview && !isGuest && !visiting && (
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Comp Day Roles</h3>
@@ -700,7 +710,7 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial }) {
         {/* 4. Random Quote Footer — and the way in to adding one. The quote is
             what you are looking at when you think of one, so it is a better
             door than a tile at the top that said the same thing. */}
-        {!isGuest && (
+        {!isGuest && !visiting && (
           <div className="text-center py-3">
             <button
               onClick={() => onOpenSpecial?.('quotes')}

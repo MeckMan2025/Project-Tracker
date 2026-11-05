@@ -12,6 +12,7 @@ const TAB_ICONS = {
 import { useUser } from '../contexts/UserContext'
 import { stampTeam } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
+import HomeView from './HomeView'
 
 // Built from the list App.jsx enforces, so the guide and the app can never
 // disagree about what a team has.
@@ -286,51 +287,54 @@ function TeamHomeView({ onTabChange }) {
   const currentSlide = Math.min(slide, totalSlides - 1)
   const isLastSlide = currentSlide === totalSlides - 1
 
+  // The guide: every feature a team has, as a grid of tiles on notebook paper.
+  // Tap one and its page opens underneath — what it is for, how to use it, and
+  // a button straight to it — so it reads one feature at a time, not a wall.
+  const [guidePick, setGuidePick] = useState(null)
+  const guideTabs = TEAM_TABS.filter(t => t.id !== 'home')
+  const picked = guideTabs.find(t => t.id === guidePick)
+  const guideCard = (
+    <section className="relative rounded-xl shadow-md border-2 border-pastel-orange-dark/60 bg-white overflow-hidden"
+      style={{ backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0, transparent 27px, rgba(125,170,220,.25) 27px, rgba(125,170,220,.25) 28px)' }}>
+      <div className="absolute top-0 bottom-0 left-6 w-px bg-red-300/70" aria-hidden="true" />
+      <div className="pl-9 pr-4 pt-3 pb-2 border-b border-pastel-orange/40 bg-pastel-orange/15">
+        <h2 className="font-extrabold text-gray-800">📒 How your team uses ETS</h2>
+        <p className="text-xs text-gray-600">Tap a feature to see how it works.</p>
+      </div>
+      <div className="pl-9 pr-3 py-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {guideTabs.map(t => {
+          const Icon = TAB_ICONS[t.icon] || Home
+          const on = t.id === guidePick
+          return (
+            <button key={t.id} onClick={() => setGuidePick(on ? null : t.id)}
+              className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-center transition-all ${on
+                ? 'border-pastel-orange-dark bg-pastel-orange/30 shadow-sm'
+                : 'border-gray-200 bg-white/80 hover:border-pastel-orange hover:bg-pastel-orange/10'}`}>
+              <Icon size={18} className="text-pastel-orange-dark" />
+              <span className="text-[11px] font-bold text-gray-700 leading-tight">{t.name}</span>
+            </button>
+          )
+        })}
+      </div>
+      {picked && (
+        <div className="mx-3 mb-3 ml-9 rounded-lg border border-pastel-orange/60 bg-pastel-orange/10 p-3 space-y-1.5">
+          <p className="font-bold text-gray-800 text-sm">{picked.name}</p>
+          <p className="text-xs text-gray-600 leading-relaxed">{picked.description}</p>
+          {(picked.how || []).map((line, j) => (
+            <p key={j} className="text-xs text-gray-700 leading-relaxed">👉 {line}</p>
+          ))}
+          <button onClick={() => onTabChange?.(picked.id)}
+            className="mt-1 px-3 py-1.5 rounded-lg bg-pastel-orange hover:bg-pastel-orange-dark text-xs font-bold text-gray-800 shadow-sm transition-colors">
+            Open {picked.name} →
+          </button>
+        </div>
+      )}
+    </section>
+  )
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3 ml-14 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Home
-            </h1>
-          </div>
-          <NotificationBell />
-        </div>
-      </header>
-      <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
-        <div className="max-w-2xl mx-auto space-y-8 pb-8">
-          <div className="bg-gradient-to-r from-pastel-blue/30 via-pastel-pink/30 to-pastel-orange/30 rounded-2xl p-6 text-center">
-            <img src="/ScrumLogo-transparent.png" alt="Scrum Logo" className="w-14 h-14 mx-auto mb-2 drop-shadow-lg" />
-            <h2 className="text-2xl font-black text-gray-800">
-              Welcome{teamNumber ? `, Team ${teamNumber}` : ''}!
-            </h2>
-            {teamName && <p className="text-base font-semibold text-gray-600">{teamName}</p>}
-            <p className="text-sm text-gray-600 mt-1">
-              This is your space — your boards, your people, your tasks. Nobody
-              else can see them.
-            </p>
-          </div>
-          <section>
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Updates for Teams</h3>
-            <div className="space-y-3">
-              {TEAM_UPDATES.map((update, i) => (
-                <div key={i} className="bg-white rounded-xl shadow-sm border p-4">
-                  <p className="text-xs font-medium text-gray-400 mb-2">{update.date}</p>
-                  <ul className="space-y-1.5">
-                    {update.items.map((item, j) => (
-                      <li key={j} className="flex gap-2 text-sm text-gray-700">
-                        <span className="text-pastel-pink-dark shrink-0 mt-0.5">-</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      </main>
+      <HomeView visiting onTabChange={onTabChange} guide={guideCard} />
 
       {/* Slideshow popup overlay */}
       {showPopup && (

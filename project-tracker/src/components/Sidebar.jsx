@@ -490,6 +490,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <BookOpen size={16} className="text-pastel-orange-dark" />
                 <span className="truncate flex-1">Engineering Notebook</span>
               </div>
+              <hr className="my-2 border-gray-200" />
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600">
                 <LineChart size={16} className="text-pastel-blue-dark" />
                 <span className="truncate flex-1">Data</span>
@@ -653,7 +654,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                     type="text"
                     value={newTabName}
                     onChange={(e) => setNewTabName(e.target.value)}
-                    placeholder="Board name"
+                    placeholder={isTeamAccount && !teamFullAccess ? 'Folder name' : 'Board name'}
                     className="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-pastel-blue focus:border-transparent"
                     autoFocus
                   />
@@ -682,7 +683,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                   className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-pastel-blue/30 hover:bg-pastel-blue/50 rounded-lg transition-colors text-gray-500 text-sm"
                 >
                   <Plus size={14} />
-                  {canEditContent ? 'Add Board' : 'Request Board'}
+                  {isTeamAccount && !teamFullAccess ? 'Add Folder' : canEditContent ? 'Add Board' : 'Request Board'}
                 </button>
               )}
             </div>}

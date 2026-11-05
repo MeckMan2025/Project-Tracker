@@ -8,6 +8,8 @@ const CHANGELOG = [
     id: 176,
     date: '2026-11-05',
     items: [
+      '\u{1F3E0} A team account\u2019s Home looks like ours now \u2014 This Week, shortcut tiles, My Tasks and notebook photos \u2014 filled only from their own team. A notebook-page guide on it explains each feature: tap one to see how it works and open it',
+      '\u{1F4C1} Team accounts start with no preset boards. Add Folder makes as many as they need',
       '\u{1F4D3} Team accounts have the Engineering Notebook and Logs (Outreach, Expenses, Mentor): their own, every row kept to their team and never shared. Data has Team Growth, read only from their own notebook and tasks; RadRank and Attendance are coming soon',
       '\u{1F4DD} Interested Teams now shows the starter survey too: each team\u2019s answers from its first sign-in, and a count of how often teams say they\u2019d use the app',
       '\u{1F6AB} The Getting Started popup on a team\u2019s Home has a Don\u2019t show again link. It is saved on the account, so it stays gone on every device',
