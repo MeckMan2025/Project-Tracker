@@ -324,7 +324,9 @@ function PitPanel({ visits }) {
 
 function ScoutingData() {
   const { username } = useUser()
-  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag, isCofounder, myTeamNumber } = usePermissions()
+  const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag: leadTag, isCofounder, myTeamNumber, canManageOwnTeam } = usePermissions()
+  // A team account's own login runs its list too (the database already lets it).
+  const hasLeadTag = leadTag || canManageOwnTeam
   // One rule for whose rows these are — see lib/teamScope.js.
   const SCOPE = teamScope(myTeamNumber)
   const [records, setRecords] = useState([])

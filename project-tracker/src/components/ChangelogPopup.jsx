@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 178,
     date: '2026-11-07',
     items: [
+      '\u2795 RadRank: a team account\u2019s login can add, rank and remove teams on its Teams Being Considered list',
       '\u{1F512} Team Chat is for leads and co-leads only (and a team account\u2019s own login), since it speaks for the whole team',
       '\u{1F465} Pit scouting is set up in pit groups: who scouts together (one, two, three, any number) and which teams they visit (any number). Add a group by hand or make groups at random of the size you pick; teams from the match schedule are dealt to the groups at random, evenly. Older days turn into one group per person with the same teams',
       '\u{1F4F8} Competition Day uses the Event Roles too: someone set up as Media, Pit Crew or Drive Team for the day lands on that screen even when no block names them. Before, they were put on Scout',
