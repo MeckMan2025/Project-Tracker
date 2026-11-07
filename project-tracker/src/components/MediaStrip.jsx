@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Camera, ChevronLeft, ChevronRight, Download, Trash2, X } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Camera, ChevronLeft, ChevronRight, Download, Trash2, X, Plus, Loader2 } from 'lucide-react'
 import { restHeaders, ensureUserToken } from '../lib/restHeaders'
-import { storedTeamScope } from '../lib/teamScope'
+import { storedTeamScope, stampStored } from '../lib/teamScope'
+import { uploadImageFile } from '../lib/photos'
 import { savePhoto } from '../lib/savePhoto'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -10,13 +11,40 @@ import { usePermissions } from '../hooks/usePermissions'
 // this team's (season_photos is walled per team). Tap one to see it big, and
 // save it to the camera roll from there.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export default function MediaStrip({ title = 'Photos from Media', todayOnly = false, limit = 40 }) {
+// caption: put in front of each upload's caption (the Competition Day's name).
+export default function MediaStrip({ title = 'Photos from Media', todayOnly = false, limit = 40, caption = '' }) {
   const { username } = useUser()
   const { hasLeadTag } = usePermissions()
   const [photos, setPhotos] = useState([])
   const [at, setAt] = useState(null)        // index of the open photo
   const [saving, setSaving] = useState(false)
+  // Anyone can add photos here, from the camera or the camera roll, several at once.
+  const fileRef = useRef(null)
+  const [adding, setAdding] = useState(0)     // photos still uploading
+  const [addError, setAddError] = useState('')
+  const addPhotos = async (e) => {
+    const files = [...(e.target.files || [])]
+    e.target.value = ''
+    if (!files.length) return
+    setAddError(''); setAdding(files.length)
+    let failed = 0
+    for (const file of files) {
+      try {
+        await ensureUserToken()
+        const url = await uploadImageFile(supabaseUrl, supabaseKey, 'season-photos', file)
+        const res = await fetch(`${supabaseUrl}/rest/v1/season_photos`, {
+          method: 'POST', headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+          body: JSON.stringify(stampStored({ url, caption: caption || '', uploaded_by: username || '' })),
+        })
+        if (!res.ok) throw new Error(await res.text())
+      } catch (err) { console.error('Photo upload failed:', err); failed++ }
+      setAdding(n => n - 1)
+    }
+    if (failed) setAddError(`${failed} photo${failed === 1 ? '' : 's'} didn't upload. Check your connection and try again.`)
+    load()
+  }
 
   const load = useCallback(async () => {
     try {
@@ -45,13 +73,21 @@ export default function MediaStrip({ title = 'Photos from Media', todayOnly = fa
     setAt(null); load()
   }
 
-  if (!photos.length) return null
   return (
     <>
       <section className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-3">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-          <Camera size={13} className="text-pastel-pink-dark" /> {title} <span className="font-normal normal-case text-gray-400">· tap to save</span>
-        </h2>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Camera size={13} className="text-pastel-pink-dark" /> {title}{photos.length > 0 && <span className="font-normal normal-case text-gray-400">· tap to save</span>}
+          </h2>
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={addPhotos} />
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={adding > 0}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pastel-pink hover:bg-pastel-pink-dark text-xs font-semibold text-gray-800 disabled:opacity-60 shrink-0">
+            {adding > 0 ? <><Loader2 size={13} className="animate-spin" /> Uploading {adding}…</> : <><Plus size={13} /> Add photos</>}
+          </button>
+        </div>
+        {addError && <p className="text-[11px] text-red-500 mb-1">{addError}</p>}
+        {!photos.length && <p className="text-xs text-gray-400">No photos yet. Add the first one.</p>}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {photos.map((p, i) => (
             <button key={p.id} type="button" onClick={() => setAt(i)} title={p.caption || ''}

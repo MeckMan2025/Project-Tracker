@@ -144,7 +144,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
             </div>
             </>)}
             {/* Today's photos from Media, on every mode's screen. */}
-            <MediaStrip title="Today's photos from Media" todayOnly />
+            <MediaStrip title="Competition photos" todayOnly caption={day?.name || ''} />
           </>
         )}
       </main>

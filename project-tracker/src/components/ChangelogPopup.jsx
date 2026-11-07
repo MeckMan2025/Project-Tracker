@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 178,
     date: '2026-11-07',
     items: [
+      '\u{1F4E4} Anyone can add photos to the photo strip on Home and on the Competition Day board: Add photos takes a new picture or picks several from your camera roll at once',
       '\u{1F50E} Drive has All match data and All pit data buttons: every team we have scouted, RadRank-style, with a search box for team number or name. RadRank has the search box too',
       '\u{1F6A9} Report issue, top right of every Competition Day screen: describe what went wrong and it goes straight to Kayden and Yukti as a notification, with the mode and the day attached',
       '\u26A1 While a Competition Day is live, the app opens straight onto it instead of showing Home for a second first. Each phone remembers the live day for the person signed in, and lets go at once if the day has ended',
