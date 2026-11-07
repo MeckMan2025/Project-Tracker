@@ -649,8 +649,10 @@ function ScoutingData({ only = null, onClose = null } = {}) {
     const where = (t) => (!stateFilter || t.state === stateFilter)
       && (!leagueFilter || (leagueFilter === '-' ? !t.league : t.league === leagueFilter))
       && (!q || String(t.number).includes(q) || String(t.name || '').toLowerCase().includes(q))
-      // The pit view lists only the teams our pit scouts actually visited.
+      // Opened from Drive, list only teams we have something on: a pit visit
+      // for the pit view, a scouted match for the match view.
       && (only !== 'pit' || (pitByTeam[t.number] || []).length > 0)
+      && (only !== 'match' || (t.scoutCount || 0) > 0)
     return { consideredTeams: considered.filter(where), otherTeams: others.filter(where) }
   }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam, stateFilter, leagueFilter, search, only])
 
@@ -773,7 +775,7 @@ function ScoutingData({ only = null, onClose = null } = {}) {
   return (
     <>
     {addTeamModal}
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className={`flex-1 flex flex-col min-w-0 ${onClose ? 'h-full min-h-0' : ''}`}>
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className={`px-4 py-4 ${onClose ? '' : 'ml-14'} flex items-center justify-between gap-3 flex-wrap`}>
           <div>
@@ -848,7 +850,7 @@ function ScoutingData({ only = null, onClose = null } = {}) {
         </div>
       </header>
 
-      <main className={`flex-1 p-4 ${onClose ? '' : 'pl-14'} md:pl-4 overflow-y-auto`}>
+      <main className={`flex-1 p-4 ${onClose ? 'min-h-0 overscroll-contain' : 'pl-14'} md:pl-4 overflow-y-auto`}>
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
 
           {/* Scouting Accountability Grid */}

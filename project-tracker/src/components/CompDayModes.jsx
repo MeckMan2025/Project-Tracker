@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Wrench, Gamepad2, Camera, Search, CheckCircle2, AlertTriangle, Plus, Upload, Flag, Trash2, MessageCircle, ChevronDown, CalendarDays, Megaphone } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -264,6 +265,23 @@ function usePitData() {
 }
 const pitVal = (v) => (Array.isArray(v) ? v.join(', ') : String(v ?? '').trim())
 const PIT_HEADLINE = ['drive_train', 'main_scoring', 'preferred_role', 'cycle_speed', 'reliability']
+
+// All match or pit data, full screen, above everything. Rendered on the page
+// itself (a portal), with the page behind it held still, so the list scrolls
+// on its own and nothing underneath moves.
+function BrowseOverlay({ only, onClose }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex flex-col overflow-hidden overscroll-contain" style={{ background: 'linear-gradient(135deg,#fdf6e3,#fdeef4)' }}>
+      <ScoutingData only={only} onClose={onClose} />
+    </div>,
+    document.body,
+  )
+}
 
 // ── Drive Team ──────────────────────────────────────────────────────────────
 // Two columns. Left, the schedule with our number lit up. Right, what the drive
@@ -541,11 +559,7 @@ function DriveMode({ day, doc }) {
         })()}
         <ToScoutsComposer day={day} />
       </div>
-      {browse && (
-        <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: 'linear-gradient(135deg,#fdf6e3,#fdeef4)' }}>
-          <ScoutingData only={browse} onClose={() => setBrowse(null)} />
-        </div>
-      )}
+      {browse && <BrowseOverlay only={browse} onClose={() => setBrowse(null)} />}
     </div>
   )
 }
