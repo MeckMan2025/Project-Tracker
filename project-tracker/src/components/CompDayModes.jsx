@@ -8,6 +8,7 @@ import { uploadImageFile } from '../lib/photos'
 import { HOME_TEAM_NUMBER } from '../data/team'
 import PitChecklist from './PitChecklist'
 import { daySince } from '../lib/dayRota'
+import { SCOUTING_FIELDS } from '../data/scoutingFields'
 
 // The four ways to spend a Competition Day. The board shows one at a time:
 //
@@ -168,202 +169,216 @@ function ourMatches(doc, team) {
   }))
 }
 
-// What scouting says about a team, boiled down to a line.
-function useTeamSummaries(teams, since) {
+// What scouting says about each team so far today: every row, and the two
+// things the drive team asked to see first — how accurately they shoot, and
+// what their auto does.
+// Leave and Park are stored as 1/0; older rows may say Yes/No.
+const yes = (v) => v === true || v === 1 || /^(yes|y|true|1)$/i.test(String(v ?? '').trim())
+const num = (v) => { const n = Number(v); return v === '' || v == null || Number.isNaN(n) ? null : n }
+function useTeamStats(teams, since) {
   const key = teams.slice().sort().join(',')
   const [rows, setRows] = useState([])
   useEffect(() => {
     if (!key) { setRows([]); return }
     let on = true
-    ;(async () => {
+    const load = async () => {
       try {
         await ensureUserToken()
         const list = key.split(',').map(t => `"${t}"`).join(',')
-        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&team_number=in.(${list})&select=team_number,match_number,scout,auto_made,teleop_made,endgame_made,endgame,defense,breakdowns,driver_skill,parking,penalties,comments,created_at&order=created_at.desc`, { headers: restHeaders() })
+        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&team_number=in.(${list})&select=*&order=created_at.desc`, { headers: restHeaders() })
         if (on && res.ok) setRows(await res.json())
-      } catch { /* leave empty */ }
-    })()
-    return () => { on = false }
+      } catch { /* leave what we had */ }
+    }
+    load()
+    // Live: new scouting shows up through the day without a reload.
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 20000)
+    return () => { on = false; clearInterval(t) }
   }, [key, since])
   return useMemo(() => {
     const by = {}
-    rows.forEach(r => { (by[r.team_number] = by[r.team_number] || []).push(r) })
-    const avg = (xs, k) => { const v = xs.map(x => x[k]).filter(x => x != null && x !== '').map(Number).filter(n => !Number.isNaN(n)); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null }
+    rows.forEach(r => { (by[String(r.team_number)] = by[String(r.team_number)] || []).push(r) })
+    const sum = (xs, k) => xs.reduce((a, x) => a + (num(x[k]) || 0), 0)
+    const pct = (made, shot) => (shot > 0 ? Math.round((made / shot) * 100) : null)
+    const share = (xs, f) => (xs.length ? Math.round((xs.filter(f).length / xs.length) * 100) : null)
+    const avg = (xs, k) => { const v = xs.map(x => num(x[k])).filter(n => n != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null }
     const out = {}
     Object.entries(by).forEach(([t, xs]) => {
-      const broke = xs.filter(x => x.breakdowns && !/^(none|no|n\/a)?$/i.test(String(x.breakdowns).trim())).length
-      const defense = xs.filter(x => x.defense && !/^(none|no)$/i.test(String(x.defense).trim())).length
-      out[t] = { n: xs.length, auto: avg(xs, 'auto_made'), teleop: avg(xs, 'teleop_made'), endgame: avg(xs, 'endgame_made'), driver: avg(xs, 'driver_skill'), broke, defense, penalties: avg(xs, 'penalties'), rows: xs }
+      const aS = sum(xs, 'auto_shot'), aM = sum(xs, 'auto_made')
+      const tS = sum(xs, 'teleop_shot'), tM = sum(xs, 'teleop_made')
+      const eS = sum(xs, 'endgame_shot'), eM = sum(xs, 'endgame_made')
+      out[t] = {
+        n: xs.length, rows: xs,
+        accuracy: pct(aM + tM + eM, aS + tS + eS), made: aM + tM + eM, shot: aS + tS + eS,
+        autoAcc: pct(aM, aS), teleopAcc: pct(tM, tS), endgameAcc: pct(eM, eS),
+        autoMade: avg(xs, 'auto_made'), autoShot: avg(xs, 'auto_shot'),
+        leave: share(xs, x => yes(x.auto_leave)), park: share(xs, x => yes(x.auto_park)),
+        autoReliability: avg(xs, 'auto_reliability'),
+        autoNotes: xs.map(x => String(x.auto_notes || '').trim()).filter(Boolean).slice(0, 3),
+      }
     })
     return out
   }, [rows])
 }
 
-// One team: the summary line, and underneath (tap it) every match our scouts
-// have written up for them, newest first. Fills in through the day.
-function TeamLine({ team, s, ours, onMessage }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className={`rounded-lg text-sm ${ours ? 'bg-white/70' : 'bg-white/40'} text-gray-800`}>
-      <div className="flex items-center gap-2 px-2.5 py-1.5">
-        <button type="button" onClick={() => s && setOpen(!open)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
-          <span className="font-bold w-14 shrink-0">{team}</span>
-          {s ? (
-            <span className="text-xs text-gray-600 truncate">
-              auto {s.auto ?? '–'} · teleop {s.teleop ?? '–'} · endgame {s.endgame ?? '–'}
-              {s.driver != null ? ` · driver ${s.driver}/5` : ''}{s.defense ? ` · plays defense` : ''}{s.broke ? ` · broke down ${s.broke}×` : ''}
-              <span className="text-gray-400"> · {s.n} scouted</span>
-            </span>
-          ) : <span className="text-xs text-gray-400">not scouted yet</span>}
-          {s && <ChevronDown size={14} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />}
-        </button>
-        <button type="button" onClick={onMessage} title="Messaging other teams is coming soon"
-                className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold text-gray-400 bg-white/60 border border-dashed border-gray-300 cursor-not-allowed">
-          <MessageCircle size={12} /> Message <span className="opacity-70">· soon</span>
-        </button>
-      </div>
-      {open && s && (
-        <div className="border-t border-white/60 px-2.5 py-1.5 space-y-1">
-          {s.rows.map((r, i) => (
-            <div key={i} className="text-xs text-gray-600">
-              <span className="font-semibold text-gray-700">M{r.match_number || '?'}</span>
-              {' · '}auto {r.auto_made ?? '–'} · teleop {r.teleop_made ?? '–'} · endgame {r.endgame_made ?? '–'}{r.endgame ? ` (${r.endgame})` : ''}
-              {r.defense && !/^(none|no)$/i.test(String(r.defense)) ? ` · defense: ${r.defense}` : ''}
-              {r.breakdowns && !/^(none|no|n\/a)?$/i.test(String(r.breakdowns).trim()) ? ` · broke: ${r.breakdowns}` : ''}
-              {r.comments ? <span className="block text-gray-500 italic">“{r.comments}”</span> : null}
-              {r.scout ? <span className="text-gray-400"> — {r.scout}</span> : null}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Drive Team ──────────────────────────────────────────────────────────────
-const DRIVE_CHECK = ['Battery swapped and charged', 'Phone charged, app open', 'Controllers paired', 'Bumpers the right color', 'Code deployed, right OpMode', 'Preload in']
+// Three things, in this order: the schedule (our number lit up), the stats for
+// whichever team you tap on it — accuracy and auto first, everything else one
+// more tap — and the chat for the match you're on.
 function DriveMode({ day, doc }) {
   const { username, teamNumber } = useUser()
-  const team = teamNumber || HOME_TEAM_NUMBER
-  const { notes, add } = useDayNotes(day?.id)
-  const matches = useMemo(() => ourMatches(doc, team), [doc, team])
-  const played = useMemo(() => new Set(notes.filter(n => n.kind === 'played').map(n => n.match)), [notes])
-  const upNext = matches.find(m => !played.has(m.match)) || null
-  // Tap a match on the schedule and the card, the stats and the chat are
-  // about that match; otherwise they follow the next one to play.
-  const [picked, setPicked] = useState(null)
-  const next = (picked && matches.find(m => m.match === picked)) || upNext
-  const teams = useMemo(() => [...new Set(matches.flatMap(m => [...m.partner, ...m.opponents]))], [matches])
-  const summaries = useTeamSummaries(teams, daySince(day))
-  const [checks, setChecks] = useState({})
+  const team = String(teamNumber || HOME_TEAM_NUMBER)
+  const { notes, add, remove } = useDayNotes(day?.id)
+  const schedule = useMemo(() => [...(doc?.matchSchedule || [])].filter(m => String(m.match || '').trim())
+    .sort((a, b) => Number(a.match) - Number(b.match)), [doc])
+  const isOurs = (m) => SLOTS.some(([k]) => String(m[k] || '').trim() === team)
+  const playedNote = (match) => notes.find(n => n.kind === 'played' && n.match === match)
+  const ours = schedule.filter(isOurs)
+  const upNext = ours.find(m => !playedNote(String(m.match).trim())) || null
+  const [pickedMatch, setPickedMatch] = useState(null)
+  const [pickedTeam, setPickedTeam] = useState(null)
+  const [showAll, setShowAll] = useState(false)
+  const chatMatch = pickedMatch || (upNext ? String(upNext.match).trim() : (schedule[0] ? String(schedule[0].match).trim() : null))
+  const teams = useMemo(() => [...new Set(schedule.flatMap(m => SLOTS.map(([k]) => String(m[k] || '').trim())).filter(Boolean))], [schedule])
+  const stats = useTeamStats(teams, daySince(day))
   const [note, setNote] = useState('')
-  useEffect(() => { try { setChecks(JSON.parse(localStorage.getItem(`drive-check-${day?.id}-${next?.match}`) || '{}')) } catch { setChecks({}) } }, [day?.id, next?.match])
-  const toggle = (i) => { const c = { ...checks, [i]: !checks[i] }; setChecks(c); try { localStorage.setItem(`drive-check-${day?.id}-${next?.match}`, JSON.stringify(c)) } catch { /* ignore */ } }
-  const driveNotes = notes.filter(n => n.kind === 'drive' && (!next || n.match === next.match))
-  const ready = DRIVE_CHECK.every((_, i) => checks[i])
-  const [soon, setSoon] = useState(false)
-  const comingSoon = () => { setSoon(true); setTimeout(() => setSoon(false), 2200) }
+  const chat = notes.filter(n => n.kind === 'drive' && n.match === chatMatch)
+  const pick = (t) => { setPickedTeam(pickedTeam === t ? null : t); setShowAll(false) }
 
   if (!doc) return <Card title="Drive Team" icon={Gamepad2}><Empty>Loading the day…</Empty></Card>
-  if (!matches.length) return <Card title="Drive Team" icon={Gamepad2}><Empty>No matches in this day's schedule yet. A lead sets them up under Competition Day → Matches.</Empty></Card>
+  if (!schedule.length) return <Card title="Drive Team" icon={Gamepad2}><Empty>No matches in this day's schedule yet. A lead sets them up under Competition Day → Matches.</Empty></Card>
+
+  const s = pickedTeam ? stats[pickedTeam] : null
+  const Big = ({ label, value, sub }) => (
+    <div className="rounded-xl bg-white/80 border border-gray-100 p-3 text-center">
+      <p className="text-2xl font-extrabold text-gray-800">{value ?? '–'}</p>
+      <p className="text-xs font-semibold text-gray-600">{label}</p>
+      {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
+    </div>
+  )
+
   return (
     <div className="space-y-4">
-      {next ? (
-        <section className={`rounded-xl shadow-sm p-4 text-white ${next.color === 'red' ? 'bg-gradient-to-br from-red-500 to-rose-600' : next.color === 'blue' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-slate-500 to-slate-700'}`}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-wide opacity-80">{next === upNext ? 'Up next' : played.has(next.match) ? 'Played' : 'Looking at'}{next !== upNext && upNext ? <button type="button" onClick={() => setPicked(null)} className="ml-2 underline opacity-90">back to next</button> : null}</p>
-              <h2 className="text-2xl font-extrabold leading-tight">Match {next.match}{next.untagged ? '' : ` · ${next.position}`}</h2>
-              {next.time && <p className="text-sm opacity-90">{next.time}</p>}
-              {next.untagged && <p className="text-xs opacity-80 mt-0.5">Our slot isn't set for this match. A lead picks "We are Red 1 / Blue 2…" under Competition Day → Matches.</p>}
-            </div>
-            {!played.has(next.match) && (
-              <button type="button" onClick={() => add({ kind: 'played', match: next.match, author: username })}
-                className="shrink-0 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-sm font-semibold">
-                <Flag size={14} className="inline mr-1" />Mark played
-              </button>
-            )}
-          </div>
-          {soon && <p className="mt-2 text-xs bg-white/20 rounded-lg px-2 py-1 inline-block">💬 Messaging other teams is coming soon.</p>}
-          <p className="text-[11px] opacity-75 mt-2">Tap a team for its stats so far.</p>
-          {next.untagged ? (
-            <div className="mt-3">
-              <p className="text-xs uppercase tracking-wide opacity-80 mb-1">In this match</p>
-              <div className="space-y-1">{next.opponents.map(t => <TeamLine key={t} team={t} s={summaries[t]} onMessage={comingSoon} />)}{!next.opponents.length && <p className="text-xs opacity-80">No team numbers typed yet.</p>}</div>
-            </div>
-          ) : (
-          <div className="grid sm:grid-cols-2 gap-3 mt-3">
-            <div>
-              <p className="text-xs uppercase tracking-wide opacity-80 mb-1">With us</p>
-              <div className="space-y-1">{next.partner.map(t => <TeamLine key={t} team={t} s={summaries[t]} ours onMessage={comingSoon} />)}{!next.partner.length && <p className="text-xs opacity-80">No partner listed.</p>}</div>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide opacity-80 mb-1">Against</p>
-              <div className="space-y-1">{next.opponents.map(t => <TeamLine key={t} team={t} s={summaries[t]} onMessage={comingSoon} />)}</div>
-            </div>
-          </div>
-          )}
-        </section>
-      ) : (
-        <Card title="Drive Team" icon={Gamepad2}><Empty>Every match on the schedule is marked played. Nice work.</Empty></Card>
-      )}
-
-      {next && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card title={`Before match ${next.match}`} icon={CheckCircle2}
-                action={<span className={`text-xs font-semibold ${ready ? 'text-green-600' : 'text-gray-400'}`}>{DRIVE_CHECK.filter((_, i) => checks[i]).length}/{DRIVE_CHECK.length}</span>}>
-            <ul className="space-y-1.5">
-              {DRIVE_CHECK.map((c, i) => (
-                <li key={c}>
-                  <button type="button" onClick={() => toggle(i)} className="w-full flex items-center gap-2 text-left text-sm">
-                    <span className={`w-5 h-5 rounded-md border flex items-center justify-center ${checks[i] ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 bg-white'}`}>{checks[i] ? '✓' : ''}</span>
-                    <span className={checks[i] ? 'line-through text-gray-400' : 'text-gray-700'}>{c}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className="text-[11px] text-gray-400 mt-2">Resets for each match. Only on this phone.</p>
-          </Card>
-          <Card title={`Match ${next.match} chat`} icon={MessageCircle}>
-            <div className="space-y-1.5 mb-2 max-h-40 overflow-y-auto">
-              {driveNotes.length ? driveNotes.map(n => (
-                <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
-              )) : <Empty>Nothing yet. Drive team, strategy lead, scouts: say what matters for this match.</Empty>}
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: next.match, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
-              <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`A note for match ${next.match}…`}
-                     className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
-              <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Post</button>
-            </form>
-          </Card>
+      {/* 1. The schedule, every match, our number highlighted. Each team is a
+          button for its stats; the match number opens that match's chat. */}
+      <Card title="Match schedule" icon={CalendarDays}
+            action={<span className="text-xs text-gray-400">tap a team for its stats</span>}>
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[11px] text-gray-400 text-left">
+                <th className="font-medium px-1 py-1">Match</th>
+                <th className="font-medium px-1 py-1 text-red-500" colSpan={2}>Red</th>
+                <th className="font-medium px-1 py-1 text-blue-500" colSpan={2}>Blue</th>
+                <th className="px-1 py-1" />
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.map(m => {
+                const id = String(m.match).trim()
+                const mine = isOurs(m)
+                const done = playedNote(id)
+                const isNext = upNext && String(upNext.match).trim() === id
+                return (
+                  <tr key={id} className={`border-t border-gray-100 ${mine ? 'bg-pastel-yellow/30' : ''} ${done ? 'opacity-60' : ''}`}>
+                    <td className="px-1 py-1.5">
+                      <button type="button" onClick={() => setPickedMatch(id)} title="Open this match's chat"
+                        className={`px-2 py-0.5 rounded-md text-xs font-bold ${chatMatch === id ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-purple-100'}`}>
+                        M{id}
+                      </button>
+                      {isNext && <span className="block text-[10px] font-bold text-pastel-yellow-dark mt-0.5">NEXT</span>}
+                    </td>
+                    {SLOTS.map(([k, , color]) => {
+                      const t = String(m[k] || '').trim()
+                      const us = t === team
+                      return (
+                        <td key={k} className="px-0.5 py-1.5">
+                          {t ? (
+                            <button type="button" onClick={() => pick(t)} title={`Team ${t}: stats`}
+                              className={`w-full min-w-[3.25rem] px-1.5 py-1 rounded-md text-xs font-bold border transition-colors ${
+                                us ? 'bg-pastel-yellow-dark border-yellow-500 text-gray-900 ring-2 ring-yellow-400'
+                                : pickedTeam === t ? 'bg-gray-800 border-gray-800 text-white'
+                                : color === 'red' ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}>
+                              {t}{us ? ' ★' : ''}
+                            </button>
+                          ) : <span className="block text-center text-xs text-gray-300">—</span>}
+                        </td>
+                      )
+                    })}
+                    <td className="px-1 py-1.5 text-right">
+                      {mine && (done
+                        ? <button type="button" onClick={() => remove(done.id)} title="Mark not played" className="text-green-500"><CheckCircle2 size={16} /></button>
+                        : <button type="button" onClick={() => add({ kind: 'played', match: id, author: username })} title="Mark played"
+                            className="text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1 py-0.5 hover:bg-white">played?</button>)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
-
-      <Card title={`Our schedule · ${matches.length} match${matches.length === 1 ? '' : 'es'}`} icon={CalendarDays}
-            action={<span className="text-xs text-gray-400">{played.size ? `${played.size} played · ` : ''}tap a match for its stats and chat</span>}>
-        <div className="space-y-1.5">
-          {matches.map(m => {
-            const done = played.has(m.match), isNext = next && m.match === next.match
-            return (
-              <button type="button" key={m.match} onClick={() => setPicked(m.match === upNext?.match ? null : m.match)} title="Open this match: stats and chat"
-                className={`w-full text-left flex items-start gap-2 text-sm rounded-lg px-2 py-1.5 hover:bg-white/80 ${isNext ? 'bg-pastel-yellow/40 ring-1 ring-pastel-yellow-dark/40' : done ? 'opacity-50' : ''}`}>
-                <span className={`px-2 py-0.5 rounded-md text-white text-xs font-bold shrink-0 ${m.color === 'red' ? 'bg-red-500' : m.color === 'blue' ? 'bg-blue-500' : 'bg-slate-400'}`}>M{m.match}</span>
-                <div className="min-w-0 flex-1">
-                  <span className="text-gray-700 font-semibold">{m.position}</span>{m.time ? <span className="text-gray-400"> · {m.time}</span> : null}
-                  <span className="block text-xs text-gray-500">{m.untagged ? (m.opponents.length ? 'teams: '+m.opponents.join(', ') : 'no team numbers yet') : `with ${m.partner.join(', ') || '—'} · vs ${m.opponents.join(', ') || '—'}`}</span>
-                  {!done && (m.partner.length + m.opponents.length) > 0 && (
-                    <span className="block text-[11px] text-gray-400">
-                      {[...m.partner, ...m.opponents].map(t => summaries[t] ? `${t}: ${summaries[t].teleop ?? '–'} teleop` : `${t}: not scouted`).join(' · ')}
-                    </span>
-                  )}
-                </div>
-                {done ? <CheckCircle2 size={16} className="text-green-500 shrink-0 mt-0.5" /> : isNext ? <span className="text-[11px] font-bold text-pastel-yellow-dark shrink-0">{next === upNext ? 'next' : 'open'}</span> : null}
-              </button>
-            )
-          })}
-        </div>
+        <p className="text-[11px] text-gray-400 mt-2">★ is us ({team}). Our matches are highlighted.</p>
       </Card>
-      {played.size > 0 && <p className="text-xs text-gray-400 text-center">{played.size} of {matches.length} matches played</p>}
+
+      {/* 2. One team's stats: accuracy and auto first, all of it underneath. */}
+      {pickedTeam && (
+        <Card title={`Team ${pickedTeam}${pickedTeam === team ? ' (us)' : ''}`} icon={Search}
+              action={<button type="button" onClick={() => setPickedTeam(null)} className="text-xs text-gray-400 hover:text-gray-600">close</button>}>
+          {!s ? <Empty>Not scouted yet today. Stats appear here as the scouts send matches in.</Empty> : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Big label="🎯 Shooting accuracy" value={s.accuracy != null ? `${s.accuracy}%` : null} sub={`${s.made} of ${s.shot} shots in · ${s.n} match${s.n === 1 ? '' : 'es'}`} />
+                <Big label="🤖 Auto" value={s.autoMade != null ? `${s.autoMade} in` : null}
+                     sub={`of ${s.autoShot ?? '–'} shot per match${s.autoAcc != null ? ` · ${s.autoAcc}%` : ''}`} />
+              </div>
+              <div className="rounded-xl bg-white/70 border border-gray-100 p-3 text-sm text-gray-700 space-y-1">
+                <p className="font-semibold text-gray-800">What their auto does</p>
+                <p>Leaves the start {s.leave ?? '–'}% of the time · parks {s.park ?? '–'}%{s.autoReliability != null ? ` · works about ${s.autoReliability}%` : ''}</p>
+                {s.autoNotes.map((n, i) => <p key={i} className="text-xs italic text-gray-500">“{n}”</p>)}
+                <p className="text-xs text-gray-500">Accuracy by part: auto {s.autoAcc ?? '–'}% · teleop {s.teleopAcc ?? '–'}% · endgame {s.endgameAcc ?? '–'}%</p>
+              </div>
+              <button type="button" onClick={() => setShowAll(!showAll)}
+                className="w-full flex items-center justify-center gap-1 text-xs font-semibold text-gray-500 py-1.5 rounded-lg border border-gray-200 hover:bg-white">
+                {showAll ? 'Hide' : 'See'} all scouting data ({s.n}) <ChevronDown size={13} className={showAll ? 'rotate-180' : ''} />
+              </button>
+              {showAll && (
+                <div className="space-y-2">
+                  {s.rows.map((r, i) => (
+                    <div key={r.id || i} className="rounded-lg bg-white/80 border border-gray-100 p-2.5 text-xs text-gray-600">
+                      <p className="font-bold text-gray-800 mb-1">Match {r.match_number || '?'}{r.scout ? <span className="font-normal text-gray-400"> · {r.scout}</span> : null}</p>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        {SCOUTING_FIELDS.filter(f => r[f.key] != null && String(r[f.key]).trim() !== '' && !['team_number', 'match_number', 'scout'].includes(f.key)).map(f => (
+                          <p key={f.key} className={f.type === 'text' ? 'col-span-2' : ''}>
+                            <span className="text-gray-400">{f.label}:</span> {Array.isArray(r[f.key]) ? r[f.key].join(', ') : String(r[f.key])}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* 3. The chat for the match you're on. */}
+      {chatMatch && (
+        <Card title={`Match ${chatMatch} chat`} icon={MessageCircle}
+              action={pickedMatch && upNext && pickedMatch !== String(upNext.match).trim()
+                ? <button type="button" onClick={() => setPickedMatch(null)} className="text-xs text-purple-500 underline">back to next</button> : null}>
+          <div className="space-y-1.5 mb-2 max-h-56 overflow-y-auto">
+            {chat.length ? chat.map(n => (
+              <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
+            )) : <Empty>Nothing yet. Drive team, strategy lead, scouts: say what matters for this match.</Empty>}
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: chatMatch, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
+            <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`A note for match ${chatMatch}…`}
+                   className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+            <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Post</button>
+          </form>
+        </Card>
+      )}
     </div>
   )
 }

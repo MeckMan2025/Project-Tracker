@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 177,
     date: '2026-11-06',
     items: [
+      '\u{1F3AE} Drive is three things now: the match schedule with us starred and our matches highlighted, the stats for any team you tap on it \u2014 shooting accuracy and what their auto does first, every scouted match one more tap \u2014 and the chat for the match you are on. Stats refresh on their own as scouting comes in',
       '\u{1F527} Pit scouting has the section row at the bottom, like the match form: tap any section to jump to it, a tick once it has answers, a dot while it is still empty or owed something',
     ],
   },
