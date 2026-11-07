@@ -14,8 +14,25 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 export const LIVE_CHANGED = 'comp-day-live-changed'
 export const announceLiveChange = () => window.dispatchEvent(new Event(LIVE_CHANGED))
 
+// The last live day this phone saw, per team, so the app opens straight into
+// Competition Day instead of showing Home for a second while it asks.
+// Kept per signed-in person as well as per team, so a phone shared between
+// two people (or two teams) never opens on somebody else's day.
+const signedInId = () => {
+  try {
+    const k = Object.keys(localStorage).find(x => /^sb-.*-auth-token$/.test(x))
+    return k ? (JSON.parse(localStorage.getItem(k))?.user?.id || '') : ''
+  } catch { return '' }
+}
+const CACHE = (scope) => `live-comp-day:${signedInId()}:${scope || ''}`
+const readCache = (scope) => {
+  if (!signedInId()) return null
+  try { return JSON.parse(localStorage.getItem(CACHE(scope)) || 'null') } catch { return null }
+}
+const writeCache = (scope, day) => { try { if (!signedInId()) return; day ? localStorage.setItem(CACHE(scope), JSON.stringify(day)) : localStorage.removeItem(CACHE(scope)) } catch { /* ignore */ } }
+
 export function useLiveCompDay(scope) {
-  const [live, setLive] = useState(null)
+  const [live, setLive] = useState(() => readCache(scope))
 
   useEffect(() => {
     let cancelled = false
@@ -26,6 +43,14 @@ export function useLiveCompDay(scope) {
     // empty answer is noted, not believed; a second in a row ends the day.
     // A press of Pause on this device (force) is believed at once.
     let misses = 0
+    // A day remembered from last time is only a guess: the first real answer
+    // that says "no day" is believed at once, so a day that ended while the
+    // app was closed lets go straight away rather than after two polls.
+    const cached = readCache(scope)
+    let fromCache = !!cached
+    // The team (scope) can settle after the first render: pick up that
+    // team's remembered day, and never keep another team's.
+    if (cached) setLive(prev => (prev && prev.id === cached.id ? prev : cached))
     const check = async (force) => {
       if (force !== true && document.visibilityState !== 'visible') return
       try {
@@ -41,10 +66,14 @@ export function useLiveCompDay(scope) {
         if (cancelled) return
         if (found) {
           misses = 0
+          fromCache = false
+          writeCache(scope, found)
           // Same day, same object: no re-render for a poll that changed nothing.
           setLive(prev => (prev && prev.id === found.id && prev.name === found.name && prev.session_date === found.session_date && prev.created_at === found.created_at) ? prev : found)
-        } else if (force === true || ++misses >= 2) {
+        } else if (force === true || fromCache || ++misses >= 2) {
           misses = 0
+          fromCache = false
+          writeCache(scope, null)
           setLive(null)
         }
       } catch { /* keep what we had; the next check corrects it */ }
