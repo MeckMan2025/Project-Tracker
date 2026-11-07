@@ -202,6 +202,8 @@ function useTeamStats(teams, since) {
     const share = (xs, f) => (xs.length ? Math.round((xs.filter(f).length / xs.length) * 100) : null)
     const avg = (xs, k) => { const v = xs.map(x => num(x[k])).filter(n => n != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null }
     const out = {}
+    // Any match with even one row in has started being scouted.
+    Object.defineProperty(out, 'scouted', { value: new Set(rows.map(r => String(r.match_number ?? '').trim()).filter(Boolean)) })
     Object.entries(by).forEach(([t, xs]) => {
       const aS = sum(xs, 'auto_shot'), aM = sum(xs, 'auto_made')
       const tS = sum(xs, 'teleop_shot'), tM = sum(xs, 'teleop_made')
@@ -221,25 +223,30 @@ function useTeamStats(teams, since) {
 }
 
 // ── Drive Team ──────────────────────────────────────────────────────────────
-// Three things, in this order: the schedule (our number lit up), the stats for
-// whichever team you tap on it — accuracy and auto first, everything else one
-// more tap — and the chat for the match you're on.
+// Two columns. Left, the schedule with our number lit up. Right, what the drive
+// team asked for first — shooting accuracy and auto for the four teams in the
+// next match — and that match's chat. "Next" is worked out from scouting: the
+// first match nobody has sent a scouting entry for yet. Once match 4 has any
+// row in, the stats move on to the teams in match 5.
 function DriveMode({ day, doc }) {
   const { username, teamNumber } = useUser()
   const team = String(teamNumber || HOME_TEAM_NUMBER)
-  const { notes, add, remove } = useDayNotes(day?.id)
+  const { notes, add } = useDayNotes(day?.id)
   const schedule = useMemo(() => [...(doc?.matchSchedule || [])].filter(m => String(m.match || '').trim())
     .sort((a, b) => Number(a.match) - Number(b.match)), [doc])
-  const isOurs = (m) => SLOTS.some(([k]) => String(m[k] || '').trim() === team)
-  const playedNote = (match) => notes.find(n => n.kind === 'played' && n.match === match)
-  const ours = schedule.filter(isOurs)
-  const upNext = ours.find(m => !playedNote(String(m.match).trim())) || null
+  const idOf = (m) => String(m.match).trim()
+  const teamsIn = (m) => SLOTS.map(([k, label, color]) => ({ t: String(m[k] || '').trim(), label, color })).filter(x => x.t)
+  const isOurs = (m) => teamsIn(m).some(x => x.t === team)
+  const teams = useMemo(() => [...new Set(schedule.flatMap(m => SLOTS.map(([k]) => String(m[k] || '').trim())).filter(Boolean))], [schedule])
+  const stats = useTeamStats(teams, daySince(day))
+  const scouted = stats.scouted || new Set()
+  const nextMatch = schedule.find(m => !scouted.has(idOf(m))) || null
+  const ourNext = schedule.find(m => isOurs(m) && !scouted.has(idOf(m))) || null
   const [pickedMatch, setPickedMatch] = useState(null)
   const [pickedTeam, setPickedTeam] = useState(null)
   const [showAll, setShowAll] = useState(false)
-  const chatMatch = pickedMatch || (upNext ? String(upNext.match).trim() : (schedule[0] ? String(schedule[0].match).trim() : null))
-  const teams = useMemo(() => [...new Set(schedule.flatMap(m => SLOTS.map(([k]) => String(m[k] || '').trim())).filter(Boolean))], [schedule])
-  const stats = useTeamStats(teams, daySince(day))
+  const focus = (pickedMatch && schedule.find(m => idOf(m) === pickedMatch)) || nextMatch
+  const chatMatch = focus ? idOf(focus) : null
   const [note, setNote] = useState('')
   const chat = notes.filter(n => n.kind === 'drive' && n.match === chatMatch)
   const pick = (t) => { setPickedTeam(pickedTeam === t ? null : t); setShowAll(false) }
@@ -247,21 +254,26 @@ function DriveMode({ day, doc }) {
   if (!doc) return <Card title="Drive Team" icon={Gamepad2}><Empty>Loading the day…</Empty></Card>
   if (!schedule.length) return <Card title="Drive Team" icon={Gamepad2}><Empty>No matches in this day's schedule yet. A lead sets them up under Competition Day → Matches.</Empty></Card>
 
+  const teamBtn = (t, color, small) => {
+    const us = t === team
+    return (
+      <button type="button" onClick={() => pick(t)} title={`Team ${t}: all its scouting`}
+        className={`${small ? 'w-full min-w-[3.25rem] px-1.5 py-1 text-xs' : 'px-2 py-1 text-sm'} rounded-md font-bold border transition-colors ${
+          us ? 'bg-pastel-yellow-dark border-yellow-500 text-gray-900 ring-2 ring-yellow-400'
+          : pickedTeam === t ? 'bg-gray-800 border-gray-800 text-white'
+          : color === 'red' ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+          : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}>
+        {t}{us ? ' ★' : ''}
+      </button>
+    )
+  }
   const s = pickedTeam ? stats[pickedTeam] : null
-  const Big = ({ label, value, sub }) => (
-    <div className="rounded-xl bg-white/80 border border-gray-100 p-3 text-center">
-      <p className="text-2xl font-extrabold text-gray-800">{value ?? '–'}</p>
-      <p className="text-xs font-semibold text-gray-600">{label}</p>
-      {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
-    </div>
-  )
 
   return (
-    <div className="space-y-4">
-      {/* 1. The schedule, every match, our number highlighted. Each team is a
-          button for its stats; the match number opens that match's chat. */}
+    <div className="grid md:grid-cols-2 gap-4 items-start">
+      {/* LEFT — the schedule */}
       <Card title="Match schedule" icon={CalendarDays}
-            action={<span className="text-xs text-gray-400">tap a team for its stats</span>}>
+            action={<span className="text-xs text-gray-400">tap a team for all its data</span>}>
         <div className="overflow-x-auto -mx-1">
           <table className="w-full text-sm">
             <thead>
@@ -269,116 +281,118 @@ function DriveMode({ day, doc }) {
                 <th className="font-medium px-1 py-1">Match</th>
                 <th className="font-medium px-1 py-1 text-red-500" colSpan={2}>Red</th>
                 <th className="font-medium px-1 py-1 text-blue-500" colSpan={2}>Blue</th>
-                <th className="px-1 py-1" />
               </tr>
             </thead>
             <tbody>
               {schedule.map(m => {
-                const id = String(m.match).trim()
+                const id = idOf(m)
                 const mine = isOurs(m)
-                const done = playedNote(id)
-                const isNext = upNext && String(upNext.match).trim() === id
+                const done = scouted.has(id)
+                const isNext = nextMatch && idOf(nextMatch) === id
                 return (
-                  <tr key={id} className={`border-t border-gray-100 ${mine ? 'bg-pastel-yellow/30' : ''} ${done ? 'opacity-60' : ''}`}>
+                  <tr key={id} className={`border-t border-gray-100 ${isNext ? 'bg-purple-50' : mine ? 'bg-pastel-yellow/30' : ''} ${done && !isNext ? 'opacity-55' : ''}`}>
                     <td className="px-1 py-1.5">
-                      <button type="button" onClick={() => setPickedMatch(id)} title="Open this match's chat"
+                      <button type="button" onClick={() => setPickedMatch(id === (nextMatch && idOf(nextMatch)) ? null : id)} title="Show this match's teams and chat"
                         className={`px-2 py-0.5 rounded-md text-xs font-bold ${chatMatch === id ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-purple-100'}`}>
                         M{id}
                       </button>
-                      {isNext && <span className="block text-[10px] font-bold text-pastel-yellow-dark mt-0.5">NEXT</span>}
+                      {isNext && <span className="block text-[10px] font-bold text-purple-500 mt-0.5">NEXT</span>}
+                      {!isNext && ourNext && idOf(ourNext) === id && <span className="block text-[10px] font-bold text-pastel-yellow-dark mt-0.5">OURS</span>}
                     </td>
                     {SLOTS.map(([k, , color]) => {
                       const t = String(m[k] || '').trim()
-                      const us = t === team
-                      return (
-                        <td key={k} className="px-0.5 py-1.5">
-                          {t ? (
-                            <button type="button" onClick={() => pick(t)} title={`Team ${t}: stats`}
-                              className={`w-full min-w-[3.25rem] px-1.5 py-1 rounded-md text-xs font-bold border transition-colors ${
-                                us ? 'bg-pastel-yellow-dark border-yellow-500 text-gray-900 ring-2 ring-yellow-400'
-                                : pickedTeam === t ? 'bg-gray-800 border-gray-800 text-white'
-                                : color === 'red' ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}>
-                              {t}{us ? ' ★' : ''}
-                            </button>
-                          ) : <span className="block text-center text-xs text-gray-300">—</span>}
-                        </td>
-                      )
+                      return <td key={k} className="px-0.5 py-1.5">{t ? teamBtn(t, color, true) : <span className="block text-center text-xs text-gray-300">—</span>}</td>
                     })}
-                    <td className="px-1 py-1.5 text-right">
-                      {mine && (done
-                        ? <button type="button" onClick={() => remove(done.id)} title="Mark not played" className="text-green-500"><CheckCircle2 size={16} /></button>
-                        : <button type="button" onClick={() => add({ kind: 'played', match: id, author: username })} title="Mark played"
-                            className="text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1 py-0.5 hover:bg-white">played?</button>)}
-                    </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">★ is us ({team}). Our matches are highlighted.</p>
+        <p className="text-[11px] text-gray-400 mt-2">★ is us ({team}), our matches are gold. NEXT is the first match with no scouting in yet.</p>
       </Card>
 
-      {/* 2. One team's stats: accuracy and auto first, all of it underneath. */}
-      {pickedTeam && (
-        <Card title={`Team ${pickedTeam}${pickedTeam === team ? ' (us)' : ''}`} icon={Search}
-              action={<button type="button" onClick={() => setPickedTeam(null)} className="text-xs text-gray-400 hover:text-gray-600">close</button>}>
-          {!s ? <Empty>Not scouted yet today. Stats appear here as the scouts send matches in.</Empty> : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <Big label="🎯 Shooting accuracy" value={s.accuracy != null ? `${s.accuracy}%` : null} sub={`${s.made} of ${s.shot} shots in · ${s.n} match${s.n === 1 ? '' : 'es'}`} />
-                <Big label="🤖 Auto" value={s.autoMade != null ? `${s.autoMade} in` : null}
-                     sub={`of ${s.autoShot ?? '–'} shot per match${s.autoAcc != null ? ` · ${s.autoAcc}%` : ''}`} />
-              </div>
-              <div className="rounded-xl bg-white/70 border border-gray-100 p-3 text-sm text-gray-700 space-y-1">
-                <p className="font-semibold text-gray-800">What their auto does</p>
-                <p>Leaves the start {s.leave ?? '–'}% of the time · parks {s.park ?? '–'}%{s.autoReliability != null ? ` · works about ${s.autoReliability}%` : ''}</p>
+      {/* RIGHT — the four teams in the next match, then its chat */}
+      <div className="space-y-4">
+        {pickedTeam ? (
+          <Card title={`Team ${pickedTeam}${pickedTeam === team ? ' (us)' : ''}`} icon={Search}
+                action={<button type="button" onClick={() => setPickedTeam(null)} className="text-xs text-purple-500 underline">back to match {chatMatch}</button>}>
+            {!s ? <Empty>Not scouted yet today.</Empty> : (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-700"><b>🎯 {s.accuracy ?? '–'}%</b> accuracy ({s.made}/{s.shot}) · <b>🤖 auto {s.autoMade ?? '–'}</b> in of {s.autoShot ?? '–'} · leaves {s.leave ?? '–'}% · parks {s.park ?? '–'}%</p>
                 {s.autoNotes.map((n, i) => <p key={i} className="text-xs italic text-gray-500">“{n}”</p>)}
-                <p className="text-xs text-gray-500">Accuracy by part: auto {s.autoAcc ?? '–'}% · teleop {s.teleopAcc ?? '–'}% · endgame {s.endgameAcc ?? '–'}%</p>
-              </div>
-              <button type="button" onClick={() => setShowAll(!showAll)}
-                className="w-full flex items-center justify-center gap-1 text-xs font-semibold text-gray-500 py-1.5 rounded-lg border border-gray-200 hover:bg-white">
-                {showAll ? 'Hide' : 'See'} all scouting data ({s.n}) <ChevronDown size={13} className={showAll ? 'rotate-180' : ''} />
-              </button>
-              {showAll && (
-                <div className="space-y-2">
-                  {s.rows.map((r, i) => (
-                    <div key={r.id || i} className="rounded-lg bg-white/80 border border-gray-100 p-2.5 text-xs text-gray-600">
-                      <p className="font-bold text-gray-800 mb-1">Match {r.match_number || '?'}{r.scout ? <span className="font-normal text-gray-400"> · {r.scout}</span> : null}</p>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                        {SCOUTING_FIELDS.filter(f => r[f.key] != null && String(r[f.key]).trim() !== '' && !['team_number', 'match_number', 'scout'].includes(f.key)).map(f => (
-                          <p key={f.key} className={f.type === 'text' ? 'col-span-2' : ''}>
-                            <span className="text-gray-400">{f.label}:</span> {Array.isArray(r[f.key]) ? r[f.key].join(', ') : String(r[f.key])}
-                          </p>
-                        ))}
-                      </div>
+                <button type="button" onClick={() => setShowAll(!showAll)}
+                  className="w-full flex items-center justify-center gap-1 text-xs font-semibold text-gray-500 py-1.5 rounded-lg border border-gray-200 hover:bg-white">
+                  {showAll ? 'Hide' : 'See'} all scouting data ({s.n}) <ChevronDown size={13} className={showAll ? 'rotate-180' : ''} />
+                </button>
+                {showAll && s.rows.map((r, i) => (
+                  <div key={r.id || i} className="rounded-lg bg-white/80 border border-gray-100 p-2.5 text-xs text-gray-600">
+                    <p className="font-bold text-gray-800 mb-1">Match {r.match_number || '?'}{r.scout ? <span className="font-normal text-gray-400"> · {r.scout}</span> : null}</p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                      {SCOUTING_FIELDS.filter(f => r[f.key] != null && String(r[f.key]).trim() !== '' && !['team_number', 'match_number', 'scout'].includes(f.key)).map(f => (
+                        <p key={f.key} className={f.type === 'text' ? 'col-span-2' : ''}>
+                          <span className="text-gray-400">{f.label}:</span> {Array.isArray(r[f.key]) ? r[f.key].join(', ') : String(r[f.key])}
+                        </p>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        ) : focus ? (
+          <Card title={`Match ${chatMatch}${focus === nextMatch ? ' · next up' : ''}`} icon={Search}
+                action={pickedMatch ? <button type="button" onClick={() => setPickedMatch(null)} className="text-xs text-purple-500 underline">back to next</button> : null}>
+            <div className="space-y-2">
+              {teamsIn(focus).map(({ t, label, color }) => {
+                const ts = stats[t]
+                return (
+                  <div key={label} className={`rounded-xl border p-2.5 ${color === 'red' ? 'border-red-200 bg-red-50/60' : 'border-blue-200 bg-blue-50/60'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {teamBtn(t, color)}
+                        <span className="text-[11px] text-gray-400">{label}</span>
+                      </div>
+                      <button type="button" onClick={() => pick(t)} className="text-[11px] font-semibold text-gray-500 underline">all data</button>
+                    </div>
+                    {ts ? (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="rounded-lg bg-white/80 px-2 py-1.5">
+                          <p className="text-lg font-extrabold text-gray-800 leading-tight">{ts.accuracy != null ? `${ts.accuracy}%` : '–'}</p>
+                          <p className="text-[11px] text-gray-500">🎯 accuracy · {ts.made}/{ts.shot}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/80 px-2 py-1.5">
+                          <p className="text-lg font-extrabold text-gray-800 leading-tight">{ts.autoMade ?? '–'} <span className="text-xs font-semibold text-gray-500">in auto</span></p>
+                          <p className="text-[11px] text-gray-500">🤖 leaves {ts.leave ?? '–'}% · parks {ts.park ?? '–'}%</p>
+                        </div>
+                        {ts.autoNotes[0] && <p className="col-span-2 text-[11px] italic text-gray-500">“{ts.autoNotes[0]}”</p>}
+                      </div>
+                    ) : <p className="text-xs text-gray-400 mt-1.5">Not scouted yet today.</p>}
+                  </div>
+                )
+              })}
+              {!teamsIn(focus).length && <Empty>No team numbers typed for this match yet.</Empty>}
             </div>
-          )}
-        </Card>
-      )}
+          </Card>
+        ) : (
+          <Card title="Drive Team" icon={Gamepad2}><Empty>Every match on the schedule has scouting in. That's the day.</Empty></Card>
+        )}
 
-      {/* 3. The chat for the match you're on. */}
-      {chatMatch && (
-        <Card title={`Match ${chatMatch} chat`} icon={MessageCircle}
-              action={pickedMatch && upNext && pickedMatch !== String(upNext.match).trim()
-                ? <button type="button" onClick={() => setPickedMatch(null)} className="text-xs text-purple-500 underline">back to next</button> : null}>
-          <div className="space-y-1.5 mb-2 max-h-56 overflow-y-auto">
-            {chat.length ? chat.map(n => (
-              <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
-            )) : <Empty>Nothing yet. Drive team, strategy lead, scouts: say what matters for this match.</Empty>}
-          </div>
-          <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: chatMatch, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
-            <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`A note for match ${chatMatch}…`}
-                   className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
-            <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Post</button>
-          </form>
-        </Card>
-      )}
+        {chatMatch && (
+          <Card title={`Match ${chatMatch} chat`} icon={MessageCircle}>
+            <div className="space-y-1.5 mb-2 max-h-56 overflow-y-auto">
+              {chat.length ? chat.map(n => (
+                <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
+              )) : <Empty>Nothing yet. Drive team, strategy lead, scouts: say what matters for this match.</Empty>}
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: chatMatch, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
+              <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`A note for match ${chatMatch}…`}
+                     className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Post</button>
+            </form>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
