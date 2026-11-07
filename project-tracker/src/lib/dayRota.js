@@ -47,67 +47,6 @@ function orderedMatches(doc) {
     .sort((a, b) => Number(a.match) - Number(b.match))
 }
 
-// ── Which group covers which match ─────────────────────────────────────────
-// A group's `cover` says how it is scheduled:
-//   rotate  takes turns with the other rotating groups, match by match (the
-//           old behaviour, and the default for a group saved before this)
-//   all     every match of the day
-//   shift   matches `from` to `to`, with optional clock times `start`–`end`
-//   list    the matches written in `list`, e.g. "1-5, 9, 12"
-// A match claimed by an all/shift/list group goes to that group (or groups);
-// the rest are dealt round the rotating groups in order.
-export const COVER_MODES = [
-  ['rotate', 'Takes turns with other groups'],
-  ['all', 'Every match'],
-  ['shift', 'A shift (match range and times)'],
-  ['list', 'Specific matches'],
-]
-export const coverOf = (g) => ({ mode: 'rotate', ...(g?.cover || {}) })
-export function parseMatchList(text) {
-  const out = new Set()
-  String(text || '').split(/[,\s]+/).forEach(part => {
-    const m = /^(\d+)\s*[-–]\s*(\d+)$/.exec(part.trim())
-    if (m) { const a = +m[1], b = +m[2]; for (let i = Math.min(a, b); i <= Math.max(a, b) && i - Math.min(a, b) < 500; i++) out.add(String(i)) }
-    else if (/^\d+$/.test(part.trim())) out.add(String(+part.trim()))
-  })
-  return out
-}
-function covers(g, match) {
-  const c = coverOf(g), n = Number(match)
-  if (c.mode === 'all') return true
-  if (c.mode === 'shift') {
-    const from = c.from === '' || c.from == null ? -Infinity : Number(c.from)
-    const to = c.to === '' || c.to == null ? Infinity : Number(c.to)
-    return n >= from && n <= to
-  }
-  if (c.mode === 'list') return parseMatchList(c.list).has(String(n))
-  return false
-}
-// match id -> the groups scouting it.
-export function groupsByMatch(doc) {
-  const groups = doc?.scoutGroups || []
-  const fixed = groups.filter(g => coverOf(g).mode !== 'rotate')
-  const rotating = groups.filter(g => coverOf(g).mode === 'rotate')
-  const out = new Map()
-  let turn = 0
-  orderedMatches(doc).forEach(row => {
-    const id = String(row.match).trim()
-    const claim = fixed.filter(g => covers(g, id))
-    out.set(id, claim.length ? claim : rotating.length ? [rotating[turn++ % rotating.length]] : [])
-  })
-  return out
-}
-// "matches 1–10 · 9:00–11:30", for showing a group's cover in a line.
-export function coverLabel(g, doc) {
-  const c = coverOf(g)
-  const t = c.start || c.end ? ` · ${c.start || '?'}–${c.end || '?'}` : ''
-  if (c.mode === 'all') return `every match${t}`
-  if (c.mode === 'shift') return `matches ${c.from || 'start'}–${c.to || 'end'}${t}`
-  if (c.mode === 'list') return `matches ${String(c.list || '').trim() || '(none yet)'}${t}`
-  const mine = [...groupsByMatch(doc).entries()].filter(([, gs]) => gs.some(x => x.id === g.id)).map(([m]) => m)
-  return mine.length ? `takes turns: ${mine.slice(0, 8).join(', ')}${mine.length > 8 ? '…' : ''}${t}` : `takes turns${t}`
-}
-
 // Slots hold full names from the roster; older days may hold a first name.
 function isPerson(slot, username) {
   const v = norm(slot)
@@ -124,12 +63,12 @@ export function assignmentsFor(doc, username) {
   const out = []
   // A match with no team numbers yet is still a match to scout: you know you
   // are Red 1 even before anyone knows who Red 1 is.
-  const by = groupsByMatch(doc)
-  orderedMatches(doc).forEach(row => {
-    (by.get(String(row.match).trim()) || []).forEach(g => POSITIONS.forEach(pos => {
+  orderedMatches(doc).forEach((row, k) => {
+    const g = groups[k % groups.length]
+    POSITIONS.forEach(pos => {
       const team = String(row[pos] || '').trim()
       if (isPerson(g[pos], username)) out.push({ match: String(row.match).trim(), team, position: pos, positionLabel: POSITION_LABEL[pos], who: g[pos] || '', group: g.name })
-    }))
+    })
   })
   return out
 }
@@ -152,12 +91,12 @@ export function allAssignments(doc) {
   const groups = doc?.scoutGroups || []
   if (!groups.length) return []
   const out = []
-  const by = groupsByMatch(doc)
-  orderedMatches(doc).forEach(row => {
-    (by.get(String(row.match).trim()) || []).forEach(g => POSITIONS.forEach(pos => {
+  orderedMatches(doc).forEach((row, k) => {
+    const g = groups[k % groups.length]
+    POSITIONS.forEach(pos => {
       const team = String(row[pos] || '').trim()
       if (team || g[pos]) out.push({ match: String(row.match).trim(), team, who: g[pos] || '', position: POSITION_LABEL[pos], positionLabel: POSITION_LABEL[pos], group: g.name })
-    }))
+    })
   })
   return out
 }
