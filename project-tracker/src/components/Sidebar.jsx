@@ -11,7 +11,7 @@ import { notifyRequestReviewers } from '../utils/requestRouting'
 // whoever already has it — and nothing else, so the day is all there is.
 function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isPlaying, onToggleMusic, musicStarted, onlineUsers, isTeamAccount, compDayLock, liveDay = null }) {
   const { logout, username, user } = useUser()
-  const { canManageOwnTeam, teamFullAccess, isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
+  const { canManageOwnTeam, canTeamChat, teamFullAccess, isGuest, canEditContent, canRequestContent, hasLeadTag, isCofounder, canViewSpecialControls, canViewOutreachTabs, canViewFinanceTabs, canViewCommsTabs, canViewHardwareTabs, canViewSoftwareTabs } = usePermissions()
   const { addToast } = useToast()
   const [newTabName, setNewTabName] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -471,8 +471,8 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <Calendar size={16} className="text-pastel-pink-dark" />
                 <span className="truncate flex-1">Calendar</span>
               </div>
-              {!isGuest && <hr className="my-2 border-gray-200" />}
-              {!isGuest && (
+              {canTeamChat && <hr className="my-2 border-gray-200" />}
+              {canTeamChat && (
                 <div
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     activeTab === 'team-chat' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'

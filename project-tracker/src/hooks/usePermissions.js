@@ -4,6 +4,10 @@ import { PERMANENT_COFOUNDERS } from '../lib/cofounders'
 
 const LEAD_TAGS = ['Co-Founder', 'Mentor', 'Coach', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
   'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
+// Team Chat speaks for the whole team, so only its leads and co-leads use it
+// (not mentors or coaches, and not every member).
+const CHAT_TAGS = ['Co-Founder', 'Project Manager', 'Business Lead', 'Technical Lead', 'Programming Lead',
+  'Co-Project Manager', 'Co-Business Lead', 'Co-Technical Lead', 'Co-Programming Lead']
 
 // Account administration: resetting a password, creating someone's login,
 // deleting a member. These go through the admin-* edge functions, which check
@@ -146,6 +150,7 @@ export function usePermissions() {
     teamFullAccess: !!teamFullAccess,
     isSisterCoach,
     isTeamLead,
+    canTeamChat: !!isTeamController || !!(functionTags && functionTags.some(t => CHAT_TAGS.includes(t))),
     myTeamNumber: teamNumber,
     canDragAnyTask: hasLeadTag || isTeam,
     canDeleteAnyMessage: hasLeadTag,

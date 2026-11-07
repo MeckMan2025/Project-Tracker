@@ -13,6 +13,7 @@ import { useUser } from '../contexts/UserContext'
 import { stampTeam } from '../lib/teamScope'
 import NotificationBell from './NotificationBell'
 import HomeView from './HomeView'
+import { usePermissions } from '../hooks/usePermissions'
 
 // Built from the list App.jsx enforces, so the guide and the app can never
 // disagree about what a team has.
@@ -291,7 +292,8 @@ function TeamHomeView({ onTabChange }) {
   // Tap one and its page opens underneath — what it is for, how to use it, and
   // a button straight to it — so it reads one feature at a time, not a wall.
   const [guidePick, setGuidePick] = useState(null)
-  const guideTabs = TEAM_TABS.filter(t => t.id !== 'home')
+  const { canTeamChat } = usePermissions()
+  const guideTabs = TEAM_TABS.filter(t => t.id !== 'home' && (t.id !== 'team-chat' || canTeamChat))
   const picked = guideTabs.find(t => t.id === guidePick)
   const guideCard = (
     <section className="relative rounded-xl shadow-md border-2 border-pastel-orange-dark/60 bg-white overflow-hidden"

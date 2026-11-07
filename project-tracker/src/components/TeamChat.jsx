@@ -20,7 +20,7 @@ const when = (iso) => {
 }
 
 export default function TeamChat() {
-  const { myTeamNumber } = usePermissions()
+  const { myTeamNumber, canTeamChat } = usePermissions()
   const us = String(myTeamNumber || HOME_TEAM_NUMBER)
   const [all, setAll] = useState([])
   const [state, setState] = useState('loading') // loading | ok | missing
@@ -30,13 +30,14 @@ export default function TeamChat() {
   const endRef = useRef(null)
 
   const load = useCallback(async () => {
+    if (!canTeamChat) return
     try {
       await ensureUserToken()
       const res = await fetch(`${supabaseUrl}/rest/v1/team_messages?select=*&order=created_at.asc&limit=2000`, { headers: restHeaders() })
       if (res.status === 404) { setState('missing'); return }
       if (res.ok) { setAll(await res.json()); setState('ok') }
     } catch { /* next poll */ }
-  }, [])
+  }, [canTeamChat])
   useEffect(() => {
     load()
     const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 8000)
@@ -99,7 +100,9 @@ export default function TeamChat() {
       </header>
       <main className="flex-1 p-4 overflow-hidden flex flex-col min-h-0">
         <div className="flex-1 min-h-0 max-w-2xl w-full mx-auto flex flex-col">
-        {state === 'missing' ? (
+        {!canTeamChat ? (
+          <p className="text-sm text-gray-400 text-center mt-10">Team Chat speaks for the whole team, so it is for leads and co-leads.</p>
+        ) : state === 'missing' ? (
           <p className="text-sm text-gray-400 text-center mt-10">Team Chat is being set up. It will open here once it's switched on.</p>
         ) : !open ? (
           // The list: one row per team, Radical first, then each team as it signs up.
