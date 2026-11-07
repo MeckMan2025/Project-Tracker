@@ -34,7 +34,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const { username } = useUser()
   const doc = useDayDoc(day ? `day-comp-${day.id}` : null)
   // Scout, Media, Pit or Drive: your role picks the first one, you pick after.
-  const { mode, setMode, tabs: modeTabs } = useDefaultMode(day)
+  const { mode, setMode, tabs: modeTabs } = useDefaultMode(day, doc)
   const { matches: scouted, pits: pitScouted, didBy } = useScouted(daySince(day))
   // Who has a form open on which job, right now.
   const who = useWhoIsScouting(day?.id)

@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 178,
+    date: '2026-11-07',
+    items: [
+      '\u{1F4F8} Competition Day uses the Event Roles too: someone set up as Media, Pit Crew or Drive Team for the day lands on that screen even when no block names them. Before, they were put on Scout',
+    ],
+  },
+  {
     id: 177,
     date: '2026-11-06',
     items: [

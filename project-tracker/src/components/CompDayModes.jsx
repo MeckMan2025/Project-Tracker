@@ -30,8 +30,14 @@ export const MODES = [
   { id: 'pit',   label: 'Pit',   icon: Wrench,   tint: 'bg-orange-500' },
   { id: 'drive', label: 'Drive', icon: Gamepad2, tint: 'bg-purple-500' },
 ]
-const ROLE_MODE = { scouting: 'scout', 'pit-crew': 'pit', 'drive-team': 'drive', spirit: 'media', strategy: 'drive', safety: 'pit' }
-const ROLE_LABEL = { scouting: 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team': 'Drive Team', spirit: 'Spirit', strategy: 'Strategy', safety: 'Safety' }
+const ROLE_MODE = { scouting: 'scout', 'pit-crew': 'pit', 'drive-team': 'drive', spirit: 'media', media: 'media', strategy: 'drive', safety: 'pit' }
+const ROLE_LABEL = { scouting: 'Scouting', 'pit-crew': 'Pit Crew', 'drive-team': 'Drive Team', spirit: 'Spirit', media: 'Media', strategy: 'Strategy', safety: 'Safety' }
+// The day's Event Roles (set up under Competition Day → Event Roles) by name.
+const EVENT_ROLE = { 'drive team': 'drive-team', 'pit crew': 'pit-crew', media: 'media', scouting: 'scouting', spirit: 'spirit', strategy: 'strategy', safety: 'safety' }
+const samePerson = (a, b) => {
+  const x = String(a || '').trim().toLowerCase(), y = String(b || '').trim().toLowerCase()
+  return !!x && !!y && (x === y || (!x.includes(' ') && x === y.split(/\s+/)[0]))
+}
 const MODE_LS = 'comp-day-mode'
 
 // One tab per role you hold today, named after the role. Two roles, two
@@ -57,8 +63,10 @@ export function ModeBar({ mode, onChange, tabs }) {
 }
 
 // Which mode to land on: the role you were given for this day's current
-// block, else the one you used last, else Scout.
-export function useDefaultMode(day) {
+// block, else your Event Role for the day, else your other blocks, else Scout.
+// Event Roles count as much as block roles: someone set up as Media for the
+// day lands on Media even when no block names her.
+export function useDefaultMode(day, doc = null) {
   const { username } = useUser()
   const { hasLeadTag, isCofounder } = usePermissions()
   const seesAll = !!(hasLeadTag || isCofounder)
@@ -80,15 +88,21 @@ export function useDefaultMode(day) {
         ])
         const assigns = aRes.ok ? await aRes.json() : []
         const blocks = bRes.ok ? await bRes.json() : []
-        if (!on || !Array.isArray(assigns) || !assigns.length) return
+        if (!on) return
+        const list = Array.isArray(assigns) ? assigns : []
+        const event = (doc?.fixedRoles || [])
+          .filter(r => (r.members || []).some(m => samePerson(m, username)))
+          .map(r => EVENT_ROLE[String(r.role || '').trim().toLowerCase()])
+          .filter(r => ROLE_MODE[r])
         const active = (blocks || []).find(b => b.is_active)
-        const pick = (active && assigns.find(a => a.block_id === active.id)) || assigns[0]
-        if (pick && ROLE_MODE[pick.role]) setFromRole(ROLE_MODE[pick.role])
-        setRoles([...new Set(assigns.map(a => a.role).filter(r => ROLE_MODE[r]))])
+        const now = active && list.find(a => a.block_id === active.id)
+        const pick = (now && now.role) || event[0] || (list[0] && list[0].role)
+        setFromRole(pick && ROLE_MODE[pick] ? ROLE_MODE[pick] : null)
+        setRoles([...new Set([...list.map(a => a.role), ...event].filter(r => ROLE_MODE[r]))])
       } catch { /* fall back to the last-used mode */ }
     })()
     return () => { on = false }
-  }, [day?.id, username])
+  }, [day?.id, username, JSON.stringify(doc?.fixedRoles || [])]) // eslint-disable-line react-hooks/exhaustive-deps
   const setMode = (m) => { setModeState(m); try { localStorage.setItem(MODE_LS, m) } catch { /* ignore */ } }
   // The tabs: one per mode your roles reach, named after the role(s).
   const tabs = useMemo(() => {
