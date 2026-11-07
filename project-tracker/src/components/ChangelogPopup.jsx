@@ -5,6 +5,13 @@ import { useUser } from '../contexts/UserContext'
 // Add new entries at the TOP with the next id. Everything else is automatic.
 const CHANGELOG = [
   {
+    id: 177,
+    date: '2026-11-06',
+    items: [
+      '\u{1F527} Pit scouting has the section row at the bottom, like the match form: tap any section to jump to it, a tick once it has answers, a dot while it is still empty or owed something',
+    ],
+  },
+  {
     id: 176,
     date: '2026-11-05',
     items: [

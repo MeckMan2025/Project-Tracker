@@ -321,6 +321,26 @@ export default function PitScoutingForm({ onDone, liveDay = null }) {
               Still needed: {missing.map(f => f.label).join(', ')}
             </p>
           )}
+
+          {/* The sections, in any order, the same row the match form has. Most
+              pit answers are optional, so a section is ticked once something in
+              it is answered and nothing in it is still owed; a dot otherwise. */}
+          <div className="flex flex-wrap justify-center gap-1 mt-4 pt-3 border-t border-gray-100">
+            {pages.map((g, i) => {
+              const inGroup = fieldsOn(g)
+              const done = inGroup.some(f => String(form[f.key] ?? '').trim()) && !missing.some(f => f.group === g)
+              return (
+                <button key={g} type="button" onClick={() => setStep(i)}
+                        className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+                          i === step ? 'bg-pastel-yellow-dark border-pastel-yellow-dark text-gray-900 font-semibold'
+                          : done ? 'border-transparent text-gray-500 hover:bg-pastel-yellow/40'
+                          : 'border-pastel-orange-dark/40 text-gray-600 hover:bg-pastel-yellow/40'
+                        }`}>
+                  {done ? '✓ ' : <span className="inline-block w-1.5 h-1.5 rounded-full bg-pastel-orange-dark mr-1 align-middle" />}{g}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </main>
     </div>
