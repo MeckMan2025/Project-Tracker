@@ -449,33 +449,16 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                           inputMode="numeric"
                           className="w-14 text-sm font-semibold border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
                         />
-                        {/* Which slot is ours. Writes our number into that slot
-                            (and out of any other), so Drive mode knows the match
-                            is ours even when no other team is typed yet. */}
+                        {/* Whether we play is read from the numbers: our team
+                            number in a slot is us. Nothing to pick. */}
                         {(() => {
                           const us = String(myTeamNumber || HOME_TEAM_NUMBER)
-                          const mine = ['red1', 'red2', 'blue1', 'blue2'].find(k => String(row[k] || '').trim() === us) || ''
+                          const mine = ['red1', 'red2', 'blue1', 'blue2'].find(k => String(row[k] || '').trim() === us)
+                          if (!mine) return null
                           return (
-                            <label className="flex items-center gap-1 text-xs text-gray-500 ml-1">
-                              <span>We are</span>
-                              <select
-                                value={mine}
-                                disabled={!isLead}
-                                onChange={e => update(p => {
-                                  const m = [...p.matchSchedule]; const r = { ...m[i] }
-                                  ;['red1', 'red2', 'blue1', 'blue2'].forEach(k => { if (String(r[k] || '').trim() === us) r[k] = '' })
-                                  if (e.target.value) r[e.target.value] = us
-                                  m[i] = r; return { ...p, matchSchedule: m }
-                                })}
-                                className={`text-xs rounded-md border px-1.5 py-0.5 ${mine ? (mine.startsWith('red') ? 'border-red-300 bg-red-50 text-red-700' : 'border-blue-300 bg-blue-50 text-blue-700') : 'border-gray-200 bg-white text-gray-500'}`}
-                              >
-                                <option value="">not playing</option>
-                                <option value="red1">Red 1</option>
-                                <option value="red2">Red 2</option>
-                                <option value="blue1">Blue 1</option>
-                                <option value="blue2">Blue 2</option>
-                              </select>
-                            </label>
+                            <span className={`text-xs font-semibold rounded-md border px-1.5 py-0.5 ml-1 ${mine.startsWith('red') ? 'border-red-300 bg-red-50 text-red-700' : 'border-blue-300 bg-blue-50 text-blue-700'}`}>
+                              ★ We're {mine.replace('red', 'Red ').replace('blue', 'Blue ')}
+                            </span>
                           )
                         })()}
                         {isLead && (
