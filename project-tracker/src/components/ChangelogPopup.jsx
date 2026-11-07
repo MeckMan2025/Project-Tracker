@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 177,
     date: '2026-11-06',
     items: [
+      '\u{1F4D3} On a team account, How your team uses ETS sits behind a notebook icon next to the bell instead of in the middle of Home',
       '\u{1F3B2} Pit scouting deals itself out: once team numbers are on the match schedule, each new team goes to a random pit scout, keeping everyone even. Randomize again re-deals them all',
       '\u2B50 The match schedule no longer asks We are: type the team numbers and a match with ours in it is marked as ours on its own',
       '\u{1F4E3} The drive team can tell the scouts things: Tell the scouts in Drive sends a message that shows at the top of every scout\u2019s board, newest first',

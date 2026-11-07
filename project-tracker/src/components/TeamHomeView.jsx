@@ -332,9 +332,33 @@ function TeamHomeView({ onTabChange }) {
     </section>
   )
 
+  // The guide lives behind a notebook by the bell rather than on the page, so
+  // Home stays Home and the manual is one tap away from anywhere on it.
+  const [guideOpen, setGuideOpen] = useState(false)
+  const guideButton = (
+    <button type="button" onClick={() => setGuideOpen(true)} title="How your team uses ETS" aria-label="How your team uses ETS"
+      className="p-2 rounded-lg hover:bg-pastel-orange/20 transition-colors">
+      <BookOpen size={20} className="text-pastel-orange-dark" />
+    </button>
+  )
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <HomeView visiting onTabChange={onTabChange} guide={guideCard} />
+      <HomeView visiting onTabChange={onTabChange} headerExtra={guideButton} />
+      {guideOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[90]" onClick={() => setGuideOpen(false)} />
+          <div className="fixed inset-0 z-[90] flex items-start sm:items-center justify-center p-4 pt-16 pointer-events-none">
+            <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto pointer-events-auto">
+              <button type="button" onClick={() => setGuideOpen(false)} aria-label="Close"
+                className="absolute top-2 right-2 z-10 p-1 rounded-lg bg-white/80 hover:bg-white shadow-sm">
+                <X size={16} className="text-gray-500" />
+              </button>
+              {guideCard}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Slideshow popup overlay */}
       {showPopup && (

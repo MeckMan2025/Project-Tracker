@@ -70,7 +70,7 @@ function Flower({ i = 0, size = 18 }) {
 // `visiting` is a team account's Home: the same page Prime Suspects sees, read
 // from their own rows only (every query here is scoped to their team), minus
 // what only Radical can open. `guide` is drawn under the shortcut tiles.
-function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, guide = null }) {
+function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, guide = null, headerExtra = null }) {
   const { username, user, functionTags } = useUser()
   const { isGuest, hasLeadTag, myTeamNumber } = usePermissions()
 
@@ -431,7 +431,10 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, gu
               Welcome back{username ? `, ${username}` : ''}! <span title="Season kickoff">🐝</span>
             </p>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-1">
+            {headerExtra}
+            <NotificationBell />
+          </div>
         </div>
       </header>
 
