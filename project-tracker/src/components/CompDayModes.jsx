@@ -10,6 +10,7 @@ import PitChecklist from './PitChecklist'
 import { daySince } from '../lib/dayRota'
 import { SCOUTING_FIELDS } from '../data/scoutingFields'
 import { PIT_FIELDS } from '../data/pitFields'
+import { savePhoto } from '../lib/savePhoto'
 
 // The four ways to spend a Competition Day. The board shows one at a time:
 //
@@ -810,8 +811,11 @@ function MediaMode({ day }) {
           {photos.length ? (
             <div className="grid grid-cols-3 gap-1.5">
               {photos.map(p => (
-                <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="block aspect-square rounded-lg overflow-hidden bg-gray-100" title={p.caption || ''}>
+                <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="relative block aspect-square rounded-lg overflow-hidden bg-gray-100" title={p.caption || ''}>
                   <img src={p.url} alt={p.caption || ''} className="w-full h-full object-cover" loading="lazy" />
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); savePhoto(p.url, `ets-${String(p.created_at || '').slice(0, 10) || 'photo'}`) }}
+                    title="Save to your phone" aria-label="Save to your phone"
+                    className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-white/90 text-[10px] font-bold text-gray-700 shadow">Save</button>
                 </a>
               ))}
             </div>

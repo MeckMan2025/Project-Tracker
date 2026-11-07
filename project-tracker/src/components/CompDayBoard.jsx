@@ -11,6 +11,7 @@ import { requestScout, SCOUT_SAVED } from '../lib/scoutHandoff'
 import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { ModeBar, ModePanel, useDefaultMode, ScoutAnnouncements } from './CompDayModes'
+import MediaStrip from './MediaStrip'
 import {
   SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey, daySince,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys, recordKey,
@@ -136,6 +137,8 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
               </div>
             </div>
             </>)}
+            {/* Today's photos from Media, on every mode's screen. */}
+            <MediaStrip title="Today's photos from Media" todayOnly />
           </>
         )}
       </main>

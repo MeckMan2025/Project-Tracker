@@ -9,6 +9,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../supabase'
 import NotificationBell from './NotificationBell'
 import NotebookGallery from './NotebookGallery'
+import MediaStrip from './MediaStrip'
 import { uploadImageFile } from '../lib/photos'
 
 const STATUS_STYLES = {
@@ -721,6 +722,8 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, gu
             </button>
           </div>
         )}
+        {/* What the Media people took, along the bottom — tap one to save it. */}
+        <MediaStrip />
       </main>
 
       {/* Photo lightbox */}

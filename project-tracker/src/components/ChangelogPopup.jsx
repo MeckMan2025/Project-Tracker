@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 178,
     date: '2026-11-07',
     items: [
+      '\u{1F4F8} Photos from Media show along the bottom of Home (and today\u2019s at the bottom of the Competition Day board). Tap one, then Save to phone to put it in your camera roll. Media\u2019s own photo grid has a Save button on each photo too. Each team only ever sees its own photos',
       '\u{1F527} Drive shows pit scouting for every team in the match: drive train, scoring, role, cycle speed, reliability, their auto, strengths, weaknesses and any problems today, with the full pit report and robot photo under all data. The match is split into Our alliance (with a PARTNER tag) and Opponents',
       '\u{1F5FA}\uFE0F RadRank can filter by state and by league, and each team shows its city, state and league (from FTCScout). Added Prime Suspects (38350), Ned Zeppelin Robo Storm (36910) and \u03C0ranhas (36461) to the team list',
       '\u2795 RadRank: a team account\u2019s login can add, rank and remove teams on its Teams Being Considered list',
