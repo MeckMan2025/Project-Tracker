@@ -117,12 +117,14 @@ export function pitScoutedKeys(rows) {
   return new Set((rows || []).map(r => String(r.team_number || '').trim()).filter(Boolean))
 }
 
-// Rows written before this day was created belong to an earlier event and
-// must not turn this day's jobs green. The day's creation time is the line;
-// an older day without one falls back to the start of its date.
+// Which scouting belongs to the live day: rows sent today, and not before the
+// day was made. Creation time alone was not enough — practice scouting in the
+// week after Bettendorf was set up counted as that event's, and its board
+// showed every match done before the event had begun. A live day is always
+// happening today, so today is the line (this device's midnight).
 export const daySince = (day) => {
   if (!day) return null
-  if (day.created_at) return day.created_at
-  if (day.session_date) return `${day.session_date}T00:00:00`
-  return null
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0)
+  const made = day.created_at ? new Date(day.created_at) : null
+  return (made && !isNaN(made) && made > midnight ? made : midnight).toISOString()
 }

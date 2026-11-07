@@ -179,13 +179,13 @@ function useTeamStats(teams, since) {
   const key = teams.slice().sort().join(',')
   const [rows, setRows] = useState([])
   useEffect(() => {
-    if (!key) { setRows([]); return }
     let on = true
+    // Every row of the day, not just the scheduled teams': which matches have
+    // started being scouted is read from these too.
     const load = async () => {
       try {
         await ensureUserToken()
-        const list = key.split(',').map(t => `"${t}"`).join(',')
-        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&team_number=in.(${list})&select=*&order=created_at.desc`, { headers: restHeaders() })
+        const res = await fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&select=*&order=created_at.desc&limit=2000`, { headers: restHeaders() })
         if (on && res.ok) setRows(await res.json())
       } catch { /* leave what we had */ }
     }
@@ -202,8 +202,8 @@ function useTeamStats(teams, since) {
     const share = (xs, f) => (xs.length ? Math.round((xs.filter(f).length / xs.length) * 100) : null)
     const avg = (xs, k) => { const v = xs.map(x => num(x[k])).filter(n => n != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null }
     const out = {}
-    // Any match with even one row in has started being scouted.
-    Object.defineProperty(out, 'scouted', { value: new Set(rows.map(r => String(r.match_number ?? '').trim()).filter(Boolean)) })
+    // Every row, for working out which matches have started being scouted.
+    Object.defineProperty(out, 'all', { value: rows })
     Object.entries(by).forEach(([t, xs]) => {
       const aS = sum(xs, 'auto_shot'), aM = sum(xs, 'auto_made')
       const tS = sum(xs, 'teleop_shot'), tM = sum(xs, 'teleop_made')
@@ -239,12 +239,42 @@ function DriveMode({ day, doc }) {
   const isOurs = (m) => teamsIn(m).some(x => x.t === team)
   const teams = useMemo(() => [...new Set(schedule.flatMap(m => SLOTS.map(([k]) => String(m[k] || '').trim())).filter(Boolean))], [schedule])
   const stats = useTeamStats(teams, daySince(day))
-  const scouted = stats.scouted || new Set()
+  // A match has started being scouted once a row is in for it — and, when its
+  // teams are on the schedule, for one of those teams, so a row about another
+  // event's match 4 does not count as ours.
+  const scouted = useMemo(() => {
+    const done = new Set()
+    const all = stats.all || []
+    schedule.forEach(m => {
+      const id = idOf(m), ts = teamsIn(m).map(x => x.t)
+      if (all.some(r => String(r.match_number ?? '').trim() === id && (!ts.length || ts.includes(String(r.team_number ?? '').trim())))) done.add(id)
+    })
+    return done
+  }, [stats, schedule]) // eslint-disable-line
   const nextMatch = schedule.find(m => !scouted.has(idOf(m))) || null
   const ourNext = schedule.find(m => isOurs(m) && !scouted.has(idOf(m))) || null
   const [pickedMatch, setPickedMatch] = useState(null)
   const [pickedTeam, setPickedTeam] = useState(null)
   const [showAll, setShowAll] = useState(false)
+  // The schedule folds up to just the next match, so it never runs the page
+  // long; open, it scrolls inside a box as tall as the right column.
+  const [schedOpen, setSchedOpen] = useState(true)
+  const nextRowRef = useRef(null)
+  // Arrows at the top and bottom of the list once there is more that way.
+  const listRef = useRef(null)
+  const [edges, setEdges] = useState({ up: false, down: false })
+  const measure = () => {
+    const el = listRef.current
+    if (!el) return
+    setEdges({ up: el.scrollTop > 4, down: el.scrollTop + el.clientHeight < el.scrollHeight - 4 })
+  }
+  const nudge = (dir) => listRef.current?.scrollBy({ top: dir * Math.max(120, (listRef.current.clientHeight || 300) * 0.6), behavior: 'smooth' })
+  useEffect(() => {
+    // Start the list at the next match, and recheck which arrows show.
+    const row = nextRowRef.current, el = listRef.current
+    if (row && el) el.scrollTop = Math.max(0, row.offsetTop - 28)
+    measure()
+  }, [nextMatch && nextMatch.match, schedOpen, schedule.length]) // eslint-disable-line
   const focus = (pickedMatch && schedule.find(m => idOf(m) === pickedMatch)) || nextMatch
   const chatMatch = focus ? idOf(focus) : null
   const [note, setNote] = useState('')
@@ -271,12 +301,29 @@ function DriveMode({ day, doc }) {
 
   return (
     <div className="grid md:grid-cols-2 gap-4 items-start">
-      {/* LEFT — the schedule */}
-      <Card title="Match schedule" icon={CalendarDays}
-            action={<span className="text-xs text-gray-400">tap a team for all its data</span>}>
-        <div className="overflow-x-auto -mx-1">
+      {/* LEFT — the schedule. On a wide screen it sits in a box pinned to the
+          right column's height (absolute, so it never makes the row taller),
+          and the list scrolls inside it. */}
+      <div className="md:relative md:self-stretch md:min-h-[18rem]">
+      <section className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4 flex flex-col md:absolute md:inset-0">
+        <button type="button" onClick={() => setSchedOpen(!schedOpen)}
+          className="flex items-center justify-between gap-2 mb-2 w-full text-left">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-1.5 text-sm">
+            <CalendarDays size={15} className="text-pastel-yellow-dark" />Match schedule
+            <span className="text-xs font-normal text-gray-400">· {schedule.length} matches</span>
+          </h2>
+          <span className="flex items-center gap-1 text-xs text-gray-400">{schedOpen ? 'hide' : 'show all'}<ChevronDown size={14} className={`transition-transform ${schedOpen ? 'rotate-180' : ''}`} /></span>
+        </button>
+        <div className={`relative -mx-1 min-h-0 flex flex-col ${schedOpen ? 'flex-1' : ''}`}>
+        {schedOpen && edges.up && (
+          <button type="button" onClick={() => nudge(-1)} title="Earlier matches"
+            className="absolute top-6 left-1/2 -translate-x-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-800">
+            <ChevronDown size={18} className="rotate-180" />
+          </button>
+        )}
+        <div ref={listRef} onScroll={measure} className={`overflow-auto min-h-0 ${schedOpen ? 'flex-1 max-h-80 md:max-h-none' : ''}`}>
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 bg-white/95">
               <tr className="text-[11px] text-gray-400 text-left">
                 <th className="font-medium px-1 py-1">Match</th>
                 <th className="font-medium px-1 py-1 text-red-500" colSpan={2}>Red</th>
@@ -284,13 +331,13 @@ function DriveMode({ day, doc }) {
               </tr>
             </thead>
             <tbody>
-              {schedule.map(m => {
+              {(schedOpen ? schedule : schedule.filter(m => nextMatch && idOf(m) === idOf(nextMatch))).map(m => {
                 const id = idOf(m)
                 const mine = isOurs(m)
                 const done = scouted.has(id)
                 const isNext = nextMatch && idOf(nextMatch) === id
                 return (
-                  <tr key={id} className={`border-t border-gray-100 ${isNext ? 'bg-purple-50' : mine ? 'bg-pastel-yellow/30' : ''} ${done && !isNext ? 'opacity-55' : ''}`}>
+                  <tr key={id} ref={isNext ? nextRowRef : undefined} className={`border-t border-gray-100 ${isNext ? 'bg-purple-50' : mine ? 'bg-pastel-yellow/30' : ''} ${done && !isNext ? 'opacity-55' : ''}`}>
                     <td className="px-1 py-1.5">
                       <button type="button" onClick={() => setPickedMatch(id === (nextMatch && idOf(nextMatch)) ? null : id)} title="Show this match's teams and chat"
                         className={`px-2 py-0.5 rounded-md text-xs font-bold ${chatMatch === id ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-purple-100'}`}>
@@ -309,11 +356,19 @@ function DriveMode({ day, doc }) {
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">★ is us ({team}), our matches are gold. NEXT is the first match with no scouting in yet.</p>
-      </Card>
+        {schedOpen && edges.down && (
+          <button type="button" onClick={() => nudge(1)} title="Later matches"
+            className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-800">
+            <ChevronDown size={18} />
+          </button>
+        )}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2 shrink-0">★ is us ({team}), our matches are gold. NEXT is the first match with no scouting in yet. Tap a team for all its data.</p>
+      </section>
+      </div>
 
       {/* RIGHT — the four teams in the next match, then its chat */}
-      <div className="space-y-4">
+      <div className="space-y-4 min-w-0">
         {pickedTeam ? (
           <Card title={`Team ${pickedTeam}${pickedTeam === team ? ' (us)' : ''}`} icon={Search}
                 action={<button type="button" onClick={() => setPickedTeam(null)} className="text-xs text-purple-500 underline">back to match {chatMatch}</button>}>
@@ -379,14 +434,14 @@ function DriveMode({ day, doc }) {
         )}
 
         {chatMatch && (
-          <Card title={`Match ${chatMatch} chat`} icon={MessageCircle}>
+          <Card title={`Talk strategy with your team · match ${chatMatch}`} icon={MessageCircle}>
             <div className="space-y-1.5 mb-2 max-h-56 overflow-y-auto">
               {chat.length ? chat.map(n => (
                 <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
-              )) : <Empty>Nothing yet. Drive team, strategy lead, scouts: say what matters for this match.</Empty>}
+              )) : <Empty>Nothing yet. Plan this match together: who does what, who to watch, what to try.</Empty>}
             </div>
             <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: chatMatch, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
-              <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`A note for match ${chatMatch}…`}
+              <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`Strategy for match ${chatMatch}…`}
                      className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
               <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Post</button>
             </form>

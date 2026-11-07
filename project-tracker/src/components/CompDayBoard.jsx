@@ -13,7 +13,7 @@ import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { ModeBar, ModePanel, useDefaultMode } from './CompDayModes'
 import {
   SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey, daySince,
-  pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys,
+  pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys, recordKey,
 } from '../lib/dayRota'
 
 // The Competition Day board: everyone's Home while a day is live.
@@ -35,7 +35,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
   const doc = useDayDoc(day ? `day-comp-${day.id}` : null)
   // Scout, Media, Pit or Drive: your role picks the first one, you pick after.
   const { mode, setMode, tabs: modeTabs } = useDefaultMode(day)
-  const { matches: scouted, pits: pitScouted } = useScouted(daySince(day))
+  const { matches: scouted, pits: pitScouted, didBy } = useScouted(daySince(day))
   // Who has a form open on which job, right now.
   const who = useWhoIsScouting(day?.id)
   const busy = useMemo(() => {
@@ -107,7 +107,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
           <>
             <ModeBar mode={mode} onChange={setMode} tabs={modeTabs} />
             {mode !== 'scout' ? <ModePanel mode={mode} day={day} doc={doc} /> : (<>
-            <YoursToScout mine={mine} minePit={minePit} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
+            <YoursToScout mine={mine} minePit={minePit} everyone={matchRows} everyonePit={pitRows} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
 
             {/* The rule book, one tap away. Scouts argue about what counted;
                 the AI manual settles it faster than finding a referee. */}
@@ -126,12 +126,12 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
             <div className="flex flex-col md:flex-row gap-4 items-stretch">
               <div className="w-full md:flex-1 min-w-0">
                 <GroupBox title="Pit Scouting" icon={Tent} people={roleMembers(doc, SCOUTING_ROLE)}
-                          rows={pitRows} done={pitScouted} showMatch={false} loaded={!!doc} onScout={scout} busy={busy}
+                          rows={pitRows} done={pitScouted} didBy={didBy} showMatch={false} loaded={!!doc} onScout={scout} busy={busy}
                           button={{ label: 'Pit Scouting', onClick: () => onTabChange('pit-scouting') }} />
               </div>
               <div className="w-full md:flex-1 min-w-0">
                 <GroupBox title="Match Scouting Group" icon={ClipboardList} people={roleMembers(doc, SCOUTING_ROLE)}
-                          rows={matchRows} done={scouted} loaded={!!doc} onScout={scout} busy={busy}
+                          rows={matchRows} done={scouted} didBy={didBy} loaded={!!doc} onScout={scout} busy={busy}
                           button={{ label: 'Match Scouting', onClick: () => onTabChange('scouting') }} />
               </div>
             </div>
@@ -152,7 +152,7 @@ const isMe = (name, username) => {
 }
 
 // A group for the day: who is in it, and every job it covers, row by row.
-function GroupBox({ title, icon, people, rows, done, showMatch = true, button, loaded, onScout, busy }) {
+function GroupBox({ title, icon, people, rows, done, didBy, showMatch = true, button, loaded, onScout, busy }) {
   const { username } = useUser()
   // Full screen: the whole chart, no inner scroll, for reading from across
   // the pit or handing the phone round. Escape or the X closes it.
@@ -190,7 +190,7 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
               })}
             </div>
             <div className="text-sm">
-              <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={(job) => { setBig(false); onScout?.(job) }} busy={busy} big />
+              <ScoutChart rows={rows} done={done} didBy={didBy} showMatch={showMatch} onScout={(job) => { setBig(false); onScout?.(job) }} busy={busy} big />
             </div>
           </div>
           {button && (
@@ -229,7 +229,7 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
         // numbers of teams, and without this the longer one dragged its card
         // down past the other and the row looked broken.
         <div className="mt-3 pt-3 border-t border-gray-100 min-h-0 overflow-y-auto max-h-64">
-          <ScoutChart rows={rows} done={done} showMatch={showMatch} onScout={onScout} busy={busy} />
+          <ScoutChart rows={rows} done={done} didBy={didBy} showMatch={showMatch} onScout={onScout} busy={busy} />
         </div>
       )}
       {button && (
@@ -261,6 +261,8 @@ function GroupBox({ title, icon, people, rows, done, showMatch = true, button, l
 function useScouted(since) {
   const [matches, setMatches] = useState(null)   // null = still loading
   const [pits, setPits] = useState(null)
+  // Who actually sent each one: team|match -> names, and pit|team -> names.
+  const [didBy, setDidBy] = useState(new Map())
   useEffect(() => {
     let cancelled = false
     // Wait for the user's token before asking. Without one the request goes
@@ -275,7 +277,7 @@ function useScouted(since) {
           await ensureUserToken()
           const [m, p] = await Promise.all([
             fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&select=team_number,match_number,scout`, { headers: restHeaders() }),
-            fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}`, { headers: restHeaders() }),
+            fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number,scout_name${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}`, { headers: restHeaders() }),
           ])
           const mr = m.ok ? await m.json() : []
           const pr = p.ok ? await p.json() : []
@@ -284,6 +286,11 @@ function useScouted(since) {
           const pList = Array.isArray(pr) ? pr : []
           setMatches(scoutedKeys(mList))
           setPits(pitScoutedKeys(pList))
+          const by = new Map()
+          const note = (k, name) => { if (!name) return; const v = by.get(k) || []; if (!v.includes(name)) v.push(name); by.set(k, v) }
+          mList.forEach(r => note(recordKey(r.team_number, r.match_number), String(r.scout || '').trim()))
+          pList.forEach(r => note(`pit|${String(r.team_number || '').trim()}`, String(r.scout_name || '').trim()))
+          setDidBy(by)
           if (mList.length || pList.length) return
         } catch { if (!cancelled) { setMatches(new Set()); setPits(new Set()) } }
       }
@@ -309,7 +316,7 @@ function useScouted(since) {
       supabase.removeChannel(channel)
     }
   }, [since])
-  return { matches, pits }
+  return { matches, pits, didBy }
 }
 
 const teamName = (num) =>
@@ -346,7 +353,13 @@ const STATUS = {
 
 // A row that is not scouted yet is a thing to do, so it is a button: tap it
 // and the form opens on that job. A scouted row just sits there, green.
-function ScoutChart({ rows, done, showMatch = true, onScout, busy, big = false }) {
+// Same person, however the name was typed: full name, or first name only.
+const samePerson = (a, b) => {
+  const x = String(a || '').trim().toLowerCase(), y = String(b || '').trim().toLowerCase()
+  if (!x || !y) return false
+  return x === y || x.split(/\s+/)[0] === y.split(/\s+/)[0]
+}
+function ScoutChart({ rows, done, didBy, showMatch = true, onScout, busy, big = false }) {
   if (!rows.length) return <Empty>Nothing assigned yet.</Empty>
   return (
     <div className="overflow-x-auto -mx-1">
@@ -377,7 +390,20 @@ function ScoutChart({ rows, done, showMatch = true, onScout, busy, big = false }
                   <span className="block text-[10px] text-gray-400 truncate max-w-[8rem]">{r.team ? teamName(r.team) : 'team TBD'}</span>
                 </td>
                 {showMatch && <td className="py-1.5 px-1 text-gray-600">{r.match ?? '—'}</td>}
-                <td className="py-1.5 px-1 text-gray-600 truncate max-w-[7rem]">{r.who || '—'}</td>
+                <td className="py-1.5 px-1 text-gray-600 max-w-[9rem]">
+                  {(() => {
+                    // Who was down for it, and — when someone else sent it —
+                    // who actually did, so covering for a teammate is on record.
+                    const did = r.team ? (didBy?.get(r.match == null ? `pit|${r.team}` : recordKey(r.team, r.match)) || []) : []
+                    const covered = status === 'done' && did.length && !did.some(n => samePerson(n, r.who))
+                    return covered ? (
+                      <>
+                        <span className="block truncate line-through text-gray-400">{r.who || 'nobody assigned'}</span>
+                        <span className="block truncate text-[11px] font-semibold text-amber-700">scouted by {did.join(', ')}</span>
+                      </>
+                    ) : <span className="block truncate">{r.who || '—'}</span>
+                  })()}
+                </td>
                 <td className="py-1.5 px-1 text-right">
                   <span className={`inline-block px-1.5 py-0.5 rounded-full font-medium ${st.pill}${todo ? ' underline decoration-red-300 underline-offset-2' : ''}`}>
                     {todo ? 'Scout it' : st.label}
@@ -396,7 +422,12 @@ function ScoutChart({ rows, done, showMatch = true, onScout, busy, big = false }
 // The biggest thing on the page, because it is the thing you are counting.
 // One square per job of yours, in match order, so the next one to worry about
 // is simply the next square along. Green once a submission exists for it.
-function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout, busy }) {
+// Everyone's jobs for the day, person by person, so the whole group can keep
+// track of who still has what. Yours is first and highlighted. One square per
+// job in match order, green once a submission exists, and any square that is
+// still open can be tapped to go and scout it.
+function YoursToScout({ mine, minePit, everyone = [], everyonePit = [], scouted, pitScouted, loaded, onScout, busy }) {
+  const { username } = useUser()
   const square = (a, done, i) => {
     const st = statusOf(a, done, busy)
     const todo = st === 'missing' || st === 'now'
@@ -411,24 +442,42 @@ function YoursToScout({ mine, minePit, scouted, pitScouted, loaded, onScout, bus
         onClick={todo ? () => onScout(a) : undefined}
         disabled={!todo}
         title={todo ? `${what} — tap to scout` : what}
-        className={`w-14 h-14 rounded-lg border flex flex-col items-center justify-center leading-tight transition-colors ${look}`}
+        className={`w-12 h-12 rounded-lg border flex flex-col items-center justify-center leading-tight transition-colors ${look}`}
       >
-        <span className="text-base font-bold">{a.match ?? <Tent size={16} />}</span>
-        <span className="text-[10px] opacity-70">{a.team || a.positionLabel || a.position}</span>
+        <span className="text-sm font-bold">{a.match ?? <Tent size={14} />}</span>
+        <span className="text-[9px] opacity-70">{a.team || a.positionLabel || a.position}</span>
       </button>
     )
   }
+  // One line per person who is down for anything, in the order they first
+  // come up; nobody-assigned jobs are left to the charts below.
+  const people = []
+  ;[...everyonePit, ...everyone].forEach(a => { const w = String(a.who || '').trim(); if (w && !people.some(p => samePerson(p, w))) people.push(w) })
+  const meFirst = [...people.filter(p => isMe(p, username)), ...people.filter(p => !isMe(p, username))]
   return (
-    <section className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4 text-center">
-      <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">Yours to scout</p>
+    <section className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
+      <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold text-center">Who is scouting what</p>
       {!loaded ? (
-        <p className="text-sm text-gray-400 mt-1">Loading…</p>
-      ) : mine.length + minePit.length === 0 ? (
-        <p className="text-sm text-gray-400 mt-1">Nothing assigned to you.</p>
+        <p className="text-sm text-gray-400 mt-1 text-center">Loading…</p>
+      ) : !meFirst.length ? (
+        <p className="text-sm text-gray-400 mt-1 text-center">Nothing assigned yet.</p>
       ) : (
-        <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-          {minePit.map((a, i) => square(a, pitScouted, i))}
-          {mine.map((a, i) => square(a, scouted, i))}
+        <div className="mt-2 space-y-2 max-h-80 overflow-y-auto">
+          {meFirst.map(p => {
+            const me = isMe(p, username)
+            const pit = everyonePit.filter(a => samePerson(a.who, p))
+            const jobs = everyone.filter(a => samePerson(a.who, p))
+            const left = pit.filter(a => statusOf(a, pitScouted, busy) !== 'done').length + jobs.filter(a => statusOf(a, scouted, busy) !== 'done').length
+            return (
+              <div key={p} className={`rounded-lg px-2 py-1.5 ${me ? 'bg-pastel-yellow/40 ring-1 ring-pastel-yellow-dark/40' : ''}`}>
+                <p className="text-xs font-semibold text-gray-700 mb-1">{p}{me ? ' (you)' : ''}<span className="font-normal text-gray-400"> · {left ? `${left} to go` : 'all done ✓'}</span></p>
+                <div className="flex flex-wrap gap-1">
+                  {pit.map((a, i) => square(a, pitScouted, i))}
+                  {jobs.map((a, i) => square(a, scouted, i))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </section>

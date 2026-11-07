@@ -661,24 +661,8 @@ function HomeView({ onTabChange, onOpenTask, onOpenSpecial, visiting = false, gu
 
         {/* Season Timeline (top of the Home Page) */}
 
-        {/* Comp Day Banner */}
-        {compDayActive && !visiting && (
-          <button
-            onClick={() => onTabChange('comp-day')}
-            className="w-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold flex items-center gap-2">
-                  <span className="animate-pulse">🏁</span> Competition Day is LIVE
-                </p>
-                <p className="text-white/80 text-sm">Tap to see your role assignment</p>
-              </div>
-              <ArrowRight size={20} />
-            </div>
-          </button>
-        )}
-
+        {/* No "Competition Day is LIVE, tap to go" banner: a live day takes
+            over everyone's screen on its own, so there is nothing to go to. */}
         {/* Comp Day Role Preview */}
         {!compDayActive && compDayPreview && !isGuest && !visiting && (
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-4">
