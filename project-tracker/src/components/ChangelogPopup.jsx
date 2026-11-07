@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 177,
     date: '2026-11-06',
     items: [
+      '\u{1F4E3} The drive team can tell the scouts things: Tell the scouts in Drive sends a message that shows at the top of every scout\u2019s board, newest first',
       '\u{1F4C5} Drive\u2019s match schedule folds up like a dropdown and, open, is exactly as tall as the stats and chat beside it, scrolling inside with arrows at the top and bottom once there is more that way. It opens at the next match',
       '\u{1F4AC} The match chat is now Talk strategy with your team',
       '\u{1F9F9} Only today\u2019s scouting counts toward a live Competition Day. Practice scouting from earlier in the week was marking Bettendorf\u2019s matches as done before the event',

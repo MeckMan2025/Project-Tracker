@@ -10,7 +10,7 @@ import { useDayDoc } from '../hooks/useDayDoc'
 import { requestScout, SCOUT_SAVED } from '../lib/scoutHandoff'
 import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
-import { ModeBar, ModePanel, useDefaultMode } from './CompDayModes'
+import { ModeBar, ModePanel, useDefaultMode, ScoutAnnouncements } from './CompDayModes'
 import {
   SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey, daySince,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys, recordKey,
@@ -107,6 +107,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
           <>
             <ModeBar mode={mode} onChange={setMode} tabs={modeTabs} />
             {mode !== 'scout' ? <ModePanel mode={mode} day={day} doc={doc} /> : (<>
+            <ScoutAnnouncements day={day} />
             <YoursToScout mine={mine} minePit={minePit} everyone={matchRows} everyonePit={pitRows} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
 
             {/* The rule book, one tap away. Scouts argue about what counted;

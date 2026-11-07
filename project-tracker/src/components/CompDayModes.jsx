@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Wrench, Gamepad2, Camera, Search, CheckCircle2, AlertTriangle, Plus, Upload, Flag, Trash2, MessageCircle, ChevronDown, CalendarDays } from 'lucide-react'
+import { Wrench, Gamepad2, Camera, Search, CheckCircle2, AlertTriangle, Plus, Upload, Flag, Trash2, MessageCircle, ChevronDown, CalendarDays, Megaphone } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { restHeaders, ensureUserToken } from '../lib/restHeaders'
@@ -447,8 +447,64 @@ function DriveMode({ day, doc }) {
             </form>
           </Card>
         )}
+        <ToScoutsComposer day={day} />
       </div>
     </div>
+  )
+}
+
+// ── Drive → scouts ──────────────────────────────────────────────────────────
+// The drive team's line to the scouts: "watch 16460's auto", "we need defense
+// notes on match 7". Written in Drive, shown at the top of the Scout board on
+// every scout's phone, newest first. Kept in comp_day_notes like the chat, so
+// it is this team's and this day's only.
+const ago = (iso) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+function ToScoutsComposer({ day }) {
+  const { username } = useUser()
+  const { notes, add, remove } = useDayNotes(day?.id)
+  const [text, setText] = useState('')
+  const sent = notes.filter(n => n.kind === 'to-scouts').slice().reverse()
+  return (
+    <Card title="Tell the scouts" icon={Megaphone}>
+      <form onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; add({ kind: 'to-scouts', body: text.trim(), author: username }); setText('') }} className="flex gap-2">
+        <input value={text} onChange={e => setText(e.target.value)} maxLength={300} placeholder="e.g. Watch 16460's auto in match 7"
+               className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+        <button className="px-3 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold">Send</button>
+      </form>
+      <p className="text-[11px] text-gray-400 mt-1">Shows at the top of every scout's board straight away.</p>
+      {sent.length > 0 && (
+        <div className="space-y-1 mt-2 max-h-32 overflow-y-auto">
+          {sent.map(n => (
+            <div key={n.id} className="flex items-start gap-2 text-xs bg-blue-50 rounded-lg px-2 py-1.5">
+              <span className="flex-1 text-gray-700">{n.body} <span className="text-gray-400">· {n.author} · {ago(n.created_at)}</span></span>
+              {n.author === username && <button type="button" onClick={() => remove(n.id)} title="Take it back" className="text-gray-300 hover:text-red-400"><Trash2 size={12} /></button>}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// What the scouts see: the drive team's messages, newest first.
+export function ScoutAnnouncements({ day }) {
+  const { notes } = useDayNotes(day?.id)
+  const msgs = notes.filter(n => n.kind === 'to-scouts').slice().reverse()
+  if (!msgs.length) return null
+  return (
+    <section className="rounded-xl shadow-sm border-2 border-blue-300 bg-blue-50/90 p-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-blue-700 flex items-center gap-1.5"><Megaphone size={14} /> From the drive team</p>
+      <div className="mt-1.5 space-y-1 max-h-36 overflow-y-auto">
+        {msgs.map((n, i) => (
+          <p key={n.id} className={`text-sm ${i === 0 ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+            {n.body} <span className="text-[11px] font-normal text-gray-400">· {n.author} · {ago(n.created_at)}</span>
+          </p>
+        ))}
+      </div>
+    </section>
   )
 }
 
