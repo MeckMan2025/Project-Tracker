@@ -12,6 +12,9 @@ import { useWhoIsScouting } from '../hooks/useScoutingPresence'
 import { announceLiveChange } from '../hooks/useLiveCompDay'
 import { ModeBar, ModePanel, useDefaultMode, ScoutAnnouncements } from './CompDayModes'
 import MediaStrip from './MediaStrip'
+import ReportIssueButton from './ReportIssueButton'
+
+const MODE_NAMES = { scout: 'Scout', media: 'Media', pit: 'Pit', drive: 'Drive' }
 import {
   SCOUTING_ROLE, roleMembers, allAssignments, assignmentsFor, scoutKey, daySince,
   pitAssignments, pitAssignmentsFor, scoutedKeys, pitScoutedKeys, recordKey,
@@ -80,6 +83,8 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
               {day?.name ? `${day.name} · ` : ''}{mode === 'drive' ? 'Our next match, who we are with and against.' : mode === 'pit' ? 'Is the robot ready, and what needs fixing.' : mode === 'media' ? 'The shot list, and the photos going up.' : "What's happening, where to go, and what's next."}
             </p>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+          <ReportIssueButton where={`Competition Day · ${(MODE_NAMES[mode] || mode)} mode`} dayName={day?.name || ''} />
           {canPause && day && (
             <button
               onClick={pause}
@@ -89,6 +94,7 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
               <Pause size={15} /> Pause
             </button>
           )}
+          </div>
         </div>
       </header>
 
