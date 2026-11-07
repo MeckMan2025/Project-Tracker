@@ -395,7 +395,7 @@ function ScoutChart({ rows, done, didBy, showMatch = true, onScout, busy, big = 
                     // Who was down for it, and — when someone else sent it —
                     // who actually did, so covering for a teammate is on record.
                     const did = r.team ? (didBy?.get(r.match == null ? `pit|${r.team}` : recordKey(r.team, r.match)) || []) : []
-                    const covered = status === 'done' && did.length && !did.some(n => samePerson(n, r.who))
+                    const covered = status === 'done' && did.length && !did.some(n => (r.members && r.members.length ? r.members : [r.who]).some(w => samePerson(n, w)))
                     return covered ? (
                       <>
                         <span className="block truncate line-through text-gray-400">{r.who || 'nobody assigned'}</span>

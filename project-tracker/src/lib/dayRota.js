@@ -101,15 +101,22 @@ export function allAssignments(doc) {
   return out
 }
 
-// Every pit visit on the day. No match number: a pit is visited once.
+// Every pit visit on the day. No match number: a pit is visited once. A team
+// belongs to a pit group, and everyone in the group is down for it; a day
+// from before groups keeps its one name in `who`.
 export function pitAssignments(doc) {
+  const groups = doc?.pitGroups || []
   return (doc?.pitTeams || [])
     .filter(t => String(t.team || '').trim())
-    .map(t => ({ team: String(t.team).trim(), match: null, who: t.who || '' }))
+    .map(t => {
+      const g = groups.find(x => x.id === t.group)
+      const members = g ? (g.members || []).filter(Boolean) : (t.who ? [t.who] : [])
+      return { team: String(t.team).trim(), match: null, who: members.join(' & '), members }
+    })
 }
 
 export function pitAssignmentsFor(doc, username) {
-  return pitAssignments(doc).filter(a => isPerson(a.who, username))
+  return pitAssignments(doc).filter(a => a.members.some(m => isPerson(m, username)))
 }
 
 // The teams that have a pit scouting row.

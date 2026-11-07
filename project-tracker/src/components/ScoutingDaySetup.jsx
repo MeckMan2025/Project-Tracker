@@ -61,6 +61,17 @@ const uid = () => String(Date.now()) + Math.random().toString(36).slice(2)
 // One person in one position. Leads pick from the roster (the same list the
 // event pickers use, so no mentor, coach or the ETS account); a name saved
 // before this that is not on the roster still shows, so nothing vanishes.
+// A small add-a-team box: type a number, Enter adds it.
+function AddTeamChip({ onAdd }) {
+  const [v, setV] = useState('')
+  return (
+    <form onSubmit={e => { e.preventDefault(); const t = v.trim(); if (t) { onAdd(t); setV('') } }} className="inline-flex">
+      <input value={v} onChange={e => setV(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="+ team"
+             className="w-20 text-sm border-b border-dashed border-gray-300 focus:border-pastel-blue focus:outline-none py-0.5 bg-transparent" />
+    </form>
+  )
+}
+
 function Slot({ label, value, onChange, isLead, tint, options = [] }) {
   const bg = tint === 'red' ? 'bg-red-50' : tint === 'blue' ? 'bg-blue-50' : 'bg-white'
   const labelColor = tint === 'red' ? 'text-red-600' : tint === 'blue' ? 'text-blue-600' : 'text-gray-500'
@@ -94,6 +105,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   const SCOPE = teamScope(myTeamNumber)
   const isLead = hasLeadTag
   const [data, setData] = useState(null)
+  const [pitSize, setPitSize] = useState(2)   // people per pit group when grouping at random
   const [tab, setTab] = useState(initialTab)
   const [nameDraft, setNameDraft] = useState(null) // string while the title is being edited
   const commitName = () => {
@@ -124,6 +136,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
         ...g, head: free(g.head), red1: free(g.red1), red2: free(g.red2), blue1: free(g.blue1), blue2: free(g.blue2),
       })),
       pitTeams: (d.pitTeams || []).map(t => ({ ...t, who: freePit(t.who) })),
+      pitGroups: (d.pitGroups || []).map(g => ({ ...g, members: (g.members || []).filter(m => !busyPit.has(m)) })),
     }
   }
 
@@ -142,7 +155,15 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
       .filter(g => !(['s2', 's3'].includes(g.id) && !g.head && !g.red1 && !g.red2 && !g.blue1 && !g.blue2)),
     standBy: loaded.standBy ?? DEFAULT_DATA.standBy,
     matchSchedule: loaded.matchSchedule || DEFAULT_DATA.matchSchedule.map(m => ({ ...m })),
-    pitTeams: loaded.pitTeams || [],
+    // Pit groups: who scouts with whom, and their teams. A day saved before
+    // groups existed becomes one group per person who had pits, same teams.
+    ...(() => {
+      const rows = loaded.pitTeams || []
+      if (loaded.pitGroups) return { pitTeams: rows, pitGroups: loaded.pitGroups }
+      const people = [...new Set(rows.map(t => t.who).filter(Boolean))]
+      const pitGroups = people.map(who => ({ id: `pg-${uid()}`, members: [who] }))
+      return { pitGroups, pitTeams: rows.map(t => ({ ...t, group: (pitGroups.find(g => g.members[0] === t.who) || {}).id || '' })) }
+    })(),
   })
 
   useEffect(() => {
@@ -256,15 +277,24 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   // stops, so a half-typed number is never dealt, and pitSeen remembers every
   // team ever dealt, so one a lead removed stays removed.
   const dealPits = (p, teams) => {
+    const groups = p.pitGroups || []
     const load = {}
-    pitPool.forEach(n => { load[n] = 0 })
-    ;(p.pitTeams || []).forEach(t => { if (t.who in load && String(t.team || '').trim()) load[t.who]++ })
+    groups.forEach(g => { load[g.id] = 0 })
+    ;(p.pitTeams || []).forEach(t => { if (t.group in load && String(t.team || '').trim()) load[t.group]++ })
     return shuffle(teams).map(team => {
-      const min = Math.min(...pitPool.map(n => load[n]))
-      const who = shuffle(pitPool.filter(n => load[n] === min))[0] || ''
-      if (who) load[who]++
-      return { id: uid(), team, who }
+      if (!groups.length) return { id: uid(), team, group: '' }
+      const min = Math.min(...groups.map(g => load[g.id]))
+      const g = shuffle(groups.filter(x => load[x.id] === min))[0]
+      load[g.id]++
+      return { id: uid(), team, group: g.id }
     })
+  }
+  // Re-deal every pit team across the groups, evenly, at random.
+  const redealPits = (p) => {
+    const groups = shuffle(p.pitGroups || [])
+    let k = 0
+    return shuffle((p.pitTeams || []).filter(t => String(t.team || '').trim()))
+      .map(t => ({ ...t, group: groups.length ? groups[k++ % groups.length].id : '' }))
   }
   const scheduleKey = [...new Set((data?.matchSchedule || [])
     .flatMap(m => ['red1', 'red2', 'blue1', 'blue2'].map(k => String(m[k] || '').trim()))
@@ -274,14 +304,14 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
     return scheduleKey ? scheduleKey.split(',').filter(t => !seen.has(t)) : []
   }
   useEffect(() => {
-    if (!isLead || !pitPool.length || !data || !unseenTeams(data).length) return
+    if (!isLead || !(data?.pitGroups || []).length || !unseenTeams(data).length) return
     const t = setTimeout(() => update(p => {
       const fresh = unseenTeams(p)
       if (!fresh.length) return p
       return { ...p, pitTeams: [...(p.pitTeams || []), ...dealPits(p, fresh)], pitSeen: [...new Set([...(p.pitSeen || []), ...fresh])] }
     }), 2500)
     return () => clearTimeout(t)
-  }, [scheduleKey, pitPool.join('|'), isLead, !!data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scheduleKey, (data?.pitGroups || []).map(g => g.id).join('|'), isLead, !!data]) // eslint-disable-line react-hooks/exhaustive-deps
 
 
   if (!data) {
@@ -555,8 +585,9 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
           {tab === 'pit' && (
             <>
               <p className="text-xs text-gray-400 mb-3">
-                Each scout visits two pits. Type the team numbers next to each
-                person; the people are the same ones scouting matches. A pit is
+                Pit groups: who scouts together, and which teams they visit — as
+                many people and as many teams as you like. Teams on the match
+                schedule are dealt to the groups at random, evenly. A pit is
                 visited once, so there is no match number.
               </p>
               {isLead && !pitPool.length && (
@@ -565,65 +596,103 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                 </p>
               )}
               <div className="space-y-2">
-                {pitPool.map(person => {
-                  const mine = (data.pitTeams || []).filter(t => t.who === person)
-                  // Two slots to fill, plus any extra a lead added.
-                  const slots = Math.max(2, mine.length)
+                {(() => {
+                  const groups = data.pitGroups || []
+                  const inGroup = new Set(groups.flatMap(g => g.members || []))
+                  const setGroup = (id, patch) => update(p => ({ ...p, pitGroups: (p.pitGroups || []).map(x => x.id === id ? { ...x, ...patch } : x) }))
+                  const chip = 'inline-flex items-center gap-1 text-sm rounded-full px-2.5 py-0.5'
+                  const loose = (data.pitTeams || []).filter(t => String(t.team || '').trim() && !groups.some(g => g.id === t.group))
                   return (
-                    <div key={person} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3 flex-wrap">
-                      <div className="w-36 shrink-0 min-w-0">
-                        <span className="block text-[10px] uppercase tracking-wide text-gray-400">Scout</span>
-                        <span className="block text-sm font-semibold text-gray-800 truncate">{person}</span>
-                      </div>
-                      {Array.from({ length: slots }).map((_, k) => {
-                        const row = mine[k]
+                    <>
+                      {groups.map((g, gi) => {
+                        const teams = (data.pitTeams || []).filter(t => t.group === g.id && String(t.team || '').trim())
+                        const free = pitPool.filter(n => !inGroup.has(n))
                         return (
-                          <div key={row ? row.id : `new-${k}`} className="w-28 shrink-0 min-w-0">
-                            <label className="block text-[10px] uppercase tracking-wide text-gray-400">Team {k + 1}</label>
-                            <input
-                              value={row ? (row.team || '') : ''}
-                              onChange={e => update(p => {
-                                const t = [...(p.pitTeams || [])]
-                                if (row) { const i = t.findIndex(x => x.id === row.id); t[i] = { ...t[i], team: e.target.value } }
-                                else t.push({ id: uid(), team: e.target.value, who: person })
-                                return { ...p, pitTeams: t }
-                              })}
-                              disabled={!isLead}
-                              inputMode="numeric"
-                              placeholder="—"
-                              className="w-full text-sm font-semibold border-b border-gray-200 focus:border-pastel-blue focus:outline-none disabled:bg-transparent"
-                            />
-                            <span className="block text-[10px] text-gray-400 truncate">{row ? teamNameOf(row.team) : ''}</span>
+                          <div key={g.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-700">Pit group {gi + 1}</span>
+                              <span className="text-[11px] text-gray-400">{(g.members || []).length} {(g.members || []).length === 1 ? 'scout' : 'scouts'} · {teams.length} {teams.length === 1 ? 'team' : 'teams'}</span>
+                              {isLead && (
+                                <button onClick={() => update(p => ({ ...p, pitGroups: (p.pitGroups || []).filter(x => x.id !== g.id), pitTeams: (p.pitTeams || []).map(t => t.group === g.id ? { ...t, group: '' } : t) }))}
+                                        title="Remove this group (its teams stay, waiting for a group)" className="ml-auto p-1 rounded hover:bg-red-50"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[10px] uppercase tracking-wide text-gray-400 w-12 shrink-0">Scouts</span>
+                              {(g.members || []).map(m => (
+                                <span key={m} className={`${chip} bg-pastel-blue/30 text-gray-800`}>{m}
+                                  {isLead && <button onClick={() => setGroup(g.id, { members: g.members.filter(x => x !== m) })} className="text-gray-400 hover:text-red-500" aria-label={`Remove ${m}`}>×</button>}
+                                </span>
+                              ))}
+                              {isLead && free.length > 0 && (
+                                <select value="" onChange={e => e.target.value && setGroup(g.id, { members: [...(g.members || []), e.target.value] })}
+                                        className="text-sm border-b border-dashed border-gray-300 bg-transparent focus:outline-none text-gray-500">
+                                  <option value="">+ scout</option>
+                                  {free.map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                              )}
+                              {!(g.members || []).length && !isLead && <span className="text-xs italic text-gray-300">nobody yet</span>}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[10px] uppercase tracking-wide text-gray-400 w-12 shrink-0">Teams</span>
+                              {teams.map(t => (
+                                <span key={t.id} title={teamNameOf(t.team)} className={`${chip} bg-pastel-yellow/40 text-gray-800 font-semibold`}>{t.team}
+                                  <span className="font-normal text-[11px] text-gray-500 truncate max-w-[7rem]">{teamNameOf(t.team)}</span>
+                                  {isLead && <button onClick={() => update(p => ({ ...p, pitTeams: (p.pitTeams || []).filter(x => x.id !== t.id) }))} className="text-gray-400 hover:text-red-500" aria-label={`Remove ${t.team}`}>×</button>}
+                                </span>
+                              ))}
+                              {isLead && <AddTeamChip onAdd={team => update(p => ({ ...p, pitTeams: [...(p.pitTeams || []), { id: uid(), team, group: g.id }], pitSeen: [...new Set([...(p.pitSeen || []), team])] }))} />}
+                              {!teams.length && !isLead && <span className="text-xs italic text-gray-300">none yet</span>}
+                            </div>
                           </div>
                         )
                       })}
-                      {isLead && (
-                        <div className="flex items-center gap-1 ml-auto">
-                          <button onClick={() => update(p => ({ ...p, pitTeams: [...(p.pitTeams || []), { id: uid(), team: '', who: person }] }))} className="p-1 rounded hover:bg-gray-100" title="One more pit for this scout"><Plus size={14} className="text-gray-400" /></button>
-                          {mine.length > 0 && <button onClick={() => update(p => ({ ...p, pitTeams: (p.pitTeams || []).filter(x => x.who !== person) }))} className="p-1 rounded hover:bg-red-50" title="Clear this scout's pits"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>}
+                      {loose.length > 0 && (
+                        <div className="bg-white rounded-xl p-3 shadow-sm border border-amber-100">
+                          <p className="text-xs text-amber-700 font-semibold mb-2">Not given to a group yet</p>
+                          <div className="flex flex-wrap gap-2">
+                            {loose.map(t => (
+                              <span key={t.id} className={`${chip} bg-amber-50 text-gray-800 font-semibold`}>{t.team}
+                                {isLead && groups.length > 0 && (
+                                  <select value="" onChange={e => e.target.value && update(p => ({ ...p, pitTeams: (p.pitTeams || []).map(x => x.id === t.id ? { ...x, group: e.target.value } : x) }))}
+                                          className="text-xs bg-transparent focus:outline-none text-gray-500">
+                                    <option value="">→ group</option>
+                                    {groups.map((g, gi) => <option key={g.id} value={g.id}>Group {gi + 1}</option>)}
+                                  </select>
+                                )}
+                                {isLead && <button onClick={() => update(p => ({ ...p, pitTeams: (p.pitTeams || []).filter(x => x.id !== t.id) }))} className="text-gray-400 hover:text-red-500" aria-label={`Remove ${t.team}`}>×</button>}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
-                    </div>
+                      {!groups.length && !loose.length && <p className="text-sm text-gray-400 italic">No pit groups yet.</p>}
+                      {isLead && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button onClick={() => update(p => ({ ...p, pitGroups: [...(p.pitGroups || []), { id: `pg-${uid()}`, members: [] }] }))}
+                                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add pit group</button>
+                          <span className="text-xs text-gray-500 ml-1">or random groups of</span>
+                          <select value={pitSize} onChange={e => setPitSize(Number(e.target.value))} className="text-sm border-b border-gray-200 bg-transparent focus:outline-none">
+                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                          <button
+                            onClick={() => update(p => {
+                              // The scouts shuffled into groups of that size (the last may be
+                              // smaller), then every pit team dealt across them evenly.
+                              const people = shuffle(pitPool)
+                              const pitGroups = []
+                              for (let i = 0; i < people.length; i += pitSize) pitGroups.push({ id: `pg-${uid()}`, members: people.slice(i, i + pitSize) })
+                              const next = { ...p, pitGroups }
+                              return { ...next, pitTeams: redealPits(next) }
+                            })}
+                            disabled={!pitPool.length}
+                            title={pitPool.length ? 'Shuffle the scouts into groups and deal the teams out again' : 'Put people on the Scouting role first'}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50"><Shuffle size={14} /> Make groups at random</button>
+                        </div>
+                      )}
+                    </>
                   )
-                })}
-                {(() => {
-                  const loose = (data.pitTeams || []).filter(t => !pitPool.includes(t.who) && String(t.team || '').trim())
-                  return loose.length ? (
-                    <div className="bg-white rounded-xl p-3 shadow-sm border border-amber-100">
-                      <p className="text-xs text-amber-700 font-semibold mb-2">Not given to anyone yet</p>
-                      <div className="space-y-2">
-                        {loose.map(row => (
-                          <div key={row.id} className="flex items-center gap-3">
-                            <span className="w-28 text-sm font-semibold text-gray-800">{row.team} <span className="block text-[10px] text-gray-400 font-normal truncate">{teamNameOf(row.team)}</span></span>
-                            <div className="flex-1 min-w-0"><Slot label="Who" value={row.who} isLead={isLead} options={pitPool} onChange={v => update(p => { const t = [...p.pitTeams]; const i = t.findIndex(x => x.id === row.id); t[i] = { ...t[i], who: v }; return { ...p, pitTeams: t } })} /></div>
-                            {isLead && <button onClick={() => update(p => ({ ...p, pitTeams: p.pitTeams.filter(x => x.id !== row.id) }))} className="p-1 rounded hover:bg-red-50 shrink-0" title="Remove"><Trash2 size={14} className="text-gray-300 hover:text-red-400" /></button>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null
                 })()}
-                {!pitPool.length && !(data.pitTeams || []).length && <p className="text-sm text-gray-400 italic">No pit visits yet.</p>}
               </div>
               {isLead && (
                 <div className="flex flex-wrap gap-2">
@@ -638,7 +707,7 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                         if (t && !have.has(t)) { have.add(t); fresh.push(t) }
                       }))
                       const kept = (p.pitTeams || []).filter(t => String(t.team || '').trim())
-                      const rows = pitPool.length ? dealPits({ ...p, pitTeams: kept }, fresh) : fresh.map(team => ({ id: uid(), team, who: '' }))
+                      const rows = dealPits({ ...p, pitTeams: kept }, fresh)
                       return { ...p, pitTeams: [...kept, ...rows], pitSeen: [...new Set([...(p.pitSeen || []), ...fresh])] }
                     })}
                     title="Every team on the match schedule that is not listed yet, shared out so each scout has about two"
@@ -647,15 +716,9 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                     <ClipboardList size={14} /> Fill from the match schedule
                   </button>
                   <button
-                    onClick={() => update(p => {
-                      // Every pit visit dealt again at random, still evenly.
-                      const rows = shuffle((p.pitTeams || []).filter(t => String(t.team || '').trim()))
-                      const order = shuffle(pitPool)
-                      let k = 0
-                      return { ...p, pitTeams: rows.map(t => ({ ...t, who: order[k++ % order.length] })) }
-                    })}
-                    disabled={!pitPool.length || !(data.pitTeams || []).some(t => String(t.team || '').trim())}
-                    title={pitPool.length ? 'Deal every pit visit again at random, evenly across the scouts' : 'Put people on the Scouting role first'}
+                    onClick={() => update(p => ({ ...p, pitTeams: redealPits(p) }))}
+                    disabled={!(data.pitGroups || []).length || !(data.pitTeams || []).some(t => String(t.team || '').trim())}
+                    title={(data.pitGroups || []).length ? 'Deal every pit team again at random, evenly across the groups' : 'Make a pit group first'}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800 disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     <Shuffle size={14} /> Randomize again
