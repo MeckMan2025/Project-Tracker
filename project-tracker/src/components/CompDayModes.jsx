@@ -550,7 +550,7 @@ function ToScoutsComposer({ day }) {
       </form>
       <p className="text-[11px] text-gray-400 mt-1">Shows at the top of every scout's board straight away.</p>
       {sent.length > 0 && (
-        <div className="space-y-1 mt-2 max-h-32 overflow-y-auto">
+        <div className="space-y-1 mt-2 max-h-[4.5rem] overflow-y-auto pr-1">
           {sent.map(n => (
             <div key={n.id} className="flex items-start gap-2 text-xs bg-blue-50 rounded-lg px-2 py-1.5">
               <span className="flex-1 text-gray-700">{n.body} <span className="text-gray-400">· {n.author} · {ago(n.created_at)}</span></span>
@@ -571,7 +571,8 @@ export function ScoutAnnouncements({ day }) {
   return (
     <section className="rounded-xl shadow-sm border-2 border-blue-300 bg-blue-50/90 p-3">
       <p className="text-xs font-bold uppercase tracking-wide text-blue-700 flex items-center gap-1.5"><Megaphone size={14} /> From the drive team</p>
-      <div className="mt-1.5 space-y-1 max-h-36 overflow-y-auto">
+      {/* A short fixed box that scrolls, so a busy day never pushes the board down. */}
+      <div className="mt-1.5 space-y-1 max-h-[4.5rem] overflow-y-auto pr-1">
         {msgs.map((n, i) => (
           <p key={n.id} className={`text-sm ${i === 0 ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
             {n.body} <span className="text-[11px] font-normal text-gray-400">· {n.author} · {ago(n.created_at)}</span>
