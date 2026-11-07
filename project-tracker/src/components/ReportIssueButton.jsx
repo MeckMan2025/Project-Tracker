@@ -36,8 +36,11 @@ const Panel = ({ onClose, children }) => createPortal(
 
 export default function ReportIssueButton(props) {
   const { user } = useUser()
-  // The project managers get the reports, so their button opens the inbox.
-  return PROJECT_MANAGERS.some(pm => pm.id === user?.id) ? <IssueInbox /> : <ReportForm {...props} />
+  const { isCofounder } = usePermissions()
+  // The project managers get the reports, so their button opens the inbox:
+  // Kayden and Yukti by account, or anyone the app counts as a cofounder.
+  const isPM = isCofounder || PROJECT_MANAGERS.some(pm => pm.id === user?.id)
+  return isPM ? <IssueInbox /> : <ReportForm {...props} />
 }
 
 // Kayden and Yukti: every Comp Day issue from every team, newest first.
@@ -154,7 +157,7 @@ function ReportForm({ where = 'Competition Day', dayName = '' }) {
               <h2 className="font-bold text-gray-800 flex items-center gap-1.5"><AlertTriangle size={17} className="text-amber-500" /> Report an issue</h2>
               <button type="button" onClick={() => setOpen(false)} className="p-1 rounded hover:bg-gray-100" aria-label="Close"><X size={16} /></button>
             </div>
-            <p className="text-xs text-gray-500">Goes straight to Kayden and Yukti.</p>
+            <p className="text-xs text-gray-500">Goes straight to Kayden and Yukti.{username ? <span className="text-gray-400"> You're signed in as {username}.</span> : null}</p>
             {state === 'sent' ? (
               <p className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg p-3"><CheckCircle size={16} /> Sent. Thanks — they've been notified.</p>
             ) : (
