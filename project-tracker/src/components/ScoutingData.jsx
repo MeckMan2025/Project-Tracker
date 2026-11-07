@@ -4,7 +4,7 @@ import { restHeaders, ensureUserToken } from '../lib/restHeaders'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, Trash2, Plus, X, Calendar, Download } from 'lucide-react'
 import { SCOUTING_FIELDS, yesNo, displayValue, rpOf } from '../data/scoutingFields'
-import { ALL_TEAMS as TEAM_LIST } from '../data/teams'
+import { ALL_TEAMS as TEAM_LIST, LEAGUE_NAMES, STATE_NAMES } from '../data/teams'
 import { PIT_FIELDS } from '../data/pitFields'
 import { SCOUT_SAVED, announceScoutSaved } from '../lib/scoutHandoff'
 import { supabase } from '../supabase'
@@ -336,6 +336,9 @@ function ScoutingData() {
   const [addForm, setAddForm] = useState({ name: '', number: '', rank: '' })
   const [deleteMode, setDeleteMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState('') // '' = all dates
+  // Where a team is from and which league it plays in, from the team list.
+  const [stateFilter, setStateFilter] = useState('')
+  const [leagueFilter, setLeagueFilter] = useState('')
 
   // Teams on any Competition Day's match schedule or pit list. A team we are
   // going to scout belongs on this page before the first row comes in, and
@@ -639,8 +642,10 @@ function ScoutingData() {
     const others = all.filter(t => !consideredNumbers.includes(t.number))
       .sort((a, b) => ((a.rank || 999) - (b.rank || 999)) || byScouting(a, b))
 
-    return { consideredTeams: considered, otherTeams: others }
-  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam])
+    const where = (t) => (!stateFilter || t.state === stateFilter)
+      && (!leagueFilter || (leagueFilter === '-' ? !t.league : t.league === leagueFilter))
+    return { consideredTeams: considered.filter(where), otherTeams: others.filter(where) }
+  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam, stateFilter, leagueFilter])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
@@ -773,7 +778,25 @@ function ScoutingData() {
               {selectedDate && ` on ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {(() => {
+              const states = [...new Set(TEAM_LIST.map(t => t.state).filter(Boolean))].sort()
+              const leagues = [...new Set(TEAM_LIST.map(t => t.league).filter(Boolean))].sort()
+              const sel = 'text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-pastel-pink cursor-pointer'
+              return (
+                <>
+                  <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className={sel} title="Filter by state">
+                    <option value="">All states</option>
+                    {states.map(st => <option key={st} value={st}>{STATE_NAMES[st] || st}</option>)}
+                  </select>
+                  <select value={leagueFilter} onChange={e => setLeagueFilter(e.target.value)} className={sel} title="Filter by league">
+                    <option value="">All leagues</option>
+                    {leagues.map(l => <option key={l} value={l}>{LEAGUE_NAMES[l] || l}</option>)}
+                    <option value="-">No league yet</option>
+                  </select>
+                </>
+              )
+            })()}
             <div className="relative">
               <div className="flex items-center gap-1.5">
                 <Calendar size={14} className="text-gray-400" />
@@ -861,6 +884,9 @@ function ScoutingData() {
                       <h2 className="text-lg font-bold text-gray-800">
                         {t.name} <span className="text-gray-500 font-medium">#{t.number}</span>
                       </h2>
+                      {(t.city || t.state || t.league) && (
+                        <p className="text-[11px] text-gray-500">{[t.city, STATE_NAMES[t.state] || t.state].filter(Boolean).join(', ')}{t.league ? ` · ${LEAGUE_NAMES[t.league] || t.league} league` : ''}</p>
+                      )}
                       {t.rank && (
                         <span className="text-sm text-gray-500">Rank {t.rank}</span>
                       )}
@@ -997,6 +1023,9 @@ function ScoutingData() {
                     <h2 className="text-lg font-bold text-gray-800">
                       {t.name} <span className="text-gray-500 font-medium">#{t.number}</span>
                     </h2>
+                    {(t.city || t.state || t.league) && (
+                      <p className="text-[11px] text-gray-500">{[t.city, STATE_NAMES[t.state] || t.state].filter(Boolean).join(', ')}{t.league ? ` · ${LEAGUE_NAMES[t.league] || t.league} league` : ''}</p>
+                    )}
                     {t.rank && (
                       <span className="text-sm text-gray-500">Rank {t.rank}</span>
                     )}

@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 178,
     date: '2026-11-07',
     items: [
+      '\u{1F5FA}\uFE0F RadRank can filter by state and by league, and each team shows its city, state and league (from FTCScout). Added Prime Suspects (38350), Ned Zeppelin Robo Storm (36910) and \u03C0ranhas (36461) to the team list',
       '\u2795 RadRank: a team account\u2019s login can add, rank and remove teams on its Teams Being Considered list',
       '\u{1F512} Team Chat is for leads and co-leads only (and a team account\u2019s own login), since it speaks for the whole team',
       '\u{1F465} Pit scouting is set up in pit groups: who scouts together (one, two, three, any number) and which teams they visit (any number). Add a group by hand or make groups at random of the size you pick; teams from the match schedule are dealt to the groups at random, evenly. Older days turn into one group per person with the same teams',
