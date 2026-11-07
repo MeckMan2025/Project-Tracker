@@ -10,9 +10,8 @@ const CHANGELOG = [
     items: [
       '\u{1F4E3} The drive team can tell the scouts things: Tell the scouts in Drive sends a message that shows at the top of every scout\u2019s board, newest first',
       '\u{1F4C5} Drive\u2019s match schedule folds up like a dropdown and, open, is exactly as tall as the stats and chat beside it, scrolling inside with arrows at the top and bottom once there is more that way. It opens at the next match',
-      '\u{1F4AC} The match chat is now Talk strategy with your team',
+      '\u{1F91D} Drive\u2019s chat is for strategy with your alliance partner: a chat per match that only your two teams can see, never the opponents. If the partner isn\u2019t on ETS it says so',
       '\u{1F9F9} Only today\u2019s scouting counts toward a live Competition Day. Practice scouting from earlier in the week was marking Bettendorf\u2019s matches as done before the event',
-      '\u{1F465} Who is scouting what: the board lists every scout\u2019s jobs, yours first, with how many each has left',
       '\u{1F501} When someone scouts a job that was someone else\u2019s, the schedule shows the assigned name crossed out and who actually scouted it',
       '\u{1F3C1} Home no longer shows a Competition Day is LIVE banner: a live day already takes over everyone\u2019s screen',
       '\u{1F3AE} Drive is two columns: the match schedule on the left, with us starred and our matches gold; on the right the four teams in the next match with their shooting accuracy and auto, then that match\u2019s chat. Next is the first match with no scouting in yet, so once match 4 has any entry the stats move on to match 5. Tap any team for every scouted match',

@@ -108,7 +108,6 @@ export default function CompDayBoard({ day, onTabChange, canPause = false }) {
             <ModeBar mode={mode} onChange={setMode} tabs={modeTabs} />
             {mode !== 'scout' ? <ModePanel mode={mode} day={day} doc={doc} /> : (<>
             <ScoutAnnouncements day={day} />
-            <YoursToScout mine={mine} minePit={minePit} everyone={matchRows} everyonePit={pitRows} scouted={scouted} pitScouted={pitScouted} loaded={!!doc} onScout={scout} busy={busy} />
 
             {/* The rule book, one tap away. Scouts argue about what counted;
                 the AI manual settles it faster than finding a referee. */}

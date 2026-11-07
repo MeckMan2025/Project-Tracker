@@ -277,8 +277,6 @@ function DriveMode({ day, doc }) {
   }, [nextMatch && nextMatch.match, schedOpen, schedule.length]) // eslint-disable-line
   const focus = (pickedMatch && schedule.find(m => idOf(m) === pickedMatch)) || nextMatch
   const chatMatch = focus ? idOf(focus) : null
-  const [note, setNote] = useState('')
-  const chat = notes.filter(n => n.kind === 'drive' && n.match === chatMatch)
   const pick = (t) => { setPickedTeam(pickedTeam === t ? null : t); setShowAll(false) }
 
   if (!doc) return <Card title="Drive Team" icon={Gamepad2}><Empty>Loading the day…</Empty></Card>
@@ -433,23 +431,99 @@ function DriveMode({ day, doc }) {
           <Card title="Drive Team" icon={Gamepad2}><Empty>Every match on the schedule has scouting in. That's the day.</Empty></Card>
         )}
 
-        {chatMatch && (
-          <Card title={`Talk strategy with your team · match ${chatMatch}`} icon={MessageCircle}>
-            <div className="space-y-1.5 mb-2 max-h-56 overflow-y-auto">
-              {chat.length ? chat.map(n => (
-                <div key={n.id} className="text-sm bg-white/70 rounded-lg px-2.5 py-1.5"><span className="font-semibold text-gray-700">{n.author}:</span> {n.body}<span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
-              )) : <Empty>Nothing yet. Plan this match together: who does what, who to watch, what to try.</Empty>}
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; add({ kind: 'drive', match: chatMatch, body: note.trim(), author: username }); setNote('') }} className="flex gap-2">
-              <input value={note} onChange={e => setNote(e.target.value)} maxLength={300} placeholder={`Strategy for match ${chatMatch}…`}
-                     className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
-              <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Post</button>
-            </form>
-          </Card>
-        )}
+        {(() => {
+          // Our match to talk about: the one in focus if we're in it, else our next.
+          const m = (focus && isOurs(focus)) ? focus : ourNext
+          if (!m) return <Card title="Talk strategy with your alliance partner" icon={MessageCircle}><Empty>None of our matches are left to play.</Empty></Card>
+          const ourColor = teamsIn(m).find(x => x.t === team)?.color
+          const partner = teamsIn(m).find(x => x.color === ourColor && x.t !== team)?.t
+          if (!partner) return <Card title={`Talk strategy with your alliance partner · match ${idOf(m)}`} icon={MessageCircle}><Empty>Our partner for match {idOf(m)} isn't on the schedule yet.</Empty></Card>
+          return <AllianceChat key={`${idOf(m)}-${partner}`} match={idOf(m)} us={team} partner={partner} />
+        })()}
         <ToScoutsComposer day={day} />
       </div>
     </div>
+  )
+}
+
+// ── Alliance chat ───────────────────────────────────────────────────────────
+// Strategy with the partner in one match. The only thing two teams share: the
+// rows live in alliance_chat, and the database lets only the two teams on that
+// alliance read or write them — opponents and everyone else see nothing. A
+// partner who isn't on ETS can't see it yet, and the card says so.
+const localYmd = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
+function AllianceChat({ match, us, partner }) {
+  const { username } = useUser()
+  const [msgs, setMsgs] = useState([])
+  const [state, setState] = useState('loading') // loading | ok | missing
+  const [onEts, setOnEts] = useState(null)
+  const [text, setText] = useState('')
+  const pair = [String(us), String(partner)].sort()
+  const where = `event_date=eq.${localYmd()}&match=eq.${encodeURIComponent(match)}&team_a=eq.${encodeURIComponent(pair[0])}&team_b=eq.${encodeURIComponent(pair[1])}`
+  const load = useCallback(async () => {
+    try {
+      await ensureUserToken()
+      const res = await fetch(`${supabaseUrl}/rest/v1/alliance_chat?${where}&select=*&order=created_at.asc&limit=300`, { headers: restHeaders() })
+      if (res.status === 404) { setState('missing'); return }
+      if (res.ok) { setMsgs(await res.json()); setState('ok') }
+    } catch { /* next poll */ }
+  }, [where])
+  useEffect(() => {
+    setMsgs([]); setState('loading'); load()
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 8000)
+    return () => clearInterval(t)
+  }, [load])
+  useEffect(() => {
+    let on = true
+    setOnEts(null)
+    ;(async () => {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/rpc/team_on_ets`, {
+          method: 'POST', headers: restHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ t: String(partner) }),
+        })
+        if (on && res.ok) setOnEts(!!(await res.json()))
+      } catch { /* unknown */ }
+    })()
+    return () => { on = false }
+  }, [partner])
+  const send = async (e) => {
+    e.preventDefault()
+    const body = text.trim()
+    if (!body) return
+    setText('')
+    await fetch(`${supabaseUrl}/rest/v1/alliance_chat`, {
+      method: 'POST', headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+      body: JSON.stringify({ event_date: localYmd(), match: String(match), team_a: pair[0], team_b: pair[1], from_team: String(us), author: username || '', body }),
+    }).catch(() => {})
+    load()
+  }
+  return (
+    <Card title={`Talk strategy with your alliance partner · match ${match}`} icon={MessageCircle}>
+      <p className="text-xs text-gray-500 -mt-1 mb-2">With <b>team {partner}</b>. Only your two teams can see this.</p>
+      {onEts === false && (
+        <p className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-2 py-1 mb-2">Team {partner} isn't on ETS, so they can't see this yet. Only your team will.</p>
+      )}
+      {state === 'missing' ? <Empty>Alliance chat is being set up. It will appear here once it's switched on.</Empty> : (
+        <>
+          <div className="space-y-1.5 mb-2 max-h-56 overflow-y-auto">
+            {msgs.length ? msgs.map(n => {
+              const ours = String(n.from_team) === String(us)
+              return (
+                <div key={n.id} className={`text-sm rounded-lg px-2.5 py-1.5 ${ours ? 'bg-purple-50 ml-6' : 'bg-white/80 mr-6 border border-gray-100'}`}>
+                  <span className="font-semibold text-gray-700">{n.author || 'someone'} <span className="text-[10px] font-bold text-gray-400">· {n.from_team}</span>:</span> {n.body}
+                  <span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                </div>
+              )
+            }) : <Empty>Nothing yet. Who scores where, who plays defense, what each auto does.</Empty>}
+          </div>
+          <form onSubmit={send} className="flex gap-2">
+            <input value={text} onChange={e => setText(e.target.value)} maxLength={500} placeholder={`Message team ${partner}…`}
+                   className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+            <button className="px-3 py-2 rounded-lg bg-purple-500 text-white text-sm font-semibold">Send</button>
+          </form>
+        </>
+      )}
+    </Card>
   )
 }
 
