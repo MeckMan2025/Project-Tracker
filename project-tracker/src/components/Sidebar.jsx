@@ -471,6 +471,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <Calendar size={16} className="text-pastel-pink-dark" />
                 <span className="truncate flex-1">Calendar</span>
               </div>
+              {!isGuest && <hr className="my-2 border-gray-200" />}
               {!isGuest && (
                 <div
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
@@ -501,6 +502,7 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <BookOpen size={16} className="text-pastel-orange-dark" />
                 <span className="truncate flex-1">Engineering Notebook</span>
               </div>
+              <hr className="my-2 border-gray-200" />
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   activeTab === 'scouting' || activeTab === 'pit-scouting' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
