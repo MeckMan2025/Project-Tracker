@@ -9,6 +9,7 @@ import { HOME_TEAM_NUMBER } from '../data/team'
 import PitChecklist from './PitChecklist'
 import { daySince } from '../lib/dayRota'
 import { SCOUTING_FIELDS } from '../data/scoutingFields'
+import { PIT_FIELDS } from '../data/pitFields'
 
 // The four ways to spend a Competition Day. The board shows one at a time:
 //
@@ -236,6 +237,32 @@ function useTeamStats(teams, since) {
   }, [rows])
 }
 
+// The latest pit visit our scouts made to each team (any day: a robot does
+// not change much between visits, and the card says when it was).
+function usePitData() {
+  const [rows, setRows] = useState([])
+  useEffect(() => {
+    let on = true
+    const load = async () => {
+      try {
+        await ensureUserToken()
+        const res = await fetch(`${supabaseUrl}/rest/v1/pit_scouting?${storedTeamScope('owner_team')}&select=*&order=created_at.desc&limit=1000`, { headers: restHeaders() })
+        if (on && res.ok) setRows(await res.json())
+      } catch { /* leave what we had */ }
+    }
+    load()
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 30000)
+    return () => { on = false; clearInterval(t) }
+  }, [])
+  return useMemo(() => {
+    const by = {}
+    rows.forEach(r => { const k = String(r.team_number || '').trim(); if (k && !by[k]) by[k] = r })
+    return by
+  }, [rows])
+}
+const pitVal = (v) => (Array.isArray(v) ? v.join(', ') : String(v ?? '').trim())
+const PIT_HEADLINE = ['drive_train', 'main_scoring', 'preferred_role', 'cycle_speed', 'reliability']
+
 // ── Drive Team ──────────────────────────────────────────────────────────────
 // Two columns. Left, the schedule with our number lit up. Right, what the drive
 // team asked for first — shooting accuracy and auto for the four teams in the
@@ -253,6 +280,7 @@ function DriveMode({ day, doc }) {
   const isOurs = (m) => teamsIn(m).some(x => x.t === team)
   const teams = useMemo(() => [...new Set(schedule.flatMap(m => SLOTS.map(([k]) => String(m[k] || '').trim())).filter(Boolean))], [schedule])
   const stats = useTeamStats(teams, daySince(day))
+  const pits = usePitData()
   // A match has started being scouted once a row is in for it — and, when its
   // teams are on the schedule, for one of those teams, so a row about another
   // event's match 4 does not count as ours.
@@ -310,6 +338,19 @@ function DriveMode({ day, doc }) {
     )
   }
   const s = pickedTeam ? stats[pickedTeam] : null
+  // Everything our pit scouts wrote about one team, with the robot photo.
+  const pitPanel = (t) => !pits[t] ? null : (
+
+                  <div className="rounded-lg bg-amber-50/80 border border-amber-100 p-2.5 text-xs text-gray-600">
+                    <p className="font-bold text-gray-800 mb-1">🔧 Pit visit{pits[t].scout_name ? <span className="font-normal text-gray-400"> · {pits[t].scout_name}</span> : null}</p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                      {PIT_FIELDS.filter(f => !['team_number', 'team_name', 'scout_name', 'photo_url'].includes(f.key) && pitVal(pits[t][f.key])).map(f => (
+                        <p key={f.key} className={f.type === 'text' ? 'col-span-2' : ''}><span className="text-gray-400">{f.label}</span> {pitVal(pits[t][f.key])}</p>
+                      ))}
+                    </div>
+                    {pits[t].photo_url && <img src={pits[t].photo_url} alt={`Team ${t} robot`} className="mt-2 rounded-lg max-h-48 object-contain" />}
+                  </div>
+                  )
 
   return (
     <div className="grid md:grid-cols-2 gap-4 items-start">
@@ -384,7 +425,7 @@ function DriveMode({ day, doc }) {
         {pickedTeam ? (
           <Card title={`Team ${pickedTeam}${pickedTeam === team ? ' (us)' : ''}`} icon={Search}
                 action={<button type="button" onClick={() => setPickedTeam(null)} className="text-xs text-purple-500 underline">back to match {chatMatch}</button>}>
-            {!s ? <Empty>Not scouted yet today.</Empty> : (
+            {!s ? (<div className="space-y-2"><Empty>No match scouting yet today.</Empty>{pitPanel(pickedTeam)}</div>) : (
               <div className="space-y-2">
                 <p className="text-sm text-gray-700"><b>🎯 {s.accuracy ?? '–'}%</b> accuracy ({s.made}/{s.shot}) · <b>🤖 auto {s.autoMade ?? '–'}</b> in of {s.autoShot ?? '–'} · leaves {s.leave ?? '–'}% · parks {s.park ?? '–'}%</p>
                 {s.autoNotes.map((n, i) => <p key={i} className="text-xs italic text-gray-500">“{n}”</p>)}
@@ -392,6 +433,7 @@ function DriveMode({ day, doc }) {
                   className="w-full flex items-center justify-center gap-1 text-xs font-semibold text-gray-500 py-1.5 rounded-lg border border-gray-200 hover:bg-white">
                   {showAll ? 'Hide' : 'See'} all scouting data ({s.n}) <ChevronDown size={13} className={showAll ? 'rotate-180' : ''} />
                 </button>
+                {showAll && pitPanel(pickedTeam)}
                 {showAll && s.rows.map((r, i) => (
                   <div key={r.id || i} className="rounded-lg bg-white/80 border border-gray-100 p-2.5 text-xs text-gray-600">
                     <p className="font-bold text-gray-800 mb-1">Match {r.match_number || '?'}{r.scout ? <span className="font-normal text-gray-400"> · {r.scout}</span> : null}</p>
@@ -410,34 +452,67 @@ function DriveMode({ day, doc }) {
         ) : focus ? (
           <Card title={`Match ${chatMatch}${focus === nextMatch ? ' · next up' : ''}`} icon={Search}
                 action={pickedMatch ? <button type="button" onClick={() => setPickedMatch(null)} className="text-xs text-purple-500 underline">back to next</button> : null}>
-            <div className="space-y-2">
-              {teamsIn(focus).map(({ t, label, color }) => {
-                const ts = stats[t]
-                return (
-                  <div key={label} className={`rounded-xl border p-2.5 ${color === 'red' ? 'border-red-200 bg-red-50/60' : 'border-blue-200 bg-blue-50/60'}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        {teamBtn(t, color)}
-                        <span className="text-[11px] text-gray-400">{label}</span>
-                      </div>
-                      <button type="button" onClick={() => pick(t)} className="text-[11px] font-semibold text-gray-500 underline">all data</button>
+            <div className="space-y-3">
+              {(() => {
+                const all = teamsIn(focus)
+                const ourColor = all.find(x => x.t === team)?.color
+                // With us in the match: our alliance first, then the opponents.
+                // Without us: the red alliance and the blue one.
+                const sections = ourColor
+                  ? [{ key: 'ally', title: '🤝 Our alliance', sub: 'with us', cls: 'border-green-300 bg-green-50/70', rows: all.filter(x => x.color === ourColor) },
+                     { key: 'opp', title: '⚔️ Opponents', sub: 'against us', cls: 'border-gray-300 bg-gray-50/80', rows: all.filter(x => x.color !== ourColor) }]
+                  : [{ key: 'red', title: 'Red alliance', cls: 'border-red-200 bg-red-50/60', rows: all.filter(x => x.color === 'red') },
+                     { key: 'blue', title: 'Blue alliance', cls: 'border-blue-200 bg-blue-50/60', rows: all.filter(x => x.color === 'blue') }]
+                return sections.map(sec => (
+                  <div key={sec.key}>
+                    <p className={`text-[11px] font-bold uppercase tracking-wide mb-1 ${sec.key === 'ally' ? 'text-green-700' : sec.key === 'opp' ? 'text-gray-600' : sec.key === 'red' ? 'text-red-600' : 'text-blue-600'}`}>{sec.title}</p>
+                    <div className="space-y-2">
+                      {sec.rows.map(({ t, label, color }) => {
+                        const ts = stats[t]
+                        const pit = pits[t]
+                        const us = t === team
+                        return (
+                          <div key={label} className={`rounded-xl border-2 p-2.5 ${sec.cls}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                {teamBtn(t, color)}
+                                <span className="text-[11px] text-gray-400">{label}</span>
+                                {sec.key === 'ally' && !us && <span className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1.5 py-0.5">PARTNER</span>}
+                                {sec.key === 'opp' && <span className="text-[10px] font-bold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">OPPONENT</span>}
+                              </div>
+                              <button type="button" onClick={() => pick(t)} className="text-[11px] font-semibold text-gray-500 underline">all data</button>
+                            </div>
+                            {ts ? (
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                <div className="rounded-lg bg-white/80 px-2 py-1.5">
+                                  <p className="text-lg font-extrabold text-gray-800 leading-tight">{ts.accuracy != null ? `${ts.accuracy}%` : '–'}</p>
+                                  <p className="text-[11px] text-gray-500">🎯 accuracy · {ts.made}/{ts.shot}</p>
+                                </div>
+                                <div className="rounded-lg bg-white/80 px-2 py-1.5">
+                                  <p className="text-lg font-extrabold text-gray-800 leading-tight">{ts.autoMade ?? '–'} <span className="text-xs font-semibold text-gray-500">in auto</span></p>
+                                  <p className="text-[11px] text-gray-500">🤖 leaves {ts.leave ?? '–'}% · parks {ts.park ?? '–'}%</p>
+                                </div>
+                                {ts.autoNotes[0] && <p className="col-span-2 text-[11px] italic text-gray-500">“{ts.autoNotes[0]}”</p>}
+                              </div>
+                            ) : <p className="text-xs text-gray-400 mt-1.5">No match scouting yet today.</p>}
+                            {/* What our pit scouts found out about the robot. */}
+                            {pit ? (
+                              <div className="mt-2 rounded-lg bg-white/80 px-2 py-1.5 text-[11px] text-gray-600 space-y-0.5">
+                                <p className="font-semibold text-gray-700">🔧 Pit <span className="font-normal text-gray-400">· {new Date(pit.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span></p>
+                                <p>{PIT_HEADLINE.map(k => { const f = PIT_FIELDS.find(x => x.key === k); const v = pitVal(pit[k]); return v ? `${f ? f.label.replace(/\?$/, '') : k}: ${v}` : null }).filter(Boolean).join(' · ') || '—'}</p>
+                                {pitVal(pit.auto_what) && <p><span className="text-gray-400">Auto:</span> {pitVal(pit.auto_what)}</p>}
+                                {pitVal(pit.strengths) && <p><span className="text-gray-400">Good at:</span> {pitVal(pit.strengths)}</p>}
+                                {pitVal(pit.weaknesses) && <p><span className="text-gray-400">Weak at:</span> {pitVal(pit.weaknesses)}</p>}
+                                {pitVal(pit.known_problems) && <p className="text-red-600"><span className="font-semibold">Problems today:</span> {pitVal(pit.known_problems)}</p>}
+                              </div>
+                            ) : <p className="text-[11px] text-gray-400 mt-1">No pit visit yet.</p>}
+                          </div>
+                        )
+                      })}
                     </div>
-                    {ts ? (
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div className="rounded-lg bg-white/80 px-2 py-1.5">
-                          <p className="text-lg font-extrabold text-gray-800 leading-tight">{ts.accuracy != null ? `${ts.accuracy}%` : '–'}</p>
-                          <p className="text-[11px] text-gray-500">🎯 accuracy · {ts.made}/{ts.shot}</p>
-                        </div>
-                        <div className="rounded-lg bg-white/80 px-2 py-1.5">
-                          <p className="text-lg font-extrabold text-gray-800 leading-tight">{ts.autoMade ?? '–'} <span className="text-xs font-semibold text-gray-500">in auto</span></p>
-                          <p className="text-[11px] text-gray-500">🤖 leaves {ts.leave ?? '–'}% · parks {ts.park ?? '–'}%</p>
-                        </div>
-                        {ts.autoNotes[0] && <p className="col-span-2 text-[11px] italic text-gray-500">“{ts.autoNotes[0]}”</p>}
-                      </div>
-                    ) : <p className="text-xs text-gray-400 mt-1.5">Not scouted yet today.</p>}
                   </div>
-                )
-              })}
+                ))
+              })()}
               {!teamsIn(focus).length && <Empty>No team numbers typed for this match yet.</Empty>}
             </div>
           </Card>
