@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 178,
     date: '2026-11-07',
     items: [
+      '\u{1F50E} Drive has All match data and All pit data buttons: every team we have scouted, RadRank-style, with a search box for team number or name. RadRank has the search box too',
       '\u{1F6A9} Report issue, top right of every Competition Day screen: describe what went wrong and it goes straight to Kayden and Yukti as a notification, with the mode and the day attached',
       '\u26A1 While a Competition Day is live, the app opens straight onto it instead of showing Home for a second first. Each phone remembers the live day for the person signed in, and lets go at once if the day has ended',
       '\u{1F4F8} Photos from Media show along the bottom of Home (and today\u2019s at the bottom of the Competition Day board). Tap one, then Save to phone to put it in your camera roll. Media\u2019s own photo grid has a Save button on each photo too. Each team only ever sees its own photos',

@@ -11,6 +11,7 @@ import { daySince } from '../lib/dayRota'
 import { SCOUTING_FIELDS } from '../data/scoutingFields'
 import { PIT_FIELDS } from '../data/pitFields'
 import { savePhoto } from '../lib/savePhoto'
+import ScoutingData from './ScoutingData'
 
 // The four ways to spend a Competition Day. The board shows one at a time:
 //
@@ -299,6 +300,8 @@ function DriveMode({ day, doc }) {
   const [pickedMatch, setPickedMatch] = useState(null)
   const [pickedTeam, setPickedTeam] = useState(null)
   const [showAll, setShowAll] = useState(false)
+  // Every team's pit or match scouting, RadRank-style, any time: 'pit' | 'match' | null
+  const [browse, setBrowse] = useState(null)
   // The schedule folds up to just the next match, so it never runs the page
   // long; open, it scrolls inside a box as tall as the right column.
   const [schedOpen, setSchedOpen] = useState(true)
@@ -453,6 +456,12 @@ function DriveMode({ day, doc }) {
         ) : focus ? (
           <Card title={`Match ${chatMatch}${focus === nextMatch ? ' · next up' : ''}`} icon={Search}
                 action={pickedMatch ? <button type="button" onClick={() => setPickedMatch(null)} className="text-xs text-purple-500 underline">back to next</button> : null}>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button type="button" onClick={() => setBrowse('match')}
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold"><Search size={15} /> All match data</button>
+              <button type="button" onClick={() => setBrowse('pit')}
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"><Wrench size={15} /> All pit data</button>
+            </div>
             <div className="space-y-3">
               {(() => {
                 const all = teamsIn(focus)
@@ -532,6 +541,11 @@ function DriveMode({ day, doc }) {
         })()}
         <ToScoutsComposer day={day} />
       </div>
+      {browse && (
+        <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: 'linear-gradient(135deg,#fdf6e3,#fdeef4)' }}>
+          <ScoutingData only={browse} onClose={() => setBrowse(null)} />
+        </div>
+      )}
     </div>
   )
 }

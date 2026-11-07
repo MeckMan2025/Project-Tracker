@@ -322,7 +322,9 @@ function PitPanel({ visits }) {
   )
 }
 
-function ScoutingData() {
+// only: 'pit' or 'match' shows just that half of each team (Drive opens it that
+// way); onClose turns it into a full-screen view with a way back.
+function ScoutingData({ only = null, onClose = null } = {}) {
   const { username } = useUser()
   const { canDeleteScouting: canDelete, canViewScoutingData, isGuest, hasLeadTag: leadTag, isCofounder, myTeamNumber, canManageOwnTeam } = usePermissions()
   // A team account's own login runs its list too (the database already lets it).
@@ -339,6 +341,7 @@ function ScoutingData() {
   // Where a team is from and which league it plays in, from the team list.
   const [stateFilter, setStateFilter] = useState('')
   const [leagueFilter, setLeagueFilter] = useState('')
+  const [search, setSearch] = useState('')
 
   // Teams on any Competition Day's match schedule or pit list. A team we are
   // going to scout belongs on this page before the first row comes in, and
@@ -642,10 +645,12 @@ function ScoutingData() {
     const others = all.filter(t => !consideredNumbers.includes(t.number))
       .sort((a, b) => ((a.rank || 999) - (b.rank || 999)) || byScouting(a, b))
 
+    const q = search.trim().toLowerCase()
     const where = (t) => (!stateFilter || t.state === stateFilter)
       && (!leagueFilter || (leagueFilter === '-' ? !t.league : t.league === leagueFilter))
+      && (!q || String(t.number).includes(q) || String(t.name || '').toLowerCase().includes(q))
     return { consideredTeams: considered.filter(where), otherTeams: others.filter(where) }
-  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam, stateFilter, leagueFilter])
+  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam, stateFilter, leagueFilter, search])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
@@ -768,10 +773,10 @@ function ScoutingData() {
     {addTeamModal}
     <div className="flex-1 flex flex-col min-w-0">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-4 ml-14 flex items-center justify-between">
+        <div className={`px-4 py-4 ${onClose ? '' : 'ml-14'} flex items-center justify-between gap-3 flex-wrap`}>
           <div>
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-pastel-blue-dark via-pastel-pink-dark to-pastel-orange-dark bg-clip-text text-transparent">
-              Scouting Data
+              {only === 'pit' ? 'All pit data' : only === 'match' ? 'All match data' : 'Scouting Data'}
             </h1>
             <p className="text-sm text-gray-500">
               {consideredTeams.length + otherTeams.length} teams &middot; {filteredRecords.length} scouting response{filteredRecords.length !== 1 ? 's' : ''}
@@ -779,6 +784,11 @@ function ScoutingData() {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap justify-end">
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search team # or name"
+              className="text-xs bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-pastel-pink" />
+            {onClose && (
+              <button type="button" onClick={onClose} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 text-white hover:bg-gray-700">Close</button>
+            )}
             {(() => {
               const states = [...new Set(TEAM_LIST.map(t => t.state).filter(Boolean))].sort()
               const leagues = [...new Set(TEAM_LIST.map(t => t.league).filter(Boolean))].sort()
@@ -836,11 +846,11 @@ function ScoutingData() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 pl-14 md:pl-4 overflow-y-auto">
+      <main className={`flex-1 p-4 ${onClose ? '' : 'pl-14'} md:pl-4 overflow-y-auto`}>
         <div className="max-w-3xl mx-auto space-y-5 pb-8">
 
           {/* Scouting Accountability Grid */}
-          <ScoutingAccountability />
+          {!only && <ScoutingAccountability />}
 
           {/* Teams Being Considered */}
           <div className="border-b-2 border-pastel-pink pb-2 mb-1">
@@ -911,6 +921,7 @@ function ScoutingData() {
               </div>
 
               <div className="p-5 space-y-5">
+                {only !== 'pit' && (<>
                 {/* The headline numbers, straight from what the scouting form
                     asks: ranking points ticked, pieces made in auto and teleop,
                     and whether they do an endgame. Nothing here comes from a
@@ -941,17 +952,18 @@ function ScoutingData() {
                 </div>
 
                 <ScoutPanel t={t} />
+                </>)}
 
-                <PitPanel visits={pitByTeam[t.number] || []} />
+                {only !== 'match' && <PitPanel visits={pitByTeam[t.number] || []} />}
 
                 {/* Responses Toggle */}
-                <button
+                {only !== 'pit' && <button
                   onClick={() => toggleExpand(t.number)}
                   className="flex items-center gap-1.5 text-xs font-medium text-pastel-pink-dark hover:text-gray-700 transition-colors px-3 py-1.5 bg-gray-50 rounded-lg"
                 >
                   {expandedTeams[t.number] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   {expandedTeams[t.number] ? 'Hide' : 'View'} Scouting Responses ({t.scoutCount})
-                </button>
+                </button>}
 
                 {expandedTeams[t.number] && (
                   <div className="space-y-2">
@@ -1038,6 +1050,7 @@ function ScoutingData() {
               </div>
 
               <div className="p-5 space-y-5">
+                {only !== 'pit' && (<>
                 {/* The headline numbers, straight from what the scouting form
                     asks: ranking points ticked, pieces made in auto and teleop,
                     and whether they do an endgame. Nothing here comes from a
@@ -1068,17 +1081,18 @@ function ScoutingData() {
                 </div>
 
                 <ScoutPanel t={t} />
+                </>)}
 
-                <PitPanel visits={pitByTeam[t.number] || []} />
+                {only !== 'match' && <PitPanel visits={pitByTeam[t.number] || []} />}
 
                 {/* Responses Toggle */}
-                <button
+                {only !== 'pit' && <button
                   onClick={() => toggleExpand(t.number)}
                   className="flex items-center gap-1.5 text-xs font-medium text-pastel-pink-dark hover:text-gray-700 transition-colors px-3 py-1.5 bg-gray-50 rounded-lg"
                 >
                   {expandedTeams[t.number] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   {expandedTeams[t.number] ? 'Hide' : 'View'} Scouting Responses ({t.scoutCount})
-                </button>
+                </button>}
 
                 {expandedTeams[t.number] && (
                   <div className="space-y-2">
