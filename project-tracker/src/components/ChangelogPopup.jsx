@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 177,
     date: '2026-11-06',
     items: [
+      '\u{1F3B2} Pit scouting deals itself out: once team numbers are on the match schedule, each new team goes to a random pit scout, keeping everyone even. Randomize again re-deals them all',
       '\u2B50 The match schedule no longer asks We are: type the team numbers and a match with ours in it is marked as ours on its own',
       '\u{1F4E3} The drive team can tell the scouts things: Tell the scouts in Drive sends a message that shows at the top of every scout\u2019s board, newest first',
       '\u{1F4C5} Drive\u2019s match schedule folds up like a dropdown and, open, is exactly as tall as the stats and chat beside it, scrolling inside with arrows at the top and bottom once there is more that way. It opens at the next match',

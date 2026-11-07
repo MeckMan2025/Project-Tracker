@@ -250,6 +250,39 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
   }
   const csv = (arr) => (arr || []).join(', ')
 
+  // Pit visits deal themselves out. A team on the match schedule that is not a
+  // pit visit yet goes to a random scout among those with the fewest, so the
+  // load stays even but nobody can pick their teams. It waits until typing
+  // stops, so a half-typed number is never dealt, and pitSeen remembers every
+  // team ever dealt, so one a lead removed stays removed.
+  const dealPits = (p, teams) => {
+    const load = {}
+    pitPool.forEach(n => { load[n] = 0 })
+    ;(p.pitTeams || []).forEach(t => { if (t.who in load && String(t.team || '').trim()) load[t.who]++ })
+    return shuffle(teams).map(team => {
+      const min = Math.min(...pitPool.map(n => load[n]))
+      const who = shuffle(pitPool.filter(n => load[n] === min))[0] || ''
+      if (who) load[who]++
+      return { id: uid(), team, who }
+    })
+  }
+  const scheduleKey = [...new Set((data?.matchSchedule || [])
+    .flatMap(m => ['red1', 'red2', 'blue1', 'blue2'].map(k => String(m[k] || '').trim()))
+    .filter(t => /^\d{2,6}$/.test(t)))].sort().join(',')
+  const unseenTeams = (p) => {
+    const seen = new Set([...(p?.pitSeen || []), ...(p?.pitTeams || []).map(x => String(x.team || '').trim())])
+    return scheduleKey ? scheduleKey.split(',').filter(t => !seen.has(t)) : []
+  }
+  useEffect(() => {
+    if (!isLead || !pitPool.length || !data || !unseenTeams(data).length) return
+    const t = setTimeout(() => update(p => {
+      const fresh = unseenTeams(p)
+      if (!fresh.length) return p
+      return { ...p, pitTeams: [...(p.pitTeams || []), ...dealPits(p, fresh)], pitSeen: [...new Set([...(p.pitSeen || []), ...fresh])] }
+    }), 2500)
+    return () => clearTimeout(t)
+  }, [scheduleKey, pitPool.join('|'), isLead, !!data]) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   if (!data) {
     return <div className="flex-1 flex items-center justify-center min-w-0"><p className="text-gray-400">Loading schedule…</p></div>
@@ -605,13 +638,8 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                         if (t && !have.has(t)) { have.add(t); fresh.push(t) }
                       }))
                       const kept = (p.pitTeams || []).filter(t => String(t.team || '').trim())
-                      const load = {}; kept.forEach(t => { if (t.who) load[t.who] = (load[t.who] || 0) + 1 })
-                      const rows = fresh.map(team => {
-                        const who = pitPool.length ? pitPool.slice().sort((a, b) => (load[a] || 0) - (load[b] || 0))[0] : ''
-                        if (who) load[who] = (load[who] || 0) + 1
-                        return { id: uid(), team, who }
-                      })
-                      return { ...p, pitTeams: [...kept, ...rows] }
+                      const rows = pitPool.length ? dealPits({ ...p, pitTeams: kept }, fresh) : fresh.map(team => ({ id: uid(), team, who: '' }))
+                      return { ...p, pitTeams: [...kept, ...rows], pitSeen: [...new Set([...(p.pitSeen || []), ...fresh])] }
                     })}
                     title="Every team on the match schedule that is not listed yet, shared out so each scout has about two"
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700"
@@ -619,12 +647,18 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                     <ClipboardList size={14} /> Fill from the match schedule
                   </button>
                   <button
-                    onClick={() => update(p => { let k = 0; const rows = (p.pitTeams || []).filter(t => String(t.team || '').trim()); return { ...p, pitTeams: rows.map(t => ({ ...t, who: pitPool[k++ % pitPool.length] })) } })}
+                    onClick={() => update(p => {
+                      // Every pit visit dealt again at random, still evenly.
+                      const rows = shuffle((p.pitTeams || []).filter(t => String(t.team || '').trim()))
+                      const order = shuffle(pitPool)
+                      let k = 0
+                      return { ...p, pitTeams: rows.map(t => ({ ...t, who: order[k++ % order.length] })) }
+                    })}
                     disabled={!pitPool.length || !(data.pitTeams || []).some(t => String(t.team || '').trim())}
-                    title={pitPool.length ? 'Deal the pits out evenly, in turn, to the scouts' : 'Put people on the Scouting role first'}
+                    title={pitPool.length ? 'Deal every pit visit again at random, evenly across the scouts' : 'Put people on the Scouting role first'}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-yellow hover:bg-pastel-yellow-dark text-gray-800 disabled:bg-gray-100 disabled:text-gray-400"
                   >
-                    <Shuffle size={14} /> Share out evenly
+                    <Shuffle size={14} /> Randomize again
                   </button>
                 </div>
               )}
