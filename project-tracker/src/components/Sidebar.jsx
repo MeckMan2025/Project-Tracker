@@ -471,6 +471,17 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                 <Calendar size={16} className="text-pastel-pink-dark" />
                 <span className="truncate flex-1">Calendar</span>
               </div>
+              {!isGuest && (
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    activeTab === 'team-chat' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                  }`}
+                  onClick={() => { onTabChange('team-chat'); onToggle() }}
+                >
+                  <MessageCircle size={16} className="text-pastel-blue-dark" />
+                  <span className="truncate flex-1">Team Chat</span>
+                </div>
+              )}
 
               <hr className="my-2 border-gray-200" />
             </>
@@ -489,6 +500,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
               >
                 <BookOpen size={16} className="text-pastel-orange-dark" />
                 <span className="truncate flex-1">Engineering Notebook</span>
+              </div>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  activeTab === 'scouting' || activeTab === 'pit-scouting' ? 'bg-pastel-pink text-gray-800' : 'hover:bg-pastel-blue/30 text-gray-600'
+                }`}
+                onClick={() => { onTabChange('scouting'); onToggle() }}
+              >
+                <ClipboardList size={16} className="text-pastel-orange-dark" />
+                <span className="truncate flex-1">Scouting</span>
               </div>
               <hr className="my-2 border-gray-200" />
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600">
@@ -515,15 +535,15 @@ function Sidebar({ tabs, activeTab, onTabChange, onAddTab, isOpen, onToggle, isP
                   <ChevronRight size={14} className={activeTab === 'attendance' ? 'rotate-90' : ''} />
                   <span className="truncate">Attendance</span>
                 </div>
-                {['RadRank'].map(name => (
-                  <div key={name} className="px-3 py-1.5 rounded-lg text-sm text-gray-400 cursor-default" title="Coming soon">
-                    <div className="flex items-center gap-2">
-                      <ChevronRight size={14} />
-                      <span className="truncate">{name}</span>
-                    </div>
-                    <p className="ml-6 text-[11px] italic text-gray-400">Coming soon</p>
-                  </div>
-                ))}
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors text-sm ${
+                    activeTab === 'data' ? 'bg-pastel-blue/40 text-gray-800' : 'hover:bg-pastel-blue/20 text-gray-500'
+                  }`}
+                  onClick={() => { onTabChange('data'); onToggle() }}
+                >
+                  <ChevronRight size={14} className={activeTab === 'data' ? 'rotate-90' : ''} />
+                  <span className="truncate">RadRank</span>
+                </div>
               </div>
               <hr className="my-2 border-gray-200" />
             </>

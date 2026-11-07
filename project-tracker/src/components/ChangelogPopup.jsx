@@ -8,6 +8,8 @@ const CHANGELOG = [
     id: 177,
     date: '2026-11-06',
     items: [
+      '\u{1F4AC} Team Chat: talk to other teams on ETS, as your team. A message carries only team numbers, never a person\u2019s name, and only the two teams in a chat can read it. The alliance chat in Drive speaks as the team too',
+      '\u{1F50D} Team accounts have Scouting (match and pit) and RadRank, read only from their own scouting. Pit scouting is now kept to each team, like everything else',
       '\u{1F4D3} On a team account, How your team uses ETS sits behind a notebook icon next to the bell instead of in the middle of Home',
       '\u{1F3B2} Pit scouting deals itself out: once team numbers are on the match schedule, each new team goes to a random pit scout, keeping everyone even. Randomize again re-deals them all',
       '\u2B50 The match schedule no longer asks We are: type the team numbers and a match with ours in it is marked as ours on its own',

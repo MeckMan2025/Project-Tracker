@@ -277,7 +277,7 @@ function useScouted(since) {
           await ensureUserToken()
           const [m, p] = await Promise.all([
             fetch(`${supabaseUrl}/rest/v1/match_scouting?${storedTeamScope('owner_team')}${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}&select=team_number,match_number,scout`, { headers: restHeaders() }),
-            fetch(`${supabaseUrl}/rest/v1/pit_scouting?select=team_number,scout_name${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}`, { headers: restHeaders() }),
+            fetch(`${supabaseUrl}/rest/v1/pit_scouting?${storedTeamScope('owner_team')}&select=team_number,scout_name${since ? `&created_at=gte.${encodeURIComponent(since)}` : ''}`, { headers: restHeaders() }),
           ])
           const mr = m.ok ? await m.json() : []
           const pr = p.ok ? await p.json() : []

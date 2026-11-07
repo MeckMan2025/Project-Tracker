@@ -393,7 +393,7 @@ function ScoutingData() {
     const load = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/pit_scouting?select=*&order=created_at.desc`,
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/pit_scouting?${teamScope(myTeamNumber, 'owner_team')}&select=*&order=created_at.desc`,
           { headers: restHeaders() }
         )
         if (!res.ok) return

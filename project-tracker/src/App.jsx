@@ -70,6 +70,7 @@ import NotificationNudge from './components/NotificationNudge'
 import RestrictedAccess from './components/RestrictedAccess'
 import WorkingOnIt from './components/WorkingOnIt'
 import TeamGrowthView from './components/TeamGrowthView'
+import TeamChat from './components/TeamChat'
 import LogsView from './components/LogsView'
 import AbsenceNotice from './components/AbsenceNotice'
 import AIManual from './components/AIManual'
@@ -1897,6 +1898,8 @@ function App() {
         <SettingsView />
       ) : activeTab === 'data' ? (
         <ScoutingData />
+      ) : activeTab === 'team-chat' ? (
+        <TeamChat />
       ) : activeTab === 'team-growth' ? (
         <TeamGrowthView />
       ) : activeTab === 'role-spec' && import.meta.env.DEV ? (

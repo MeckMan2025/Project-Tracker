@@ -75,6 +75,28 @@ export const TEAM_TABS = [
     description: 'Your outreach, your expenses and your mentor log. Only your team sees them.',
   },
   {
+    id: 'team-chat',
+    name: 'Team Chat',
+    icon: 'MessageCircle',
+    description: 'Talk to other teams on ETS, as your team. Messages carry your team number, never a person\'s name.',
+    how: ['Type a team number and tap Chat to start a conversation.', 'Only your two teams can read it. You can unsend your team\'s messages.'],
+  },
+  {
+    id: 'scouting',
+    also: ['pit-scouting'],
+    name: 'Scouting',
+    icon: 'ClipboardList',
+    description: 'Match and pit scouting forms for your team. Everything you scout is yours alone.',
+    how: ['Pick the match and team, then fill in auto, teleop and endgame as the match goes.', 'No signal? Tap Draft form and send it later.'],
+  },
+  {
+    id: 'data',
+    name: 'RadRank',
+    icon: 'LineChart',
+    description: 'Every team you have scouted, ranked from your own scouting.',
+    how: ['Fills in from your match scouting.', 'Tap a team to see every match your scouts wrote up.'],
+  },
+  {
     id: 'user-management',
     how: ['Your coach adds each member and mentor with their email.', 'They sign in with their own account and land in your team, nobody else\'s.'],
     name: 'User Management',

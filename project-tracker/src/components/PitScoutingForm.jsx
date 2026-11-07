@@ -61,7 +61,7 @@ export default function PitScoutingForm({ onDone, liveDay = null }) {
   const [rows, setRows] = useState([])
   const [unavailable, setUnavailable] = useState(false)
 
-  const SCOPE = teamScope(myTeamNumber)
+  const SCOPE = teamScope(myTeamNumber, 'owner_team')
 
   // What has already been scouted, so the form can say so rather than letting
   // two people write the same team up twice without noticing.

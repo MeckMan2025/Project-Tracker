@@ -453,7 +453,6 @@ function DriveMode({ day, doc }) {
 // partner who isn't on ETS can't see it yet, and the card says so.
 const localYmd = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
 function AllianceChat({ match, us, partner }) {
-  const { username } = useUser()
   const [msgs, setMsgs] = useState([])
   const [state, setState] = useState('loading') // loading | ok | missing
   const [onEts, setOnEts] = useState(null)
@@ -493,13 +492,13 @@ function AllianceChat({ match, us, partner }) {
     setText('')
     await fetch(`${supabaseUrl}/rest/v1/alliance_chat`, {
       method: 'POST', headers: restHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-      body: JSON.stringify({ event_date: localYmd(), match: String(match), team_a: pair[0], team_b: pair[1], from_team: String(us), author: username || '', body }),
+      body: JSON.stringify({ event_date: localYmd(), match: String(match), team_a: pair[0], team_b: pair[1], from_team: String(us), author: '', body }),
     }).catch(() => {})
     load()
   }
   return (
     <Card title={`Talk strategy with your alliance partner · match ${match}`} icon={MessageCircle}>
-      <p className="text-xs text-gray-500 -mt-1 mb-2">With <b>team {partner}</b>. Only your two teams can see this.</p>
+      <p className="text-xs text-gray-500 -mt-1 mb-2">With <b>team {partner}</b>. You speak as Team {us}; only your two teams can see this.</p>
       {onEts === false && (
         <p className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-2 py-1 mb-2">Team {partner} isn't on ETS, so they can't see this yet. Only your team will.</p>
       )}
@@ -510,7 +509,7 @@ function AllianceChat({ match, us, partner }) {
               const ours = String(n.from_team) === String(us)
               return (
                 <div key={n.id} className={`text-sm rounded-lg px-2.5 py-1.5 ${ours ? 'bg-purple-50 ml-6' : 'bg-white/80 mr-6 border border-gray-100'}`}>
-                  <span className="font-semibold text-gray-700">{n.author || 'someone'} <span className="text-[10px] font-bold text-gray-400">· {n.from_team}</span>:</span> {n.body}
+                  <span className="font-semibold text-gray-700">Team {n.from_team}:</span> {n.body}
                   <span className="text-[10px] text-gray-400 ml-1">{new Date(n.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                 </div>
               )
