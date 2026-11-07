@@ -8,6 +8,7 @@ const CHANGELOG = [
     id: 177,
     date: '2026-11-06',
     items: [
+      '\u{1F552} Scouting groups can be scheduled: each group takes turns with the others (as before), covers every match, works a shift (match X to match Y, with start and end times), or covers specific matches like 1-5, 9. The setup warns about matches nobody covers or two groups both cover, and the board follows it',
       '\u{1F4E3} The drive team can tell the scouts things: Tell the scouts in Drive sends a message that shows at the top of every scout\u2019s board, newest first',
       '\u{1F4C5} Drive\u2019s match schedule folds up like a dropdown and, open, is exactly as tall as the stats and chat beside it, scrolling inside with arrows at the top and bottom once there is more that way. It opens at the next match',
       '\u{1F91D} Drive\u2019s chat is for strategy with your alliance partner: a chat per match that only your two teams can see, never the opponents. If the partner isn\u2019t on ETS it says so',

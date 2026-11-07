@@ -8,6 +8,7 @@ import { useUser } from '../contexts/UserContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { Check, ChevronLeft, ClipboardList, Pause, Pencil, Plus, Shuffle, Star, Target, Tent, Trash2, Wrench } from 'lucide-react'
 import { ALL_TEAMS } from '../data/teams'
+import { COVER_MODES, coverOf, coverLabel, groupsByMatch } from '../lib/dayRota'
 import { SCOUTING_ROLE, PIT_ROLE } from '../lib/dayRota'
 import { HOME_TEAM_NUMBER } from '../data/team'
 
@@ -399,9 +400,56 @@ export default function ScoutingDaySetup({ scheduleId, dateTitle, dateSubtitle, 
                       <Slot options={scoutPool} label="Blue 1" tint="blue" value={g.blue1} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue1: v }; return { ...p, scoutGroups: s } })} />
                       <Slot options={scoutPool} label="Blue 2" tint="blue" value={g.blue2} isLead={isLead} onChange={v => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], blue2: v }; return { ...p, scoutGroups: s } })} />
                     </div>
+                    {/* Which matches this group covers, and when. */}
+                    <div className="mt-2.5 pt-2 border-t border-gray-100 space-y-1.5">
+                      {(() => {
+                        const c = coverOf(g)
+                        const setCover = (patch) => update(p => { const s = [...p.scoutGroups]; s[i] = { ...s[i], cover: { ...coverOf(s[i]), ...patch } }; return { ...p, scoutGroups: s } })
+                        const field = 'text-xs border-b border-gray-200 focus:border-pastel-blue focus:outline-none py-0.5 bg-transparent'
+                        if (!isLead) return <p className="text-xs text-gray-500"><span className="font-semibold text-gray-600">Covers:</span> {coverLabel(g, data)}</p>
+                        return (
+                          <>
+                            <label className="flex items-center gap-2 text-xs">
+                              <span className="font-semibold text-gray-500 shrink-0">Covers</span>
+                              <select value={c.mode} onChange={e => setCover({ mode: e.target.value })} className={`${field} flex-1 min-w-0 text-gray-700`}>
+                                {COVER_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                              </select>
+                            </label>
+                            {c.mode === 'shift' && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                Match <input inputMode="numeric" value={c.from ?? ''} onChange={e => setCover({ from: e.target.value.replace(/\D/g, '') })} placeholder="1" className={`${field} w-10 text-center`} />
+                                to <input inputMode="numeric" value={c.to ?? ''} onChange={e => setCover({ to: e.target.value.replace(/\D/g, '') })} placeholder="end" className={`${field} w-10 text-center`} />
+                              </div>
+                            )}
+                            {c.mode === 'list' && (
+                              <input value={c.list ?? ''} onChange={e => setCover({ list: e.target.value })} placeholder="e.g. 1-5, 9, 12" className={`${field} w-full`} />
+                            )}
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                              When <input type="time" value={c.start ?? ''} onChange={e => setCover({ start: e.target.value })} className={`${field} w-[5.5rem]`} />
+                              – <input type="time" value={c.end ?? ''} onChange={e => setCover({ end: e.target.value })} className={`${field} w-[5.5rem]`} />
+                              <span className="text-[10px] text-gray-400">optional</span>
+                            </div>
+                            <p className="text-[11px] text-gray-400">{coverLabel(g, data)}</p>
+                          </>
+                        )
+                      })()}
+                    </div>
                   </div>
                 ))}
               </div>
+              {(() => {
+                // Matches nobody is scouting, and matches two groups both have.
+                const by = groupsByMatch(data)
+                const none = [...by.entries()].filter(([, gs]) => !gs.length).map(([m]) => m)
+                const both = [...by.entries()].filter(([, gs]) => gs.length > 1).map(([m, gs]) => `${m} (${gs.map(x => x.name).join(' + ')})`)
+                if (!none.length && !both.length) return null
+                return (
+                  <div className="text-xs rounded-lg border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2 space-y-0.5">
+                    {none.length > 0 && <p><b>Nobody covers</b> match{none.length === 1 ? '' : 'es'} {none.join(', ')}.</p>}
+                    {both.length > 0 && <p><b>Two groups both cover</b> {both.join(', ')}.</p>}
+                  </div>
+                )
+              })()}
               {isLead && (
                 <button onClick={() => update(p => ({ ...p, scoutGroups: [...p.scoutGroups, { id: uid(), name: `Group ${p.scoutGroups.length + 1}`, head: '', red1: '', red2: '', blue1: '', blue2: '' }] }))} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-pastel-pink hover:bg-pastel-pink-dark text-gray-700"><Plus size={14} /> Add Group</button>
               )}
