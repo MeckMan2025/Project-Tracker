@@ -649,8 +649,10 @@ function ScoutingData({ only = null, onClose = null } = {}) {
     const where = (t) => (!stateFilter || t.state === stateFilter)
       && (!leagueFilter || (leagueFilter === '-' ? !t.league : t.league === leagueFilter))
       && (!q || String(t.number).includes(q) || String(t.name || '').toLowerCase().includes(q))
+      // The pit view lists only the teams our pit scouts actually visited.
+      && (only !== 'pit' || (pitByTeam[t.number] || []).length > 0)
     return { consideredTeams: considered.filter(where), otherTeams: others.filter(where) }
-  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam, stateFilter, leagueFilter, search])
+  }, [filteredRecords, consideredList, consideredNumbers, selectedDate, dayTeams, pitByTeam, stateFilter, leagueFilter, search, only])
 
   const toggleExpand = (key) => {
     setExpandedTeams(prev => ({ ...prev, [key]: !prev[key] }))
